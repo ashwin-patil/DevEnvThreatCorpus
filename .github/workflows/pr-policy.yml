@@ -1,0 +1,157 @@
+name: PR Policy
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - ready_for_review
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: PR Policy
+    if: github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the exact trusted base revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Capture live PR snapshot before evaluation
+        id: before
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const {owner, repo} = context.repo;
+            const number = context.issue.number;
+            async function snapshot() {
+              const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+              const declaration = (pr.body || '').match(/<!-- pr-policy:begin -->\s*```json\s*([\s\S]*?)```/);
+              if (!declaration) {
+                throw new Error('PR body is missing the machine-readable acceptance audit.');
+              }
+              const audit = JSON.parse(declaration[1]);
+              if (!Number.isInteger(audit.originating_issue) || audit.originating_issue <= 0) {
+                throw new Error('Acceptance audit must identify one originating issue.');
+              }
+              const {data: issue} = await github.rest.issues.get({
+                owner, repo, issue_number: audit.originating_issue
+              });
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner, repo, pull_number: number, per_page: 100
+              });
+              if (files.length >= 3000) {
+                throw new Error('PR file list reached the API 3000-file cap; refusing a truncated policy evaluation.');
+              }
+              const result = {
+                number: pr.number,
+                state: pr.state,
+                draft: pr.draft,
+                body: pr.body || '',
+                base_sha: pr.base.sha,
+                base_ref: pr.base.ref,
+                head_sha: pr.head.sha,
+                originating_issue: {
+                  number: issue.number,
+                  state: issue.state,
+                  title: issue.title,
+                  body: issue.body || '',
+                  is_pull_request: Boolean(issue.pull_request)
+                },
+                files_complete: true,
+                files: files.map(f => ({
+                  path: f.filename,
+                  status: f.status,
+                  previous_path: f.previous_filename || null
+                })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+              };
+              if (pr.base.sha !== context.payload.pull_request.base.sha ||
+                  pr.head.sha !== context.payload.pull_request.head.sha) {
+                throw new Error('Live PR revision differs from event snapshot; rejecting stale event.');
+              }
+              return result;
+            }
+            const before = await snapshot();
+            const payload = {
+              snapshot_before: before,
+              snapshot_after: before
+            };
+            fs.writeFileSync(process.env.RUNNER_TEMP + '/pr-policy.json', JSON.stringify(payload));
+            core.setOutput('base_sha', before.base_sha);
+      - name: Evaluate trusted-base metadata and file declarations
+        run: python scripts/pr_policy.py --input "$RUNNER_TEMP/pr-policy.json"
+      - name: Capture and compare live PR snapshot after evaluation
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const file = process.env.RUNNER_TEMP + '/pr-policy.json';
+            const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const {owner, repo} = context.repo;
+            const number = context.issue.number;
+            const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            const declaration = (pr.body || '').match(/<!-- pr-policy:begin -->\s*```json\s*([\s\S]*?)```/);
+            if (!declaration) {
+              throw new Error('PR body is missing the machine-readable acceptance audit.');
+            }
+            const audit = JSON.parse(declaration[1]);
+            if (!Number.isInteger(audit.originating_issue) || audit.originating_issue <= 0) {
+              throw new Error('Acceptance audit must identify one originating issue.');
+            }
+            const {data: issue} = await github.rest.issues.get({
+              owner, repo, issue_number: audit.originating_issue
+            });
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: number, per_page: 100
+            });
+            if (files.length >= 3000) {
+              throw new Error('PR file list reached the API 3000-file cap; refusing a truncated policy evaluation.');
+            }
+            const after = {
+              number: pr.number,
+              state: pr.state,
+              draft: pr.draft,
+              body: pr.body || '',
+              base_sha: pr.base.sha,
+              base_ref: pr.base.ref,
+              head_sha: pr.head.sha,
+              originating_issue: {
+                number: issue.number,
+                state: issue.state,
+                title: issue.title,
+                body: issue.body || '',
+                is_pull_request: Boolean(issue.pull_request)
+              },
+              files_complete: true,
+              files: files.map(f => ({
+                path: f.filename,
+                status: f.status,
+                previous_path: f.previous_filename || null
+              })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+            };
+            if (pr.base.sha !== context.payload.pull_request.base.sha ||
+                pr.head.sha !== context.payload.pull_request.head.sha) {
+              throw new Error('Live PR revision differs from event snapshot; rejecting stale event.');
+            }
+            payload.snapshot_after = after;
+            fs.writeFileSync(file, JSON.stringify(payload));
+      - name: Enforce stable snapshot policy
+        run: python scripts/pr_policy.py --input "$RUNNER_TEMP/pr-policy.json"

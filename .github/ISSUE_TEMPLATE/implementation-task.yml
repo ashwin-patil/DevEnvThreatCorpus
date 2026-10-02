@@ -1,0 +1,64 @@
+name: Implementation task
+description: Define one bounded, verifiable implementation task from a reviewed PRD.
+title: "[Task] "
+labels:
+  - implementation
+body:
+  - type: markdown
+    attributes:
+      value: "One task issue is the origin for one implementation session and PR. Keep stable AC-01-style IDs when revising criteria."
+  - type: input
+    id: parent-prd
+    attributes:
+      label: Parent PRD issue
+      description: Link the human-reviewed PRD issue.
+      placeholder: "#123"
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List prerequisite issues or write "None".
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: State the bounded changes this task authorizes.
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Exclusions
+      description: State nearby work that is explicitly not authorized.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Stable acceptance criteria
+      description: "Use one stable ID per criterion (AC-01, AC-02, ...). Each must state an observable outcome and a verification method. Identify automated versus human-reviewed criteria."
+      placeholder: |
+        - AC-01 — Outcome: ...
+          Verification: command/check/link or named human review ...
+          Evidence: changed file(s) and durable result ...
+    validations:
+      required: true
+  - type: textarea
+    id: model-preference
+    attributes:
+      label: Optional model preference
+      description: "Advisory only. The person launching the task must explicitly select a supported model at the chosen entrypoint; record requested and effective model and report unsupported choices."
+      placeholder: "No preference (Auto)"
+    validations:
+      required: false
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of done
+      description: "Include exact verification expectations, required documentation/changelog updates, evidence freshness, limitations, and independent human review."
+    validations:
+      required: true

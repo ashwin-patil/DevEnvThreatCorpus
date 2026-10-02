@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "model_preference": {
+    "value": null,
+    "status": "advisory"
+  },
+  "project_commands": [],
+  "paths": {
+    "learning_index": "docs/learnings/README.md",
+    "documentation": [
+      "README.md",
+      "AGENTS.md",
+      "docs/**"
+    ],
+    "tests": [
+      "tests/**"
+    ],
+    "changelog": [
+      "CHANGELOG.md"
+    ],
+    "learnings": [
+      "docs/learnings/**"
+    ],
+    "governance": [
+      ".github/**",
+      ".gitignore",
+      "scripts/**",
+      "schemas/**",
+      "project.config.json",
+      "requirements-governance.txt"
+    ]
+  },
+  "recovery": {
+    "manual_repair_attempts_before_escalation": 2,
+    "guidance": "Make corrections on the same PR; do not reassign the originating issue. Escalate infrastructure failures or repeated non-progress to a human."
+  }
+}

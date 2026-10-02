@@ -1,0 +1,58 @@
+name: Product requirement (PRD)
+description: Propose a product problem and measurable outcomes for human review.
+title: "[PRD] "
+labels:
+  - prd
+body:
+  - type: markdown
+    attributes:
+      value: "A PRD may span multiple implementation task issues. A human must review product intent before implementation."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem exists and what evidence shows it matters?
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Users and stakeholders
+      description: Who experiences the problem or is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: goals
+    attributes:
+      label: Goals and success measures
+      description: State measurable outcomes, baselines where available, and how success will be observed.
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: Explicitly list what this PRD does not authorize.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Technical, operational, compatibility, privacy, accessibility, or schedule constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and mitigations
+      description: Identify material risks, assumptions, and mitigations.
+    validations:
+      required: true
+  - type: textarea
+    id: success-measures
+    attributes:
+      label: Success measures
+      description: Define observable measures, data source, and a target or decision rule.
+    validations:
+      required: true

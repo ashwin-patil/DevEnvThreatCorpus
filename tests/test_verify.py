@@ -1,0 +1,179 @@
+from __future__ import annotations
+
+import copy
+import io
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+from scripts.verify import (
+    CONFIG_PATH,
+    ROOT,
+    SCHEMA_PATH,
+    VerificationError,
+    _unique_object,
+    load_json,
+    run_project_commands,
+    validate_config,
+    validate_schema_contract,
+    validate_yaml_tree,
+    verification_mode_message,
+)
+
+
+class ConfigValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.config = copy.deepcopy(load_json(CONFIG_PATH))
+        self.schema = load_json(SCHEMA_PATH)
+
+    def test_default_config_and_schema_are_valid(self) -> None:
+        validate_config(self.config, self.schema)
+        validate_schema_contract(self.schema)
+
+    def test_missing_extra_and_duplicate_fields_fail(self) -> None:
+        broken = copy.deepcopy(self.config)
+        del broken["recovery"]
+        with self.assertRaisesRegex(VerificationError, "keys must be exactly"):
+            validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["unexpected"] = True
+        with self.assertRaisesRegex(VerificationError, "keys must be exactly"):
+            validate_config(broken)
+        with self.assertRaisesRegex(VerificationError, "duplicate JSON object key"):
+            json.loads('{"schema_version":1,"schema_version":1}', object_pairs_hook=_unique_object)
+
+    def test_advisory_model_contract_and_commands_are_explicit(self) -> None:
+        broken = copy.deepcopy(self.config)
+        broken["model_preference"]["status"] = "enforced"
+        with self.assertRaisesRegex(VerificationError, "must be advisory"):
+            validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["project_commands"] = ["pytest"]
+        with self.assertRaisesRegex(VerificationError, "argument array"):
+            validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["project_commands"] = [["python", "scripts/verify.py"]]
+        with self.assertRaisesRegex(VerificationError, "recursively"):
+            validate_config(broken)
+        broken["project_commands"] = [["bash", "-c", "pytest"]]
+        with self.assertRaisesRegex(VerificationError, "shell text"):
+            validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["paths"]["learning_index"] = "../outside/README.md"
+        with self.assertRaisesRegex(VerificationError, "learning_index"):
+            validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["project_commands"] = [["", "pytest"]]
+        with self.assertRaisesRegex(VerificationError, "non-empty"):
+            validate_config(broken)
+
+    def test_unsafe_duplicate_and_conflicting_paths_fail(self) -> None:
+        for unsafe in ("../outside", "/root", "docs/../../outside", "docs/*"):
+            broken = copy.deepcopy(self.config)
+            broken["paths"]["documentation"] = [unsafe]
+            with self.subTest(unsafe=unsafe), self.assertRaisesRegex(VerificationError, "unsafe path"):
+                validate_config(broken)
+
+        broken = copy.deepcopy(self.config)
+        broken["paths"]["documentation"] = ["docs/**", "docs/**"]
+        with self.assertRaisesRegex(VerificationError, "duplicate path"):
+            validate_config(broken)
+
+        broken = copy.deepcopy(self.config)
+        broken["paths"]["governance"].append("docs/**")
+        with self.assertRaisesRegex(VerificationError, "conflicting path pattern"):
+            validate_config(broken)
+
+    def test_recovery_bounds_and_schema_drift_fail(self) -> None:
+        broken = copy.deepcopy(self.config)
+        broken["recovery"]["manual_repair_attempts_before_escalation"] = -1
+        with self.assertRaisesRegex(VerificationError, "integer from 0 through 10"):
+            validate_config(broken)
+        schema = copy.deepcopy(self.schema)
+        schema["additionalProperties"] = True
+        with self.assertRaisesRegex(VerificationError, "reject unknown"):
+            validate_schema_contract(schema)
+        schema = copy.deepcopy(self.schema)
+        schema["properties"]["model_preference"]["properties"]["status"]["const"] = "enforced"
+        with self.assertRaisesRegex(VerificationError, "keep model preference advisory"):
+            validate_schema_contract(schema)
+
+    def test_yaml_syntax_errors_are_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bad_workflow = root / ".github/workflows/bad.yml"
+            bad_workflow.parent.mkdir(parents=True)
+            bad_workflow.write_text("jobs: [unterminated\n", encoding="utf-8")
+            with self.assertRaisesRegex(VerificationError, "invalid YAML"):
+                validate_yaml_tree(root)
+
+
+class CommandExecutionTests(unittest.TestCase):
+    def test_commands_run_from_repo_root_without_shell(self) -> None:
+        config = copy.deepcopy(load_json(CONFIG_PATH))
+        config["project_commands"] = [[sys.executable, "-c", "print('ok')"]]
+        runner = Mock(
+            return_value=subprocess.CompletedProcess(
+                args=config["project_commands"][0], returncode=0, stdout="ok\n"
+            )
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "TEST_SECRET": "not-forwarded",
+                "TEST_API_KEY": "not-forwarded",
+                "AWS_ACCESS_KEY_ID": "not-forwarded",
+                "SERVICE_AUTH": "not-forwarded",
+                "DATABASE_URL": "not-forwarded",
+            },
+        ):
+            with redirect_stdout(io.StringIO()):
+                failures = run_project_commands(config, ROOT, runner=runner)
+        self.assertEqual(failures, [])
+        args, kwargs = runner.call_args
+        self.assertEqual(args[0], config["project_commands"][0])
+        self.assertEqual(kwargs["cwd"], ROOT)
+        self.assertFalse(kwargs["shell"])
+        self.assertEqual(kwargs["timeout"], 900)
+        self.assertEqual(kwargs["env"]["AI_NATIVE_VERIFY_COMMAND_ACTIVE"], "1")
+        self.assertNotIn("TEST_SECRET", kwargs["env"])
+        for sensitive_name in ("TEST_API_KEY", "AWS_ACCESS_KEY_ID", "SERVICE_AUTH", "DATABASE_URL"):
+            self.assertNotIn(sensitive_name, kwargs["env"])
+
+    def test_scaffold_only_mode_never_claims_application_tests_passed(self) -> None:
+        config = copy.deepcopy(load_json(CONFIG_PATH))
+        message = verification_mode_message(config)
+        self.assertEqual(
+            message,
+            "SCAFFOLD-ONLY: no project commands configured; application tests were not run.",
+        )
+        self.assertNotIn("application tests passed", message.lower())
+        config["project_commands"] = [["pytest"]]
+        self.assertTrue(verification_mode_message(config).startswith("APPLICATION-VERIFICATION:"))
+
+    def test_real_failing_command_propagates_exit_status(self) -> None:
+        config = copy.deepcopy(load_json(CONFIG_PATH))
+        config["project_commands"] = [[sys.executable, "-c", "raise SystemExit(23)"]]
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()):
+            failures = run_project_commands(config, Path(directory))
+        self.assertEqual(failures, ["project command 1 exited with status 23"])
+
+    def test_command_working_directory_is_the_project_root(self) -> None:
+        config = copy.deepcopy(load_json(CONFIG_PATH))
+        config["project_commands"] = [[sys.executable, "-c", "import os; print(os.getcwd())"]]
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                failures = run_project_commands(config, Path(directory))
+        self.assertEqual(failures, [])
+        self.assertIn(str(Path(directory)), output.getvalue())
+
+
+if __name__ == "__main__":
+    unittest.main()

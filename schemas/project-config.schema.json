@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ai-native-project-template:project-config:1",
+  "title": "AI-native project scaffold configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "model_preference",
+    "project_commands",
+    "paths",
+    "recovery"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "model_preference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "status"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "status": {
+          "const": "advisory"
+        }
+      }
+    },
+    "project_commands": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "documentation",
+        "tests",
+        "changelog",
+        "learnings",
+        "governance",
+        "learning_index"
+      ],
+      "properties": {
+        "documentation": {
+          "$ref": "#/$defs/pathPatterns"
+        },
+        "tests": {
+          "$ref": "#/$defs/pathPatterns"
+        },
+        "changelog": {
+          "$ref": "#/$defs/pathPatterns"
+        },
+        "learnings": {
+          "$ref": "#/$defs/pathPatterns"
+        },
+        "governance": {
+          "$ref": "#/$defs/pathPatterns"
+        },
+        "learning_index": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\*?\\[\\]]+$"
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manual_repair_attempts_before_escalation",
+        "guidance"
+      ],
+      "properties": {
+        "manual_repair_attempts_before_escalation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "guidance": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "pathPatterns": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
