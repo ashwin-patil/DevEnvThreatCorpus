@@ -294,9 +294,11 @@ def validate_scaffold(config: dict[str, Any]) -> None:
 
     pr_template = (ROOT / ".github/PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8")
     for token in ("originating implementation issue", "changed file(s)", "tested full commit SHA",
-                  "human review", "proposed_squash_message", "pr-policy:begin", "pr-policy:end"):
+                  "human review", "closing reference"):
         if token.lower() not in pr_template.lower():
             raise VerificationError(f"pull request template is missing contract: {token}")
+    if "pr-policy:begin" in pr_template or "pr-policy:end" in pr_template:
+        raise VerificationError("pull request template must not require a machine-readable evidence block")
 
     verify_workflow = (ROOT / ".github/workflows/verify.yml").read_text(encoding="utf-8")
     for token in ("pull_request:", "push:", "default_branch", "contents: read",
@@ -306,12 +308,15 @@ def validate_scaffold(config: dict[str, Any]) -> None:
     policy_workflow = (ROOT / ".github/workflows/pr-policy.yml").read_text(encoding="utf-8")
     for token in ("pull_request_target:", "pull-requests: read", "issues: read", "contents: read",
                   "pull_request.base.sha", "persist-credentials: false",
-                  "github.paginate", "3000-file cap", "snapshot_before", "snapshot_after",
+                  "github.paginate", "3000-file cap", "closingIssuesReferences",
+                  "snapshot_before", "snapshot_after",
                   "scripts/pr_policy.py"):
         if token not in policy_workflow:
             raise VerificationError(f"PR Policy workflow is missing trusted-base contract: {token}")
     if "pull_request.head.sha }}" in policy_workflow or "ref: ${{ github.event.pull_request.head" in policy_workflow:
         raise VerificationError("PR Policy must not check out the untrusted PR head")
+    if "pr.body" in policy_workflow:
+        raise VerificationError("PR Policy must not require PR-body evidence")
     setup_workflow = (ROOT / ".github/workflows/copilot-setup-steps.yml").read_text(encoding="utf-8")
     if "scripts/verify.py" in setup_workflow:
         raise VerificationError("Copilot setup must not execute configured project commands")

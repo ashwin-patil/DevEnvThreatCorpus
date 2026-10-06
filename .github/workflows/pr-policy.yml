@@ -44,17 +44,21 @@ jobs:
             const number = context.issue.number;
             async function snapshot() {
               const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
-              const declaration = (pr.body || '').match(/<!-- pr-policy:begin -->\s*```json\s*([\s\S]*?)```/);
-              if (!declaration) {
-                throw new Error('PR body is missing the machine-readable acceptance audit.');
+              const linked = await github.graphql(`
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) {
+                      closingIssuesReferences(first: 2) {
+                        nodes { number state body }
+                        pageInfo { hasNextPage }
+                      }
+                    }
+                  }
+                }`, {owner, repo, number});
+              const issues = linked.repository.pullRequest.closingIssuesReferences;
+              if (issues.nodes.length !== 1 || issues.pageInfo.hasNextPage) {
+                throw new Error('PR must link exactly one originating issue with a closing reference.');
               }
-              const audit = JSON.parse(declaration[1]);
-              if (!Number.isInteger(audit.originating_issue) || audit.originating_issue <= 0) {
-                throw new Error('Acceptance audit must identify one originating issue.');
-              }
-              const {data: issue} = await github.rest.issues.get({
-                owner, repo, issue_number: audit.originating_issue
-              });
               const files = await github.paginate(github.rest.pulls.listFiles, {
                 owner, repo, pull_number: number, per_page: 100
               });
@@ -64,18 +68,10 @@ jobs:
               const result = {
                 number: pr.number,
                 state: pr.state,
-                draft: pr.draft,
-                body: pr.body || '',
                 base_sha: pr.base.sha,
                 base_ref: pr.base.ref,
                 head_sha: pr.head.sha,
-                originating_issue: {
-                  number: issue.number,
-                  state: issue.state,
-                  title: issue.title,
-                  body: issue.body || '',
-                  is_pull_request: Boolean(issue.pull_request)
-                },
+                originating_issue: issues.nodes[0],
                 files_complete: true,
                 files: files.map(f => ({
                   path: f.filename,
@@ -95,7 +91,6 @@ jobs:
               snapshot_after: before
             };
             fs.writeFileSync(process.env.RUNNER_TEMP + '/pr-policy.json', JSON.stringify(payload));
-            core.setOutput('base_sha', before.base_sha);
       - name: Evaluate trusted-base metadata and file declarations
         run: python scripts/pr_policy.py --input "$RUNNER_TEMP/pr-policy.json"
       - name: Capture and compare live PR snapshot after evaluation
@@ -108,17 +103,21 @@ jobs:
             const {owner, repo} = context.repo;
             const number = context.issue.number;
             const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
-            const declaration = (pr.body || '').match(/<!-- pr-policy:begin -->\s*```json\s*([\s\S]*?)```/);
-            if (!declaration) {
-              throw new Error('PR body is missing the machine-readable acceptance audit.');
+            const linked = await github.graphql(`
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    closingIssuesReferences(first: 2) {
+                      nodes { number state body }
+                      pageInfo { hasNextPage }
+                    }
+                  }
+                }
+              }`, {owner, repo, number});
+            const issues = linked.repository.pullRequest.closingIssuesReferences;
+            if (issues.nodes.length !== 1 || issues.pageInfo.hasNextPage) {
+              throw new Error('PR must link exactly one originating issue with a closing reference.');
             }
-            const audit = JSON.parse(declaration[1]);
-            if (!Number.isInteger(audit.originating_issue) || audit.originating_issue <= 0) {
-              throw new Error('Acceptance audit must identify one originating issue.');
-            }
-            const {data: issue} = await github.rest.issues.get({
-              owner, repo, issue_number: audit.originating_issue
-            });
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner, repo, pull_number: number, per_page: 100
             });
@@ -128,18 +127,10 @@ jobs:
             const after = {
               number: pr.number,
               state: pr.state,
-              draft: pr.draft,
-              body: pr.body || '',
               base_sha: pr.base.sha,
               base_ref: pr.base.ref,
               head_sha: pr.head.sha,
-              originating_issue: {
-                number: issue.number,
-                state: issue.state,
-                title: issue.title,
-                body: issue.body || '',
-                is_pull_request: Boolean(issue.pull_request)
-              },
+              originating_issue: issues.nodes[0],
               files_complete: true,
               files: files.map(f => ({
                 path: f.filename,

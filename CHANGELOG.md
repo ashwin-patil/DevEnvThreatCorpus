@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-06
+
+- Replace PR-body verification declarations with linked-issue and changed-file metadata checks; rely on the separate required `Verify` check for executed evidence and human review for acceptance.
+
 ## 2026-10-02
 
 - Add the human-supervised, language-neutral GitHub project scaffold, issue forms, acceptance-audit PR template, configuration contract, and lifecycle guidance.
