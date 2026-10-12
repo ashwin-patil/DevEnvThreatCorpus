@@ -2,6 +2,7 @@
 
 ## 2026-10-12
 
+- Issue #18: map the client-side workbench UI tree (`src/**`) and preview dev server (`scripts/server.mjs`) in `project.config.json` under `paths.application` and `paths.readme_triggers` to authorize upcoming research workbench surfaces before implementation, satisfying trusted-base PR Policy bootstrapping requirements for Issue #16. Update setup documentation and root README accordingly.
 - Issue #14: map `scripts/extract.mjs` in `project.config.json` under `paths.application` and `paths.readme_triggers` to authorize the upcoming manual extraction entrypoint before implementation, satisfying trusted-base PR Policy bootstrapping requirements for Issue #12. Update setup documentation and root README accordingly.
 - Issue #12: add offline researcher-template claim extraction against validated 0.3.0 sources, retained revisions, and existing cases. Verify revision hashes and exact Unicode code-point passage slices; preserve explicit case/source links, inference rationale/support, and reciprocal conflicts. Private atomic persistence, idempotent success manifests, pending-only claims, negative fixtures, configured CLI tests, README/architecture usage, and AC/FND evidence mapping document the limits. No model, network, case creation/merge, acceptance, review, or contradiction resolution is introduced.
 - Increase configured verification command and hosted Verify job limits to 30 minutes, with regression checks and setup guidance updated.
