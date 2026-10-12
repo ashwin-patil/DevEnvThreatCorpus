@@ -148,6 +148,7 @@ class CommandExecutionTests(unittest.TestCase):
 
     def test_scaffold_only_mode_never_claims_application_tests_passed(self) -> None:
         config = copy.deepcopy(load_json(CONFIG_PATH))
+        config["project_commands"] = []
         message = verification_mode_message(config)
         self.assertEqual(
             message,
