@@ -11,16 +11,21 @@ The PR policy reads GitHub's linked-issue and complete changed-file metadata: it
 Originating issue: [#1](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/1).
 Governing requirements: `handoff/SHARED-CONTRACT.md` and
 `handoff/ISSUE-001-FOUNDATION-CONTRACT.md`, version 1.1. This implements
-FND-01, FND-04, the FND-06/07 conventions, and only the data-contract portions
-of FND-11/13/14/15/16/17. It does not establish completion of foundation.
+FND-01 as re-scoped by the current clean-start decision, FND-04, the FND-06/07
+conventions, and only the data-contract portions of FND-11/13/14/15/16/17. It
+does not establish completion of foundation.
 
 ### Decisions and boundaries
 
-- Identity is typed: `(entity type, id)`. The frozen seed legitimately uses
-  `nx` for both a source and a case; preserving published IDs precludes imposing
-  global uniqueness across those types. Duplicate IDs within a type are invalid;
-  passage identity is anchored to its revision. No automatic case attribution
-  or merging follows from a shared source or behavior.
+- New 0.3.0 records start from newly supplied inputs. No 0.2.0 claims or records
+  are imported or migrated. The frozen handoff reference remains unchanged and
+  is used only as historical design material, not as test input or corpus seed.
+  This current Issue #1 decision supersedes the migration proposal in the
+  preserved handoff reference documents; those files are not modified here.
+- Identity is typed: `(entity type, id)`. IDs may match across different entity
+  types, but duplicates within a type are invalid. Passage identity is anchored
+  to its revision. No automatic case attribution or merging follows from a
+  shared source or behavior.
 - Missing values use field-specific `nullReasons`: `unknown`, `not_reported`,
   and `not_applicable` are different states. Known values cannot carry a null
   reason. Publication metadata does not establish an execution date.
@@ -28,15 +33,10 @@ of FND-11/13/14/15/16/17. It does not establish completion of foundation.
   zero-based and end-exclusive. Retained-content absence requires an explicit
   attested locator and revision hash; an attestation record is not proof of a
   reviewer's identity or research truth.
-- Missing legacy passages are migration gaps. Imported claims retain their
-  original status and origin but are pending, including any legacy approval.
-  Intent remains intent; package scanning is not inferred agent access;
-  Gambit remains a composite. Optional enrichment is preserved, not newly
-  generated or approved.
 - The 0.3.0 schema explicitly introduces `Human authored`,
   `Human source paraphrase`, and `Human inference` origins for manual collection.
-  These do not relabel migrated LLM records; reviewer acceptance never changes
-  authorship. Synthetic fixtures are labeled as such, not incident evidence.
+  Reviewer acceptance never changes authorship. Synthetic fixtures are
+  labeled as such, not incident evidence.
 - Controlled tool/platform/tag aliases are unique arrays of nonempty strings.
   Malformed alias maps fail structural validation rather than permitting
   substring matches or throwing during category membership checks.
@@ -44,15 +44,9 @@ of FND-11/13/14/15/16/17. It does not establish completion of foundation.
   not authenticated authorization. Actual reviewer authentication, append-only
   storage enforcement, review operations, and release eligibility workflows
   require later issues and independent human approval.
-- The frozen reference must remain byte-for-byte unchanged. The migration's
-  new baseline digest is expected because entity contracts change; it is not
-  evidence of historical source content.
-  The inherited `handoff/REFERENCE-MANIFEST.json` already disagrees with 14
-  supplied files (13 library JSON files and the reference README).
-  `tests/fixtures/migration/reference-baseline.json` records their actual
-  hashes against the advertised manifest; tests pin these discrepancies and
-  reject new drift.
-  Neither the frozen files nor their manifest is repaired in this issue.
+- The frozen reference and its manifest remain historical reference material;
+  they are not read by the 0.3.0 contract tests and are not migrated or repaired
+  by this issue.
 - Repository policy takes precedence over the handoff's proposed layout.
   Hosted PR Policy uses the trusted **base** configuration; changing head
   mappings cannot authorize new surfaces for this PR. Types therefore live
@@ -65,12 +59,8 @@ of FND-11/13/14/15/16/17. It does not establish completion of foundation.
   enrichment references; `schemas/contract.d.ts`: corresponding TypeScript types.
 - `scripts/contract.mjs`: offline structural and relationship validation,
   text normalization, canonical serialization, identity and hash primitives.
-- `scripts/migrate-contract.mjs`: explicit frozen-seed migration, not intake.
 - `tests/fixtures/benign/core-only.json` and `tests/fixtures/benign/negative.json`:
   visibly synthetic positive and negative contract inputs.
-- `tests/fixtures/migration/before-0.2.0.json`, `after-0.3.0.json`, and `report.json`:
-  durable before/after inputs and missing-grounding audit.
-  `reference-baseline.json` records inherited manifest discrepancies.
 - `tests/contract.test.mjs`: executable Issue #1 acceptance gates.
   `project.config.json` configures this offline contract suite;
   `python scripts/verify.py` runs it alongside scaffold verification.
@@ -89,9 +79,10 @@ must not include its own field. Retrieval and review times describe recorded
 events and must not change on rebuild.
 
 New IDs use the full SHA-256 of namespace plus canonical identity, not random
-values, wall-clock times, or model-generated text alone. Existing IDs are
-preserved. A duplicate/collision fails validation; resolution requires an
-explicit recorded identity discriminator, never silently replacing an ID.
+values, wall-clock times, or model-generated text alone. IDs stay stable across
+rebuilds of the same inputs. A duplicate/collision fails validation; resolution
+requires an explicit recorded identity discriminator, never silently replacing
+an ID.
 URL identity rule `https-tracking/1` rejects non-HTTPS and embedded credentials,
 removes fragments and known `utm_*`, `fbclid`, and `gclid` tracking keys, and
 retains other query parameters. Similar URLs never establish shared attribution.
@@ -115,8 +106,8 @@ checks are separate evidence and may still require approval to run.
 | AC-05 | Null states remain distinct; positive AI roles overlap; attacker-side AI is not a trust surface | Core/negative fixtures; `AC-05` null, source-scoped AI, and controlled-category tests |
 | AC-06 | Publication/execution types and day/month/year/range/unknown precision remain distinct, without invented days | Core/negative fixtures; `AC-06` calendar and supported-timeline tests |
 | AC-07 | Contradictory claims survive separately with explicit links | Core fixture; `AC-07 conflicting claims` round-trip test |
-| AC-08 | Frozen seed migration retains IDs, origin/status audit, optional modules and GC-05 semantics, with no accepted claims | `scripts/migrate-contract.mjs`; before/after/report migration fixtures; `AC-08` migration, GC-05, pending approval, review-integrity, and optional-reference tests |
-| AC-09 | Repeat serialization and migration yield identical bytes offline; frozen files do not drift from the supplied baseline | `AC-09` serialization, durable-fixture reproduction, schema/type alignment, and frozen-manifest tests; `reference-baseline.json` pins inherited discrepancies |
+| AC-08 | Fresh 0.3.0 records validate without imported 0.2.0 claims or migration metadata; legacy-only fields are rejected; acceptance requires a current human review bound to content and dependencies | Synthetic core fixture; `AC-08 fresh 0.3.0 records`, current-review, append-only-review, and dependent-acceptance tests; schema and type declarations |
+| AC-09 | Repeated serialization is deterministic and the focused contract suite runs offline without migration inputs | `AC-09` serialization, schema/type alignment, and configured-command tests |
 
 ### Commands and evidence limits
 
@@ -127,15 +118,11 @@ node --test tests/contract.test.mjs
 python scripts/verify.py
 ```
 
-The tests execute deterministic migration in memory and compare the committed
-before/after/report bytes. To deliberately refresh those fixtures, run
-`node scripts/migrate-contract.mjs --write-fixtures` (also available as
-`npm --prefix scripts run migrate:fixture`). This is an offline fixture
-operation, not a source fetcher; ordinary verification does not rewrite inputs.
 There is no configured lint or production build command in this issue.
 Configured project verification runs the contract suite, not a complete
-intake/extraction/review application. After any new commit, rerun verification
-and record the new SHA in the PR rather than reusing the earlier result.
+intake/extraction/review application. The frozen 0.2.0 handoff is not loaded by
+the suite. After any new commit, rerun verification and record the new SHA in
+the PR rather than reusing the earlier result.
 
 ### Model and review record
 

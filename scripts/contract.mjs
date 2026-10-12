@@ -132,7 +132,6 @@ function dateErrors(date, path, errors) {
 }
 
 function nullErrors(entity, path, errors) {
-  // Each nested object owns reasons for its own fields; legacy snapshots are audit data.
   if (!entity || typeof entity !== 'object') return;
   if (Array.isArray(entity)) return entity.forEach((item, i) => nullErrors(item, `${path}[${i}]`, errors));
   if (Object.hasOwn(entity, 'nullReasons')) {
@@ -145,7 +144,7 @@ function nullErrors(entity, path, errors) {
     }
   }
   for (const [key, value] of Object.entries(entity)) {
-    if (!['legacy', 'governance', 'nullReasons', 'sample', 'otelReference'].includes(key)) nullErrors(value, `${path}.${key}`, errors);
+    if (!['governance', 'nullReasons', 'sample', 'otelReference'].includes(key)) nullErrors(value, `${path}.${key}`, errors);
   }
 }
 
@@ -273,9 +272,7 @@ export function validateCorpus(corpus) {
     }
     if (revision.rawContent !== null && revision.normalizedContent !== null && normalizeText(revision.rawContent) !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch');
     if (revision.normalizedContent !== null && normalizeText(revision.normalizedContent) !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'retained normalized content is not normalized');
-    if (revision.retention === 'legacy-missing') {
-      if (!corpus.migration || revision.provenance.kind !== 'legacy-reference' || revision.rawContent !== null || revision.normalizedContent !== null) fail('sourceRevisions', revision.id, 'legacy-missing is migration-only without retained content');
-    } else if (!revision.rawHash || !revision.normalizedHash) fail('sourceRevisions', revision.id, 'nonlegacy revision requires raw and normalized hashes');
+    if (!revision.rawHash || !revision.normalizedHash) fail('sourceRevisions', revision.id, 'revision requires raw and normalized hashes');
     if (revision.retention === 'not-retained' && (revision.rawContent !== null || revision.normalizedContent !== null)) fail('sourceRevisions', revision.id, 'not-retained revision contains content');
   }
   for (const passage of corpus.passages) {
@@ -291,8 +288,6 @@ export function validateCorpus(corpus) {
       if (passage.text !== null && [...passage.text].length !== passage.end - passage.start) fail('passages', passage.id, 'attested text length disagrees with code-point offsets');
     }
   }
-  const exceptions = corpus.migration?.pendingPassageExceptions ?? [];
-  refs('claims', exceptions, 'migration', 'pendingPassageExceptions');
   for (const caseRecord of corpus.cases) {
     refs('sources', caseRecord.sourceIds, 'cases', caseRecord.id);
     caseClaims(caseRecord.summaryClaimIds, caseRecord.id, 'cases', caseRecord.id);
@@ -312,11 +307,7 @@ export function validateCorpus(corpus) {
       const passage = ref('passages', passageId, 'claims', claim.id);
       if (passage && passage.sourceRevisionId !== claim.sourceRevisionId) fail('claims', claim.id, 'wrong-revision passage');
     }
-    const exception = claim.migrationGap && exceptions.includes(claim.id) && claim.legacy &&
-      claim.disposition === 'Pending' && caseRecord?.collectionState === 'Extracted — review pending' &&
-      revision?.retention === 'legacy-missing' && !claim.passageIds.length && !claim.inference;
-    if (claim.migrationGap && !exception) fail('claims', claim.id, 'invalid migration pending passage exception');
-    if (!claim.passageIds.length && !claim.inference && !exception) fail('claims', claim.id, 'missing passage or explicit inference basis');
+    if (!claim.passageIds.length && !claim.inference) fail('claims', claim.id, 'missing passage or explicit inference basis');
     if (claim.evidenceStatus === 'Researcher inference') {
       if (!claim.inference) fail('claims', claim.id, 'researcher inference requires rationale and supporting claims');
     } else if (claim.inference) fail('claims', claim.id, 'inference basis requires Researcher inference classification');
@@ -396,7 +387,6 @@ export function validateCorpus(corpus) {
         } catch (error) { fail(type, entity.id, error.message); }
         const supports = type === 'claims' ? entity.inference?.supportingClaimIds ?? [] : entity.supportingClaimIds ?? entity.summaryClaimIds ?? [];
         if (supports.some(id => index.claims.get(id)?.disposition !== 'Accepted')) fail(type, entity.id, 'accepted entity requires accepted supporting claims');
-        if (type === 'claims' && entity.migrationGap) fail(type, entity.id, 'missing legacy passage can never be accepted');
       }
     }
   }

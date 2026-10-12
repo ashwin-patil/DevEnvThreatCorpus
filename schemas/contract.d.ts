@@ -15,18 +15,18 @@ export type Delivery = 'recruiter lure' | 'repository content' | 'package instal
 export type Objective = 'credential theft' | 'data theft' | 'persistence' | 'execution' | 'lateral movement' | 'disruption' | 'other/unknown';
 export type EvidenceToSeek = 'native agent records' | 'endpoint telemetry' | 'package provenance' | 'repository/CI records' | 'identity/cloud logs' | 'network records';
 export interface DateValue { precision: Precision; value: string | null; start: string | null; end: string | null; nullReasons: NullReasons }
-export interface Provenance { kind: 'supplied-text' | 'supplied-url' | 'legacy-reference'; suppliedBy: string | null; description: string; nullReasons: NullReasons }
+export interface Provenance { kind: 'supplied-text' | 'supplied-url'; suppliedBy: string | null; description: string; nullReasons: NullReasons }
 export interface Source {
   id: ID; originalUrl: string | null; canonicalUrl: string | null; title: string | null; publisher: string | null; author: string | null;
   publicationDate: DateValue; updateDate: DateValue; retrievalDate: DateValue;
-  inputKind: 'url' | 'supplied-text' | 'text-file' | 'legacy-reference'; provenance: Provenance; revisionIds: ID[];
+  inputKind: 'url' | 'supplied-text' | 'text-file'; provenance: Provenance; revisionIds: ID[];
   extractionStatus: 'Not started' | 'Pending' | 'Extracted' | 'Failed' | 'Unavailable'; collectionState: CollectionState;
-  nullReasons: NullReasons; legacy?: Record<string, unknown>;
+  nullReasons: NullReasons;
 }
 export interface SourceRevision {
   id: ID; sourceId: ID; rawHash: SHA256 | null; normalizedHash: SHA256 | null; normalizationVersion: string; parserVersion: string;
   provenance: Provenance; rawContent: string | null; normalizedContent: string | null;
-  retention: 'private' | 'permitted-public' | 'not-retained' | 'legacy-missing'; nullReasons: NullReasons; legacy?: Record<string, unknown>;
+  retention: 'private' | 'permitted-public' | 'not-retained'; nullReasons: NullReasons;
 }
 export interface Attestation { reviewer: string; reviewerKind: 'human'; timestamp: string; revisionHash: SHA256; rationale: string }
 export interface Passage { id: ID; sourceRevisionId: ID; text: string | null; locator: string; start: number; end: number; attestation: Attestation | null; nullReasons: NullReasons }
@@ -34,13 +34,12 @@ export interface Reviewable { id: ID; origin: Origin; disposition: Disposition; 
 export interface Case extends Reviewable {
   name: string; aliases: string[]; kind: 'Campaign' | 'Incident' | 'Research exercise' | 'Comparator' | 'Composite playbook' | 'Other';
   summary: string | null; summaryClaimIds: ID[]; sourceIds: ID[]; collectionState: CollectionState; limits: string | null;
-  pathIds?: ID[]; legacy?: Record<string, unknown>;
+  pathIds?: ID[];
 }
 export interface Inference { rationale: string; supportingClaimIds: ID[] }
 export interface Claim extends Reviewable {
   caseId: ID; sourceId: ID; sourceRevisionId: ID; description: string; passageIds: ID[]; inference: Inference | null;
   evidenceStatus: EvidenceStatus; conflictsWith: ID[]; uncertainty: string | null; observationContext: string | null;
-  migrationGap?: { reason: 'legacy passage not retained'; originalLocator: string | null }; legacy?: Record<string, unknown>;
 }
 export type CategoryDimension = 'trust_surface' | 'ai_involvement' | 'execution_location' | 'delivery' | 'objective' | 'evidence_to_seek' | 'tool' | 'platform' | 'tag';
 export interface Categorization extends Reviewable {
@@ -56,12 +55,9 @@ export interface ReviewEvent {
   timestamp: string; disposition: Disposition; rationale: string; contentHash: SHA256; dependencyHashes: Record<string, SHA256>;
 }
 export interface CollectionManifest {
-  id: ID; kind: 'manual-collection' | 'extraction' | 'migration'; inputSourceIds: ID[]; inputRevisionIds: ID[];
+  id: ID; kind: 'manual-collection' | 'extraction'; inputSourceIds: ID[]; inputRevisionIds: ID[];
   outcome: 'Pending' | 'Succeeded' | 'Partial' | 'Failed'; provenance: Provenance; toolVersion: string;
   inputHash: SHA256 | null; outputHash: SHA256 | null; limitations: string[]; nullReasons: NullReasons;
-}
-export interface Migration {
-  fromVersion: '0.2.0'; toolVersion: 'foundation-migration/1'; inputHash: SHA256; pendingPassageExceptions: ID[];
 }
 export interface Node {
   id: ID; title: string; detail: string; claimIds: ID[]; behaviorIds: ID[]; evidenceStatus: EvidenceStatus; origin: Origin; disposition: Disposition;
@@ -107,7 +103,7 @@ export interface Governance {
 export interface Corpus {
   schemaVersion: '0.3.0'; name: string; sources: Source[]; sourceRevisions: SourceRevision[]; passages: Passage[]; cases: Case[]; claims: Claim[];
   categorizations: Categorization[]; timelines: Timeline[]; reviews: ReviewEvent[]; collectionManifests: CollectionManifest[];
-  governance: Governance; migration?: Migration; legacy?: Record<string, unknown>;
+  governance: Governance;
   paths?: Path[]; behaviors?: Behavior[]; frameworks?: Technique[]; mappings?: Mapping[]; telemetry?: SecurityTelemetry[];
   detections?: Detection[]; otel?: OtelAction[]; otelReference?: Record<string, unknown>;
 }

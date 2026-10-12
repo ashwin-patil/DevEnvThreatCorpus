@@ -1,6 +1,7 @@
 # Documentation
 
 - [Phased product implementation handoff](../handoff/00-START-HERE.md)
+- [Fresh-start corpus architecture](architecture.md)
 - [Setup and configuration](setup-and-configuration.md)
 - [Lifecycle](lifecycle.md)
 - [Acceptance audit](acceptance-audit.md)

@@ -5,12 +5,49 @@ import {
   assertValid, validateCorpus, validateShape, canonicalSerialize, canonicalUrl, digest, sha256, schema,
   normalizeText, stableId, entityContentHash, dependencyHashes, reviewBaseDigest, currentReview, assertAppendOnlyReviews,
 } from '../scripts/contract.mjs';
-import { migrateLegacy, dateValue } from '../scripts/migrate-contract.mjs';
 
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const fixture = () => read('./fixtures/benign/core-only.json');
-const frozen = () => read('../handoff/reference/corpus.json');
-const migrated = () => read('./fixtures/migration/after-0.3.0.json');
+const dateValue = value => value === null
+  ? { precision: 'unknown', value: null, start: null, end: null, nullReasons: { value: 'not_reported', start: 'not_applicable', end: 'not_applicable' } }
+  : { precision: { 4: 'year', 7: 'month', 10: 'day' }[value.length], value, start: null, end: null, nullReasons: { start: 'not_applicable', end: 'not_applicable' } };
+function enrichmentFixture() {
+  const corpus = fixture();
+  corpus.cases[0].pathIds = ['synthetic-path'];
+  corpus.paths = [{
+    id: 'synthetic-path', caseId: 'synthetic-case-a', scope: 'representative', origin: 'Human authored', disposition: 'Pending',
+    nodes: [
+      {
+        id: 'synthetic-node', title: 'Synthetic action', detail: 'Synthetic optional enrichment.',
+        claimIds: ['synthetic-claim-a'], behaviorIds: ['synthetic-behavior'],
+        evidenceStatus: 'Source-reported observation', origin: 'Human authored', disposition: 'Pending',
+      },
+      {
+        id: 'synthetic-node-b', title: 'Second synthetic action', detail: 'Synthetic node order is meaningful.',
+        claimIds: ['synthetic-claim-b'], behaviorIds: ['synthetic-behavior'],
+        evidenceStatus: 'Unclear or disputed', origin: 'Human authored', disposition: 'Pending',
+      },
+    ],
+    edges: [],
+  }];
+  corpus.behaviors = [{
+    id: 'synthetic-behavior', namespace: 'synthetic', name: 'Synthetic action', boundary: 'Synthetic boundary',
+    description: 'Synthetic optional behavior.', signalIds: [], detectionIds: [], otelIds: [],
+    origin: 'Human authored', disposition: 'Pending',
+  }];
+  corpus.frameworks = [{
+    id: 'synthetic-technique', name: 'Synthetic technique', framework: 'ATT&CK', version: 'test',
+    sourceId: 'synthetic-source-a', url: 'https://example.invalid/technique',
+  }];
+  corpus.mappings = [{
+    id: 'synthetic-mapping', caseId: 'synthetic-case-a', behaviorId: 'synthetic-behavior',
+    framework: 'ATT&CK', version: 'test', techniqueId: 'synthetic-technique',
+    pathId: 'synthetic-path', nodeId: 'synthetic-node', claimIds: ['synthetic-claim-a'],
+    rationale: 'Synthetic mapping rationale.', applicability: 'Synthetic fixture only.',
+    origin: 'Human authored', mappingStatus: 'Proposed', disposition: 'Pending',
+  }];
+  return corpus;
+}
 function fails(corpus, pattern) {
   const errors = validateCorpus(corpus);
   assert.ok(errors.some(error => error.includes(pattern)), `expected ${pattern}; got ${errors.join('\n')}`);
@@ -73,8 +110,9 @@ test('AC-04 duplicate IDs and globally duplicated optional node IDs fail clearly
   const corpus = fixture();
   corpus.claims.push(structuredClone(corpus.claims[0]));
   fails(corpus, 'duplicate ID');
-  const optional = migrated();
-  optional.paths[1].nodes[0].id = optional.paths[0].nodes[0].id;
+  const optional = enrichmentFixture();
+  optional.paths[0].nodes.push(structuredClone(optional.paths[0].nodes[0]));
+  optional.paths[0].nodes[1].id = optional.paths[0].nodes[0].id;
   fails(optional, 'duplicate globally unique node ID');
 });
 
@@ -215,125 +253,26 @@ test('AC-07 conflicting claims remain separate and reciprocal through canonical 
   fails(corpus, 'conflict relation must be reciprocal');
 });
 
-test('AC-08 migration preserves all source/case/claim IDs, legacy states/origins, and optional module counts', () => {
-  const before = frozen(), { corpus, report } = migrateLegacy(before);
-  assertValid(corpus);
-  assert.deepEqual(corpus.sources.map(item => item.id), before.sources.map(item => item.id));
-  assert.deepEqual(corpus.cases.map(item => item.id), before.campaigns.map(item => item.id));
-  assert.deepEqual(corpus.claims.map(item => item.id), before.evidence.map(item => item.id));
-  for (const name of ['paths', 'behaviors', 'frameworks', 'mappings', 'telemetry', 'detections', 'otel']) assert.equal(corpus[name].length, before[name].length);
-  assert.equal(corpus.cases.length, 5);
-  assert.equal(corpus.claims.length, 23);
-  assert.equal(corpus.paths.length, 5);
-  assert.equal(corpus.behaviors.length, 8);
-  assert.equal(corpus.frameworks.length, 210);
-  for (const item of corpus.claims) {
-    const old = before.evidence.find(old => old.id === item.id);
-    assert.equal(item.sourceId, old.sourceId);
-    assert.equal(item.legacy.originalStatus, old.status);
-    assert.equal(item.legacy.originalOrigin, old.origin);
-    assert.equal(item.disposition, 'Pending');
-    assert.equal(item.migrationGap.reason, 'legacy passage not retained');
-    assert.deepEqual(item.passageIds, []);
+test('AC-08 fresh 0.3.0 records validate without importing legacy claims or metadata', () => {
+  const corpus = assertValid(fixture());
+  assert.equal(corpus.schemaVersion, '0.3.0');
+  assert.equal(Object.hasOwn(corpus, 'migration'), false);
+  for (const entity of [...corpus.sources, ...corpus.sourceRevisions, ...corpus.cases, ...corpus.claims]) {
+    assert.equal(Object.hasOwn(entity, 'legacy'), false);
+    assert.equal(Object.hasOwn(entity, 'migrationGap'), false);
   }
-  for (const path of corpus.paths) {
-    assert.equal(Object.hasOwn(path, 'campaignId'), false);
-    for (const node of path.nodes) {
-      assert.equal(Object.hasOwn(node, 'evidenceIds'), false);
-      assert.deepEqual(node.claimIds, node.legacy.evidenceIds);
-      assert.deepEqual(node.behaviorIds, node.legacy.patternIds);
-    }
-    for (const edge of path.edges) assert.deepEqual(edge.claimIds, edge.legacy.evidenceIds);
-  }
-  for (const mapping of corpus.mappings) {
-    assert.equal(Object.hasOwn(mapping, 'campaignId'), false);
-    assert.equal(Object.hasOwn(mapping, 'evidenceIds'), false);
-    assert.deepEqual(mapping.claimIds, mapping.legacy.evidenceIds);
-    assert.equal(mapping.caseId, mapping.legacy.campaignId);
-  }
-  assert.equal(report.acceptedClaims, 0);
-  assert.equal(report.gaps.length, 23);
-});
-
-test('AC-08 GC-05 Deadbugz remains intent, Nx remains package scanning, Gambit remains composite', () => {
-  const corpus = assertValid(migrated());
-  const deadbugz = corpus.claims.find(item => item.id === 'deadbugz-e4');
-  assert.equal(deadbugz.evidenceStatus, 'Attempted behavior');
-  assert.equal(deadbugz.legacy.originalStatus, 'Intent only');
-  assert.match(deadbugz.uncertainty, /execution and victim theft are not established/);
-  const nx = corpus.paths.find(item => item.id === 'path-nx').nodes.find(item => item.id === 'nx-5');
-  assert.match(nx.atlasApplicability, /package-level scanning, not agent-mediated credential retrieval/);
-  assert.equal(corpus.paths.find(item => item.id === 'path-gambit').scope, 'composite');
-  assert.match(corpus.cases.find(item => item.id === 'gambit').limits, /combines multiple intrusions/);
-  assert.equal(corpus.cases.find(item => item.id === 'gambit').legacy.date, '2026-06');
-  assert.equal(corpus.timelines.length, 0);
-  const scanning = corpus.mappings.find(item => item.id === 'map-nx-5-secrets-T1552.001');
-  assert.equal(scanning.techniqueId, 'T1552.001');
-  assert.equal(scanning.framework, 'ATT&CK');
-  assert.deepEqual(scanning.claimIds, ['nx-e5']);
-  for (const edge of corpus.paths.find(item => item.id === 'path-gambit').edges) {
-    assert.equal(edge.relation, 'conditional');
-    assert.equal(edge.label, 'composite playbook; varies by intrusion');
-  }
-  assert.equal(corpus.cases.find(item => item.id === 'whatsapp').legacy.date, null);
-});
-
-test('AC-08 every optional reference and empty behavior list survives; legacy OTEL hashes stay audit metadata', () => {
-  const before = frozen(), corpus = assertValid(migrated());
-  assert.equal(before.evidence.filter(item => item.quote === null).length, 23);
-  assert.equal(before.sources.filter(item => item.contentHash === null).length, 12);
-  assert.equal(before.sources.filter(item => item.contentHash !== null).length, 3);
-  assert.equal(before.sources.filter(item => before.campaigns.some(c => c.id === item.id)).length, 5);
-  for (const source of before.sources) {
-    const revision = corpus.sourceRevisions.find(item => item.sourceId === source.id);
-    assert.equal(revision.rawHash, null);
-    assert.equal(revision.normalizedHash, null);
-    assert.equal(revision.legacy.originalContentHash, source.contentHash);
-    assert.equal(revision.legacy.originalRevision, source.revision ?? null);
-  }
-  assert.deepEqual(corpus.frameworks, before.frameworks);
-  for (const action of before.otel) assert.deepEqual(corpus.otel.find(item => item.id === action.id).standardSourceIds, action.standardSourceIds);
-  assert.deepEqual(corpus.otelReference, before.otelReference);
-  let behaviorReferenceFields = 0, claimReferenceFields = 0;
-  const caseReferenceFields = corpus.claims.length + corpus.paths.length + corpus.mappings.length;
-  for (const path of before.paths) {
-    const after = corpus.paths.find(item => item.id === path.id);
-    for (const node of path.nodes) {
-      const migratedNode = after.nodes.find(item => item.id === node.id);
-      assert.deepEqual(migratedNode.behaviorIds, node.patternIds);
-      behaviorReferenceFields += 1;
-      claimReferenceFields += 1;
-    }
-    claimReferenceFields += after.edges.length;
-  }
-  claimReferenceFields += corpus.mappings.length;
-  assert.equal(behaviorReferenceFields, 23);
-  assert.equal(claimReferenceFields, 60);
-  assert.equal(caseReferenceFields, 45);
-  for (const name of ['paths', 'behaviors', 'mappings', 'telemetry', 'detections', 'otel']) {
-    for (const item of corpus[name]) {
-      assert.equal(item.disposition, 'Pending');
-      assert.equal(item.legacy.originalOrigin, before[name].find(old => old.id === item.id).origin);
-    }
-  }
-});
-
-test('AC-08 legacy Approved is still Pending; passage exceptions are explicit migration-only, never accepted', () => {
-  const before = frozen();
-  before.evidence[0].reviewStatus = 'Approved';
-  before.campaigns[0].reviewStatus = 'Approved';
-  const { corpus } = migrateLegacy(before);
-  assert.equal(corpus.claims[0].disposition, 'Pending');
-  assert.equal(corpus.claims[0].legacy.reviewStatus, 'Approved');
-  assert.equal(corpus.cases[0].disposition, 'Pending');
-  corpus.claims[0].disposition = 'Accepted';
-  fails(corpus, 'missing legacy passage can never be accepted');
-  const noException = migrated();
-  noException.migration.pendingPassageExceptions = [];
-  fails(noException, 'invalid migration pending passage exception');
-  const noMigration = migrated();
-  delete noMigration.migration;
-  fails(noMigration, 'legacy-missing is migration-only');
+  const imported = structuredClone(corpus);
+  imported.migration = { fromVersion: '0.2.0' };
+  fails(imported, 'unknown field migration');
+  const legacySource = structuredClone(corpus);
+  legacySource.sources[0].inputKind = 'legacy-reference';
+  fails(legacySource, 'invalid enum');
+  const legacyRevision = structuredClone(corpus);
+  legacyRevision.sourceRevisions[0].retention = 'legacy-missing';
+  fails(legacyRevision, 'invalid enum');
+  const legacyClaim = structuredClone(corpus);
+  legacyClaim.claims[0].legacy = { originalStatus: 'Approved' };
+  fails(legacyClaim, 'unknown field legacy');
 });
 
 test('AC-08 current acceptance requires human event; changed entity/dependency/base hashes invalidate approval', () => {
@@ -389,17 +328,17 @@ test('AC-08 accepted inference/category/summary requires accepted supporting cla
   assertValid(corpus);
 });
 
-test('AC-08 optional enrichment references fail closed without making paths required', () => {
-  const corpus = migrated();
+test('AC-03 optional enrichment references fail closed without making paths required', () => {
+  const corpus = enrichmentFixture();
   corpus.mappings[0].nodeId = 'missing-node';
   fails(corpus, 'invalid node/case/behavior/evidence scope');
   delete corpus.mappings[0].nodeId;
   fails(corpus, 'pathId/nodeId must occur together');
   delete corpus.mappings[0].pathId;
   assertValid(corpus);
-  corpus.mappings[0].claimIds = ['gambit-e1'];
+  corpus.mappings[0].claimIds = ['synthetic-claim-c'];
   fails(corpus, 'belongs to another case');
-  const provisional = migrated();
+  const provisional = enrichmentFixture();
   delete provisional.mappings[0].pathId;
   delete provisional.mappings[0].nodeId;
   provisional.mappings[0].provisional = true;
@@ -419,7 +358,7 @@ test('AC-09 identical inputs yield identical canonical bytes/digest; key/entity 
   assert.equal(canonicalSerialize(corpus), canonicalSerialize(reordered));
   assert.equal(digest(corpus), digest(reordered));
   assert.equal(canonicalSerialize(corpus).endsWith('\n'), true);
-  const optional = migrated(), changed = migrated();
+  const optional = enrichmentFixture(), changed = enrichmentFixture();
   changed.paths[0].nodes.reverse();
   assert.notEqual(digest(optional), digest(changed));
   assert.equal(stableId('source', 'https://example.invalid/article'), stableId('source', 'https://example.invalid/article'));
@@ -427,26 +366,6 @@ test('AC-09 identical inputs yield identical canonical bytes/digest; key/entity 
   assert.equal(canonicalUrl('https://example.invalid/a?article=1&utm_source=test#heading'), 'https://example.invalid/a?article=1');
   assert.notEqual(canonicalUrl('https://example.invalid/a?article=1'), canonicalUrl('https://example.invalid/a?article=2'));
   assert.throws(() => canonicalUrl('https://synthetic-user@example.invalid/'), /credential-free/);
-});
-
-test('AC-09 durable migration before/after/report reproduce exactly; frozen baseline preserved with inherited manifest gaps', () => {
-  const beforeBytes = readFileSync(new URL('./fixtures/migration/before-0.2.0.json', import.meta.url), 'utf8');
-  assert.equal(beforeBytes, readFileSync(new URL('../handoff/reference/corpus.json', import.meta.url), 'utf8'));
-  const { corpus, report } = migrateLegacy(JSON.parse(beforeBytes));
-  report.frozenInputByteHash = sha256(beforeBytes);
-  assert.equal(canonicalSerialize(corpus), readFileSync(new URL('./fixtures/migration/after-0.3.0.json', import.meta.url), 'utf8'));
-  assert.equal(canonicalSerialize(report), readFileSync(new URL('./fixtures/migration/report.json', import.meta.url), 'utf8'));
-  const baseline = read('./fixtures/migration/reference-baseline.json');
-  assert.equal(sha256(readFileSync(new URL('../handoff/REFERENCE-MANIFEST.json', import.meta.url), 'utf8')), baseline.importedManifestHash, 'imported reference manifest itself remains frozen');
-  const discrepancies = baseline.inheritedManifestDiscrepancies;
-  assert.equal(Object.keys(discrepancies).length, 14);
-  for (const [path, expected] of Object.entries(read('../handoff/REFERENCE-MANIFEST.json').files)) {
-    const actual = sha256(readFileSync(new URL(`../handoff/reference/${path}`, import.meta.url), 'utf8'));
-    if (Object.hasOwn(discrepancies, path)) {
-      assert.notEqual(actual, expected, `documented inherited manifest gap ${path}`);
-      assert.equal(actual, discrepancies[path], `frozen committed baseline ${path}`);
-    } else assert.equal(actual, expected, `frozen reference ${path}`);
-  }
 });
 
 test('AC-09 schema/type core declarations and controlled enum sets stay aligned', () => {
@@ -464,7 +383,7 @@ test('AC-09 configured project command executes offline contract tests within tr
   const governance = config.paths.governance;
   const mapped = (path, patterns) => patterns.some(pattern => pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern);
   for (const path of ['scripts/package.json', 'scripts/package-lock.json', 'scripts/.nvmrc', 'scripts/.node-version', 'schemas/contract.d.ts']) assert.ok(mapped(path, governance), path);
-  for (const path of ['tests/fixtures/benign/core-only.json', 'tests/fixtures/migration/report.json']) assert.ok(mapped(path, config.paths.tests), path);
+  assert.ok(config.paths.tests.includes('tests/**'));
   assert.ok(governance.includes('schemas/**'));
   assert.ok(governance.includes('scripts/**'));
   assert.ok(config.paths.tests.includes('tests/**'));

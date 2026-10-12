@@ -24,11 +24,12 @@ The proposed product roadmap and frozen prototype handoff is documented in [hand
 Schema 0.3.0 separates sources, revisions, passages, cases, claims, categorization,
 timelines, and review events. A supplied-text source needs no URL, and a case
 needs no enrichment. Collection lifecycle, evidence status, generation origin,
-and reviewer disposition are independent. Frozen 0.2.0 records are migration
-inputs, not the target schema; missing passages are explicit pending migration
-gaps, never fabricated support or automatically accepted claims.
+and reviewer disposition are independent. New records start from scratch under
+0.3.0; no 0.2.0 claims are migrated or carried into the new corpus. The frozen
+0.2.0 handoff remains reference material only.
 
-See [Issue #1 contract decisions and acceptance traceability](docs/acceptance-audit.md#issue-1-foundation-contract)
+See [Architecture](docs/architecture.md) for the intended fresh-input data flow,
+and [Issue #1 contract decisions and acceptance traceability](docs/acceptance-audit.md#issue-1-foundation-contract)
 for module layout, serialization/identity rules, test gates, and evidence limits.
 This slice does not implement source fetching, extraction, review operations,
 public exports, UI, automation, deployment, or new ATLAS enrichment.

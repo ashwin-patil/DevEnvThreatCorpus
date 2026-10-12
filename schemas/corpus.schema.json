@@ -18,7 +18,6 @@
     "reviews": { "type": "array", "items": { "$ref": "#/$defs/review" } },
     "collectionManifests": { "type": "array", "items": { "$ref": "#/$defs/manifest" } },
     "governance": { "$ref": "#/$defs/governance" },
-    "migration": { "$ref": "#/$defs/migration" },
     "behaviors": { "type": "array", "items": { "$ref": "#/$defs/behavior" } },
     "paths": { "type": "array", "items": { "$ref": "#/$defs/path" } },
     "frameworks": { "type": "array", "items": { "$ref": "#/$defs/technique" } },
@@ -26,8 +25,7 @@
     "telemetry": { "type": "array", "items": { "$ref": "#/$defs/telemetry" } },
     "detections": { "type": "array", "items": { "$ref": "#/$defs/detection" } },
     "otel": { "type": "array", "items": { "$ref": "#/$defs/otel" } },
-    "otelReference": { "type": "object" },
-    "legacy": { "type": "object" }
+    "otelReference": { "type": "object" }
   },
   "$defs": {
     "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
@@ -61,7 +59,7 @@
     "provenance": {
       "type": "object", "additionalProperties": false,
       "required": ["kind", "suppliedBy", "description", "nullReasons"],
-      "properties": { "kind": { "enum": ["supplied-text", "supplied-url", "legacy-reference"] }, "suppliedBy": { "$ref": "#/$defs/nullableText" }, "description": { "$ref": "#/$defs/text" }, "nullReasons": { "$ref": "#/$defs/nullReasons" } }
+      "properties": { "kind": { "enum": ["supplied-text", "supplied-url"] }, "suppliedBy": { "$ref": "#/$defs/nullableText" }, "description": { "$ref": "#/$defs/text" }, "nullReasons": { "$ref": "#/$defs/nullReasons" } }
     },
     "date": {
       "type": "object", "additionalProperties": false,
@@ -74,8 +72,8 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" }, "originalUrl": { "$ref": "#/$defs/nullableText" }, "canonicalUrl": { "$ref": "#/$defs/nullableText" }, "title": { "$ref": "#/$defs/nullableText" }, "publisher": { "$ref": "#/$defs/nullableText" }, "author": { "$ref": "#/$defs/nullableText" },
         "publicationDate": { "$ref": "#/$defs/date" }, "updateDate": { "$ref": "#/$defs/date" }, "retrievalDate": { "$ref": "#/$defs/date" },
-        "inputKind": { "enum": ["url", "supplied-text", "text-file", "legacy-reference"] }, "provenance": { "$ref": "#/$defs/provenance" }, "revisionIds": { "$ref": "#/$defs/ids" },
-        "extractionStatus": { "enum": ["Not started", "Pending", "Extracted", "Failed", "Unavailable"] }, "collectionState": { "$ref": "#/$defs/lifecycle" }, "nullReasons": { "$ref": "#/$defs/nullReasons" }, "legacy": { "type": "object" }
+        "inputKind": { "enum": ["url", "supplied-text", "text-file"] }, "provenance": { "$ref": "#/$defs/provenance" }, "revisionIds": { "$ref": "#/$defs/ids" },
+        "extractionStatus": { "enum": ["Not started", "Pending", "Extracted", "Failed", "Unavailable"] }, "collectionState": { "$ref": "#/$defs/lifecycle" }, "nullReasons": { "$ref": "#/$defs/nullReasons" }
       }
     },
     "sourceRevision": {
@@ -84,8 +82,8 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" }, "sourceId": { "$ref": "#/$defs/id" }, "rawHash": { "$ref": "#/$defs/nullableHash" }, "normalizedHash": { "$ref": "#/$defs/nullableHash" },
         "normalizationVersion": { "$ref": "#/$defs/text" }, "parserVersion": { "$ref": "#/$defs/text" }, "provenance": { "$ref": "#/$defs/provenance" },
-        "rawContent": { "$ref": "#/$defs/nullableText" }, "normalizedContent": { "$ref": "#/$defs/nullableText" }, "retention": { "enum": ["private", "permitted-public", "not-retained", "legacy-missing"] },
-        "nullReasons": { "$ref": "#/$defs/nullReasons" }, "legacy": { "type": "object" }
+        "rawContent": { "$ref": "#/$defs/nullableText" }, "normalizedContent": { "$ref": "#/$defs/nullableText" }, "retention": { "enum": ["private", "permitted-public", "not-retained"] },
+        "nullReasons": { "$ref": "#/$defs/nullReasons" }
       }
     },
     "attestation": {
@@ -104,16 +102,12 @@
         "id": { "$ref": "#/$defs/id" }, "name": { "$ref": "#/$defs/text" }, "aliases": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/text" } }, "kind": { "enum": ["Campaign", "Incident", "Research exercise", "Comparator", "Composite playbook", "Other"] },
         "summary": { "$ref": "#/$defs/nullableText" }, "summaryClaimIds": { "$ref": "#/$defs/ids" }, "sourceIds": { "$ref": "#/$defs/supportIds" }, "collectionState": { "$ref": "#/$defs/lifecycle" }, "disposition": { "$ref": "#/$defs/disposition" },
         "limits": { "$ref": "#/$defs/nullableText" }, "origin": { "$ref": "#/$defs/origin" }, "revision": { "$ref": "#/$defs/id" }, "history": { "$ref": "#/$defs/ids" }, "pathIds": { "$ref": "#/$defs/ids" },
-        "nullReasons": { "$ref": "#/$defs/nullReasons" }, "legacy": { "type": "object" }
+        "nullReasons": { "$ref": "#/$defs/nullReasons" }
       }
     },
     "inference": {
       "type": "object", "additionalProperties": false, "required": ["rationale", "supportingClaimIds"],
       "properties": { "rationale": { "$ref": "#/$defs/text" }, "supportingClaimIds": { "$ref": "#/$defs/supportIds" } }
-    },
-    "migrationGap": {
-      "type": "object", "additionalProperties": false, "required": ["reason", "originalLocator"],
-      "properties": { "reason": { "const": "legacy passage not retained" }, "originalLocator": { "$ref": "#/$defs/nullableText" } }
     },
     "claim": {
       "type": "object", "additionalProperties": false,
@@ -122,7 +116,7 @@
         "id": { "$ref": "#/$defs/id" }, "caseId": { "$ref": "#/$defs/id" }, "sourceId": { "$ref": "#/$defs/id" }, "sourceRevisionId": { "$ref": "#/$defs/id" }, "description": { "$ref": "#/$defs/text" }, "passageIds": { "$ref": "#/$defs/ids" },
         "inference": { "anyOf": [{ "$ref": "#/$defs/inference" }, { "type": "null" }] }, "evidenceStatus": { "$ref": "#/$defs/evidenceStatus" }, "origin": { "$ref": "#/$defs/origin" }, "disposition": { "$ref": "#/$defs/disposition" },
         "revision": { "$ref": "#/$defs/id" }, "history": { "$ref": "#/$defs/ids" }, "conflictsWith": { "$ref": "#/$defs/ids" }, "uncertainty": { "$ref": "#/$defs/nullableText" }, "observationContext": { "$ref": "#/$defs/nullableText" },
-        "nullReasons": { "$ref": "#/$defs/nullReasons" }, "migrationGap": { "$ref": "#/$defs/migrationGap" }, "legacy": { "type": "object" }
+        "nullReasons": { "$ref": "#/$defs/nullReasons" }
       }
     },
     "categorization": {
@@ -164,13 +158,9 @@
       "type": "object", "additionalProperties": false,
       "required": ["id", "kind", "inputSourceIds", "inputRevisionIds", "outcome", "provenance", "toolVersion", "inputHash", "outputHash", "limitations", "nullReasons"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" }, "kind": { "enum": ["manual-collection", "extraction", "migration"] }, "inputSourceIds": { "$ref": "#/$defs/ids" }, "inputRevisionIds": { "$ref": "#/$defs/ids" }, "outcome": { "enum": ["Pending", "Succeeded", "Partial", "Failed"] },
+        "id": { "$ref": "#/$defs/id" }, "kind": { "enum": ["manual-collection", "extraction"] }, "inputSourceIds": { "$ref": "#/$defs/ids" }, "inputRevisionIds": { "$ref": "#/$defs/ids" }, "outcome": { "enum": ["Pending", "Succeeded", "Partial", "Failed"] },
         "provenance": { "$ref": "#/$defs/provenance" }, "toolVersion": { "$ref": "#/$defs/text" }, "inputHash": { "$ref": "#/$defs/nullableHash" }, "outputHash": { "$ref": "#/$defs/nullableHash" }, "limitations": { "type": "array", "items": { "$ref": "#/$defs/text" } }, "nullReasons": { "$ref": "#/$defs/nullReasons" }
       }
-    },
-    "migration": {
-      "type": "object", "additionalProperties": false, "required": ["fromVersion", "toolVersion", "inputHash", "pendingPassageExceptions"],
-      "properties": { "fromVersion": { "const": "0.2.0" }, "toolVersion": { "const": "foundation-migration/1" }, "inputHash": { "$ref": "#/$defs/hash" }, "pendingPassageExceptions": { "$ref": "#/$defs/ids" } }
     },
     "node": {
       "type": "object", "required": ["id", "title", "detail", "claimIds", "behaviorIds", "evidenceStatus", "origin", "disposition"],
