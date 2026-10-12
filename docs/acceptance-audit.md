@@ -6,6 +6,19 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #10 project branding, logo assets, community health files, and repository logistics
+
+Originating requirements: [Issue #10](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/10), directly in that issue. PR is the durable location for final command output, tested SHA, and independent human approval.
+
+| ID | Changed files and automated verification | Durable evidence / remaining human decision |
+|---|---|---|
+| AC-01 | `docs/assets/logo.svg`, `docs/assets/favicon.svg`, `docs/assets/preview.html`; verified via file existence and local side-panel browser preview | Vector logo and favicon render cleanly with `#cb572d` terracotta threat styling and synchronized tagline; human visual acceptance |
+| AC-02 | `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`; verified via file existence and content check | Apache-2.0 / CC-BY-4.0 dual license, vulnerability disclosure SLA, contribution process, and Contributor Covenant v2.1 in place |
+| AC-03 | `README.md`; verified via human review | Brand SVG banner, tagline ("Evidence-grounded threat intelligence · Attack paths · Telemetry"), badges, and community cross-links integrated |
+| AC-04 | `CHANGELOG.md`, `docs/acceptance-audit.md`; verified by `python scripts/verify.py` passing scaffold and governance tests | Substantive changelog entries for branding and logistics; criteria-to-file evidence mapped |
+
+Requested coding model: **Auto**.
+
 ## Issue #4 ongoing upkeep and flexible intake
 
 Originating requirements: [Issue #4](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/4), directly in that issue; no separate parent PRD. [Implementation PR #5](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/5) is the durable location for final command output, full tested SHA, hosted run URLs, and independent review decisions. This table links executable tests/files; it does not self-certify human acceptance.
