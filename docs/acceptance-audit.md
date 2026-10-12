@@ -10,10 +10,14 @@ The PR policy reads GitHub's linked-issue and complete changed-file metadata: it
 
 Originating requirements: [Issue #10](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/10), directly in that issue. PR is the durable location for final command output, tested SHA, and independent human approval.
 
+### Decisions and boundaries
+
+- Repository policy takes precedence over the issue's proposed root layout for community files. Hosted PR Policy uses the trusted base configuration; head-only mapping changes cannot authorize new file surfaces in the same PR. Standard community health and governance files therefore live under `.github/` (`.github/LICENSE`, `.github/SECURITY.md`, `.github/CONTRIBUTING.md`, `.github/CODE_OF_CONDUCT.md`), which is already mapped under `governance` (`.github/**`). No workflow or trusted-base policy is changed.
+
 | ID | Changed files and automated verification | Durable evidence / remaining human decision |
 |---|---|---|
 | AC-01 | `docs/assets/logo.svg`, `docs/assets/favicon.svg`, `docs/assets/preview.html`; verified via file existence and local side-panel browser preview | Vector logo and favicon render cleanly with `#cb572d` terracotta threat styling and synchronized tagline; human visual acceptance |
-| AC-02 | `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`; verified via file existence and content check | Apache-2.0 / CC-BY-4.0 dual license, vulnerability disclosure SLA, contribution process, and Contributor Covenant v2.1 in place |
+| AC-02 | `.github/LICENSE`, `.github/SECURITY.md`, `.github/CONTRIBUTING.md`, `.github/CODE_OF_CONDUCT.md`; verified via file existence and content check | Apache-2.0 / CC-BY-4.0 dual license, vulnerability disclosure SLA, contribution process, and Contributor Covenant v2.1 in place in .github/ governance surface |
 | AC-03 | `README.md`; verified via human review | Brand SVG banner, tagline ("Evidence-grounded threat intelligence · Attack paths · Telemetry"), badges, and community cross-links integrated |
 | AC-04 | `CHANGELOG.md`, `docs/acceptance-audit.md`; verified by `python scripts/verify.py` passing scaffold and governance tests | Substantive changelog entries for branding and logistics; criteria-to-file evidence mapped |
 
