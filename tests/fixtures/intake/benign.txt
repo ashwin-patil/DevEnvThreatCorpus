@@ -1,0 +1,3 @@
+Synthetic manual intake fixture.
+No incident claims, credentials, scripts, or commands.
+Unicode: café 🌿.

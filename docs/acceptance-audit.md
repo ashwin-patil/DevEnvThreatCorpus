@@ -156,3 +156,71 @@ the implementation PR. Independent human review of contract choices, source
 semantics, model metadata, and merge approval remains `needs-human-review`.
 An agent's local tests and self-audit do not replace hosted policy checks or
 human approval.
+
+## Issue #8 manual intake and revisions
+
+Originating implementation requirements:
+[Issue #8](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/8).
+[PR #9](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/9) is the single
+implementation/evidence location; corrections remain on that PR. The base
+includes Issue #1's contracts and the merged setup/documentation-upkeep fixes.
+The fresh-input architecture supersedes the historical handoff's migration
+proposal. No 0.2.0 records, later extraction/review operations, or exports are
+inputs or outputs of this slice.
+
+### Stable acceptance traceability
+
+The runtime/CLI is in the already authorized `scripts/contract.mjs`, with
+existing `schemas/corpus.schema.json` and `schemas/contract.d.ts` unchanged.
+`tests/intake.test.mjs` provides focused offline checks and temporary persisted
+records using `tests/fixtures/intake/`; synthetic content is not incident
+evidence. Test assertions inspect actual persisted source/revision/manifests,
+hashes, history, permissions, and exit status rather than self-audit claims.
+Generated article stores are private and must not be committed as evidence.
+
+| ID | Observable outcome and executable evidence | Documentation / independent evidence |
+|---|---|---|
+| AC-01 | URL via injected transport, pasted UTF-8 text, and a UTF-8 file produce contract-valid source/revision/manifests with explicit provenance; text-only URLs have null reasons | CLI commands in README; `tests/intake.test.mjs` and benign fixtures |
+| AC-02 | Missing metadata remains null with reasons, retrieval is not activity, failures cannot succeed, and no research entities are generated | Architecture records/state guidance; focused metadata/failure assertions |
+| AC-03 | Repeated content does not duplicate successful records; changed content appends revisions; meaningful query values remain distinct and collisions cannot overwrite identity | Existing `https-tracking/1`, hash/ID/serialization helpers and focused persisted-history tests |
+| AC-04 | Streaming byte boundaries, absent/misleading Content-Length, deadline, retries, and redirects are finite; each CLI call has one input | Focused fake-transport boundary tests; documented retrieval bounds |
+| AC-05 | Initial URL, DNS results, redirect, and peer checks reject prohibited IPv4/IPv6/schemes; scripts are not executed | Focused negative tests; independent fetch-boundary review **needs-human-review**, link/decision pending on PR #9 |
+| AC-06 | Versioned plain text/HTML normalization, Unicode, raw/normalized hashes, malformed encoding, and unsupported input are tested | Benign text/HTML fixtures; architecture normalization/offset limits |
+| AC-07 | Non-success manifests/exit statuses remain inspectable; authorized supplied-text fallback retains prior failed events and provenance | Offline CLI/failure/fallback tests; README exercise |
+| AC-08 | Explicit private stores, safe paths, permission checks, atomic updates, and write-failure preservation are tested; diagnostics/manifests exclude input secrets | `.gitignore`, focused persistence tests; independent retention review **needs-human-review**, link/decision pending on PR #9 |
+| AC-09 | Exact offline README commands cover text/file intake, inspection, validation, idempotent rerun, deterministic invalid-URL failure, and fallback | Record executed command output on PR #9; independent README relevance/accuracy review **needs-human-review**, link/decision pending |
+| AC-10 | Existing contract/governance suites and the configured intake suite must execute on the final commit through `python scripts/verify.py` | Record exact revision/commands/results and hosted check links on PR #9; refresh after every commit |
+
+### Foundation scope
+
+This implements FND-08/09 and the intake idempotence/source-revision aspects of
+FND-12, with FND-06 private retention and FND-07 pinned/offline deterministic
+tooling. FND-10's separation of collection from extraction/review is preserved;
+its extraction/model-adapter aspects are not implemented. FND-12 case
+association/merge suggestions, FND-11 passage-grounded extraction, FND-17/18
+review operations, and FND-02/03/05 exports/query remain later issues. Matching
+URLs never establish case identity, attribution, activity dates, or acceptance.
+
+### Revision-bound execution and review
+
+Configured commands are `node --test tests/contract.test.mjs` and
+`node --test tests/intake.test.mjs`. The authoritative combined command is
+`python scripts/verify.py`; it runs the scaffold's own tests and both configured
+project commands. This is contract/intake verification, not a full research
+application test or proof of factual truth. No lint/build command is configured,
+no live network probe is required, and no model credentials are used.
+Final output on PR #9 must identify the full tested SHA, exact commands and
+exit/results, the executed README exercise, and any unavailable hosted checks.
+Do not substitute evidence from an earlier commit.
+
+Requested implementation model: `GPT 6.1-Sol` (`gpt-6.1-sol`). The implementation
+subagent was explicitly invoked with that available model selection; the
+parent session's effective runtime model is not exposed, so it cannot be
+certified or claimed to match. No unsupported-model substitution was reported
+by the tool, and no runtime extraction model exists in this implementation.
+
+Independent destination-safety, retention, documentation/README applicability,
+and merge approval remain **needs-human-review** until a human records a
+decision/link on PR #9. Automated review and security checks are supplemental,
+not independent human approval. Hosted Verify/PR Policy may need approval to
+run; unavailable or stale checks must be reported, never called passing.
