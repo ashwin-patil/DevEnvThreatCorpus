@@ -6,7 +6,8 @@
   },
   "project_commands": [
     ["node", "--test", "tests/contract.test.mjs"],
-    ["node", "--test", "tests/intake.test.mjs"]
+    ["node", "--test", "tests/intake.test.mjs"],
+    ["node", "--test", "tests/extract.test.mjs"]
   ],
   "paths": {
     "learning_index": "docs/learnings/README.md",

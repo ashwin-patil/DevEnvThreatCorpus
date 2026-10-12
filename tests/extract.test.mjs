@@ -4,14 +4,14 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { canonicalSerialize, validateCorpus } from '../scripts/contract.mjs';
+import { canonicalSerialize, sha256, validateCorpus } from '../scripts/contract.mjs';
 
 const readJson = async file => JSON.parse(await readFile(file, 'utf8'));
 const fixture = async file => readJson(new URL(file, import.meta.url));
-const makeStore = async () => {
+const makeStore = async corpus => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dev-threat-extract-'));
   const corpusFile = path.join(directory, 'corpus.json');
-  await writeFile(corpusFile, canonicalSerialize(await fixture('./fixtures/benign/core-only.json')), { mode: 0o600 });
+  await writeFile(corpusFile, canonicalSerialize(corpus ?? await fixture('./fixtures/benign/core-only.json')), { mode: 0o600 });
   return { directory, corpusFile };
 };
 const writeTemplate = async (directory, template) => {
@@ -52,27 +52,38 @@ test('AC-01 manual CLI creates pending claims, passages, links, manifest, and sa
 });
 
 test('AC-02 code-point slices preserve emoji and NFC-composed text from the exact hashed revision', async t => {
-  const { directory, corpusFile } = await makeStore();
+  const base = await fixture('./fixtures/benign/core-only.json');
+  const revision = base.sourceRevisions.find(item => item.id === 'synthetic-revision-a');
+  revision.rawContent = '😀 Cafe\u0301\r\nA tool was used in a benign exercise.';
+  revision.rawHash = sha256(revision.rawContent);
+  const { directory, corpusFile } = await makeStore(base);
   t.after(() => rm(directory, { recursive: true, force: true }));
   const templateFile = await writeTemplate(directory, await fixture('./fixtures/extraction/manual.json'));
   const child = invoke(directory, templateFile);
   assert.equal(child.status, 0, child.stderr);
   const corpus = await readJson(corpusFile);
-  const revision = corpus.sourceRevisions.find(item => item.id === 'synthetic-revision-a');
+  const normalizedRevision = corpus.sourceRevisions.find(item => item.id === 'synthetic-revision-a');
   const unicodePassage = corpus.passages.find(item => item.id === 'extracted-passage-c');
-  assert.equal(revision.normalizedContent, '😀 Café\nA tool was used in a benign exercise.');
-  assert.equal([...revision.normalizedContent].slice(unicodePassage.start, unicodePassage.end).join(''), '😀 Café');
+  assert.equal(normalizedRevision.rawContent, '😀 Cafe\u0301\r\nA tool was used in a benign exercise.');
+  assert.equal(normalizedRevision.normalizedContent, '😀 Café\nA tool was used in a benign exercise.');
+  assert.equal([...normalizedRevision.normalizedContent].slice(unicodePassage.start, unicodePassage.end).join(''), '😀 Café');
   assert.equal(unicodePassage.text, '😀 Café');
-  assert.equal(corpus.claims.find(item => item.id === 'extracted-claim-a').sourceRevisionId, revision.id);
+  assert.equal(corpus.claims.find(item => item.id === 'extracted-claim-a').sourceRevisionId, normalizedRevision.id);
 });
 
 for (const [name, mutate] of [
   ['wrong revision hash', template => { template.claims[0].revisionHash = '0'.repeat(64); }],
+  ['unknown source', template => { template.claims[0].sourceId = 'missing-source'; }],
+  ['unknown case', template => { template.claims[0].caseId = 'missing-case'; }],
   ['wrong source revision', template => { template.claims[0].sourceRevisionId = 'synthetic-revision-b'; }],
   ['fabricated passage text', template => { template.claims[0].passages[0].text = 'invented'; }],
   ['invalid passage offsets', template => { template.claims[0].passages[0].start = 100; }],
   ['nonreciprocal conflict', template => { template.claims[1].conflictsWith = []; }],
+  ['self conflict', template => { template.claims[0].conflictsWith = ['extracted-claim-a']; }],
+  ['dangling conflict', template => { template.claims[0].conflictsWith = ['missing-claim']; }],
   ['dangling inference support', template => { template.claims[3].inference.supportingClaimIds = ['missing-claim']; }],
+  ['cyclic inference support', template => { template.claims[3].inference.supportingClaimIds = ['extracted-inference']; }],
+  ['inference with passage evidence', template => { template.claims[3].passages = [{ id: 'inference-passage', locator: 'line 1', start: 0, end: 1, text: '😀' }]; }],
 ]) {
   test(`AC-02/05/06 invalid ${name} fails without modifying corpus`, async t => {
     const { directory, corpusFile } = await makeStore();
@@ -90,6 +101,9 @@ for (const [name, mutate] of [
 test('AC-04/05/06 one source may support claims in multiple cases; inferences and contradictions stay distinct', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
+  const base = await readJson(corpusFile);
+  base.cases.find(item => item.id === 'synthetic-case-b').sourceIds = ['synthetic-source-a'];
+  await writeFile(corpusFile, canonicalSerialize(base), { mode: 0o600 });
   const templateFile = await writeTemplate(directory, await fixture('./fixtures/extraction/manual.json'));
   const child = invoke(directory, templateFile);
   assert.equal(child.status, 0, child.stderr);
@@ -103,6 +117,7 @@ test('AC-04/05/06 one source may support claims in multiple cases; inferences an
   assert.deepEqual(corpus.claims.find(item => item.id === 'extracted-claim-b').conflictsWith, ['extracted-claim-a']);
   assert.equal(corpus.claims.find(item => item.id === 'extracted-claim-a').caseId, 'synthetic-case-a');
   assert.equal(corpus.claims.find(item => item.id === 'extracted-claim-other-case').caseId, 'synthetic-case-b');
+  assert.deepEqual(corpus.cases.find(item => item.id === 'synthetic-case-b').sourceIds, ['synthetic-source-a', 'synthetic-source-b']);
 });
 
 test('AC-01 malformed template and invalid CLI arguments return explicit failure outcomes', async t => {
@@ -112,7 +127,7 @@ test('AC-01 malformed template and invalid CLI arguments return explicit failure
   const badJson = invoke(directory, templateFile);
   assert.notEqual(badJson.status, 0);
   assert.deepEqual(result(badJson), { status: 'failed', code: 'INVALID_EXTRACTION' });
-  const badArgs = spawnSync(process.execPath, [new URL('../scripts/extract.mjs', import.meta.url).pathname, '--store', directory], { encoding: 'utf8' });
+  const badArgs = spawnSync(process.execPath, ['scripts/extract.mjs', '--store', directory], { encoding: 'utf8' });
   assert.notEqual(badArgs.status, 0);
   assert.deepEqual(result(badArgs), { status: 'failed', code: 'INVALID_INPUT' });
   assert.equal((await readJson(corpusFile)).claims.length, 4);

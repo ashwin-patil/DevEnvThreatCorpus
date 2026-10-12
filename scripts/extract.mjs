@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
 } from './contract.mjs';
@@ -29,11 +30,15 @@ export function applyExtraction(corpus, template, suppliedBy, templateText) {
 
   const claims = [];
   const passages = [];
+  const seenClaimIds = new Set();
+  const seenPassageIds = new Set();
   for (const item of template.claims) {
     const required = ['id', 'caseId', 'sourceId', 'sourceRevisionId', 'revisionHash', 'description', 'evidenceStatus', 'origin'];
     const optional = ['passages', 'inference', 'conflictsWith', 'uncertainty', 'observationContext'];
     if (!onlyKeys(item, [...required, ...optional], required) || !Array.isArray(item.passages ?? [])
       || !Array.isArray(item.conflictsWith ?? [])) throw fail('claim template has missing or unknown fields');
+    if (seenClaimIds.has(item.id)) throw fail(`duplicate claim ID in template: ${item.id}`);
+    seenClaimIds.add(item.id);
 
     const source = corpus.sources.find(record => record.id === item.sourceId);
     const revision = corpus.sourceRevisions.find(record => record.id === item.sourceRevisionId);
@@ -47,6 +52,8 @@ export function applyExtraction(corpus, template, suppliedBy, templateText) {
       if (!onlyKeys(passage, ['id', 'locator', 'start', 'end', 'text'], ['id', 'locator', 'start', 'end', 'text'])
         || !Number.isSafeInteger(passage.start) || !Number.isSafeInteger(passage.end)
         || passage.start < 0 || passage.end <= passage.start) throw fail(`claim ${item.id} has invalid passage offsets`);
+      if (seenPassageIds.has(passage.id)) throw fail(`duplicate passage ID in template: ${passage.id}`);
+      seenPassageIds.add(passage.id);
       const text = [...revision.normalizedContent].slice(passage.start, passage.end).join('');
       if (!text || text !== passage.text) throw fail(`claim ${item.id} passage text does not match its revision offsets`);
       passageIds.push(passage.id);
@@ -58,7 +65,8 @@ export function applyExtraction(corpus, template, suppliedBy, templateText) {
     const inference = item.inference ?? null;
     if ((item.evidenceStatus === 'Researcher inference') !== (inference !== null)
       || (inference && item.origin !== 'Human inference')
-      || (!inference && item.origin === 'Human inference')) throw fail(`claim ${item.id} has inconsistent inference classification`);
+      || (!inference && item.origin === 'Human inference')
+      || (inference && (item.passages ?? []).length)) throw fail(`claim ${item.id} has inconsistent inference classification`);
     if (!passageIds.length && !inference) throw fail(`claim ${item.id} needs passages or an explicit inference`);
 
     const claim = {
@@ -147,7 +155,7 @@ async function cli(args) {
   return runExtraction({ templateFile: values['--template'], store: values['--store'], suppliedBy: values['--supplied-by'] });
 }
 
-if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result = await cli(process.argv.slice(2));
   process.stdout.write(JSON.stringify(result) + '\n');
   process.exitCode = result.status === 'succeeded' ? 0 : 1;
