@@ -1,0 +1,399 @@
+{
+  "acceptedClaims": 0,
+  "afterDigest": "1d272017cff769ee0f3c377171fe3b947b7caf31d4049614f6c29e3207f5379e",
+  "beforeDigest": "eff58ddafafd6231ee89ef28b366db1221a6c6373a5f520a926e306781824f8f",
+  "collisionResolutions": [],
+  "frozenInputByteHash": "08eb200ef6bfd41c64499464c75e52d285a47c5c3d1956bf15a16f497856d098",
+  "gaps": [
+    {
+      "claimId": "nx-e1",
+      "originalLocator": "The Attack Chain, step 1",
+      "reason": "legacy passage not retained",
+      "sourceId": "nx",
+      "sourceRevisionId": "nx:legacy-0.2.0"
+    },
+    {
+      "claimId": "nx-e2",
+      "originalLocator": "The Attack Chain, steps 2–3",
+      "reason": "legacy passage not retained",
+      "sourceId": "nx",
+      "sourceRevisionId": "nx:legacy-0.2.0"
+    },
+    {
+      "claimId": "nx-e3",
+      "originalLocator": "What Happened / The Attack Chain, step 4",
+      "reason": "legacy passage not retained",
+      "sourceId": "nx",
+      "sourceRevisionId": "nx:legacy-0.2.0"
+    },
+    {
+      "claimId": "nx-e4",
+      "originalLocator": "Novel Attack Technique: AI CLI Exploitation",
+      "reason": "legacy passage not retained",
+      "sourceId": "nx-step",
+      "sourceRevisionId": "nx-step:legacy-0.2.0"
+    },
+    {
+      "claimId": "nx-e5",
+      "originalLocator": "What Happened",
+      "reason": "legacy passage not retained",
+      "sourceId": "nx",
+      "sourceRevisionId": "nx:legacy-0.2.0"
+    },
+    {
+      "claimId": "nx-e6",
+      "originalLocator": "What Happened",
+      "reason": "legacy passage not retained",
+      "sourceId": "nx",
+      "sourceRevisionId": "nx:legacy-0.2.0"
+    },
+    {
+      "claimId": "deadbugz-e1",
+      "originalLocator": "The delivery route / Attribution",
+      "reason": "legacy passage not retained",
+      "sourceId": "deadbugz",
+      "sourceRevisionId": "deadbugz:legacy-0.2.0"
+    },
+    {
+      "claimId": "deadbugz-e2",
+      "originalLocator": "What happens after the third call",
+      "reason": "legacy passage not retained",
+      "sourceId": "deadbugz",
+      "sourceRevisionId": "deadbugz:legacy-0.2.0"
+    },
+    {
+      "claimId": "deadbugz-e3",
+      "originalLocator": "What happens after the third call",
+      "reason": "legacy passage not retained",
+      "sourceId": "deadbugz",
+      "sourceRevisionId": "deadbugz:legacy-0.2.0"
+    },
+    {
+      "claimId": "deadbugz-e4",
+      "originalLocator": "Executive Summary / Figure 1",
+      "reason": "legacy passage not retained",
+      "sourceId": "deadbugz",
+      "sourceRevisionId": "deadbugz:legacy-0.2.0"
+    },
+    {
+      "claimId": "shai-e1",
+      "originalLocator": "Technical Analysis",
+      "reason": "legacy passage not retained",
+      "sourceId": "shai",
+      "sourceRevisionId": "shai:legacy-0.2.0"
+    },
+    {
+      "claimId": "shai-e2",
+      "originalLocator": "Credential Harvesting",
+      "reason": "legacy passage not retained",
+      "sourceId": "shai",
+      "sourceRevisionId": "shai:legacy-0.2.0"
+    },
+    {
+      "claimId": "shai-e3",
+      "originalLocator": "Data Exfiltration",
+      "reason": "legacy passage not retained",
+      "sourceId": "shai",
+      "sourceRevisionId": "shai:legacy-0.2.0"
+    },
+    {
+      "claimId": "shai-e4",
+      "originalLocator": "Self-Propagation Engine",
+      "reason": "legacy passage not retained",
+      "sourceId": "shai",
+      "sourceRevisionId": "shai:legacy-0.2.0"
+    },
+    {
+      "claimId": "shai-e5",
+      "originalLocator": "Persistence Mechanism",
+      "reason": "legacy passage not retained",
+      "sourceId": "shai",
+      "sourceRevisionId": "shai:legacy-0.2.0"
+    },
+    {
+      "claimId": "whatsapp-e1",
+      "originalLocator": "Experiment 1",
+      "reason": "legacy passage not retained",
+      "sourceId": "whatsapp",
+      "sourceRevisionId": "whatsapp:legacy-0.2.0"
+    },
+    {
+      "claimId": "whatsapp-e2",
+      "originalLocator": "Experiment 1",
+      "reason": "legacy passage not retained",
+      "sourceId": "whatsapp",
+      "sourceRevisionId": "whatsapp:legacy-0.2.0"
+    },
+    {
+      "claimId": "whatsapp-e3",
+      "originalLocator": "Tool Descriptions",
+      "reason": "legacy passage not retained",
+      "sourceId": "whatsapp",
+      "sourceRevisionId": "whatsapp:legacy-0.2.0"
+    },
+    {
+      "claimId": "whatsapp-e4",
+      "originalLocator": "Experiment 1 / Attack Visibility",
+      "reason": "legacy passage not retained",
+      "sourceId": "whatsapp",
+      "sourceRevisionId": "whatsapp:legacy-0.2.0"
+    },
+    {
+      "claimId": "gambit-e1",
+      "originalLocator": "Case 1 / Intrusion playbook, step 1",
+      "reason": "legacy passage not retained",
+      "sourceId": "gambit",
+      "sourceRevisionId": "gambit:legacy-0.2.0"
+    },
+    {
+      "claimId": "gambit-e2",
+      "originalLocator": "Case 1 / Intrusion playbook, step 2",
+      "reason": "legacy passage not retained",
+      "sourceId": "gambit",
+      "sourceRevisionId": "gambit:legacy-0.2.0"
+    },
+    {
+      "claimId": "gambit-e3",
+      "originalLocator": "Case 1 / Intrusion playbook, steps 3–4",
+      "reason": "legacy passage not retained",
+      "sourceId": "gambit",
+      "sourceRevisionId": "gambit:legacy-0.2.0"
+    },
+    {
+      "claimId": "gambit-e4",
+      "originalLocator": "Case 1 / Intrusion playbook, steps 5–6",
+      "reason": "legacy passage not retained",
+      "sourceId": "gambit",
+      "sourceRevisionId": "gambit:legacy-0.2.0"
+    }
+  ],
+  "idPolicy": "Entity-type scoped IDs preserve legacy source/case identity; node IDs are globally unique.",
+  "limits": [
+    "No quotations, raw/normalized input hashes, reviewers or dates invented.",
+    "Legacy contentHash and revision retained only as original metadata; their input normalization/parser provenance is not established.",
+    "Legacy campaign dates/roles remain audit metadata: no unsupported timeline/category assertions generated.",
+    "Review identity is a recorded assertion; authentication is not implemented by this contract.",
+    "Optional enrichments retained as pending drafts, not verified detections or observed telemetry."
+  ],
+  "migrationVersion": "foundation-migration/1",
+  "preservedIds": {
+    "cases": [
+      "nx",
+      "deadbugz",
+      "shai",
+      "whatsapp",
+      "gambit"
+    ],
+    "claims": [
+      "nx-e1",
+      "nx-e2",
+      "nx-e3",
+      "nx-e4",
+      "nx-e5",
+      "nx-e6",
+      "deadbugz-e1",
+      "deadbugz-e2",
+      "deadbugz-e3",
+      "deadbugz-e4",
+      "shai-e1",
+      "shai-e2",
+      "shai-e3",
+      "shai-e4",
+      "shai-e5",
+      "whatsapp-e1",
+      "whatsapp-e2",
+      "whatsapp-e3",
+      "whatsapp-e4",
+      "gambit-e1",
+      "gambit-e2",
+      "gambit-e3",
+      "gambit-e4"
+    ],
+    "sources": [
+      "nx",
+      "nx-step",
+      "deadbugz",
+      "shai",
+      "whatsapp",
+      "gambit",
+      "atlas",
+      "otel",
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp",
+      "otel-events",
+      "attack-T1195.002",
+      "attack-T1552.001"
+    ]
+  },
+  "schemaVersion": "0.3.0",
+  "semanticRegressions": {
+    "deadbugz": {
+      "claimId": "deadbugz-e4",
+      "executionEstablished": false,
+      "originalStatus": "Intent only",
+      "status": "Attempted behavior"
+    },
+    "gambit": {
+      "caseId": "gambit",
+      "datePrecision": "month",
+      "pathId": "path-gambit",
+      "scope": "composite"
+    },
+    "nx": {
+      "claimId": "nx-e5",
+      "preservedNodeLimit": "No AI-specific mapping: the source establishes package-level scanning, not agent-mediated credential retrieval at this step.",
+      "scope": "package-level scanning; not agent credential retrieval"
+    }
+  },
+  "sourceGaps": [
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "nx:legacy-0.2.0",
+      "sourceId": "nx"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "nx-step:legacy-0.2.0",
+      "sourceId": "nx-step"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "deadbugz:legacy-0.2.0",
+      "sourceId": "deadbugz"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "shai:legacy-0.2.0",
+      "sourceId": "shai"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "whatsapp:legacy-0.2.0",
+      "sourceId": "whatsapp"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "gambit:legacy-0.2.0",
+      "sourceId": "gambit"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "atlas:legacy-0.2.0",
+      "sourceId": "atlas"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "otel:legacy-0.2.0",
+      "sourceId": "otel"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "otel-logs:legacy-0.2.0",
+      "sourceId": "otel-logs"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "otel-traces:legacy-0.2.0",
+      "sourceId": "otel-traces"
+    },
+    {
+      "legacyContentHash": "018ffd339be99c7e56ddba7265dd3095ca0735ddf680d28f96036043641384f4",
+      "legacyRevision": "6fd0d763a092db245a54104fc1124031eb3c51d2",
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "otel-agents:legacy-0.2.0",
+      "sourceId": "otel-agents"
+    },
+    {
+      "legacyContentHash": "d5eb3b023f553c56052a07aecf3384ac5f64f894825c72eacf8c0eeda3c49a26",
+      "legacyRevision": "6fd0d763a092db245a54104fc1124031eb3c51d2",
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "otel-mcp:legacy-0.2.0",
+      "sourceId": "otel-mcp"
+    },
+    {
+      "legacyContentHash": "6003d091a7cdb4c537b483b1ebe2c2e414cfc4ffde797e43c5439de0dd2ac0bc",
+      "legacyRevision": "6fd0d763a092db245a54104fc1124031eb3c51d2",
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "otel-events:legacy-0.2.0",
+      "sourceId": "otel-events"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "attack-T1195.002:legacy-0.2.0",
+      "sourceId": "attack-T1195.002"
+    },
+    {
+      "legacyContentHash": null,
+      "legacyRevision": null,
+      "missingNormalizedHash": true,
+      "missingRawHash": true,
+      "missingRetainedContent": true,
+      "revisionId": "attack-T1552.001:legacy-0.2.0",
+      "sourceId": "attack-T1552.001"
+    }
+  ],
+  "transformations": [
+    "campaigns -> cases",
+    "evidence -> claims",
+    "campaignId -> caseId",
+    "node evidenceIds -> claimIds",
+    "node patternIds -> behaviorIds",
+    "edge evidenceIds -> claimIds",
+    "mapping evidenceIds -> claimIds",
+    "mapping technique -> explicit framework/version",
+    "Unreviewed/Approved -> Pending (no authenticated review evidence)",
+    "Legacy statuses preserved as originalStatus; origin preserved as originalOrigin"
+  ]
+}

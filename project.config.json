@@ -4,7 +4,9 @@
     "value": null,
     "status": "advisory"
   },
-  "project_commands": [],
+  "project_commands": [
+    ["node", "--test", "tests/contract.test.mjs"]
+  ],
   "paths": {
     "learning_index": "docs/learnings/README.md",
     "documentation": [

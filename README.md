@@ -19,6 +19,20 @@ This repository provides GitHub intake forms, guidance, a versioned JSON configu
 
 The proposed product roadmap and frozen prototype handoff is documented in [handoff/00-START-HERE.md](handoff/00-START-HERE.md). It describes future work; it does not mean those services are implemented or authorize external issue publication or deployment.
 
+### Issue #1: offline foundation contracts
+
+Schema 0.3.0 separates sources, revisions, passages, cases, claims, categorization,
+timelines, and review events. A supplied-text source needs no URL, and a case
+needs no enrichment. Collection lifecycle, evidence status, generation origin,
+and reviewer disposition are independent. Frozen 0.2.0 records are migration
+inputs, not the target schema; missing passages are explicit pending migration
+gaps, never fabricated support or automatically accepted claims.
+
+See [Issue #1 contract decisions and acceptance traceability](docs/acceptance-audit.md#issue-1-foundation-contract)
+for module layout, serialization/identity rules, test gates, and evidence limits.
+This slice does not implement source fetching, extraction, review operations,
+public exports, UI, automation, deployment, or new ATLAS enrichment.
+
 ## Bootstrap checklist
 
 - [ ] Confirm repository identity, visibility, template setting, and default branch.

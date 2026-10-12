@@ -2,6 +2,7 @@
 
 ## 2026-10-12
 
+- Define the Issue #1 offline 0.3.0 source/case/claim contracts, relationship checks, benign acceptance fixtures, and deterministic migration of the frozen 0.2.0 seed. Legacy claims remain pending; intake, extraction, review operations, exports, and new enrichment are not implemented.
 - Add the phased DevEnvThreatCorpus product handoff and frozen reference package for future issue-by-issue implementation.
 
 ## 2026-10-06
