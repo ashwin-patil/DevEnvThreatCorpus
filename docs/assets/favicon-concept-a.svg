@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="DevEnvThreatCorpus Icon">
+  <defs>
+    <linearGradient id="favShield" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#243830"/>
+      <stop offset="100%" stop-color="#121e19"/>
+    </linearGradient>
+    <linearGradient id="favArrow" x1="24" y1="44" x2="48" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e26d3a"/>
+      <stop offset="100%" stop-color="#ff8c53"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base rounded container -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#favShield)" stroke="#3e5b50" stroke-width="2"/>
+
+  <!-- Stylized D contour -->
+  <path d="M 20 18 L 32 18 C 43 18 49 24 49 32 C 49 40 43 46 32 46 L 20 46 Z" 
+        stroke="#f4f7f2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Telemetry Dot ring hint -->
+  <circle cx="48" cy="18" r="3" fill="#3bb78f"/>
+
+  <!-- Dynamic vector arrow ↗ -->
+  <path d="M 26 38 L 46 18" stroke="url(#favArrow)" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M 36 18 L 46 18 L 46 28" stroke="url(#favArrow)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
