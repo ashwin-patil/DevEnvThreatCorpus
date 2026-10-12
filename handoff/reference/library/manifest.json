@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "0.2.0",
+  "name": "DevEnvThreatCorpus",
+  "updated": "2026-10-11",
+  "modules": [
+    "campaigns",
+    "paths",
+    "evidence",
+    "sources",
+    "behaviors",
+    "frameworks",
+    "mappings",
+    "telemetry",
+    "detections",
+    "otel",
+    "otel-reference",
+    "governance"
+  ]
+}

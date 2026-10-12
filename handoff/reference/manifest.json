@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "0.2.0",
+  "name": "DevEnvThreatCorpus",
+  "updated": "2026-10-11",
+  "modules": [
+    "campaigns",
+    "paths",
+    "evidence",
+    "sources",
+    "behaviors",
+    "frameworks",
+    "mappings",
+    "telemetry",
+    "detections",
+    "otel",
+    "otel-reference",
+    "governance"
+  ],
+  "buildDigest": "6cdceb4301eee9bca94fb45f1065254d105cae43baa2c4215bd37ccc15f428f5",
+  "counts": {
+    "campaigns": 5,
+    "paths": 5,
+    "evidence": 23,
+    "sources": 15,
+    "behaviors": 8,
+    "frameworks": 210,
+    "mappings": 17,
+    "telemetry": 21,
+    "detections": 8,
+    "otel": 8,
+    "otel-reference": 1,
+    "governance": 1
+  }
+}

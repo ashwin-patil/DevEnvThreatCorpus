@@ -1,0 +1,13 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const read=n=>JSON.parse(readFileSync(new URL(`library/${n}.json`,import.meta.url),'utf8'));
+const manifest=read('manifest'),corpus={...manifest};
+for(const name of manifest.modules)corpus[name.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=read(name);
+corpus.build={digest:createHash('sha256').update(JSON.stringify(corpus)).digest('hex'),format:'Normalized entities; LLM-derived entries are unreviewed'};
+const json=JSON.stringify(corpus,null,2)+'\n';
+writeFileSync(new URL('corpus.json',import.meta.url),json);
+writeFileSync(new URL('corpus.js',import.meta.url),'window.CORPUS = '+json.trim()+';\n');
+const rows=manifest.modules.flatMap(name=>{const value=read(name);return Array.isArray(value)?value.map(entity=>({entityType:name,entity})): [{entityType:name,entity:value}]}).map(x=>JSON.stringify({schemaVersion:manifest.schemaVersion,...x})).join('\n')+'\n';
+writeFileSync(new URL('corpus.jsonl',import.meta.url),rows);
+writeFileSync(new URL('manifest.json',import.meta.url),JSON.stringify({...manifest,buildDigest:corpus.build.digest,counts:Object.fromEntries(manifest.modules.map(name=>[name,Array.isArray(read(name))?read(name).length:1]))},null,2)+'\n');
+console.log(`Built v${corpus.schemaVersion}: ${corpus.campaigns.length} campaign/research records, ${corpus.paths.length} paths, ${corpus.frameworks.length} framework techniques.`);

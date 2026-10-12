@@ -1,0 +1,23 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema",
+ "$id":"urn:devenvthreatcorpus:schema:0.2.0",
+ "title":"DevEnvThreatCorpus normalized export",
+ "type":"object",
+ "required":["schemaVersion","name","updated","campaigns","paths","evidence","sources","behaviors","frameworks","mappings","telemetry","detections","otel","otelReference","governance","build"],
+ "additionalProperties":false,
+ "properties":{
+  "schemaVersion":{"const":"0.2.0"},"name":{"const":"DevEnvThreatCorpus"},"updated":{"type":"string"},"modules":{"type":"array","items":{"type":"string"}},"build":{"type":"object","required":["digest","format"],"properties":{"digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},"format":{"type":"string"}}},
+  "campaigns":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["kind","pathIds","sourceIds","origin","reviewStatus"],"properties":{"kind":{"enum":["Campaign","Research exercise","Comparator"]},"pathIds":{"$ref":"#/$defs/ids"},"sourceIds":{"$ref":"#/$defs/ids"}}}]}},
+  "paths":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["campaignId","nodes","edges","origin","reviewStatus"],"properties":{"nodes":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["title","evidenceIds","status","origin","reviewStatus"],"properties":{"evidenceIds":{"$ref":"#/$defs/nonemptyIds"},"patternIds":{"$ref":"#/$defs/ids"}}}]}},"edges":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["from","to","evidenceIds","origin","relation","basis"],"properties":{"relation":{"enum":["sequence","conditional","propagates"]},"evidenceIds":{"$ref":"#/$defs/nonemptyIds"}}}]}}}}]}},
+  "evidence":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["claim","sourceId","locator","status","origin","reviewStatus","campaignId"],"properties":{"status":{"enum":["Reported","Attempt reported","Research observed","Intent only","Demonstrated"]},"origin":{"const":"LLM source paraphrase"},"reviewStatus":{"enum":["Unreviewed","Approved","Rejected"]},"quote":{"type":["string","null"]}}}]}},
+  "sources":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["title","url","publisher","provenance","accessed"],"properties":{"url":{"type":"string","pattern":"^https://"},"contentHash":{"type":["string","null"]}}}]}},
+  "behaviors":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["name","namespace","signalIds","detectionIds","otelIds","origin","reviewStatus"]}]}},
+  "frameworks":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["framework","version","sourceId","url","origin"],"properties":{"framework":{"enum":["ATLAS","ATT&CK"]},"origin":{"const":"Official framework"}}}]}},
+  "mappings":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["pathId","nodeId","campaignId","behaviorId","techniqueId","evidenceIds","rationale","applicability","origin","reviewStatus"],"properties":{"origin":{"const":"LLM inferred mapping"},"evidenceIds":{"$ref":"#/$defs/nonemptyIds"}}}]}},
+  "telemetry":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["behaviorId","logicalFields","joinKeys","availability","schema","origin","reviewStatus"]}]}},
+  "detections":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["behaviorId","hypothesis","signalIds","validation","testPlan","origin","reviewStatus"]}]}},
+  "otel":{"type":"array","items":{"allOf":[{"$ref":"#/$defs/entity"},{"required":["behaviorId","sample","sampleOrigin","sampleFormat","customFields","origin","reviewStatus"],"properties":{"sample":{"type":"object","required":["TraceId","SpanId","Attributes"],"properties":{"TraceId":{"type":"string","pattern":"^[0-9a-f]{32}$"},"SpanId":{"type":"string","pattern":"^[0-9a-f]{16}$"},"Attributes":{"type":"object","properties":{"devthreat.synthetic":{"const":true}},"required":["devthreat.synthetic"]}}}}}]}},
+  "otelReference":{"type":"object","required":["fields","conventions","sourceIds","logsStatus","genAiStatus"]},"governance":{"type":"object","required":["rules","frameworkSnapshot","history"]}
+ },
+ "$defs":{"entity":{"type":"object","required":["id"],"properties":{"id":{"type":"string","minLength":1}}},"ids":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},"nonemptyIds":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}}}
+}

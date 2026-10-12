@@ -1,0 +1,6109 @@
+window.CORPUS = {
+  "schemaVersion": "0.2.0",
+  "name": "DevEnvThreatCorpus",
+  "updated": "2026-10-11",
+  "modules": [
+    "campaigns",
+    "paths",
+    "evidence",
+    "sources",
+    "behaviors",
+    "frameworks",
+    "mappings",
+    "telemetry",
+    "detections",
+    "otel",
+    "otel-reference",
+    "governance"
+  ],
+  "campaigns": [
+    {
+      "id": "nx",
+      "name": "Nx / s1ngularity",
+      "kind": "Campaign",
+      "date": "2025-08-26",
+      "role": "Victim agent",
+      "sourceIds": [
+        "nx",
+        "nx-step"
+      ],
+      "summary": "A compromised release connects CI credential theft, package execution and attempted use of local AI tools.",
+      "limit": "Local AI use was attempted; the selected postmortem does not establish the success of each agent-mediated action. Actor identity is not asserted.",
+      "admission": {
+        "decision": "Include",
+        "scores": [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "reason": "Anchor case named in chat; bridges CI supply chain and victim-side agent evidence.",
+        "reviewStatus": "Unreviewed",
+        "scoreOrigin": "LLM proposed admission score"
+      },
+      "pathIds": [
+        "path-nx"
+      ],
+      "origin": "LLM synthesis",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "enabled": true
+    },
+    {
+      "id": "deadbugz",
+      "name": "Deadbugz / productivity-suite",
+      "kind": "Campaign",
+      "date": "2026-08-10",
+      "role": "Victim agent",
+      "sourceIds": [
+        "deadbugz"
+      ],
+      "summary": "A public delivery campaign exposes delayed malicious MCP definitions after ordinary tool use.",
+      "limit": "Reviewed pull requests were unmerged at report time. The report confirms poisoned metadata, not successful credential theft on victims. Attribution is to a public delivery account only.",
+      "admission": {
+        "decision": "Include",
+        "scores": [
+          2,
+          2,
+          2,
+          2,
+          1
+        ],
+        "reason": "Named in chat; adds runtime gating and an explicit attempted-versus-confirmed distinction.",
+        "reviewStatus": "Unreviewed",
+        "scoreOrigin": "LLM proposed admission score"
+      },
+      "pathIds": [
+        "path-deadbugz"
+      ],
+      "origin": "LLM synthesis",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "enabled": true
+    },
+    {
+      "id": "shai",
+      "name": "Shai-Hulud / September wave",
+      "kind": "Campaign",
+      "date": "2025-09-15",
+      "role": "Conventional malware",
+      "sourceIds": [
+        "shai"
+      ],
+      "summary": "A credential-stealing npm payload spreads using publishing privileges and adds repository persistence.",
+      "limit": "This record models the September 2025 report. Shared behaviors with Nx do not establish common actor attribution. No AI-agent execution is asserted.",
+      "admission": {
+        "decision": "Include",
+        "scores": [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "reason": "Supplemental StepSecurity seed adds propagation, branching and a published runtime-analysis reference.",
+        "reviewStatus": "Unreviewed",
+        "scoreOrigin": "LLM proposed admission score"
+      },
+      "pathIds": [
+        "path-shai"
+      ],
+      "origin": "LLM synthesis",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "enabled": true
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp MCP sleeper",
+      "kind": "Research exercise",
+      "date": null,
+      "role": "Victim agent",
+      "sourceIds": [
+        "whatsapp"
+      ],
+      "summary": "A controlled experiment shows one MCP integration steering actions of another trusted integration.",
+      "limit": "A demonstrated attack primitive, not an observed campaign. The malicious server need not be invoked directly. Exact publication date is not verified.",
+      "admission": {
+        "decision": "Include",
+        "scores": [
+          2,
+          2,
+          2,
+          1,
+          2
+        ],
+        "reason": "Supplemental research cited by Pillar; provides a second example of delayed metadata poisoning.",
+        "reviewStatus": "Unreviewed",
+        "scoreOrigin": "LLM proposed admission score"
+      },
+      "pathIds": [
+        "path-whatsapp"
+      ],
+      "origin": "LLM synthesis",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "enabled": true
+    },
+    {
+      "id": "gambit",
+      "name": "Gambit / suspected ransomware affiliate",
+      "kind": "Comparator",
+      "date": "2026-06",
+      "role": "Attacker agent",
+      "sourceIds": [
+        "gambit"
+      ],
+      "summary": "An operator used Claude Code while conducting remote intrusions; Case 1 is a scope comparator.",
+      "limit": "Gambit assesses a suspected The Gentlemen affiliate with medium confidence. Its playbook combines multiple intrusions; not all steps occurred in every case.",
+      "admission": {
+        "decision": "Include",
+        "scores": [
+          2,
+          2,
+          2,
+          1,
+          1
+        ],
+        "reason": "Direct chat URL; clarifies which telemetry is outside the victim defender’s control.",
+        "reviewStatus": "Unreviewed",
+        "scoreOrigin": "LLM proposed admission score"
+      },
+      "pathIds": [
+        "path-gambit"
+      ],
+      "origin": "LLM synthesis",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "enabled": true
+    }
+  ],
+  "paths": [
+    {
+      "id": "path-nx",
+      "campaignId": "nx",
+      "name": "Nx / s1ngularity attack path",
+      "nodes": [
+        {
+          "id": "nx-1",
+          "title": "Workflow injection",
+          "detail": "A malicious pull request title executed commands in a privileged workflow.",
+          "patternIds": [],
+          "evidenceIds": [
+            "nx-e1"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "nx-2",
+          "title": "Publishing token theft",
+          "detail": "The attacker used a GitHub token to alter and trigger a workflow that exposed the npm token.",
+          "patternIds": [],
+          "evidenceIds": [
+            "nx-e2"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "nx-3",
+          "title": "Malicious package install",
+          "detail": "Poisoned Nx releases ran a postinstall payload.",
+          "patternIds": [
+            "install"
+          ],
+          "evidenceIds": [
+            "nx-e3"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "nx-4",
+          "title": "Local AI invocation",
+          "detail": "The payload attempted to launch installed Claude, Gemini and q with permissive CLI modes.",
+          "patternIds": [
+            "invoke"
+          ],
+          "evidenceIds": [
+            "nx-e4"
+          ],
+          "status": "Attempt reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "nx-5",
+          "title": "Sensitive data collection",
+          "detail": "The packages scanned user systems for sensitive data.",
+          "patternIds": [
+            "secrets"
+          ],
+          "evidenceIds": [
+            "nx-e5"
+          ],
+          "status": "Reported",
+          "atlasApplicability": "No AI-specific mapping: the source establishes package-level scanning, not agent-mediated credential retrieval at this step.",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "nx-6",
+          "title": "GitHub upload",
+          "detail": "Collected data was uploaded to public GitHub repositories through the GitHub CLI.",
+          "patternIds": [
+            "repo-exfil"
+          ],
+          "evidenceIds": [
+            "nx-e6"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        }
+      ],
+      "edges": [
+        {
+          "from": "nx-1",
+          "to": "nx-2",
+          "label": "workflow escalation",
+          "evidenceIds": [
+            "nx-e1",
+            "nx-e2"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-nx-edge-1",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "nx-2",
+          "to": "nx-3",
+          "label": "poisoned publishing identity",
+          "evidenceIds": [
+            "nx-e2",
+            "nx-e3"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-nx-edge-2",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "nx-3",
+          "to": "nx-4",
+          "label": "optional agent invocation",
+          "evidenceIds": [
+            "nx-e3",
+            "nx-e4"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-nx-edge-3",
+          "origin": "LLM inferred relationship",
+          "relation": "conditional"
+        },
+        {
+          "from": "nx-3",
+          "to": "nx-5",
+          "label": "payload collection",
+          "evidenceIds": [
+            "nx-e3",
+            "nx-e5"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-nx-edge-4",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "nx-4",
+          "to": "nx-5",
+          "label": "intended assistance; success unverified",
+          "evidenceIds": [
+            "nx-e4",
+            "nx-e5"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-nx-edge-5",
+          "origin": "LLM inferred relationship",
+          "relation": "conditional"
+        },
+        {
+          "from": "nx-5",
+          "to": "nx-6",
+          "label": "collection → upload",
+          "evidenceIds": [
+            "nx-e5",
+            "nx-e6"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-nx-edge-6",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        }
+      ],
+      "origin": "LLM reconstruction",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "path-deadbugz",
+      "campaignId": "deadbugz",
+      "name": "Deadbugz / productivity-suite attack path",
+      "nodes": [
+        {
+          "id": "deadbugz-1",
+          "title": "MCP configuration PRs",
+          "detail": "The zellkernel account submitted MCP configuration changes through public pull requests.",
+          "patternIds": [],
+          "evidenceIds": [
+            "deadbugz-e1"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "deadbugz-2",
+          "title": "Benign tool calls",
+          "detail": "The server initially offered text formatting and summarization.",
+          "patternIds": [],
+          "evidenceIds": [
+            "deadbugz-e2"
+          ],
+          "status": "Research observed",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "deadbugz-3",
+          "title": "Delayed metadata change",
+          "detail": "After three tools/call requests, later metadata returned credential-seeking instructions.",
+          "patternIds": [
+            "poison"
+          ],
+          "evidenceIds": [
+            "deadbugz-e3"
+          ],
+          "status": "Research observed",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "deadbugz-4",
+          "title": "Credential-seeking intent",
+          "detail": "Instructions targeted SSH, AWS and Kubernetes files and asked to conceal the activity.",
+          "patternIds": [
+            "secrets",
+            "cross-tool"
+          ],
+          "evidenceIds": [
+            "deadbugz-e4"
+          ],
+          "status": "Intent only",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        }
+      ],
+      "edges": [
+        {
+          "from": "deadbugz-1",
+          "to": "deadbugz-2",
+          "label": "delivery attempt → separate researcher test",
+          "evidenceIds": [
+            "deadbugz-e1",
+            "deadbugz-e2"
+          ],
+          "basis": "The report describes unmerged delivery PRs and a separate controlled endpoint test. This is a contextual relationship, not proof that victims installed the PR configuration.",
+          "id": "path-deadbugz-edge-1",
+          "origin": "LLM inferred relationship",
+          "relation": "conditional"
+        },
+        {
+          "from": "deadbugz-2",
+          "to": "deadbugz-3",
+          "label": "reported sequence",
+          "evidenceIds": [
+            "deadbugz-e2",
+            "deadbugz-e3"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-deadbugz-edge-2",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "deadbugz-3",
+          "to": "deadbugz-4",
+          "label": "malicious instruction intent; access unproven",
+          "evidenceIds": [
+            "deadbugz-e3",
+            "deadbugz-e4"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-deadbugz-edge-3",
+          "origin": "LLM inferred relationship",
+          "relation": "conditional"
+        }
+      ],
+      "origin": "LLM reconstruction",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "path-shai",
+      "campaignId": "shai",
+      "name": "Shai-Hulud / September wave attack path",
+      "nodes": [
+        {
+          "id": "shai-1",
+          "title": "Package execution",
+          "detail": "Compromised packages executed a bundled payload during installation.",
+          "patternIds": [
+            "install"
+          ],
+          "evidenceIds": [
+            "shai-e1"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "shai-2",
+          "title": "Credential harvesting",
+          "detail": "The payload read environment credentials and used TruffleHog and cloud secret APIs.",
+          "patternIds": [
+            "secrets"
+          ],
+          "evidenceIds": [
+            "shai-e2"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "shai-3",
+          "title": "Public repo exfiltration",
+          "detail": "Harvested data was uploaded to a public Shai-Hulud repository.",
+          "patternIds": [
+            "repo-exfil"
+          ],
+          "evidenceIds": [
+            "shai-e3"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "shai-4",
+          "title": "Package propagation",
+          "detail": "The malware used npm publishing authority to patch additional maintainer packages.",
+          "patternIds": [
+            "propagate"
+          ],
+          "evidenceIds": [
+            "shai-e4"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "shai-5",
+          "title": "Workflow persistence",
+          "detail": "A malicious GitHub Actions workflow was injected to expose repository secrets.",
+          "patternIds": [],
+          "evidenceIds": [
+            "shai-e5"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        }
+      ],
+      "edges": [
+        {
+          "from": "shai-1",
+          "to": "shai-2",
+          "label": "enables",
+          "evidenceIds": [
+            "shai-e1",
+            "shai-e2"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-shai-edge-1",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "shai-2",
+          "to": "shai-3",
+          "label": "collection → exfiltration",
+          "evidenceIds": [
+            "shai-e2",
+            "shai-e3"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-shai-edge-2",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "shai-2",
+          "to": "shai-4",
+          "label": "stolen publishing authority",
+          "evidenceIds": [
+            "shai-e2",
+            "shai-e4"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-shai-edge-3",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "shai-2",
+          "to": "shai-5",
+          "label": "stolen repository authority",
+          "evidenceIds": [
+            "shai-e2",
+            "shai-e5"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-shai-edge-4",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "shai-4",
+          "to": "shai-1",
+          "label": "newly poisoned package → repeat",
+          "evidenceIds": [
+            "shai-e4",
+            "shai-e1"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-shai-edge-5",
+          "origin": "LLM inferred relationship",
+          "relation": "propagates"
+        }
+      ],
+      "origin": "LLM reconstruction",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "path-whatsapp",
+      "campaignId": "whatsapp",
+      "name": "WhatsApp MCP sleeper attack path",
+      "nodes": [
+        {
+          "id": "whatsapp-1",
+          "title": "Two connected servers",
+          "detail": "The agent had a trusted WhatsApp integration and a researcher-controlled server.",
+          "patternIds": [],
+          "evidenceIds": [
+            "whatsapp-e1"
+          ],
+          "status": "Demonstrated",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "whatsapp-2",
+          "title": "Sleeper definition switch",
+          "detail": "An initially innocuous tool later advertised malicious instructions.",
+          "patternIds": [
+            "poison"
+          ],
+          "evidenceIds": [
+            "whatsapp-e2"
+          ],
+          "status": "Demonstrated",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "whatsapp-3",
+          "title": "Cross-tool manipulation",
+          "detail": "The injected description redirected the trusted messaging tool.",
+          "patternIds": [
+            "cross-tool"
+          ],
+          "evidenceIds": [
+            "whatsapp-e3"
+          ],
+          "status": "Demonstrated",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "whatsapp-4",
+          "title": "Message history exfiltration",
+          "detail": "The experiment sent in-context message history through WhatsApp.",
+          "patternIds": [
+            "cross-tool"
+          ],
+          "evidenceIds": [
+            "whatsapp-e4"
+          ],
+          "status": "Demonstrated",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        }
+      ],
+      "edges": [
+        {
+          "from": "whatsapp-1",
+          "to": "whatsapp-2",
+          "label": "demonstrated progression",
+          "evidenceIds": [
+            "whatsapp-e1",
+            "whatsapp-e2"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-whatsapp-edge-1",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "whatsapp-2",
+          "to": "whatsapp-3",
+          "label": "demonstrated progression",
+          "evidenceIds": [
+            "whatsapp-e2",
+            "whatsapp-e3"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-whatsapp-edge-2",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        },
+        {
+          "from": "whatsapp-3",
+          "to": "whatsapp-4",
+          "label": "demonstrated progression",
+          "evidenceIds": [
+            "whatsapp-e3",
+            "whatsapp-e4"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-whatsapp-edge-3",
+          "origin": "LLM inferred relationship",
+          "relation": "sequence"
+        }
+      ],
+      "origin": "LLM reconstruction",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "path-gambit",
+      "campaignId": "gambit",
+      "name": "Gambit / suspected ransomware affiliate attack path",
+      "nodes": [
+        {
+          "id": "gambit-1",
+          "title": "Appliance admin access",
+          "detail": "The operator used previously obtained credentials to reach VPN administration.",
+          "patternIds": [
+            "attacker-ai"
+          ],
+          "evidenceIds": [
+            "gambit-e1"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "gambit-2",
+          "title": "Credential capture",
+          "detail": "LDAP settings were redirected to capture a service-account credential.",
+          "patternIds": [
+            "attacker-ai"
+          ],
+          "evidenceIds": [
+            "gambit-e2"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "gambit-3",
+          "title": "VPN persistence and discovery",
+          "detail": "The operator used Claude Code for VPN changes and internal reconnaissance.",
+          "patternIds": [
+            "attacker-ai"
+          ],
+          "evidenceIds": [
+            "gambit-e3"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        },
+        {
+          "id": "gambit-4",
+          "title": "Backup staging and theft",
+          "detail": "Database backups were staged, and one dump was copied off a server.",
+          "patternIds": [
+            "attacker-ai"
+          ],
+          "evidenceIds": [
+            "gambit-e4"
+          ],
+          "status": "Reported",
+          "origin": "LLM source paraphrase",
+          "reviewStatus": "Unreviewed"
+        }
+      ],
+      "edges": [
+        {
+          "from": "gambit-1",
+          "to": "gambit-2",
+          "label": "composite playbook; varies by intrusion",
+          "evidenceIds": [
+            "gambit-e1",
+            "gambit-e2"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-gambit-edge-1",
+          "origin": "LLM inferred relationship",
+          "relation": "conditional"
+        },
+        {
+          "from": "gambit-2",
+          "to": "gambit-3",
+          "label": "composite playbook; varies by intrusion",
+          "evidenceIds": [
+            "gambit-e2",
+            "gambit-e3"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-gambit-edge-2",
+          "origin": "LLM inferred relationship",
+          "relation": "conditional"
+        },
+        {
+          "from": "gambit-3",
+          "to": "gambit-4",
+          "label": "composite playbook; varies by intrusion",
+          "evidenceIds": [
+            "gambit-e3",
+            "gambit-e4"
+          ],
+          "basis": "LLM reconstruction from cited source sections; not a timestamped event trace or human-approved causal assertion.",
+          "id": "path-gambit-edge-3",
+          "origin": "LLM inferred relationship",
+          "relation": "conditional"
+        }
+      ],
+      "origin": "LLM reconstruction",
+      "reviewStatus": "Unreviewed"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "nx-e1",
+      "claim": "A malicious pull request title executed commands in a privileged workflow.",
+      "sourceId": "nx",
+      "locator": "The Attack Chain, step 1",
+      "status": "Reported",
+      "campaignId": "nx",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "nx-e2",
+      "claim": "The attacker used a GitHub token to alter and trigger a workflow that exposed the npm token.",
+      "sourceId": "nx",
+      "locator": "The Attack Chain, steps 2–3",
+      "status": "Reported",
+      "campaignId": "nx",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "nx-e3",
+      "claim": "Poisoned Nx releases ran a postinstall payload.",
+      "sourceId": "nx",
+      "locator": "What Happened / The Attack Chain, step 4",
+      "status": "Reported",
+      "campaignId": "nx",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "nx-e4",
+      "claim": "The payload attempted to launch installed Claude, Gemini and q with permissive CLI modes.",
+      "sourceId": "nx-step",
+      "locator": "Novel Attack Technique: AI CLI Exploitation",
+      "status": "Attempt reported",
+      "campaignId": "nx",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "nx-e5",
+      "claim": "The packages scanned user systems for sensitive data.",
+      "sourceId": "nx",
+      "locator": "What Happened",
+      "status": "Reported",
+      "campaignId": "nx",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "nx-e6",
+      "claim": "Collected data was uploaded to public GitHub repositories through the GitHub CLI.",
+      "sourceId": "nx",
+      "locator": "What Happened",
+      "status": "Reported",
+      "campaignId": "nx",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "deadbugz-e1",
+      "claim": "The zellkernel account submitted MCP configuration changes through public pull requests.",
+      "sourceId": "deadbugz",
+      "locator": "The delivery route / Attribution",
+      "status": "Reported",
+      "campaignId": "deadbugz",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "deadbugz-e2",
+      "claim": "The server initially offered text formatting and summarization.",
+      "sourceId": "deadbugz",
+      "locator": "What happens after the third call",
+      "status": "Research observed",
+      "campaignId": "deadbugz",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "deadbugz-e3",
+      "claim": "After three tools/call requests, later metadata returned credential-seeking instructions.",
+      "sourceId": "deadbugz",
+      "locator": "What happens after the third call",
+      "status": "Research observed",
+      "campaignId": "deadbugz",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "deadbugz-e4",
+      "claim": "Instructions targeted SSH, AWS and Kubernetes files and asked to conceal the activity.",
+      "sourceId": "deadbugz",
+      "locator": "Executive Summary / Figure 1",
+      "status": "Intent only",
+      "campaignId": "deadbugz",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "shai-e1",
+      "claim": "Compromised packages executed a bundled payload during installation.",
+      "sourceId": "shai",
+      "locator": "Technical Analysis",
+      "status": "Reported",
+      "campaignId": "shai",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "shai-e2",
+      "claim": "The payload read environment credentials and used TruffleHog and cloud secret APIs.",
+      "sourceId": "shai",
+      "locator": "Credential Harvesting",
+      "status": "Reported",
+      "campaignId": "shai",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "shai-e3",
+      "claim": "Harvested data was uploaded to a public Shai-Hulud repository.",
+      "sourceId": "shai",
+      "locator": "Data Exfiltration",
+      "status": "Reported",
+      "campaignId": "shai",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "shai-e4",
+      "claim": "The malware used npm publishing authority to patch additional maintainer packages.",
+      "sourceId": "shai",
+      "locator": "Self-Propagation Engine",
+      "status": "Reported",
+      "campaignId": "shai",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "shai-e5",
+      "claim": "A malicious GitHub Actions workflow was injected to expose repository secrets.",
+      "sourceId": "shai",
+      "locator": "Persistence Mechanism",
+      "status": "Reported",
+      "campaignId": "shai",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "whatsapp-e1",
+      "claim": "The agent had a trusted WhatsApp integration and a researcher-controlled server.",
+      "sourceId": "whatsapp",
+      "locator": "Experiment 1",
+      "status": "Demonstrated",
+      "campaignId": "whatsapp",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "whatsapp-e2",
+      "claim": "An initially innocuous tool later advertised malicious instructions.",
+      "sourceId": "whatsapp",
+      "locator": "Experiment 1",
+      "status": "Demonstrated",
+      "campaignId": "whatsapp",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "whatsapp-e3",
+      "claim": "The injected description redirected the trusted messaging tool.",
+      "sourceId": "whatsapp",
+      "locator": "Tool Descriptions",
+      "status": "Demonstrated",
+      "campaignId": "whatsapp",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "whatsapp-e4",
+      "claim": "The experiment sent in-context message history through WhatsApp.",
+      "sourceId": "whatsapp",
+      "locator": "Experiment 1 / Attack Visibility",
+      "status": "Demonstrated",
+      "campaignId": "whatsapp",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "gambit-e1",
+      "claim": "The operator used previously obtained credentials to reach VPN administration.",
+      "sourceId": "gambit",
+      "locator": "Case 1 / Intrusion playbook, step 1",
+      "status": "Reported",
+      "campaignId": "gambit",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "gambit-e2",
+      "claim": "LDAP settings were redirected to capture a service-account credential.",
+      "sourceId": "gambit",
+      "locator": "Case 1 / Intrusion playbook, step 2",
+      "status": "Reported",
+      "campaignId": "gambit",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "gambit-e3",
+      "claim": "The operator used Claude Code for VPN changes and internal reconnaissance.",
+      "sourceId": "gambit",
+      "locator": "Case 1 / Intrusion playbook, steps 3–4",
+      "status": "Reported",
+      "campaignId": "gambit",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    },
+    {
+      "id": "gambit-e4",
+      "claim": "Database backups were staged, and one dump was copied off a server.",
+      "sourceId": "gambit",
+      "locator": "Case 1 / Intrusion playbook, steps 5–6",
+      "status": "Reported",
+      "campaignId": "gambit",
+      "origin": "LLM source paraphrase",
+      "reviewStatus": "Unreviewed",
+      "reviewer": null,
+      "quote": null
+    }
+  ],
+  "sources": [
+    {
+      "id": "nx",
+      "publisher": "Nx",
+      "title": "S1ngularity — What Happened, How We Responded, What We Learned",
+      "url": "https://nx.dev/blog/s1ngularity-postmortem",
+      "published": "2025-09-05",
+      "provenance": "Recovered primary source for Nx named in Collect Campaign Articles",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Research",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "nx-step",
+      "publisher": "StepSecurity",
+      "title": "s1ngularity: Popular Nx Build System Package Compromised",
+      "url": "https://www.stepsecurity.io/blog/supply-chain-security-alert-popular-nx-build-system-package-compromised-with-data-stealing-malware",
+      "published": "2025-08-27",
+      "provenance": "Supplemental analysis from the source family requested in IDE Attack Incident Dataset",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Research",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "deadbugz",
+      "publisher": "Pillar Security",
+      "title": "Deadbugz: Currently Active MCP Supply-Chain Campaign",
+      "url": "https://www.pillar.security/blog/deadbugz-currently-active-mcp-supply-chain-campaign",
+      "published": "2026-08-12",
+      "provenance": "Recovered primary source for Deadbugz named in Collect Campaign Articles",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Research",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "shai",
+      "publisher": "StepSecurity",
+      "title": "Shai-Hulud: Self-Replicating Worm Compromises 500+ NPM Packages",
+      "url": "https://www.stepsecurity.io/blog/ctrl-tinycolor-and-40-npm-packages-compromised",
+      "published": "2025-09-15",
+      "provenance": "Supplemental seed selected from StepSecurity; exact article not visible in recovered chat history",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Research",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "whatsapp",
+      "publisher": "Invariant Labs",
+      "title": "WhatsApp MCP Exploited: Exfiltrating your message history via MCP",
+      "url": "https://invariantlabs.ai/blog/whatsapp-mcp-exploited",
+      "published": null,
+      "provenance": "Supplemental research cited by the Deadbugz primary report; exact publication date not verified",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Research",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "gambit",
+      "publisher": "Gambit Security",
+      "title": "AI Across the Intrusion Lifecycle",
+      "url": "https://gambit.security/ai-across-the-intrusion-lifecycle",
+      "published": "2026-08-31",
+      "provenance": "Direct URL present in Collect Campaign Articles; only Case 1 modeled",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Research",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "atlas",
+      "publisher": "MITRE",
+      "title": "ATLAS content release 2026.09",
+      "url": "https://github.com/mitre-atlas/atlas-data/blob/main/dist/v6/ATLAS-2026.09.yaml",
+      "published": "2026-09-15",
+      "provenance": "Official taxonomy reference; technique IDs and names checked against release",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "otel",
+      "publisher": "OpenTelemetry",
+      "title": "GenAI semantic conventions",
+      "url": "https://github.com/open-telemetry/semantic-conventions-genai",
+      "published": null,
+      "provenance": "Official instrumentation reference; conventions have moved from the former docs pages",
+      "accessed": "2026-10-11",
+      "verification": "Primary page read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "otel-logs",
+      "title": "OpenTelemetry Logs Data Model",
+      "url": "https://opentelemetry.io/docs/specs/otel/logs/data-model/",
+      "publisher": "OpenTelemetry",
+      "published": null,
+      "provenance": "Official documentation checked for v0.2",
+      "accessed": "2026-10-11",
+      "verification": "Official documentation read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "otel-traces",
+      "title": "OpenTelemetry Tracing API",
+      "url": "https://opentelemetry.io/docs/specs/otel/trace/api/",
+      "publisher": "OpenTelemetry",
+      "published": null,
+      "provenance": "Official documentation checked for v0.2",
+      "accessed": "2026-10-11",
+      "verification": "Official documentation read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "otel-agents",
+      "title": "GenAI agent spans",
+      "url": "https://github.com/open-telemetry/semantic-conventions-genai/blob/6fd0d763a092db245a54104fc1124031eb3c51d2/docs/gen-ai/gen-ai-agent-spans.md",
+      "publisher": "OpenTelemetry",
+      "published": null,
+      "provenance": "Official documentation checked for v0.2",
+      "accessed": "2026-10-11",
+      "verification": "Official documentation read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": "018ffd339be99c7e56ddba7265dd3095ca0735ddf680d28f96036043641384f4",
+      "trust": "External reference; never executable instructions",
+      "revision": "6fd0d763a092db245a54104fc1124031eb3c51d2"
+    },
+    {
+      "id": "otel-mcp",
+      "title": "MCP semantic conventions",
+      "url": "https://github.com/open-telemetry/semantic-conventions-genai/blob/6fd0d763a092db245a54104fc1124031eb3c51d2/docs/gen-ai/mcp.md",
+      "publisher": "OpenTelemetry",
+      "published": null,
+      "provenance": "Official documentation checked for v0.2",
+      "accessed": "2026-10-11",
+      "verification": "Official documentation read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": "d5eb3b023f553c56052a07aecf3384ac5f64f894825c72eacf8c0eeda3c49a26",
+      "trust": "External reference; never executable instructions",
+      "revision": "6fd0d763a092db245a54104fc1124031eb3c51d2"
+    },
+    {
+      "id": "otel-events",
+      "title": "GenAI events",
+      "url": "https://github.com/open-telemetry/semantic-conventions-genai/blob/6fd0d763a092db245a54104fc1124031eb3c51d2/docs/gen-ai/gen-ai-events.md",
+      "publisher": "OpenTelemetry",
+      "published": null,
+      "provenance": "Official documentation checked for v0.2",
+      "accessed": "2026-10-11",
+      "verification": "Official documentation read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": "6003d091a7cdb4c537b483b1ebe2c2e414cfc4ffde797e43c5439de0dd2ac0bc",
+      "trust": "External reference; never executable instructions",
+      "revision": "6fd0d763a092db245a54104fc1124031eb3c51d2"
+    },
+    {
+      "id": "attack-T1195.002",
+      "title": "Compromise Software Supply Chain",
+      "url": "https://attack.mitre.org/techniques/T1195/002/",
+      "publisher": "MITRE ATT&CK",
+      "published": null,
+      "provenance": "Conventional TTP catalog reference",
+      "accessed": "2026-10-11",
+      "verification": "Official technique page read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    },
+    {
+      "id": "attack-T1552.001",
+      "title": "Credentials In Files",
+      "url": "https://attack.mitre.org/techniques/T1552/001/",
+      "publisher": "MITRE ATT&CK",
+      "published": null,
+      "provenance": "Conventional TTP catalog reference",
+      "accessed": "2026-10-11",
+      "verification": "Official technique page read",
+      "kind": "Reference",
+      "reviewStatus": "Unreviewed",
+      "contentHash": null,
+      "trust": "External reference; never executable instructions"
+    }
+  ],
+  "behaviors": [
+    {
+      "id": "install",
+      "name": "Trusted install → code execution",
+      "boundary": "Registry package → developer host",
+      "description": "An installation grants executable behavior to a dependency.",
+      "gap": "Package installs often happen outside an instrumented agent. EDR and registry history remain necessary.",
+      "signalIds": [
+        "signal-install-endpoint",
+        "signal-install-package",
+        "signal-install-network"
+      ],
+      "detectionIds": [
+        "detect-install"
+      ],
+      "otelIds": [
+        "otel-install"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    },
+    {
+      "id": "invoke",
+      "name": "Malware → local coding agent",
+      "boundary": "Package process → victim agent runtime",
+      "description": "An adversary tries to use locally available agent capabilities.",
+      "gap": "A process launch proves an invocation attempt, not successful model-guided theft.",
+      "signalIds": [
+        "signal-invoke-endpoint",
+        "signal-invoke-agent"
+      ],
+      "detectionIds": [
+        "detect-invoke"
+      ],
+      "otelIds": [
+        "otel-invoke"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    },
+    {
+      "id": "poison",
+      "name": "Approved tool → changed instructions",
+      "boundary": "Remote tool metadata → model context",
+      "description": "A tool definition changes after initial trust and introduces instructions.",
+      "gap": "Many clients do not retain historical definitions; hashes alone cannot explain content.",
+      "signalIds": [
+        "signal-poison-agent",
+        "signal-poison-package"
+      ],
+      "detectionIds": [
+        "detect-poison"
+      ],
+      "otelIds": [
+        "otel-poison"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    },
+    {
+      "id": "secrets",
+      "name": "Execution → credential discovery",
+      "boundary": "Runtime identity → sensitive data",
+      "description": "Code or agent instructions target credentials available in the environment.",
+      "gap": "EDR may not capture individual file reads or environment reads. Add explicit application audit hooks.",
+      "signalIds": [
+        "signal-secrets-endpoint",
+        "signal-secrets-identity",
+        "signal-secrets-agent"
+      ],
+      "detectionIds": [
+        "detect-secrets"
+      ],
+      "otelIds": [
+        "otel-secrets"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    },
+    {
+      "id": "repo-exfil",
+      "name": "Collected data → public repository",
+      "boundary": "Developer identity → external repository",
+      "description": "A normal developer service becomes a destination for stolen data.",
+      "gap": "TLS network metadata does not reveal content; API/audit coverage varies. Nx exfiltration via gh is not proven to be an agent tool action.",
+      "signalIds": [
+        "signal-repo-exfil-endpoint",
+        "signal-repo-exfil-network",
+        "signal-repo-exfil-identity"
+      ],
+      "detectionIds": [
+        "detect-repo-exfil"
+      ],
+      "otelIds": [
+        "otel-repo-exfil"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    },
+    {
+      "id": "propagate",
+      "name": "Stolen publishing identity → propagation",
+      "boundary": "Developer credential → other packages",
+      "description": "Publishing authority is reused to distribute the payload further.",
+      "gap": "This seed is conventional supply-chain propagation. No AI-specific ATLAS mapping is asserted.",
+      "signalIds": [
+        "signal-propagate-package",
+        "signal-propagate-identity"
+      ],
+      "detectionIds": [
+        "detect-propagate"
+      ],
+      "otelIds": [
+        "otel-propagate"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    },
+    {
+      "id": "cross-tool",
+      "name": "Untrusted tool → trusted tool exfiltration",
+      "boundary": "One tool definition → another tool’s authority",
+      "description": "Instructions from one integration alter the actions of a different integration.",
+      "gap": "Requires provenance beyond process telemetry. A tool call alone does not prove an injection.",
+      "signalIds": [
+        "signal-cross-tool-agent",
+        "signal-cross-tool-network",
+        "signal-cross-tool-identity"
+      ],
+      "detectionIds": [
+        "detect-cross-tool"
+      ],
+      "otelIds": [
+        "otel-cross-tool"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    },
+    {
+      "id": "attacker-ai",
+      "name": "Operator → AI-driven intrusion commands",
+      "boundary": "Attacker agent → victim infrastructure",
+      "description": "An attacker uses AI to generate and refine operations against remote systems.",
+      "gap": "This comparator does not justify claiming that victim-side agent OTEL would capture attacker conversations.",
+      "signalIds": [
+        "signal-attacker-ai-endpoint",
+        "signal-attacker-ai-network",
+        "signal-attacker-ai-identity"
+      ],
+      "detectionIds": [
+        "detect-attacker-ai"
+      ],
+      "otelIds": [
+        "otel-attacker-ai"
+      ],
+      "origin": "LLM normalized behavior",
+      "reviewStatus": "Unreviewed",
+      "namespace": "DevEnvThreatCorpus local behavior",
+      "frameworkCoverage": "Mapped through node-specific mapping entities, or unmapped"
+    }
+  ],
+  "frameworks": [
+    {
+      "id": "AML.T0000",
+      "name": "Search Open Technical Databases",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0000.000",
+      "name": "Search Open Technical Databases: Journals and Conference Proceedings",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0000",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0000.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0000.001",
+      "name": "Search Open Technical Databases: Pre-Print Repositories",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0000",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0000.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0000.002",
+      "name": "Search Open Technical Databases: Technical Blogs",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0000",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0000.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0000.003",
+      "name": "Search Open Technical Databases: Scan Databases",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0000",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0000.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0001",
+      "name": "Search Open AI Vulnerability Analysis",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0002",
+      "name": "Acquire Public AI Artifacts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0002.000",
+      "name": "Acquire Public AI Artifacts: Datasets",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0002",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0002.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0002.001",
+      "name": "Acquire Public AI Artifacts: Models",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0002",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0002.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0002.002",
+      "name": "Acquire Public AI Artifacts: AI Agent Configuration",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0002",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0002.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0003",
+      "name": "Search Victim-Owned Websites",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0004",
+      "name": "Search Application Repositories",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0004",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0005",
+      "name": "Create Proxy AI Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0005",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0005.000",
+      "name": "Create Proxy AI Model: Train Proxy via Gathered AI Artifacts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0005",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0005.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0005.001",
+      "name": "Create Proxy AI Model: Train Proxy via Replication",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0005",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0005.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0005.002",
+      "name": "Create Proxy AI Model: Use Pre-Trained Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0005",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0005.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0006",
+      "name": "Active Scanning",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0006",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0006.000",
+      "name": "Active Scanning: Enumerate Hosted AI Resources",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0006",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0006.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0006.001",
+      "name": "Active Scanning: Query Platform Metadata APIs",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0006",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0006.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0006.002",
+      "name": "Active Scanning: Scan for Exposed AI Infrastructure",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0006",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0006.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0006.003",
+      "name": "Active Scanning: Probe AI Agent Trigger Channels",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0006",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0006.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0007",
+      "name": "Discover AI Artifacts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0007",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0008",
+      "name": "Acquire Infrastructure",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0008",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0008.000",
+      "name": "Acquire Infrastructure: AI Development Workspaces",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0008",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0008.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0008.001",
+      "name": "Acquire Infrastructure: Consumer Hardware",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0008",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0008.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0008.002",
+      "name": "Acquire Infrastructure: Domains",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0008",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0008.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0008.003",
+      "name": "Acquire Infrastructure: Physical Countermeasures",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0008",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0008.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0008.004",
+      "name": "Acquire Infrastructure: Serverless",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0008",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0008.004",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0008.005",
+      "name": "Acquire Infrastructure: AI Service Proxies",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0008",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0008.005",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0010",
+      "name": "AI Supply Chain Compromise",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0010",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0010.000",
+      "name": "AI Supply Chain Compromise: Hardware",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0010",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0010.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0010.001",
+      "name": "AI Supply Chain Compromise: AI Software",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0010",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0010.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0010.002",
+      "name": "AI Supply Chain Compromise: Data",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0010",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0010.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0010.003",
+      "name": "AI Supply Chain Compromise: Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0010",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0010.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0010.004",
+      "name": "AI Supply Chain Compromise: Container Registry",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0010",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0010.004",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0010.005",
+      "name": "AI Supply Chain Compromise: AI Agent Tool",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0010",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0010.005",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0011",
+      "name": "User Execution",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0011",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0011.000",
+      "name": "User Execution: Unsafe AI Artifacts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0011",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0011.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0011.001",
+      "name": "User Execution: Malicious Package",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0011",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0011.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0011.002",
+      "name": "User Execution: Poisoned AI Agent Tool",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0011",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0011.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0011.003",
+      "name": "User Execution: Malicious Link",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0011",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0011.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0012",
+      "name": "Valid Accounts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0012",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004",
+        "AML.TA0012",
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0013",
+      "name": "Discover AI Model Ontology",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0013",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0014",
+      "name": "Discover AI Model Family",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0014",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0015",
+      "name": "Evade AI Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0015",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004",
+        "AML.TA0007",
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0016",
+      "name": "Obtain Capabilities",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0016",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0016.000",
+      "name": "Obtain Capabilities: Adversarial AI Attack Implementations",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0016",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0016.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0016.001",
+      "name": "Obtain Capabilities: Software Tools",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0016",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0016.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0016.002",
+      "name": "Obtain Capabilities: Generative AI",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0016",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0016.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0016.003",
+      "name": "Obtain Capabilities: Exploits",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0016",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0016.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0016.004",
+      "name": "Obtain Capabilities: AI Agent Tools",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0016",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0016.004",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0017",
+      "name": "Develop Capabilities",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0017",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0017.000",
+      "name": "Develop Capabilities: Adversarial AI Attacks",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0017",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0017.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0017.001",
+      "name": "Develop Capabilities: Autonomous Exploit Development",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0017",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0017.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0017.002",
+      "name": "Develop Capabilities: AI Agent Tools",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0017",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0017.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0018",
+      "name": "Manipulate AI Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0018",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001",
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0018.000",
+      "name": "Manipulate AI Model: Poison AI Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0018",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0018.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001",
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0018.001",
+      "name": "Manipulate AI Model: Modify AI Model Architecture",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0018",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0018.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001",
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0018.002",
+      "name": "Manipulate AI Model: Embed Malware",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0018",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0018.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001",
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0018.003",
+      "name": "Manipulate AI Model: Modify Prompt Construction Logic",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0018",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0018.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001",
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0020",
+      "name": "Training Data Poisoning",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0020",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0021",
+      "name": "Establish Accounts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0021",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0024",
+      "name": "Exfiltration via AI Inference API",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0024",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0024.000",
+      "name": "Exfiltration via AI Inference API: Infer Training Data Membership",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0024",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0024.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0024.001",
+      "name": "Exfiltration via AI Inference API: Invert AI Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0024",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0024.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0024.002",
+      "name": "Exfiltration via AI Inference API: Extract AI Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0024",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0024.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0025",
+      "name": "Exfiltration via Cyber Means",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0025",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0029",
+      "name": "Denial of AI Service",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0029",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0031",
+      "name": "Erode AI Model Integrity",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0031",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0034",
+      "name": "Cost Harvesting",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0034",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0034.000",
+      "name": "Cost Harvesting: Excessive Queries",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0034",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0034.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0034.001",
+      "name": "Cost Harvesting: Resource-Intensive Queries",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0034",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0034.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0034.002",
+      "name": "Cost Harvesting: Agentic Resource Consumption",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0034",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0034.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0035",
+      "name": "AI Artifact Collection",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0035",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0036",
+      "name": "Data from Information Repositories",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0036",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0037",
+      "name": "Data from Local System",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0037",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0040",
+      "name": "AI Model Inference API Access",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0040",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0000"
+      ]
+    },
+    {
+      "id": "AML.T0041",
+      "name": "Physical Environment Access",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0041",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0000"
+      ]
+    },
+    {
+      "id": "AML.T0042",
+      "name": "Verify Attack",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0042",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0043",
+      "name": "Craft Adversarial Data",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0043",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0043.000",
+      "name": "Craft Adversarial Data: White-Box Optimization",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0043",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0043.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0043.001",
+      "name": "Craft Adversarial Data: Black-Box Optimization",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0043",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0043.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0043.002",
+      "name": "Craft Adversarial Data: Black-Box Transfer",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0043",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0043.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0043.003",
+      "name": "Craft Adversarial Data: Manual Modification",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0043",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0043.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0043.004",
+      "name": "Craft Adversarial Data: Insert Backdoor Trigger",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0043",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0043.004",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0044",
+      "name": "Full AI Model Access",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0044",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0000"
+      ]
+    },
+    {
+      "id": "AML.T0046",
+      "name": "Spamming AI System with Chaff Data",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0046",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0047",
+      "name": "AI-Enabled Product or Service",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0047",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0000"
+      ]
+    },
+    {
+      "id": "AML.T0048",
+      "name": "External Harms",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0048",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0048.000",
+      "name": "External Harms: Financial Harm",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0048",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0048.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0048.001",
+      "name": "External Harms: Reputational Harm",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0048",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0048.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0048.002",
+      "name": "External Harms: Societal Harm",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0048",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0048.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0048.003",
+      "name": "External Harms: User Harm",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0048",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0048.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0048.004",
+      "name": "External Harms: AI Intellectual Property Theft",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0048",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0048.004",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0049",
+      "name": "Exploit Public-Facing Application",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0049",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0050",
+      "name": "Command and Scripting Interpreter",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0050",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0051",
+      "name": "LLM Prompt Injection",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0051",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0051.000",
+      "name": "LLM Prompt Injection: Direct",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0051",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0051.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0051.001",
+      "name": "LLM Prompt Injection: Indirect",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0051",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0051.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0051.002",
+      "name": "LLM Prompt Injection: Triggered",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0051",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0051.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0052",
+      "name": "Phishing",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0052",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004",
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0052.000",
+      "name": "Phishing: Spearphishing via Social Engineering LLM",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0052",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0052.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004",
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0052.001",
+      "name": "Phishing: Deepfake-Assisted Phishing",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0052",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0052.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004",
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0053",
+      "name": "AI Agent Tool Invocation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0053",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005",
+        "AML.TA0012",
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0054",
+      "name": "LLM Jailbreak",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0054",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007",
+        "AML.TA0012"
+      ]
+    },
+    {
+      "id": "AML.T0055",
+      "name": "Unsecured Credentials",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0055",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0013"
+      ]
+    },
+    {
+      "id": "AML.T0056",
+      "name": "Extract LLM System Prompt",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0056",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0057",
+      "name": "LLM Data Leakage",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0057",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0059",
+      "name": "Erode Dataset Integrity",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0059",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0060",
+      "name": "Publish Hallucinated Entities",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0060",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0061",
+      "name": "LLM Prompt Self-Replication",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0061",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0062",
+      "name": "Discover LLM Hallucinations",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0062",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0063",
+      "name": "Discover AI Model Outputs",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0063",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0064",
+      "name": "Gather RAG-Indexed Targets",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0064",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0065",
+      "name": "LLM Prompt Crafting",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0065",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0066",
+      "name": "Retrieval Content Crafting",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0066",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0067",
+      "name": "LLM Trusted Output Components Manipulation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0067",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0067.000",
+      "name": "LLM Trusted Output Components Manipulation: Citations",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0067",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0067.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0068",
+      "name": "LLM Prompt Obfuscation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0068",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0069",
+      "name": "Discover LLM System Information",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0069",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0069.000",
+      "name": "Discover LLM System Information: Special Character Sets",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0069",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0069.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0069.001",
+      "name": "Discover LLM System Information: System Instruction Keywords",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0069",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0069.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0069.002",
+      "name": "Discover LLM System Information: System Prompt",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0069",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0069.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0070",
+      "name": "RAG Poisoning",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0070",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0071",
+      "name": "False RAG Entry Injection",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0071",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0072",
+      "name": "Cyber Communication Channel",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0072",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0014"
+      ]
+    },
+    {
+      "id": "AML.T0073",
+      "name": "Impersonation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0073",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0074",
+      "name": "Masquerading",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0074",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0075",
+      "name": "Enterprise Resource Discovery",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0075",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0076",
+      "name": "Corrupt AI Model",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0076",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0077",
+      "name": "LLM Response Rendering",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0077",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0078",
+      "name": "Drive-by Compromise",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0078",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0079",
+      "name": "Stage Capabilities",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0079",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0080",
+      "name": "AI Agent Context Poisoning",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0080",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0080.000",
+      "name": "AI Agent Context Poisoning: Memory",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0080",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0080.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0080.001",
+      "name": "AI Agent Context Poisoning: Thread",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0080",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0080.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0081",
+      "name": "Modify AI Agent Configuration",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0081",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006",
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0082",
+      "name": "RAG Credential Harvesting",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0082",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0013"
+      ]
+    },
+    {
+      "id": "AML.T0083",
+      "name": "Credentials from AI Agent Configuration",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0083",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0013"
+      ]
+    },
+    {
+      "id": "AML.T0084",
+      "name": "Discover AI Agent Configuration",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0084",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0084.000",
+      "name": "Discover AI Agent Configuration: Embedded Knowledge",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0084",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0084.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0084.001",
+      "name": "Discover AI Agent Configuration: Tool Definitions",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0084",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0084.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0084.002",
+      "name": "Discover AI Agent Configuration: Activation Triggers",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0084",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0084.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0084.003",
+      "name": "Discover AI Agent Configuration: Call Chains",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0084",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0084.003",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0085",
+      "name": "Data from AI Services",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0085",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0085.000",
+      "name": "Data from AI Services: RAG Databases",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0085",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0085.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0085.001",
+      "name": "Data from AI Services: AI Agent Tools",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0085",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0085.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0086",
+      "name": "Exfiltration via AI Agent Tool Invocation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0086",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0010"
+      ]
+    },
+    {
+      "id": "AML.T0087",
+      "name": "Gather Victim Identity Information",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0087",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0088",
+      "name": "Generate Deepfakes",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0088",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0089",
+      "name": "Enterprise Environment Discovery",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0089",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0090",
+      "name": "OS Credential Dumping",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0090",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0013"
+      ]
+    },
+    {
+      "id": "AML.T0091",
+      "name": "Use Alternate Authentication Material",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0091",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0091.000",
+      "name": "Use Alternate Authentication Material: Application Access Token",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0091",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0091.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0091.001",
+      "name": "Use Alternate Authentication Material: Web Session Cookie",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0091",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0091.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0092",
+      "name": "Manipulate User LLM Chat History",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0092",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0093",
+      "name": "Prompt Infiltration via Public-Facing Application",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0093",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004",
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0094",
+      "name": "Delay Execution of LLM Instructions",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0094",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0095",
+      "name": "Search Open Websites/Domains",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0095",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0095.000",
+      "name": "Search Open Websites/Domains: Code Repositories",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0095",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0095.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0096",
+      "name": "AI Service API",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0096",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0014"
+      ]
+    },
+    {
+      "id": "AML.T0097",
+      "name": "Virtualization/Sandbox Evasion",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0097",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0098",
+      "name": "AI Agent Tool Credential Harvesting",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0098",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0013"
+      ]
+    },
+    {
+      "id": "AML.T0099",
+      "name": "AI Agent Tool Data Poisoning",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0099",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0100",
+      "name": "AI Agent Clickbait",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0100",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0101",
+      "name": "Data Destruction via AI Agent Tool Invocation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0101",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0102",
+      "name": "Generate Malicious Commands",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0102",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0103",
+      "name": "Deploy AI Agent",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0103",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0005"
+      ]
+    },
+    {
+      "id": "AML.T0105",
+      "name": "Escape to Host",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0105",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0012"
+      ]
+    },
+    {
+      "id": "AML.T0106",
+      "name": "Exploitation for Credential Access",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0106",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0013"
+      ]
+    },
+    {
+      "id": "AML.T0107",
+      "name": "Exploitation for Defense Evasion",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0107",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0108",
+      "name": "AI Agent",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0108",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0014"
+      ]
+    },
+    {
+      "id": "AML.T0109",
+      "name": "AI Supply Chain Rug Pull",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0109",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0110",
+      "name": "AI Agent Tool Poisoning",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0110",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0110.000",
+      "name": "AI Agent Tool Poisoning: Definition and Instructions",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0110",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0110.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0110.001",
+      "name": "AI Agent Tool Poisoning: Implementation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0110",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0110.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0110.002",
+      "name": "AI Agent Tool Poisoning: Runtime Response",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0110",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0110.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0111",
+      "name": "AI Supply Chain Reputation Inflation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0111",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0112",
+      "name": "Machine Compromise",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0112",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0112.000",
+      "name": "Machine Compromise: Local AI Agent",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0112",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0112.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0112.001",
+      "name": "Machine Compromise: AI Artifacts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": "AML.T0112",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0112.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0113",
+      "name": "Steal Web Session Cookie",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0113",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0013"
+      ]
+    },
+    {
+      "id": "AML.T0114",
+      "name": "AI Service Web Interface",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0114",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0014"
+      ]
+    },
+    {
+      "id": "AML.T0115",
+      "name": "Publish Poisoned AI Artifacts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0115",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0115.000",
+      "name": "Publish Poisoned AI Artifacts: Datasets",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": "AML.T0115",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0115.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0115.001",
+      "name": "Publish Poisoned AI Artifacts: Models",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0115",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0115.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0115.002",
+      "name": "Publish Poisoned AI Artifacts: AI Agent Tools",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0115",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0115.002",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0116",
+      "name": "Autonomous Reconnaissance",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0116",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0002"
+      ]
+    },
+    {
+      "id": "AML.T0117",
+      "name": "Autonomous Attack-Path Adaptation",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0117",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0118",
+      "name": "Autonomous AI Agent Communication",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0118",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0118.000",
+      "name": "Autonomous AI Agent Communication: Communication via Shared Artifacts",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0118",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0118.000",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0118.001",
+      "name": "Autonomous AI Agent Communication: Direct Agent Communication",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": "AML.T0118",
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0118.001",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0119",
+      "name": "Exploit Automated Artifact Processing Pipeline",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0119",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0120",
+      "name": "AI Artifact Repository",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0120",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0014"
+      ]
+    },
+    {
+      "id": "AML.T0121",
+      "name": "AI Agent Environment Reconstruction",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0121",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0122",
+      "name": "Exploitation of Remote Services",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0122",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0015"
+      ]
+    },
+    {
+      "id": "AML.T0123",
+      "name": "Obfuscated Files or Information",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0123",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0124",
+      "name": "Autonomous Attack Orchestration",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0124",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0001"
+      ]
+    },
+    {
+      "id": "AML.T0125",
+      "name": "Create Account",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0125",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0006"
+      ]
+    },
+    {
+      "id": "AML.T0126",
+      "name": "Automated Collection",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0126",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0127",
+      "name": "Data Staged",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0127",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0009"
+      ]
+    },
+    {
+      "id": "AML.T0128",
+      "name": "Compromise Infrastructure",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0128",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0003"
+      ]
+    },
+    {
+      "id": "AML.T0129",
+      "name": "Triggers in Multimodal Inputs",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0129",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "AML.T0130",
+      "name": "AI Agent Response Biasing",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0130",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0011"
+      ]
+    },
+    {
+      "id": "AML.T0131",
+      "name": "Crafted AI Assistant Links",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Realized",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0131",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0132",
+      "name": "Misconfigured or Publicly Exposed AI Services",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Demonstrated",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0132",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0004"
+      ]
+    },
+    {
+      "id": "AML.T0133",
+      "name": "Discover AI Agent Runtime Capabilities",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0133",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0008"
+      ]
+    },
+    {
+      "id": "AML.T0134",
+      "name": "AI Targeted Cloaking",
+      "framework": "ATLAS",
+      "version": "2026.09",
+      "maturity": "Feasible",
+      "parentId": null,
+      "sourceId": "atlas",
+      "url": "https://atlas.mitre.org/techniques/AML.T0134",
+      "origin": "Official framework",
+      "tacticIds": [
+        "AML.TA0007"
+      ]
+    },
+    {
+      "id": "T1195.002",
+      "name": "Compromise Software Supply Chain",
+      "framework": "ATT&CK",
+      "version": "Page checked 2026-10-11",
+      "maturity": "Official technique",
+      "parentId": null,
+      "sourceId": "attack-T1195.002",
+      "url": "https://attack.mitre.org/techniques/T1195/002/",
+      "origin": "Official framework",
+      "tacticIds": []
+    },
+    {
+      "id": "T1552.001",
+      "name": "Credentials In Files",
+      "framework": "ATT&CK",
+      "version": "Page checked 2026-10-11",
+      "maturity": "Official technique",
+      "parentId": null,
+      "sourceId": "attack-T1552.001",
+      "url": "https://attack.mitre.org/techniques/T1552/001/",
+      "origin": "Official framework",
+      "tacticIds": []
+    }
+  ],
+  "mappings": [
+    {
+      "id": "map-nx-3-install-T1195.002",
+      "pathId": "path-nx",
+      "nodeId": "nx-3",
+      "campaignId": "nx",
+      "behaviorId": "install",
+      "techniqueId": "T1195.002",
+      "evidenceIds": [
+        "nx-e3"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-nx-4-invoke-AML.T0053",
+      "pathId": "path-nx",
+      "nodeId": "nx-4",
+      "campaignId": "nx",
+      "behaviorId": "invoke",
+      "techniqueId": "AML.T0053",
+      "evidenceIds": [
+        "nx-e4"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Intent or attempt only",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-nx-5-secrets-T1552.001",
+      "pathId": "path-nx",
+      "nodeId": "nx-5",
+      "campaignId": "nx",
+      "behaviorId": "secrets",
+      "techniqueId": "T1552.001",
+      "evidenceIds": [
+        "nx-e5"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-deadbugz-3-poison-AML.T0110.000",
+      "pathId": "path-deadbugz",
+      "nodeId": "deadbugz-3",
+      "campaignId": "deadbugz",
+      "behaviorId": "poison",
+      "techniqueId": "AML.T0110.000",
+      "evidenceIds": [
+        "deadbugz-e3"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-deadbugz-3-poison-AML.T0051",
+      "pathId": "path-deadbugz",
+      "nodeId": "deadbugz-3",
+      "campaignId": "deadbugz",
+      "behaviorId": "poison",
+      "techniqueId": "AML.T0051",
+      "evidenceIds": [
+        "deadbugz-e3"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-deadbugz-4-secrets-AML.T0098",
+      "pathId": "path-deadbugz",
+      "nodeId": "deadbugz-4",
+      "campaignId": "deadbugz",
+      "behaviorId": "secrets",
+      "techniqueId": "AML.T0098",
+      "evidenceIds": [
+        "deadbugz-e4"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Intent or attempt only",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-deadbugz-4-cross-tool-AML.T0051",
+      "pathId": "path-deadbugz",
+      "nodeId": "deadbugz-4",
+      "campaignId": "deadbugz",
+      "behaviorId": "cross-tool",
+      "techniqueId": "AML.T0051",
+      "evidenceIds": [
+        "deadbugz-e4"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Intent or attempt only",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-shai-1-install-T1195.002",
+      "pathId": "path-shai",
+      "nodeId": "shai-1",
+      "campaignId": "shai",
+      "behaviorId": "install",
+      "techniqueId": "T1195.002",
+      "evidenceIds": [
+        "shai-e1"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-shai-2-secrets-T1552.001",
+      "pathId": "path-shai",
+      "nodeId": "shai-2",
+      "campaignId": "shai",
+      "behaviorId": "secrets",
+      "techniqueId": "T1552.001",
+      "evidenceIds": [
+        "shai-e2"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-2-poison-AML.T0110.000",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-2",
+      "campaignId": "whatsapp",
+      "behaviorId": "poison",
+      "techniqueId": "AML.T0110.000",
+      "evidenceIds": [
+        "whatsapp-e2"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-2-poison-AML.T0051",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-2",
+      "campaignId": "whatsapp",
+      "behaviorId": "poison",
+      "techniqueId": "AML.T0051",
+      "evidenceIds": [
+        "whatsapp-e2"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-3-cross-tool-AML.T0051",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-3",
+      "campaignId": "whatsapp",
+      "behaviorId": "cross-tool",
+      "techniqueId": "AML.T0051",
+      "evidenceIds": [
+        "whatsapp-e3"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-3-cross-tool-AML.T0053",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-3",
+      "campaignId": "whatsapp",
+      "behaviorId": "cross-tool",
+      "techniqueId": "AML.T0053",
+      "evidenceIds": [
+        "whatsapp-e3"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-3-cross-tool-AML.T0086",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-3",
+      "campaignId": "whatsapp",
+      "behaviorId": "cross-tool",
+      "techniqueId": "AML.T0086",
+      "evidenceIds": [
+        "whatsapp-e3"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-4-cross-tool-AML.T0051",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-4",
+      "campaignId": "whatsapp",
+      "behaviorId": "cross-tool",
+      "techniqueId": "AML.T0051",
+      "evidenceIds": [
+        "whatsapp-e4"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-4-cross-tool-AML.T0053",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-4",
+      "campaignId": "whatsapp",
+      "behaviorId": "cross-tool",
+      "techniqueId": "AML.T0053",
+      "evidenceIds": [
+        "whatsapp-e4"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    },
+    {
+      "id": "map-whatsapp-4-cross-tool-AML.T0086",
+      "pathId": "path-whatsapp",
+      "nodeId": "whatsapp-4",
+      "campaignId": "whatsapp",
+      "behaviorId": "cross-tool",
+      "techniqueId": "AML.T0086",
+      "evidenceIds": [
+        "whatsapp-e4"
+      ],
+      "origin": "LLM inferred mapping",
+      "reviewStatus": "Unreviewed",
+      "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+      "applicability": "Source-described behavior; independent verification pending",
+      "confidence": "Not assessed",
+      "reviewer": null
+    }
+  ],
+  "telemetry": [
+    {
+      "id": "signal-install-endpoint",
+      "behaviorId": "install",
+      "category": "endpoint",
+      "name": "Endpoint / EDR",
+      "eventType": "process creation / file access",
+      "logicalFields": [
+        "host.id",
+        "process.entity_id",
+        "process.parent.entity_id",
+        "process.executable",
+        "user.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Process records do not prove the content of a prompt; file or environment read coverage is product/configuration dependent."
+    },
+    {
+      "id": "signal-install-package",
+      "behaviorId": "install",
+      "category": "package",
+      "name": "Package / CI supply chain",
+      "eventType": "install / release / workflow event",
+      "logicalFields": [
+        "package.name",
+        "package.version",
+        "artifact.digest",
+        "workflow.id",
+        "publisher.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Local package logs may be incomplete; provenance availability does not itself prevent malicious installs."
+    },
+    {
+      "id": "signal-install-network",
+      "behaviorId": "install",
+      "category": "network",
+      "name": "Network / DNS / proxy",
+      "eventType": "connection / DNS / HTTP metadata",
+      "logicalFields": [
+        "host.id",
+        "destination.address",
+        "destination.port",
+        "network.bytes",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "TLS metadata cannot establish transferred content; external API actions require platform audit evidence."
+    },
+    {
+      "id": "signal-invoke-endpoint",
+      "behaviorId": "invoke",
+      "category": "endpoint",
+      "name": "Endpoint / EDR",
+      "eventType": "process creation / file access",
+      "logicalFields": [
+        "host.id",
+        "process.entity_id",
+        "process.parent.entity_id",
+        "process.executable",
+        "user.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Process records do not prove the content of a prompt; file or environment read coverage is product/configuration dependent."
+    },
+    {
+      "id": "signal-invoke-agent",
+      "behaviorId": "invoke",
+      "category": "agent",
+      "name": "Agent / MCP audit",
+      "eventType": "definition refresh / tool call / approval",
+      "logicalFields": [
+        "session.id",
+        "tool.call.id",
+        "tool.name",
+        "definition.digest",
+        "approval.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "session.id",
+        "tool.call.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Usually needs client hooks; does not exist in every harness. It can be ingested into SIEM without being an OTEL signal."
+    },
+    {
+      "id": "signal-poison-agent",
+      "behaviorId": "poison",
+      "category": "agent",
+      "name": "Agent / MCP audit",
+      "eventType": "definition refresh / tool call / approval",
+      "logicalFields": [
+        "session.id",
+        "tool.call.id",
+        "tool.name",
+        "definition.digest",
+        "approval.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "session.id",
+        "tool.call.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Usually needs client hooks; does not exist in every harness. It can be ingested into SIEM without being an OTEL signal."
+    },
+    {
+      "id": "signal-poison-package",
+      "behaviorId": "poison",
+      "category": "package",
+      "name": "Package / CI supply chain",
+      "eventType": "install / release / workflow event",
+      "logicalFields": [
+        "package.name",
+        "package.version",
+        "artifact.digest",
+        "workflow.id",
+        "publisher.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Local package logs may be incomplete; provenance availability does not itself prevent malicious installs."
+    },
+    {
+      "id": "signal-secrets-endpoint",
+      "behaviorId": "secrets",
+      "category": "endpoint",
+      "name": "Endpoint / EDR",
+      "eventType": "process creation / file access",
+      "logicalFields": [
+        "host.id",
+        "process.entity_id",
+        "process.parent.entity_id",
+        "process.executable",
+        "user.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Process records do not prove the content of a prompt; file or environment read coverage is product/configuration dependent."
+    },
+    {
+      "id": "signal-secrets-identity",
+      "behaviorId": "secrets",
+      "category": "identity",
+      "name": "Identity / cloud / repository audit",
+      "eventType": "authentication / secret access / repository change",
+      "logicalFields": [
+        "actor.id",
+        "action",
+        "resource.id",
+        "result",
+        "source.address",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Availability, retention and attribution vary by service, plan and audit configuration."
+    },
+    {
+      "id": "signal-secrets-agent",
+      "behaviorId": "secrets",
+      "category": "agent",
+      "name": "Agent / MCP audit",
+      "eventType": "definition refresh / tool call / approval",
+      "logicalFields": [
+        "session.id",
+        "tool.call.id",
+        "tool.name",
+        "definition.digest",
+        "approval.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "session.id",
+        "tool.call.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Usually needs client hooks; does not exist in every harness. It can be ingested into SIEM without being an OTEL signal."
+    },
+    {
+      "id": "signal-repo-exfil-endpoint",
+      "behaviorId": "repo-exfil",
+      "category": "endpoint",
+      "name": "Endpoint / EDR",
+      "eventType": "process creation / file access",
+      "logicalFields": [
+        "host.id",
+        "process.entity_id",
+        "process.parent.entity_id",
+        "process.executable",
+        "user.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Process records do not prove the content of a prompt; file or environment read coverage is product/configuration dependent."
+    },
+    {
+      "id": "signal-repo-exfil-network",
+      "behaviorId": "repo-exfil",
+      "category": "network",
+      "name": "Network / DNS / proxy",
+      "eventType": "connection / DNS / HTTP metadata",
+      "logicalFields": [
+        "host.id",
+        "destination.address",
+        "destination.port",
+        "network.bytes",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "TLS metadata cannot establish transferred content; external API actions require platform audit evidence."
+    },
+    {
+      "id": "signal-repo-exfil-identity",
+      "behaviorId": "repo-exfil",
+      "category": "identity",
+      "name": "Identity / cloud / repository audit",
+      "eventType": "authentication / secret access / repository change",
+      "logicalFields": [
+        "actor.id",
+        "action",
+        "resource.id",
+        "result",
+        "source.address",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Availability, retention and attribution vary by service, plan and audit configuration."
+    },
+    {
+      "id": "signal-propagate-package",
+      "behaviorId": "propagate",
+      "category": "package",
+      "name": "Package / CI supply chain",
+      "eventType": "install / release / workflow event",
+      "logicalFields": [
+        "package.name",
+        "package.version",
+        "artifact.digest",
+        "workflow.id",
+        "publisher.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Local package logs may be incomplete; provenance availability does not itself prevent malicious installs."
+    },
+    {
+      "id": "signal-propagate-identity",
+      "behaviorId": "propagate",
+      "category": "identity",
+      "name": "Identity / cloud / repository audit",
+      "eventType": "authentication / secret access / repository change",
+      "logicalFields": [
+        "actor.id",
+        "action",
+        "resource.id",
+        "result",
+        "source.address",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Availability, retention and attribution vary by service, plan and audit configuration."
+    },
+    {
+      "id": "signal-cross-tool-agent",
+      "behaviorId": "cross-tool",
+      "category": "agent",
+      "name": "Agent / MCP audit",
+      "eventType": "definition refresh / tool call / approval",
+      "logicalFields": [
+        "session.id",
+        "tool.call.id",
+        "tool.name",
+        "definition.digest",
+        "approval.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "session.id",
+        "tool.call.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Usually needs client hooks; does not exist in every harness. It can be ingested into SIEM without being an OTEL signal."
+    },
+    {
+      "id": "signal-cross-tool-network",
+      "behaviorId": "cross-tool",
+      "category": "network",
+      "name": "Network / DNS / proxy",
+      "eventType": "connection / DNS / HTTP metadata",
+      "logicalFields": [
+        "host.id",
+        "destination.address",
+        "destination.port",
+        "network.bytes",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "TLS metadata cannot establish transferred content; external API actions require platform audit evidence."
+    },
+    {
+      "id": "signal-cross-tool-identity",
+      "behaviorId": "cross-tool",
+      "category": "identity",
+      "name": "Identity / cloud / repository audit",
+      "eventType": "authentication / secret access / repository change",
+      "logicalFields": [
+        "actor.id",
+        "action",
+        "resource.id",
+        "result",
+        "source.address",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Availability, retention and attribution vary by service, plan and audit configuration."
+    },
+    {
+      "id": "signal-attacker-ai-endpoint",
+      "behaviorId": "attacker-ai",
+      "category": "endpoint",
+      "name": "Endpoint / EDR",
+      "eventType": "process creation / file access",
+      "logicalFields": [
+        "host.id",
+        "process.entity_id",
+        "process.parent.entity_id",
+        "process.executable",
+        "user.id",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Process records do not prove the content of a prompt; file or environment read coverage is product/configuration dependent."
+    },
+    {
+      "id": "signal-attacker-ai-network",
+      "behaviorId": "attacker-ai",
+      "category": "network",
+      "name": "Network / DNS / proxy",
+      "eventType": "connection / DNS / HTTP metadata",
+      "logicalFields": [
+        "host.id",
+        "destination.address",
+        "destination.port",
+        "network.bytes",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "TLS metadata cannot establish transferred content; external API actions require platform audit evidence."
+    },
+    {
+      "id": "signal-attacker-ai-identity",
+      "behaviorId": "attacker-ai",
+      "category": "identity",
+      "name": "Identity / cloud / repository audit",
+      "eventType": "authentication / secret access / repository change",
+      "logicalFields": [
+        "actor.id",
+        "action",
+        "resource.id",
+        "result",
+        "source.address",
+        "event.time"
+      ],
+      "joinKeys": [
+        "host.id",
+        "actor.id",
+        "process.entity_id",
+        "event.time"
+      ],
+      "availability": "Collection candidate; not observed telemetry",
+      "schema": "Vendor-neutral logical requirements; SIEM adapters must map actual field names",
+      "origin": "LLM proposed collection",
+      "reviewStatus": "Unreviewed",
+      "limitations": "Availability, retention and attribution vary by service, plan and audit configuration."
+    }
+  ],
+  "detections": [
+    {
+      "id": "detect-install",
+      "behaviorId": "install",
+      "name": "Trusted install → code execution",
+      "hypothesis": "Correlate a package installation with secret scanning, agent launch or unexpected repository writes.",
+      "signalIds": [
+        "signal-install-endpoint",
+        "signal-install-package",
+        "signal-install-network"
+      ],
+      "otelIds": [
+        "otel-install"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Build tools legitimately spawn subprocesses. Require a second behavior and compare known build activity.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "detect-invoke",
+      "behaviorId": "invoke",
+      "name": "Malware → local coding agent",
+      "hypothesis": "Alert when an install process launches an agent with broad permissions and is followed by sensitive access.",
+      "signalIds": [
+        "signal-invoke-endpoint",
+        "signal-invoke-agent"
+      ],
+      "otelIds": [
+        "otel-invoke"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Some automation legitimately launches agents; scope by signed workflow and parent identity.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "detect-poison",
+      "behaviorId": "poison",
+      "name": "Approved tool → changed instructions",
+      "hypothesis": "Flag an approved definition changing before sensitive tool use; compare the full schema and description.",
+      "signalIds": [
+        "signal-poison-agent",
+        "signal-poison-package"
+      ],
+      "otelIds": [
+        "otel-poison"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Legitimate server upgrades change metadata. Reapproval and release provenance reduce noise.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "detect-secrets",
+      "behaviorId": "secrets",
+      "name": "Execution → credential discovery",
+      "hypothesis": "Correlate unusual secret reads with a new dependency or changed tool definition and outbound activity.",
+      "signalIds": [
+        "signal-secrets-endpoint",
+        "signal-secrets-identity",
+        "signal-secrets-agent"
+      ],
+      "otelIds": [
+        "otel-secrets"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Security scanners and deployment tools read secrets. Baseline their identity and allowed destinations.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "detect-repo-exfil",
+      "behaviorId": "repo-exfil",
+      "name": "Collected data → public repository",
+      "hypothesis": "Correlate credential discovery with new public repository creation and upload by the same identity.",
+      "signalIds": [
+        "signal-repo-exfil-endpoint",
+        "signal-repo-exfil-network",
+        "signal-repo-exfil-identity"
+      ],
+      "otelIds": [
+        "otel-repo-exfil"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Public repo creation is common. Do not alert on GitHub domain alone.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "detect-propagate",
+      "behaviorId": "propagate",
+      "name": "Stolen publishing identity → propagation",
+      "hypothesis": "Detect bursts of similar lifecycle-hook changes across packages following a suspicious installation.",
+      "signalIds": [
+        "signal-propagate-package",
+        "signal-propagate-identity"
+      ],
+      "otelIds": [
+        "otel-propagate"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Coordinated legitimate releases also create bursts; require shared anomalous payload evidence.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "detect-cross-tool",
+      "behaviorId": "cross-tool",
+      "name": "Untrusted tool → trusted tool exfiltration",
+      "hypothesis": "Flag outbound tool calls carrying sensitive data to a recipient introduced by unrelated tool metadata.",
+      "signalIds": [
+        "signal-cross-tool-agent",
+        "signal-cross-tool-network",
+        "signal-cross-tool-identity"
+      ],
+      "otelIds": [
+        "otel-cross-tool"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Authorized cross-tool workflows are common; compare explicit user intent and recipient allowlists.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "detect-attacker-ai",
+      "behaviorId": "attacker-ai",
+      "name": "Operator → AI-driven intrusion commands",
+      "hypothesis": "Correlate unusual admin logins, authentication configuration changes and backup access. Do not infer AI use from commands alone.",
+      "signalIds": [
+        "signal-attacker-ai-endpoint",
+        "signal-attacker-ai-network",
+        "signal-attacker-ai-identity"
+      ],
+      "otelIds": [
+        "otel-attacker-ai"
+      ],
+      "windowSeconds": 300,
+      "windowBasis": "LLM proposed starting value; needs baseline testing",
+      "tuning": "Administration and incident response can follow similar sequences; use change windows and trusted identities.",
+      "validation": "Untested hypothesis",
+      "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+      "origin": "LLM proposed detection",
+      "reviewStatus": "Unreviewed"
+    }
+  ],
+  "otel": [
+    {
+      "id": "otel-install",
+      "behaviorId": "install",
+      "action": "Proposed install span linked to package identity, version, provenance and child process IDs.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.package.name",
+        "devthreat.package.version",
+        "devthreat.install.id"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.install.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "install",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.package.name": "synthetic-redacted-value",
+          "devthreat.package.version": "synthetic-redacted-value",
+          "devthreat.install.id": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "Package installs often happen outside an instrumented agent. EDR and registry history remain necessary.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "otel-invoke",
+      "behaviorId": "invoke",
+      "action": "Proposed session linkage from launching process to agent tool spans; capture policy mode without secret values.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.session.id",
+        "devthreat.launch.parent_pid",
+        "devthreat.policy.mode"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.invoke.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "invoke",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.session.id": "synthetic-redacted-value",
+          "devthreat.launch.parent_pid": "synthetic-redacted-value",
+          "devthreat.policy.mode": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "A process launch proves an invocation attempt, not successful model-guided theft.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "otel-poison",
+      "behaviorId": "poison",
+      "action": "Proposed metadata-change event with old/new digests, server identity and approval version.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.mcp.server.id",
+        "devthreat.tool.definition.sha256",
+        "devthreat.approval.version"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.poison.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "poison",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.mcp.server.id": "synthetic-redacted-value",
+          "devthreat.tool.definition.sha256": "synthetic-redacted-value",
+          "devthreat.approval.version": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "Many clients do not retain historical definitions; hashes alone cannot explain content.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "otel-secrets",
+      "behaviorId": "secrets",
+      "action": "Proposed sensitive-access event records data class, result and tool-call correlation. Never export credential values.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.data.class",
+        "devthreat.access.result",
+        "devthreat.tool.call.id"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.secrets.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "secrets",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.data.class": "synthetic-redacted-value",
+          "devthreat.access.result": "synthetic-redacted-value",
+          "devthreat.tool.call.id": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "EDR may not capture individual file reads or environment reads. Add explicit application audit hooks.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "otel-repo-exfil",
+      "behaviorId": "repo-exfil",
+      "action": "Proposed outbound action span linking destination class, repository visibility and originating install/session.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.destination.class",
+        "devthreat.repository.visibility",
+        "devthreat.install.id"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.repo_exfil.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "repo-exfil",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.destination.class": "synthetic-redacted-value",
+          "devthreat.repository.visibility": "synthetic-redacted-value",
+          "devthreat.install.id": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "TLS network metadata does not reveal content; API/audit coverage varies. Nx exfiltration via gh is not proven to be an agent tool action.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "otel-propagate",
+      "behaviorId": "propagate",
+      "action": "Proposed publish span linked to publisher identity, artifact digest and preceding installation.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.publisher.id",
+        "devthreat.artifact.sha256",
+        "devthreat.install.id"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.propagate.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "propagate",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.publisher.id": "synthetic-redacted-value",
+          "devthreat.artifact.sha256": "synthetic-redacted-value",
+          "devthreat.install.id": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "This seed is conventional supply-chain propagation. No AI-specific ATLAS mapping is asserted.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "otel-cross-tool",
+      "behaviorId": "cross-tool",
+      "action": "Proposed tool-call spans link instruction origin, approval and outbound destination. Retain redacted summaries.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.context.origin",
+        "devthreat.tool.call.id",
+        "devthreat.destination.class"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.cross_tool.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "cross-tool",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.context.origin": "synthetic-redacted-value",
+          "devthreat.tool.call.id": "synthetic-redacted-value",
+          "devthreat.destination.class": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "Requires provenance beyond process telemetry. A tool call alone does not prove an injection.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    },
+    {
+      "id": "otel-attacker-ai",
+      "behaviorId": "attacker-ai",
+      "action": "Instrument victim services where possible; attacker session traces are usually unavailable to defenders.",
+      "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+      "standardSourceIds": [
+        "otel-logs",
+        "otel-traces",
+        "otel-agents",
+        "otel-mcp"
+      ],
+      "customFields": [
+        "devthreat.remote.identity",
+        "devthreat.service.action"
+      ],
+      "standardFields": [
+        "TraceId",
+        "SpanId",
+        "EventName",
+        "Resource",
+        "InstrumentationScope"
+      ],
+      "sample": {
+        "Timestamp": "1791676800000000000",
+        "ObservedTimestamp": "1791676800000000000",
+        "TraceId": "11111111111111111111111111111111",
+        "SpanId": "2222222222222222",
+        "SeverityNumber": 9,
+        "SeverityText": "INFO",
+        "EventName": "devthreat.attacker_ai.observed",
+        "Body": "Synthetic redacted instrumentation example",
+        "Resource": {
+          "service.name": "developer-agent-demo",
+          "host.id": "synthetic-host"
+        },
+        "InstrumentationScope": {
+          "name": "devthreat.prototype",
+          "version": "0.2.0"
+        },
+        "Attributes": {
+          "devthreat.behavior.id": "attacker-ai",
+          "devthreat.synthetic": true,
+          "devthreat.review.status": "unreviewed",
+          "devthreat.remote.identity": "synthetic-redacted-value",
+          "devthreat.service.action": "synthetic-redacted-value"
+        }
+      },
+      "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+      "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+      "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+      "limitations": "This comparator does not justify claiming that victim-side agent OTEL would capture attacker conversations.",
+      "origin": "LLM proposed instrumentation",
+      "reviewStatus": "Unreviewed"
+    }
+  ],
+  "otelReference": {
+    "id": "otel-reference",
+    "checked": "2026-10-11",
+    "logsStatus": "Stable",
+    "genAiStatus": "Development",
+    "sourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp",
+      "otel-events"
+    ],
+    "fields": [
+      [
+        "Timestamp",
+        "uint64 nanoseconds",
+        "Source event time"
+      ],
+      [
+        "ObservedTimestamp",
+        "uint64 nanoseconds",
+        "Collector observation time"
+      ],
+      [
+        "TraceId",
+        "16-byte identifier",
+        "Optional trace correlation"
+      ],
+      [
+        "SpanId",
+        "8-byte identifier",
+        "Optional span correlation"
+      ],
+      [
+        "TraceFlags",
+        "byte",
+        "Trace flags"
+      ],
+      [
+        "SeverityNumber",
+        "integer",
+        "Normalized severity"
+      ],
+      [
+        "SeverityText",
+        "string",
+        "Original severity"
+      ],
+      [
+        "Body",
+        "AnyValue",
+        "Redacted event payload"
+      ],
+      [
+        "Resource",
+        "attributes",
+        "Producing service or host"
+      ],
+      [
+        "InstrumentationScope",
+        "scope",
+        "Emitting instrumentation"
+      ],
+      [
+        "Attributes",
+        "key/value collection",
+        "Standard or custom attributes"
+      ],
+      [
+        "EventName",
+        "string",
+        "Event class"
+      ]
+    ],
+    "conventions": [
+      {
+        "field": "gen_ai.operation.name",
+        "example": "execute_tool",
+        "status": "Development",
+        "sourceId": "otel-agents"
+      },
+      {
+        "field": "gen_ai.tool.name",
+        "example": "read_file",
+        "status": "Development",
+        "sourceId": "otel-agents"
+      },
+      {
+        "field": "gen_ai.tool.call.id",
+        "example": "synthetic-call-1",
+        "status": "Development",
+        "sourceId": "otel-agents"
+      },
+      {
+        "field": "mcp.method.name",
+        "example": "tools/call",
+        "status": "Development",
+        "sourceId": "otel-mcp"
+      },
+      {
+        "field": "mcp.session.id",
+        "example": "synthetic-session",
+        "status": "Development",
+        "sourceId": "otel-mcp"
+      }
+    ],
+    "signalTypes": [
+      [
+        "Logs",
+        "Standalone structured events; can carry trace context"
+      ],
+      [
+        "Spans",
+        "Timed operations with parent/child identity, attributes and status"
+      ],
+      [
+        "Span events",
+        "Timestamped annotations within an operation"
+      ],
+      [
+        "Metrics",
+        "Aggregated counters/distributions; not a substitute for event provenance"
+      ]
+    ],
+    "privacy": "Do not collect secret values, full tool arguments or full model content by default. Use redaction, access controls and retention. SDK support and trace propagation require per-harness validation.",
+    "genAiCommit": "6fd0d763a092db245a54104fc1124031eb3c51d2",
+    "syntheticSpan": {
+      "name": "tools/call read_file",
+      "kind": "CLIENT",
+      "traceId": "11111111111111111111111111111111",
+      "spanId": "3333333333333333",
+      "parentSpanId": "2222222222222222",
+      "startTimeUnixNano": "1791676800000000000",
+      "endTimeUnixNano": "1791676800100000000",
+      "attributes": {
+        "mcp.method.name": "tools/call",
+        "mcp.session.id": "synthetic-session",
+        "gen_ai.tool.name": "read_file",
+        "gen_ai.tool.call.id": "synthetic-call-1",
+        "devthreat.synthetic": true
+      },
+      "status": "UNSET"
+    },
+    "spanNotice": "Illustrative logical MCP client span using selected development attributes. Not a complete OTLP payload or a conformance test. No real incident data."
+  },
+  "governance": {
+    "history": {
+      "chats": [
+        {
+          "title": "Collect Campaign Articles",
+          "id": "6ac5945d-dcc4-83e8-8378-2179800bdf12"
+        },
+        {
+          "title": "IDE Attack Incident Dataset",
+          "id": "6ab61e3c-ac40-83e8-acea-809350710002"
+        }
+      ],
+      "limitation": "The chat reader returned only the accessible recent turns and no older-page cursor. Citation placeholders did not expose original URLs. This is a selected seed corpus, not a complete extraction of all historical links.",
+      "principles": [
+        "Curate behaviors and campaigns, not every artifact.",
+        "Keep an evidence ledger before ingestion.",
+        "Score attack path, repeatability, evidence, novelty and campaign relevance from 0 to 2.",
+        "Separate include, hold and reject decisions.",
+        "Treat schema and all defensive mappings as reviewable drafts."
+      ]
+    },
+    "candidates": [
+      {
+        "name": "Malicious Skills campaigns",
+        "decision": "Hold",
+        "reason": "Named generally in chat; no specific campaign or primary article URL was exposed. Select a representative source before modeling."
+      },
+      {
+        "name": "Socket, Sonatype and OpenSourceMalware expansion",
+        "decision": "Hold",
+        "reason": "Source families requested in chat. Choose representative articles through the same admission gate; no bulk ingestion."
+      },
+      {
+        "name": "Duplicate package/sample reports",
+        "decision": "Reject",
+        "reason": "Adds volume without a distinct attack path or repeatable behavior; retain as secondary evidence only."
+      }
+    ],
+    "rules": [
+      "All generated paraphrases and relationships are labeled LLM-derived and unreviewed.",
+      "Human approval requires a named reviewer and timestamp; no default approval.",
+      "External articles and telemetry payloads are untrusted data, not agent instructions.",
+      "No shared actor is inferred from shared behavior.",
+      "Unmapped behavior stays in the local namespace rather than being forced into ATLAS.",
+      "Synthetic samples and proposed detection rules are not campaign evidence.",
+      "A source reference is required for evidence; a source snapshot/hash is still pending."
+    ],
+    "frameworkSnapshot": {
+      "url": "https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/dist/v6/ATLAS-2026.09.yaml",
+      "sha256": "935efa93e28294432d3e2f537eb94991ef8d1f8c58341cd360ea3321ddb66688",
+      "version": "2026.09",
+      "retrieved": "2026-10-11",
+      "license": "MITRE ATLAS data: Apache-2.0; metadata only imported"
+    },
+    "reviewStatus": "All derived entities unreviewed",
+    "otelSnapshot": {
+      "repository": "https://github.com/open-telemetry/semantic-conventions-genai",
+      "commit": "6fd0d763a092db245a54104fc1124031eb3c51d2",
+      "checked": "2026-10-11",
+      "status": "Development",
+      "documents": [
+        {
+          "sourceId": "otel-agents",
+          "sha256": "018ffd339be99c7e56ddba7265dd3095ca0735ddf680d28f96036043641384f4"
+        },
+        {
+          "sourceId": "otel-mcp",
+          "sha256": "d5eb3b023f553c56052a07aecf3384ac5f64f894825c72eacf8c0eeda3c49a26"
+        },
+        {
+          "sourceId": "otel-events",
+          "sha256": "6003d091a7cdb4c537b483b1ebe2c2e414cfc4ffde797e43c5439de0dd2ac0bc"
+        }
+      ]
+    }
+  },
+  "build": {
+    "digest": "6cdceb4301eee9bca94fb45f1065254d105cae43baa2c4215bd37ccc15f428f5",
+    "format": "Normalized entities; LLM-derived entries are unreviewed"
+  }
+};

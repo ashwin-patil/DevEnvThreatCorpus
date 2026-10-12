@@ -1,0 +1,167 @@
+[
+  {
+    "id": "detect-install",
+    "behaviorId": "install",
+    "name": "Trusted install → code execution",
+    "hypothesis": "Correlate a package installation with secret scanning, agent launch or unexpected repository writes.",
+    "signalIds": [
+      "signal-install-endpoint",
+      "signal-install-package",
+      "signal-install-network"
+    ],
+    "otelIds": [
+      "otel-install"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Build tools legitimately spawn subprocesses. Require a second behavior and compare known build activity.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "detect-invoke",
+    "behaviorId": "invoke",
+    "name": "Malware → local coding agent",
+    "hypothesis": "Alert when an install process launches an agent with broad permissions and is followed by sensitive access.",
+    "signalIds": [
+      "signal-invoke-endpoint",
+      "signal-invoke-agent"
+    ],
+    "otelIds": [
+      "otel-invoke"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Some automation legitimately launches agents; scope by signed workflow and parent identity.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "detect-poison",
+    "behaviorId": "poison",
+    "name": "Approved tool → changed instructions",
+    "hypothesis": "Flag an approved definition changing before sensitive tool use; compare the full schema and description.",
+    "signalIds": [
+      "signal-poison-agent",
+      "signal-poison-package"
+    ],
+    "otelIds": [
+      "otel-poison"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Legitimate server upgrades change metadata. Reapproval and release provenance reduce noise.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "detect-secrets",
+    "behaviorId": "secrets",
+    "name": "Execution → credential discovery",
+    "hypothesis": "Correlate unusual secret reads with a new dependency or changed tool definition and outbound activity.",
+    "signalIds": [
+      "signal-secrets-endpoint",
+      "signal-secrets-identity",
+      "signal-secrets-agent"
+    ],
+    "otelIds": [
+      "otel-secrets"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Security scanners and deployment tools read secrets. Baseline their identity and allowed destinations.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "detect-repo-exfil",
+    "behaviorId": "repo-exfil",
+    "name": "Collected data → public repository",
+    "hypothesis": "Correlate credential discovery with new public repository creation and upload by the same identity.",
+    "signalIds": [
+      "signal-repo-exfil-endpoint",
+      "signal-repo-exfil-network",
+      "signal-repo-exfil-identity"
+    ],
+    "otelIds": [
+      "otel-repo-exfil"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Public repo creation is common. Do not alert on GitHub domain alone.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "detect-propagate",
+    "behaviorId": "propagate",
+    "name": "Stolen publishing identity → propagation",
+    "hypothesis": "Detect bursts of similar lifecycle-hook changes across packages following a suspicious installation.",
+    "signalIds": [
+      "signal-propagate-package",
+      "signal-propagate-identity"
+    ],
+    "otelIds": [
+      "otel-propagate"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Coordinated legitimate releases also create bursts; require shared anomalous payload evidence.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "detect-cross-tool",
+    "behaviorId": "cross-tool",
+    "name": "Untrusted tool → trusted tool exfiltration",
+    "hypothesis": "Flag outbound tool calls carrying sensitive data to a recipient introduced by unrelated tool metadata.",
+    "signalIds": [
+      "signal-cross-tool-agent",
+      "signal-cross-tool-network",
+      "signal-cross-tool-identity"
+    ],
+    "otelIds": [
+      "otel-cross-tool"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Authorized cross-tool workflows are common; compare explicit user intent and recipient allowlists.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "detect-attacker-ai",
+    "behaviorId": "attacker-ai",
+    "name": "Operator → AI-driven intrusion commands",
+    "hypothesis": "Correlate unusual admin logins, authentication configuration changes and backup access. Do not infer AI use from commands alone.",
+    "signalIds": [
+      "signal-attacker-ai-endpoint",
+      "signal-attacker-ai-network",
+      "signal-attacker-ai-identity"
+    ],
+    "otelIds": [
+      "otel-attacker-ai"
+    ],
+    "windowSeconds": 300,
+    "windowBasis": "LLM proposed starting value; needs baseline testing",
+    "tuning": "Administration and incident response can follow similar sequences; use change windows and trusted identities.",
+    "validation": "Untested hypothesis",
+    "testPlan": "Use a controlled synthetic fixture plus legitimate install, administration or tool-upgrade controls. Verify sensor fields and joins before measuring recall and false positives.",
+    "origin": "LLM proposed detection",
+    "reviewStatus": "Unreviewed"
+  }
+]
