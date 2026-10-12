@@ -382,9 +382,10 @@ test('AC-09 configured project command executes offline contract tests within tr
   assert.deepEqual(config.project_commands, [['node', '--test', 'tests/contract.test.mjs']]);
   const governance = config.paths.governance;
   const mapped = (path, patterns) => patterns.some(pattern => pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern);
-  for (const path of ['scripts/package.json', 'scripts/package-lock.json', 'scripts/.nvmrc', 'scripts/.node-version', 'schemas/contract.d.ts']) assert.ok(mapped(path, governance), path);
+  for (const path of ['scripts/package.json', 'scripts/package-lock.json', 'scripts/.nvmrc', 'scripts/.node-version']) assert.ok(mapped(path, governance), path);
   assert.ok(config.paths.tests.includes('tests/**'));
-  assert.ok(governance.includes('schemas/**'));
-  assert.ok(governance.includes('scripts/**'));
-  assert.ok(config.paths.tests.includes('tests/**'));
+  for (const path of ['scripts/contract.mjs', 'schemas/corpus.schema.json', 'schemas/contract.d.ts']) {
+    assert.ok(mapped(path, config.paths.application), path);
+    assert.ok(!mapped(path, governance), `application is not governance: ${path}`);
+  }
 });

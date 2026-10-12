@@ -78,7 +78,8 @@ jobs:
                 files: files.map(f => ({
                   path: f.filename,
                   status: f.status,
-                  previous_path: f.previous_filename || null
+                  previous_path: f.previous_filename || null,
+                  patch: f.patch ?? null
                 })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
               };
               if (pr.base.sha !== context.payload.pull_request.base.sha ||
@@ -93,7 +94,7 @@ jobs:
               snapshot_after: before
             };
             fs.writeFileSync(process.env.RUNNER_TEMP + '/pr-policy.json', JSON.stringify(payload));
-      - name: Evaluate trusted-base metadata and file declarations
+      - name: Evaluate trusted-base metadata and documentation upkeep
         run: python scripts/pr_policy.py --input "$RUNNER_TEMP/pr-policy.json"
       - name: Capture and compare live PR snapshot after evaluation
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -137,7 +138,8 @@ jobs:
               files: files.map(f => ({
                 path: f.filename,
                 status: f.status,
-                previous_path: f.previous_filename || null
+                previous_path: f.previous_filename || null,
+                patch: f.patch ?? null
               })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
             };
             if (pr.base.sha !== context.payload.pull_request.base.sha ||

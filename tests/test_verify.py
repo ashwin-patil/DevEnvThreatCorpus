@@ -12,6 +12,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import yaml
+
 from scripts.verify import (
     CONFIG_PATH,
     ROOT,
@@ -22,6 +24,7 @@ from scripts.verify import (
     run_project_commands,
     validate_config,
     validate_schema_contract,
+    validate_scaffold,
     validate_yaml_tree,
     verification_mode_message,
 )
@@ -103,6 +106,60 @@ class ConfigValidationTests(unittest.TestCase):
         schema["properties"]["model_preference"]["properties"]["status"]["const"] = "enforced"
         with self.assertRaisesRegex(VerificationError, "keep model preference advisory"):
             validate_schema_contract(schema)
+
+    def test_ac06_application_and_readme_mapping_configuration(self) -> None:
+        for category in ("application", "readme_triggers"):
+            with self.subTest(category=category):
+                broken = copy.deepcopy(self.config)
+                del broken["paths"][category]
+                with self.assertRaisesRegex(VerificationError, "paths must define exactly"):
+                    validate_config(broken)
+                for patterns, message in (
+                    ("src/**", "must be an array"),
+                    (["../src"], "unsafe path"),
+                    (["src/**", "src/**"], "duplicate path"),
+                ):
+                    broken = copy.deepcopy(self.config)
+                    broken["paths"][category] = patterns
+                    with self.assertRaisesRegex(VerificationError, message):
+                        validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["paths"]["application"] = []
+        broken["paths"]["readme_triggers"] = []
+        validate_config(broken, self.schema)
+        broken = copy.deepcopy(self.config)
+        broken["paths"]["governance"].append("scripts/**")
+        with self.assertRaisesRegex(VerificationError, "must not overlap"):
+            validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["paths"]["application"].append("docs/runtime/**")
+        with self.assertRaisesRegex(VerificationError, "must not overlap"):
+            validate_config(broken)
+        broken = copy.deepcopy(self.config)
+        broken["paths"]["readme_triggers"].append("unmapped/**")
+        with self.assertRaisesRegex(VerificationError, "covered by implementation"):
+            validate_config(broken)
+        schema = copy.deepcopy(self.schema)
+        del schema["properties"]["paths"]["properties"]["application"]
+        with self.assertRaisesRegex(VerificationError, "fields do not match"):
+            validate_schema_contract(schema)
+
+    def test_ac01_flexible_issue_form_keeps_required_task_fields(self) -> None:
+        form = yaml.safe_load((ROOT / ".github/ISSUE_TEMPLATE/implementation-task.yml").read_text())
+        fields = {field["id"]: field for field in form["body"] if "id" in field}
+        self.assertFalse(fields["parent-prd"]["validations"]["required"])
+        context = fields["parent-prd"]["attributes"]["description"]
+        self.assertIn("no separate PRD issue or file is required", context)
+        for field in ("dependencies", "scope", "exclusions", "acceptance-criteria", "definition-of-done"):
+            self.assertTrue(fields[field]["validations"]["required"], field)
+        self.assertIn("AC-01", fields["acceptance-criteria"]["attributes"]["description"])
+
+    def test_ac02_lifecycle_allows_standalone_requirements_and_human_launch(self) -> None:
+        lifecycle = (ROOT / "docs/lifecycle.md").read_text()
+        for text in ("directly in", "optional", "authorized human", "same PR", "human approval"):
+            self.assertIn(text, lifecycle)
+        self.assertNotIn("Each task has an originating PRD", lifecycle)
+        validate_scaffold(self.config)
 
     def test_yaml_syntax_errors_are_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -9,6 +9,24 @@
   ],
   "paths": {
     "learning_index": "docs/learnings/README.md",
+    "application": [
+      "scripts/contract.mjs",
+      "schemas/corpus.schema.json",
+      "schemas/contract.d.ts"
+    ],
+    "readme_triggers": [
+      "scripts/contract.mjs",
+      "schemas/corpus.schema.json",
+      "schemas/contract.d.ts",
+      "scripts/package.json",
+      "scripts/package-lock.json",
+      "scripts/.nvmrc",
+      "scripts/.node-version",
+      "scripts/verify.py",
+      "project.config.json",
+      "requirements-governance.txt",
+      ".github/workflows/copilot-setup-steps.yml"
+    ],
     "documentation": [
       "README.md",
       "AGENTS.md",
@@ -26,8 +44,14 @@
     "governance": [
       ".github/**",
       ".gitignore",
-      "scripts/**",
-      "schemas/**",
+      "scripts/__init__.py",
+      "scripts/verify.py",
+      "scripts/pr_policy.py",
+      "scripts/package.json",
+      "scripts/package-lock.json",
+      "scripts/.nvmrc",
+      "scripts/.node-version",
+      "schemas/project-config.schema.json",
       "project.config.json",
       "requirements-governance.txt"
     ]

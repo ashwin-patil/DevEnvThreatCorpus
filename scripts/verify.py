@@ -25,13 +25,14 @@ REQUIRED_CONFIG_KEYS = {
     "recovery",
 }
 REQUIRED_PATH_CATEGORIES = {
+    "application",
     "documentation",
     "tests",
     "changelog",
     "learnings",
     "governance",
 }
-REQUIRED_PATH_KEYS = REQUIRED_PATH_CATEGORIES | {"learning_index"}
+REQUIRED_PATH_KEYS = REQUIRED_PATH_CATEGORIES | {"learning_index", "readme_triggers"}
 RECURSION_GUARD = "AI_NATIVE_VERIFY_COMMAND_ACTIVE"
 
 
@@ -147,10 +148,12 @@ def validate_config(config: Any, schema: Any | None = None) -> None:
     if not _safe_pattern(index_path) or any(char in index_path for char in "*?[]"):
         raise VerificationError("paths.learning_index must be one exact safe repository-relative path")
     owners: dict[str, str] = {}
-    for category in REQUIRED_PATH_CATEGORIES:
+    for category in REQUIRED_PATH_CATEGORIES | {"readme_triggers"}:
         patterns = paths[category]
-        if not isinstance(patterns, list) or not patterns:
-            raise VerificationError(f"paths.{category} must be a non-empty array")
+        if not isinstance(patterns, list) or (
+            not patterns and category not in {"application", "readme_triggers"}
+        ):
+            raise VerificationError(f"paths.{category} must be an array (non-empty for core surfaces)")
         seen: set[str] = set()
         for pattern in patterns:
             if not _safe_pattern(pattern):
@@ -158,12 +161,31 @@ def validate_config(config: Any, schema: Any | None = None) -> None:
             if pattern in seen:
                 raise VerificationError(f"duplicate path pattern in paths.{category}: {pattern}")
             seen.add(pattern)
-            # Identical patterns in two categories make declaration semantics ambiguous.
+            if category == "readme_triggers":
+                continue
+            # Identical patterns in two categories make classification ambiguous.
             if pattern in owners and owners[pattern] != category:
                 raise VerificationError(
                     f"conflicting path pattern {pattern!r} in {owners[pattern]} and {category}"
                 )
             owners[pattern] = category
+    for application in paths["application"]:
+        for category in REQUIRED_PATH_CATEGORIES - {"application"}:
+            for pattern in paths[category]:
+                if _path_matches_pattern(application.removesuffix("/**"), pattern) or (
+                    _path_matches_pattern(pattern.removesuffix("/**"), application)
+                ):
+                    raise VerificationError("application mappings must not overlap other surfaces")
+    for trigger in paths["readme_triggers"]:
+        if not any(
+            _path_matches_pattern(trigger, pattern)
+            for category in ("application", "governance")
+            for pattern in paths[category]
+        ):
+            raise VerificationError("README triggers must be covered by implementation mappings")
+    for path, category in (("README.md", "documentation"), ("CHANGELOG.md", "changelog")):
+        if path not in paths[category]:
+            raise VerificationError(f"{path} must be explicitly mapped under {category}")
     index_parent = index_path.rsplit("/", 1)[0] if "/" in index_path else ""
     if not index_parent or not all(
         pattern.startswith(index_parent + "/") for pattern in paths["learnings"]
@@ -240,6 +262,12 @@ def validate_schema_contract(schema: Any) -> None:
     path_schema = schema.get("$defs", {}).get("pathPatterns")
     if not isinstance(path_schema, dict) or path_schema.get("uniqueItems") is not True:
         raise VerificationError("configuration schema must reject duplicate path patterns")
+    optional = schema.get("$defs", {}).get("optionalPathPatterns", {})
+    if optional.get("uniqueItems") is not True or optional.get("minItems") != 0:
+        raise VerificationError("configuration schema must allow empty optional path arrays")
+    for category in ("application", "readme_triggers"):
+        if properties["paths"]["properties"][category].get("$ref") != "#/$defs/optionalPathPatterns":
+            raise VerificationError("configuration schema must define application and README mappings")
 
 
 def validate_scaffold(config: dict[str, Any]) -> None:

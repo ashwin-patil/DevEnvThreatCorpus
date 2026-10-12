@@ -5,6 +5,7 @@ Closes #
 ## Scope
 
 Summarize the authorized scope and exclusions. This PR must stay focused on its originating issue.
+Requirements may live directly in that issue; separate PRD issues/files are optional context. An authorized human starts the session.
 
 ## Acceptance audit
 
@@ -25,8 +26,10 @@ Map every criterion from the originating issue to changed files and durable evid
 
 ## Documentation, changelog, tests, and learnings
 
-- Documentation changed: list paths or `N/A — reason`
-- Changelog changed: list path or `N/A — reason`
+- Relevant documentation changed: list paths (required for application/governance changes)
+- Root `CHANGELOG.md` update: list entry (required for application/governance changes; headings/rename/deletion alone do not qualify)
+- README upkeep: list entrypoint/setup/usage updates; otherwise request a human applicability decision
+- Documentation-only/test-only maintenance: describe the narrow scope if no implementation surface changes (metadata classification, not this declaration, controls applicability)
 - Tests changed/run: list paths and commands or `N/A — reason`
 - Reusable learning claimed: list linked learning file(s) and index entry, or `N/A — no reusable lesson`
 
@@ -40,6 +43,7 @@ Link exactly one open originating implementation issue using a closing reference
 - [ ] Automated criteria have executed evidence for the latest revision; subjective criteria have a human decision.
 - [ ] Required `Verify` and `PR Policy` checks passed on the latest revision, or the bootstrap limitation is explicitly recorded.
 - [ ] Scope, docs/changelog/test/learning evidence, and limitations are accurate.
+- [ ] Documentation is relevant and accurate, changelog prose is substantive, and README covers entrypoint/setup/usage changes including those outside configured triggers; filename presence is not proof.
 - [ ] I entered and checked the final squash commit message in the merge dialog.
 
 Keep this PR draft until ready for review. Passing declarations or local policy fixtures do not establish hosted enforcement.

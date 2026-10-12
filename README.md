@@ -77,8 +77,21 @@ already implemented.
 
 ## Contribution and review
 
+Start with a complete implementation-task issue containing requirements,
+scope/exclusions, dependencies, stable acceptance criteria, and definition of
+done. PRD issues/files or other requirements links are optional. An authorized
+human starts one Copilot session; corrections stay on its originating PR.
+
 Keep implementation scoped to its originating issue and preserve stable
-acceptance-criterion IDs. Update focused tests, relevant documentation, and
-`CHANGELOG.md` together. Automated checks establish contract behavior, not
+acceptance-criterion IDs. Application and governance changes require relevant
+documentation and substantive root `CHANGELOG.md` prose in the same PR.
+Maintain this README when public entrypoints, setup, or usage change; configured
+triggers enforce a minimum, not proof of relevance. Documentation-only and
+test-only maintenance need no ceremonial changelog or learning entry.
+Changed learning notes must update the learning index in the same PR.
+See [upkeep rules](docs/setup-and-configuration.md#documentation-upkeep-policy)
+and [required merge settings and inspection blocker](docs/merge-rules.md).
+Automated checks establish contract behavior, not
 research truth or authenticated human approval; subjective acceptance requires
-human review. Do not put secrets in source records, issues, prompts, or logs.
+independent human review before merge. Do not put secrets in source records,
+issues, prompts, or logs.
