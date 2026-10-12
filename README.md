@@ -18,8 +18,9 @@
 
 DevEnvThreatCorpus is building a human-reviewed corpus for research on
 developer-environment threats. The current work provides the data contract,
-offline validation, and operator-triggered source intake for a new corpus.
-Claim extraction and review operations are not yet implemented.
+offline validation, operator-triggered source intake, and researcher-triggered
+manual claim extraction for a new corpus. Claim acceptance and review operations
+are not implemented.
 
 ## Current implementation
 
@@ -29,7 +30,10 @@ and relationships between records, including evidence references, content
 hashes, date precision, conflicts, and review dependencies. Canonical
 serialization and identity helpers support deterministic record comparison.
 Manual HTTPS URL, UTF-8 text, and UTF-8 file intake persist private source
-revisions and explicit success/failure manifests using that same contract.
+revisions and explicit success/failure manifests using that same contract. The
+offline manual extraction CLI adds pending, passage-grounded claims and case
+associations from a researcher-completed template; it does not accept or review
+claims.
 
 The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
@@ -82,6 +86,47 @@ for access policy, supported encodings/HTML, identity, bounds, safe retention,
 and failure handling. Do not pass credentials or confidential text on a shared
 command line; use a permission-restricted UTF-8 file instead.
 
+## Manual extraction: offline exercise
+
+Extraction reads an existing valid private `corpus.json` and an explicit
+researcher-completed JSON template. It never retrieves sources, calls a model,
+creates cases, merges cases, or accepts claims. The committed example and base
+corpus below are synthetic test data only:
+
+```bash
+R=/home/runner/work/DevEnvThreatCorpus/DevEnvThreatCorpus
+S="$R/.private-intake/extraction-exercise"
+umask 077
+mkdir -p "$S"
+cp "$R/tests/fixtures/benign/core-only.json" "$S/corpus.json"
+cp "$R/tests/fixtures/extraction/manual.json" "$S/template.json"
+chmod 600 "$S/corpus.json" "$S/template.json"
+node "$R/scripts/extract.mjs" --template "$S/template.json" --supplied-by operator --store "$S"
+node "$R/scripts/contract.mjs" validate --file "$S/corpus.json"
+# Repeating the exact template is idempotent.
+node "$R/scripts/extract.mjs" --template "$S/template.json" --supplied-by operator --store "$S"
+```
+
+For research input, set `schemaVersion` to `manual-extraction/1` and provide a
+`claims` array. Each claim names an existing `caseId`,
+`sourceId`, `sourceRevisionId`, and the revision's exact `normalizedHash`, plus
+its description, evidence status, origin, and a researcher-assigned ID.
+Source-grounded claims include passage records with IDs, locators, zero-based
+half-open Unicode code-point offsets, and passage text that exactly matches the
+retained normalized revision. Inference claims instead set `evidenceStatus` to
+`Researcher inference`, `origin` to `Human inference`, and provide an
+`inference` object with rationale and supporting claim IDs. Conflict links must
+be reciprocal in the template. See `tests/fixtures/extraction/manual.json` for
+the complete synthetic format. Use an explicit existing case; the CLI never
+infers case identity from sources or content.
+
+The template and private store must be absolute local paths with restrictive
+permissions. Success and failure are JSON outcomes; invalid templates leave the
+corpus unchanged. A successful extraction records a manifest and leaves claims
+`Pending`. This operation does not establish source truth, reviewer identity,
+acceptance, or conflict resolution. See [manual extraction rules and
+limitations](docs/architecture.md#manual-extraction-contract).
+
 ## Validate locally
 
 Requirements: Python with the pinned dependency from
@@ -94,21 +139,22 @@ python scripts/verify.py
 ```
 
 `python scripts/verify.py` runs the repository governance checks and configured
-project commands, including the offline Node contract and intake suites. To run
-the focused suites directly with the pinned Node runtime:
+project commands, including the offline contract, intake, and extraction suites.
+To run the focused suites directly with the pinned Node runtime:
 
 ```powershell
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/contract.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/intake.test.mjs
+npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/extract.test.mjs
 ```
 
 The tests check valid and invalid synthetic records: source and passage
 provenance, case/claim relationships, hash and locator consistency,
 categorization and timeline constraints, conflict links, current human-review
 requirements, clean-start behavior, optional enrichment, and deterministic
-serialization. Intake checks additionally use injected fake DNS/transports and
-temporary private stores; they do not contact websites or assess whether a
-research claim is factually true.
+serialization. Intake checks use injected fake DNS/transports, while extraction
+tests use synthetic corpus/templates and temporary private stores. Neither suite
+contacts websites or assesses whether a research claim is factually true.
 
 ## Project status and next work
 
@@ -119,8 +165,9 @@ Implemented now:
 - Deterministic identity and serialization helpers.
 - Manual URL/text/file intake, bounded destination-checked HTTPS retrieval,
   private atomic retention, linked revisions, and recoverable failure manifests.
-- Governance and trusted-base path mappings authorizing upcoming manual claim
-  extraction entrypoints (`scripts/extract.mjs`).
+- Offline manual extraction from researcher-completed templates, exact
+  revision-grounded passages, explicit case/source links, inference and conflict
+  records, and pending-only outcomes.
 - Synthetic positive and negative contract fixtures with acceptance-focused
   tests.
 - Project documentation describing the clean-start decision and evidence
@@ -128,7 +175,7 @@ Implemented now:
 
 Not implemented yet:
 
-- Claim extraction, semantic article interpretation, or assisted research workflows.
+- Semantic article interpretation or assisted research workflows.
 - Authenticated reviewer identity, a review interface, or durable review
   storage.
 - Public exports, deployment, or an operational corpus-processing pipeline.

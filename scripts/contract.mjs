@@ -500,7 +500,7 @@ export function assertAppendOnlyReviews(previous, next) {
     'INVALID_INPUT', 'UNSAFE_URL', 'UNSAFE_ADDRESS', 'PEER_MISMATCH', 'NETWORK', 'TIMEOUT', 'TOO_LARGE',
     'ACCESS_DENIED', 'HTTP_STATUS', 'ROBOTS_DENIED', 'ROBOTS_UNSUPPORTED', 'REDIRECT_LIMIT',
     'UNSUPPORTED_TYPE', 'UNSUPPORTED_ENCODING', 'MALFORMED_TEXT', 'MALFORMED_HTML', 'EMPTY_CONTENT',
-    'UNSAFE_PATH', 'STORE_BUSY', 'INVALID_CORPUS', 'IDENTITY_COLLISION', 'PERSISTENCE',
+    'UNSAFE_PATH', 'STORE_BUSY', 'INVALID_CORPUS', 'IDENTITY_COLLISION', 'INVALID_EXTRACTION', 'PERSISTENCE',
   ]);
   class IntakeError extends Error {
     constructor(code) { super(code); this.code = code; }
@@ -871,6 +871,34 @@ export function assertAppendOnlyReviews(previous, next) {
   export async function validatePrivateCorpus(file) {
     const bytes = await readPrivate(file, { corpus: true });
     try { return assertValid(JSON.parse(strictText(bytes))); } catch { rejectIntake('INVALID_CORPUS'); }
+  }
+
+  export async function readPrivateTemplate(file) {
+    return strictText(await readPrivate(file, { privateOnly: true }));
+  }
+
+  export async function updatePrivateCorpus(directory, update) {
+    let store, result, failure;
+    try {
+      if (typeof update !== 'function') rejectIntake('INVALID_INPUT');
+      store = await openStore(directory);
+      try {
+        await fs.lstat(store.file);
+        store.baseline = digest(await validatePrivateCorpus(store.file));
+      } catch (error) {
+        if (error.code === 'ENOENT') rejectIntake('INVALID_CORPUS');
+        throw error;
+      }
+      const corpus = await validatePrivateCorpus(store.file);
+      result = await update(corpus);
+      await persist(store, corpus);
+    } catch (error) {
+      failure = { status: 'failed', code: safeCode(error), ...(error?.errors ? { errors: error.errors } : {}) };
+    } finally {
+      try { await store?.close(); }
+      catch { failure = { status: 'failed', code: 'PERSISTENCE' }; }
+    }
+    return failure ?? { status: 'succeeded', ...result };
   }
 
   function emptyCorpus() {

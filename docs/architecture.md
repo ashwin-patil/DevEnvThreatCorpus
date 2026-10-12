@@ -20,27 +20,28 @@ The operator-driven pipeline separates collection from later research:
    provenance and collection state.
 2. Record each retrieved or supplied content version as a source revision with
    raw and normalized hashes and explicit retention metadata.
-3. Extract or manually enter claims supported by exact passages and locators,
-   or record explicit researcher inferences with their supporting claims.
-4. Associate sources and claims with cases without inferring attribution from
-   shared sources or similar URLs.
+3. Manually enter claims supported by exact passages and locators, or record
+   explicit researcher inferences with their supporting claims.
+4. Associate sources and claims with explicitly selected cases without inferring
+   attribution from shared sources or similar URLs.
 5. Add supported categorizations and timelines, preserving uncertainty,
    conflicts, date precision, and the distinction between publication and
    activity.
 6. Submit proposed records for a future review workflow; acceptance requires
    current human review and matching content/dependency hashes.
 
-Steps 1–2 are operational manual intake; steps 3–6 remain subsequent issues.
+Steps 1–4 have operator-triggered implementations. Steps 5–6 remain subsequent
+work.
 
 ## Current implementation
 
 The repository supplies the 0.3.0 JSON Schema, corresponding TypeScript declarations,
 offline structural and relationship validation, deterministic identity and
-serialization utilities, manual source intake, and visibly synthetic
-positive/negative fixtures. Tests exercise these contracts and intake behavior;
-they are not processed blog records.
+serialization utilities, manual source intake and template-based claim
+extraction, and visibly synthetic positive/negative fixtures. Tests exercise
+these contracts and offline behaviors; they are not processed blog records.
 
-Intake does not run extraction, persist authenticated reviewer identity,
+Collection and extraction do not persist authenticated reviewer identity,
 provide review operations or UI, generate exports, or deploy the pipeline.
 Those are follow-up implementation work. No legacy migration command,
 migration fixture, or migration-only schema field is part of this design.
@@ -199,6 +200,47 @@ The AC-01–AC-10 and scoped FND mapping is in
 [Acceptance audit](acceptance-audit.md#issue-8-manual-intake-and-revisions).
 No optional live probe is necessary or claimed. Human approval is required
 before merge; source collection does not approve research truth.
+
+## Manual extraction contract
+
+The operator-triggered entrypoint is `scripts/extract.mjs --template
+<absolute-file> --supplied-by <operator-id> --store <absolute-private-dir>`.
+The store must already contain a valid 0.3.0 `corpus.json` with the referenced
+sources, retained revisions, and cases. The template must be a private UTF-8
+JSON file with `schemaVersion: "manual-extraction/1"` and a nonempty `claims`
+array. It is researcher input, not executable content. The committed example
+`tests/fixtures/extraction/manual.json` uses only the synthetic base fixture.
+
+Every claim names its case, source, source revision, and exact normalized
+revision hash. A source-grounded claim also supplies passage IDs, locators,
+text, and zero-based half-open Unicode code-point offsets; extraction checks
+that the supplied text equals the corresponding slice of retained normalized
+content before creating a passage. Wrong source/revision/hash, absent retained
+content, fabricated text, invalid offsets, unknown fields, and duplicate IDs
+fail without persisting partial records. The existing validator then checks
+relationships, null states, inference support/cycles, and reciprocal
+same-case conflicts.
+
+Claims and cases are never auto-created or merged. Each claim links to exactly
+one explicitly named case; a case may link several sources and a source may be
+explicitly linked to several cases. A source association is added to the named
+case when a claim explicitly refers to it. Inference records require the
+`Researcher inference` status, `Human inference` origin, rationale, and
+supporting claim IDs; they have no passages and remain distinct from
+source-grounded claims. Contradictory records stay separate. All new claims
+remain `Pending`; no review, acceptance, ranking, resolution, or model adapter
+is provided.
+
+The CLI writes through the existing private-store lock, validation, restrictive
+permissions, and atomic replacement helpers. Exact successful template reruns
+are idempotent. It reports JSON success/failure with a nonzero exit on failure;
+invalid input leaves the previous corpus unchanged. It records an extraction
+manifest for success only. No network, model, credentials, or adapter is used.
+An operator must assess source authorization, retention rights, research
+semantics, and case identity independently.
+
+The extraction contract and AC-01–AC-07 evidence mapping for Issue #12 are in
+[Acceptance audit](acceptance-audit.md#issue-12-manual-claim-extraction-and-case-linking).
 
 ## Review and trust boundary
 

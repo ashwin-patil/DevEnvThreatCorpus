@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "manual-extraction/1",
+  "claims": [
+    {
+      "id": "extracted-claim-a",
+      "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-a",
+      "sourceRevisionId": "synthetic-revision-a",
+      "revisionHash": "7792f6dd8e7fef93ac18cd44219b02376ca325dc1e53bd8e62daa46a711f9931",
+      "description": "The synthetic source uses the term Café.",
+      "evidenceStatus": "Source-reported observation",
+      "origin": "Human source paraphrase",
+      "passages": [
+        { "id": "extracted-passage-a", "locator": "line 1", "start": 2, "end": 6, "text": "Café" }
+      ],
+      "conflictsWith": ["extracted-claim-b"]
+    },
+    {
+      "id": "extracted-claim-b",
+      "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-b",
+      "sourceRevisionId": "synthetic-revision-b",
+      "revisionHash": "c7887854d7e4ce08d57b1e897164cb7095b04345a5894af6e619ff5f0cd4a59e",
+      "description": "The second synthetic source denies tool use.",
+      "evidenceStatus": "Unclear or disputed",
+      "origin": "Human source paraphrase",
+      "passages": [
+        { "id": "extracted-passage-b", "locator": "line 1", "start": 0, "end": 22, "text": "The tool was not used." }
+      ],
+      "conflictsWith": ["extracted-claim-a"]
+    },
+    {
+      "id": "extracted-claim-c",
+      "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-a",
+      "sourceRevisionId": "synthetic-revision-a",
+      "revisionHash": "7792f6dd8e7fef93ac18cd44219b02376ca325dc1e53bd8e62daa46a711f9931",
+      "description": "The retained revision begins with a supplementary character.",
+      "evidenceStatus": "Source-reported observation",
+      "origin": "Human source paraphrase",
+      "passages": [
+        { "id": "extracted-passage-c", "locator": "line 1", "start": 0, "end": 6, "text": "😀 Café" }
+      ]
+    },
+    {
+      "id": "extracted-inference",
+      "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-a",
+      "sourceRevisionId": "synthetic-revision-a",
+      "revisionHash": "7792f6dd8e7fef93ac18cd44219b02376ca325dc1e53bd8e62daa46a711f9931",
+      "description": "These two synthetic accounts disagree.",
+      "evidenceStatus": "Researcher inference",
+      "origin": "Human inference",
+      "inference": {
+        "rationale": "The separately recorded statements conflict; no attribution is inferred.",
+        "supportingClaimIds": ["synthetic-claim-a", "synthetic-claim-b"]
+      }
+    },
+    {
+      "id": "extracted-claim-other-case",
+      "caseId": "synthetic-case-b",
+      "sourceId": "synthetic-source-b",
+      "sourceRevisionId": "synthetic-revision-b",
+      "revisionHash": "c7887854d7e4ce08d57b1e897164cb7095b04345a5894af6e619ff5f0cd4a59e",
+      "description": "The same source is explicitly linked to another case.",
+      "evidenceStatus": "Source-reported observation",
+      "origin": "Human source paraphrase",
+      "passages": [
+        { "id": "extracted-passage-other-case", "locator": "line 1", "start": 0, "end": 22, "text": "The tool was not used." }
+      ]
+    }
+  ]
+}

@@ -241,3 +241,44 @@ and merge approval remain **needs-human-review** until a human records a
 decision/link on PR #9. Automated review and security checks are supplemental,
 not independent human approval. Hosted Verify/PR Policy may need approval to
 run; unavailable or stale checks must be reported, never called passing.
+
+## Issue #12 manual claim extraction and case linking
+
+Originating requirements: [Issue #12](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/12), directly in the implementation issue. This same-PR implementation is [PR #13](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/13); final tested revision and exact command results must be recorded there and refreshed after every commit. No 0.2.0 record is an implementation input.
+
+The runtime is `scripts/extract.mjs`, which imports canonical serialization, hashes, validation, and private-store locking/atomic persistence from `scripts/contract.mjs`. The manual template fixture is `tests/fixtures/extraction/manual.json`; all content is synthetic. No adapter is included.
+
+### Foundation requirement mapping
+
+| Requirement | Implementation, test, and evidence |
+|---|---|
+| FND-10 — keep collection, extraction, and review distinct | `scripts/extract.mjs` creates only pending records from manual JSON; no model/adapter, network, review, or acceptance operation. `tests/extract.test.mjs`; [manual extraction contract](architecture.md#manual-extraction-contract); final offline verification on PR #13. |
+| FND-11 — source-revision-grounded claims or explicit researcher inferences | Each input claim names a source, revision, normalized hash, and exact passage or inference rationale/support. Unicode and invalid evidence cases are tested in `tests/extract.test.mjs`; validator rules are in `scripts/contract.mjs`. |
+| FND-12 — explicit many-to-many case/source association without inferred identity or merging | Existing case IDs are required; claim source association is added only to its explicitly selected case. No case is created or merged. `AC-04` extraction test and existing core contract fixture; README and architecture document the boundary. |
+| FND-13 — preserve contradictory claims as separate reciprocal references | `conflictsWith` is supplied in both directions; contract validation rejects self, dangling, cross-case, and nonreciprocal relations. `AC-06` extraction and contract tests plus synthetic fixture. |
+
+### Stable acceptance traceability
+
+| ID | Observable result and focused verification | Durable evidence / remaining decision |
+|---|---|---|
+| AC-01 | Valid template creates contract-valid pending claims and a success manifest; malformed CLI/template, ID collision, and exact rerun behavior are tested in `tests/extract.test.mjs`. | `scripts/extract.mjs`; `tests/fixtures/extraction/manual.json`; README offline exercise; final commands/results and SHA on PR #13. |
+| AC-02 | Correct revision/hash and exact half-open Unicode code-point passage slice required; supplementary emoji, NFC composition, wrong hash/revision, fabricated text, and invalid offset cases are exercised in `tests/extract.test.mjs`. | Synthetic Unicode fixture and `scripts/contract.mjs` passage/hash validation; final offline test results on PR #13. |
+| AC-03 | Manual mode runs without any adapter; test invokes the CLI offline with local files only and verifies success/failure status. No adapter, live model, network call, or credential is present. | `scripts/extract.mjs`, configured `node --test tests/extract.test.mjs`; no adapter-failure test applies because no adapter is implemented. |
+| AC-04 | Multiple sources and claims can be explicitly associated with one case; a source can be linked to claims in multiple cases; unknown case/source or inconsistent revision fails. Claims retain one `caseId` and cases are never auto-merged. | Extraction relationship test and existing `tests/fixtures/benign/core-only.json` contract fixture; `README.md`/`docs/architecture.md`. |
+| AC-05 | Inference rationale and same-case supporting claim IDs remain distinct from passages and pending; dangling, self, cross-case, and cyclic support is rejected by contract/extraction tests. | `tests/extract.test.mjs`, inference tests in `tests/contract.test.mjs`, schema inference definition; independent research-semantics review pending. |
+| AC-06 | Conflicts remain distinct and reciprocal; self-conflict, dangling references, and missing reciprocity fail without changing the corpus. | `tests/extract.test.mjs`, reciprocal conflict test in `tests/contract.test.mjs`, synthetic fixture; no resolution/ranking is performed. |
+| AC-07 | Intake/contract suites remain configured alongside extraction; README, architecture, changelog, and this table describe usage, limits, and evidence links. | `project.config.json`, `README.md`, `docs/architecture.md`, `CHANGELOG.md`; `python scripts/verify.py` and configured commands on final SHA. Independent human review of documentation and research-state semantics is **needs-human-review**. |
+
+CLI failures return JSON with a nonzero exit and do not persist partial claims.
+Success stores an `extraction` manifest and leaves all claims `Pending`; only
+successful identical template reruns are idempotent. There is no durable failure
+manifest for an invalid extraction template. Tests establish contract behavior,
+not factual research truth or human approval.
+
+Requested model preference: **Auto**. The effective session model is not exposed
+to this record; no runtime extraction model or credentials are used. No unsupported
+runtime-model claim is made.
+
+No lint or production build command is configured. Final local and hosted check
+results, full tested SHA, and any unavailable checks must be recorded in PR #13.
+Independent review and human approval remain required before merge.
