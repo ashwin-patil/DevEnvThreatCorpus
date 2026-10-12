@@ -168,6 +168,8 @@ Implemented now:
 - Offline manual extraction from researcher-completed templates, exact
   revision-grounded passages, explicit case/source links, inference and conflict
   records, and pending-only outcomes.
+- Governance and trusted-base path mappings authorizing upcoming client-side
+  research workbench UI (`src/**`) and local preview dev server (`scripts/server.mjs`).
 - Synthetic positive and negative contract fixtures with acceptance-focused
   tests.
 - Project documentation describing the clean-start decision and evidence
