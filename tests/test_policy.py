@@ -195,6 +195,8 @@ class PolicyTests(unittest.TestCase):
         hidden_patches = (
             "@@ -1,3 +1,4 @@\n <!--\n+Hidden update\n -->",
             "@@ -10,2 +10,3 @@\n Context inside existing comment\n+Hidden update\n -->",
+            "@@ -1,3 +1,4 @@\n <!--\n+Hidden update\n --!>",
+            "@@ -10,2 +10,3 @@\n Context inside existing comment\n+Hidden update\n --!>",
             "+<!-- unfinished comment",
             "+<!--\n+Hidden update\n+-->",
         )
@@ -209,10 +211,11 @@ class PolicyTests(unittest.TestCase):
                     files = [item for item in files if item["path"] != "README.md"]
                 with self.subTest(path=path, patch=patch), self.assertRaisesRegex(VerificationError, message):
                     evaluate(with_files(files), base_config())
-        evaluate(with_files([
-            changed("scripts/pr_policy.py"), changed("docs/lifecycle.md"),
-            changed("CHANGELOG.md", patch=" <!--\n+Hidden update\n -->\n+Visible release note"),
-        ]), base_config())
+        for closure in ("-->", "--!>"):
+            evaluate(with_files([
+                changed("scripts/pr_policy.py"), changed("docs/lifecycle.md"),
+                changed("CHANGELOG.md", patch=f" <!--\n+Hidden update\n {closure}\n+Visible release note"),
+            ]), base_config())
 
     def test_ac03_documentation_only_and_test_only_maintenance_need_no_changelog(self) -> None:
         for path in ("docs/lifecycle.md", "README.md", "tests/test_policy.py", "CHANGELOG.md"):

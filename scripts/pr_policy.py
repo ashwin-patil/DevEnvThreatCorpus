@@ -64,10 +64,10 @@ def _has_added_prose(item: dict[str, Any]) -> bool:
     def blank_comment(match: re.Match[str]) -> str:
         return "".join("\n" if char == "\n" else " " for char in match.group())
 
-    text = re.sub(r"<!--.*?(?:-->|$)", blank_comment, text, flags=re.DOTALL)
+    text = re.sub(r"<!--.*?(?:--!?>|$)", blank_comment, text, flags=re.DOTALL)
     # An orphan closing delimiter means the opening may be outside the patch.
-    while "-->" in text:
-        text = re.sub(r"\A.*?-->", blank_comment, text, count=1, flags=re.DOTALL)
+    while re.search(r"--!?>", text):
+        text = re.sub(r"\A.*?--!?>", blank_comment, text, count=1, flags=re.DOTALL)
     return any(
         added and not line.lstrip().startswith("#") and any(char.isalnum() for char in line)
         for (added, _), line in zip(destination, text.split("\n"))
