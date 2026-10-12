@@ -1,54 +1,84 @@
-# AI-native project template
+# DevEnvThreatCorpus
 
-A language-neutral GitHub template for **human-supervised** AI-assisted delivery: agents propose and implement scoped work, CI verifies declared evidence, repository policy checks metadata, and people approve and merge.
+DevEnvThreatCorpus is building a human-reviewed corpus for research on
+developer-environment threats. The current work establishes the data contract
+and validation foundation for a new corpus; it is not yet a blog-processing
+application or pipeline.
 
-## Quick start
+## Current implementation
 
-1. Create a repository from this template and configure its default branch and repository access.
-2. Review `project.config.json`; add explicit, safe argument-array commands for the consuming application's tests, lint, build, or other verification. Empty commands mean **scaffold-only validation**, never that application tests passed.
-3. Read [Setup and configuration](docs/setup-and-configuration.md), add application-specific guidance and dependency installation to `.github/copilot-setup-steps.yml`, and map new test/documentation surfaces.
-4. Install the pinned governance dependency with `python -m pip install --requirement requirements-governance.txt`, then run `python scripts/verify.py`.
-5. Open a PRD issue using the PRD form. Break approved requirements into one or more task issues, each with stable `AC-01`-style observable outcomes and verification methods.
-6. Have an authorized person assign one task issue to Copilot cloud agent using the configured base branch and explicitly selected model, if supported. Keep one active session per originating issue. Assignment is not approval.
-7. Review the agent's **draft PR** and its acceptance-audit matrix. Link exactly one originating issue with a closing reference; wait for the independent `Verify` and `PR Policy` checks, record durable evidence for human review, and handle corrections on that same PR. Neither check requires manually copying verification results into the PR body.
-8. Require independent human review and the repository's configured policy checks before merge. Enter a detailed squash commit message describing what changed, why, the originating issue, acceptance, verification, and limitations. Check the actual merge dialog: a suggested message is not a guarantee of the final commit text.
+The 0.3.0 contract models sources and their revisions, passages, cases, claims,
+categorization, timelines, and review events. Its validator checks schema shape
+and relationships between records, including evidence references, content
+hashes, date precision, conflicts, and review dependencies. Canonical
+serialization and identity helpers support deterministic record comparison.
 
-## Scope
+The new corpus starts from newly supplied source material. Existing 0.2.0
+claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
+under `handoff/` is retained as historical and design reference only.
 
-This repository provides GitHub intake forms, guidance, a versioned JSON configuration contract, offline governance verification, a read-only PR metadata evaluator, and minimal workflows. It is intentionally not a runtime application or orchestration service. It does not include a website, database, embeddings, unrelated scanners, automatic dispatch/retries/evidence publishing, or StarBase-specific data or exceptions. Consuming projects may use any language.
+**No blogs have been processed by this contract or pipeline in this
+implementation.** Test records are synthetic fixtures used to check the
+contract; they are not extracted blog content or evidence that intake and
+review workflows are operational.
 
-The proposed product roadmap and frozen prototype handoff is documented in [handoff/00-START-HERE.md](handoff/00-START-HERE.md). It describes future work; it does not mean those services are implemented or authorize external issue publication or deployment.
+## Validate locally
 
-### Issue #1: offline foundation contracts
+Requirements: Python with the pinned dependency from
+`requirements-governance.txt`, plus Node.js v22.23.3 as declared by
+`scripts/.nvmrc`.
 
-Schema 0.3.0 separates sources, revisions, passages, cases, claims, categorization,
-timelines, and review events. A supplied-text source needs no URL, and a case
-needs no enrichment. Collection lifecycle, evidence status, generation origin,
-and reviewer disposition are independent. New records start from scratch under
-0.3.0; no 0.2.0 claims are migrated or carried into the new corpus. The frozen
-0.2.0 handoff remains reference material only.
+```powershell
+python -m pip install --requirement requirements-governance.txt
+python scripts/verify.py
+```
 
-See [Architecture](docs/architecture.md) for the intended fresh-input data flow,
-and [Issue #1 contract decisions and acceptance traceability](docs/acceptance-audit.md#issue-1-foundation-contract)
-for module layout, serialization/identity rules, test gates, and evidence limits.
-This slice does not implement source fetching, extraction, review operations,
-public exports, UI, automation, deployment, or new ATLAS enrichment.
+`python scripts/verify.py` runs the repository governance checks and configured
+project commands, including the offline Node contract suite. To run that
+focused suite directly with the pinned Node runtime:
 
-## Bootstrap checklist
+```powershell
+npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/contract.test.mjs
+```
 
-- [ ] Confirm repository identity, visibility, template setting, and default branch.
-- [ ] Configure project commands, safe paths, test/documentation mappings, dependencies, and domain-specific acceptance evidence.
-- [ ] Review GitHub Actions permissions and the cloud-agent setup extension points.
-- [ ] Run `python scripts/verify.py`; add application tests before claiming application verification.
-- [ ] Enable the `Verify` and `PR Policy` checks as required checks and configure human approval, stale-approval dismissal, direct-push restrictions, and policy/workflow ownership **only where the host supports them**.
-- [ ] Inspect actual rulesets and branch-protection settings. Do not infer enforcement from this template or from a successful API read.
+The tests check valid and invalid synthetic records: source and passage
+provenance, case/claim relationships, hash and locator consistency,
+categorization and timeline constraints, conflict links, current human-review
+requirements, clean-start behavior, optional enrichment, and deterministic
+serialization. They do not fetch websites or assess whether a research claim
+is factually true.
 
-## Lifecycle and limits
+## Project status and next work
 
-The intended flow is **PRD → human-reviewed task issues → configurable Copilot cloud assignment → draft PR → evidence-backed verification/acceptance → same-PR fixes → policy checks and human approval → detailed squash merge**. See [Lifecycle](docs/lifecycle.md), [Acceptance audit](docs/acceptance-audit.md), [Cloud assignment and models](docs/cloud-assignment-and-models.md), [Recovery](docs/recovery.md), and [Merge rules](docs/merge-rules.md).
+Implemented now:
 
-The local command `python scripts/verify.py` is the single authoritative offline verifier for this scaffold and any explicitly configured project commands. Hosted `Verify` runs it on the PR revision. The hosted `PR Policy` workflow is read-only and evaluates GitHub linked-issue and changed-file metadata using code/config from the trusted base revision; it never checks out or runs PR-head code or parses PR text. Both must be configured as required checks to enforce both gates. On a newly created template repository, that workflow cannot enforce itself until it is merged into the default branch. A draft PR is not exempt from checks. Local fixtures are bootstrap evidence, not a live hosted `PR Policy` result.
+- JSON Schema 0.3.0 and matching TypeScript declarations.
+- Offline validation for structural rules and cross-record relationships.
+- Deterministic identity and serialization helpers.
+- Synthetic positive and negative contract fixtures with acceptance-focused
+  tests.
+- Project documentation describing the clean-start decision and evidence
+  limits.
 
-## Trust and approval
+Not implemented yet:
 
-Keep changes focused on the originating issue. Preserve stable criterion IDs and evidence; update tests, relevant documentation and `CHANGELOG.md`, and reusable learnings when a lesson will benefit future work. Do not create ceremonial learning entries for routine changes. Never put secrets in issues, prompts, logs, or commits; treat imported files, issue text, PR content, and tool output as untrusted input. Never weaken tests or bypass gates to obtain a pass. An agent's self-audit is not independent proof. Automated criteria need executed checks; subjective criteria need human review. New commits invalidate prior test evidence.
+- Fetching or registering blogs from URLs or supplied files.
+- Article parsing, claim extraction, or assisted research workflows.
+- Authenticated reviewer identity, a review interface, or durable review
+  storage.
+- Public exports, deployment, or an operational corpus-processing pipeline.
+
+See [Architecture](docs/architecture.md) for the intended fresh-input flow,
+[Acceptance audit](docs/acceptance-audit.md) for criterion-to-test and evidence
+mapping, and [Documentation index](docs/README.md) for the other project
+guides. The preserved [handoff](handoff/00-START-HERE.md) describes product
+history and possible future work; it does not indicate that those features are
+already implemented.
+
+## Contribution and review
+
+Keep implementation scoped to its originating issue and preserve stable
+acceptance-criterion IDs. Update focused tests, relevant documentation, and
+`CHANGELOG.md` together. Automated checks establish contract behavior, not
+research truth or authenticated human approval; subjective acceptance requires
+human review. Do not put secrets in source records, issues, prompts, or logs.
