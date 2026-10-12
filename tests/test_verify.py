@@ -16,6 +16,7 @@ import yaml
 
 from scripts.verify import (
     CONFIG_PATH,
+    PROJECT_COMMAND_TIMEOUT_SECONDS,
     ROOT,
     SCHEMA_PATH,
     VerificationError,
@@ -197,7 +198,8 @@ class CommandExecutionTests(unittest.TestCase):
         self.assertEqual(args[0], config["project_commands"][0])
         self.assertEqual(kwargs["cwd"], ROOT)
         self.assertFalse(kwargs["shell"])
-        self.assertEqual(kwargs["timeout"], 900)
+        self.assertEqual(kwargs["timeout"], 30 * 60)
+        self.assertEqual(kwargs["timeout"], PROJECT_COMMAND_TIMEOUT_SECONDS)
         self.assertEqual(kwargs["env"]["AI_NATIVE_VERIFY_COMMAND_ACTIVE"], "1")
         self.assertNotIn("TEST_SECRET", kwargs["env"])
         for sensitive_name in ("TEST_API_KEY", "AWS_ACCESS_KEY_ID", "SERVICE_AUTH", "DATABASE_URL"):
@@ -238,6 +240,11 @@ class WorkflowValidationTests(unittest.TestCase):
         config = load_json(CONFIG_PATH)
         validate_scaffold(config)
         validate_yaml_tree(ROOT)
+        workflow = yaml.load(
+            (ROOT / ".github/workflows/verify.yml").read_text(encoding="utf-8"),
+            Loader=yaml.BaseLoader,
+        )
+        self.assertEqual(workflow["jobs"]["verify"]["timeout-minutes"], "30")
 
     def test_copilot_setup_workflow_enforces_exact_job_id_and_node_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

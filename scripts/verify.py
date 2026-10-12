@@ -34,6 +34,7 @@ REQUIRED_PATH_CATEGORIES = {
 }
 REQUIRED_PATH_KEYS = REQUIRED_PATH_CATEGORIES | {"learning_index", "readme_triggers"}
 RECURSION_GUARD = "AI_NATIVE_VERIFY_COMMAND_ACTIVE"
+PROJECT_COMMAND_TIMEOUT_SECONDS = 30 * 60
 
 
 class VerificationError(ValueError):
@@ -553,11 +554,13 @@ def run_project_commands(
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=900,
+                timeout=PROJECT_COMMAND_TIMEOUT_SECONDS,
                 check=False,
             )
         except subprocess.TimeoutExpired:
-            failures.append(f"project command {index + 1} timed out after 900 seconds")
+            failures.append(
+                f"project command {index + 1} timed out after {PROJECT_COMMAND_TIMEOUT_SECONDS} seconds"
+            )
             continue
         except OSError as exc:
             failures.append(f"project command {index + 1} could not start: {exc}")

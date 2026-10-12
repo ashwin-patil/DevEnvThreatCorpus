@@ -1,5 +1,12 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { constants as fsConstants } from 'node:fs';
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isIP } from 'node:net';
+import { lookup } from 'node:dns/promises';
+import https from 'node:https';
 
 export const schema = JSON.parse(readFileSync(new URL('../schemas/corpus.schema.json', import.meta.url), 'utf8'));
 export const CONTRACT_VERSION = '0.3.0';
@@ -270,7 +277,13 @@ export function validateCorpus(corpus) {
     for (const [field, hash] of [['rawContent', 'rawHash'], ['normalizedContent', 'normalizedHash']]) {
       if (revision[field] !== null && sha256(revision[field]) !== revision[hash]) fail('sourceRevisions', revision.id, `${hash} does not match retained content`);
     }
-    if (revision.rawContent !== null && revision.normalizedContent !== null && normalizeText(revision.rawContent) !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch');
+    if (revision.rawContent !== null && revision.normalizedContent !== null) {
+      try {
+        const normalized = revision.parserVersion === HTML_PARSER_VERSION
+          ? normalizeText(readableHtml(revision.rawContent)) : normalizeText(revision.rawContent);
+        if (normalized !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch');
+      } catch { fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch'); }
+    }
     if (revision.normalizedContent !== null && normalizeText(revision.normalizedContent) !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'retained normalized content is not normalized');
     if (!revision.rawHash || !revision.normalizedHash) fail('sourceRevisions', revision.id, 'revision requires raw and normalized hashes');
     if (revision.retention === 'not-retained' && (revision.rawContent !== null || revision.normalizedContent !== null)) fail('sourceRevisions', revision.id, 'not-retained revision contains content');
@@ -476,3 +489,585 @@ export function assertAppendOnlyReviews(previous, next) {
   }
   // Physical collection order is canonical by ID; entity.history preserves decision order.
 }
+
+  // Manual intake deliberately shares the corpus contract rather than a second record store.
+  export const INTAKE_VERSION = 'manual-intake/1';
+  export const HTML_PARSER_VERSION = 'readable-html/1';
+  export const TEXT_PARSER_VERSION = 'utf8-text/1';
+  export const INTAKE_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, deadlineMs: 20_000, retries: 2, redirects: 3 });
+  const repoRoot = fileURLToPath(new URL('../', import.meta.url));
+  const safeCodes = new Set([
+    'INVALID_INPUT', 'UNSAFE_URL', 'UNSAFE_ADDRESS', 'PEER_MISMATCH', 'NETWORK', 'TIMEOUT', 'TOO_LARGE',
+    'ACCESS_DENIED', 'HTTP_STATUS', 'ROBOTS_DENIED', 'ROBOTS_UNSUPPORTED', 'REDIRECT_LIMIT',
+    'UNSUPPORTED_TYPE', 'UNSUPPORTED_ENCODING', 'MALFORMED_TEXT', 'MALFORMED_HTML', 'EMPTY_CONTENT',
+    'UNSAFE_PATH', 'STORE_BUSY', 'INVALID_CORPUS', 'IDENTITY_COLLISION', 'PERSISTENCE',
+  ]);
+  class IntakeError extends Error {
+    constructor(code) { super(code); this.code = code; }
+  }
+  const rejectIntake = code => { throw new IntakeError(code); };
+  const safeCode = error => safeCodes.has(error?.code) ? error.code : 'PERSISTENCE';
+
+  export function intakeUrl(input) {
+    try {
+      if (typeof input !== 'string' || input.length > 8192 || /[\u0000-\u0020\\]/u.test(input)) rejectIntake('UNSAFE_URL');
+      const url = new URL(input);
+      if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) rejectIntake('UNSAFE_URL');
+      for (const [key, value] of url.searchParams) {
+        if (/(?:token|secret|passw|credential|session|signature|auth|api.?key|^key$|^sig$|^code$)/i.test(key)
+          || /(?:bearer\s|-----BEGIN|https?:\/\/[^/]*@)/i.test(value)) rejectIntake('UNSAFE_URL');
+      }
+      return canonicalUrl(input);
+    } catch { rejectIntake('UNSAFE_URL'); }
+  }
+
+  function ipv6Number(address) {
+    const halves = address.split('::');
+    const left = halves[0] ? halves[0].split(':') : [];
+    const right = halves[1] ? halves[1].split(':') : [];
+    const words = halves.length === 2 ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right] : left;
+    return words.reduce((n, word) => (n << 16n) + BigInt(`0x${word}`), 0n);
+  }
+
+  export function isPublicAddress(address) {
+    if (typeof address !== 'string' || address.includes('%')) return false;
+    const family = isIP(address);
+    if (family === 4) {
+      const n = address.split('.').reduce((v, octet) => v * 256 + Number(octet), 0);
+      const excluded = [
+        [0x00000000, 8], [0x0a000000, 8], [0x64400000, 10], [0x7f000000, 8], [0xa9fe0000, 16],
+        [0xac100000, 12], [0xc0000000, 24], [0xc0000200, 24], [0xc0586300, 24], [0xc0a80000, 16],
+        [0xc6120000, 15], [0xc6336400, 24], [0xcb007100, 24], [0xe0000000, 3],
+      ];
+      return !excluded.some(([base, bits]) => Math.floor(n / 2 ** (32 - bits)) === Math.floor(base / 2 ** (32 - bits)));
+    }
+    if (family !== 6 || address.includes('.')) return false;
+    const n = ipv6Number(address);
+    const inRange = (base, bits) => (n >> BigInt(128 - bits)) === (ipv6Number(base) >> BigInt(128 - bits));
+    return inRange('2000::', 3) && ![
+      ['2001::', 23], ['2001:db8::', 32], ['2002::', 16], ['3ffe::', 16], ['3fff::', 20],
+    ].some(([base, bits]) => inRange(base, bits));
+  }
+
+  function strictText(bytes, ascii = false) {
+    try {
+      if (ascii && bytes.some(byte => byte > 127)) rejectIntake('UNSUPPORTED_ENCODING');
+      // BOM handling is explicit: retain it in rawContent so rawHash covers every input byte.
+      const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+      if (text.includes('\0') || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(text)) rejectIntake('MALFORMED_TEXT');
+      return text;
+    } catch (error) {
+      if (error instanceof IntakeError) throw error;
+      rejectIntake('MALFORMED_TEXT');
+    }
+  }
+
+  const htmlTags = new Set('html head body title meta link div p br hr h1 h2 h3 h4 h5 h6 ul ol li pre blockquote section article main header footer nav span a strong em b i u s code small sup sub table thead tbody tfoot tr td th dl dt dd script style template'.split(' '));
+  const voidTags = new Set(['br', 'hr', 'meta', 'link']);
+  const blockTags = new Set('html head body title div p br hr h1 h2 h3 h4 h5 h6 ul ol li pre blockquote section article main header footer nav table thead tbody tfoot tr td th dl dt dd'.split(' '));
+  const hiddenTags = new Set(['head', 'script', 'style', 'template']);
+  const entities = Object.freeze({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '–', mdash: '—', hellip: '…', copy: '©', reg: '®' });
+  function htmlEntities(text) {
+    return text.replace(/&([^;\s<]*);|&/g, (match, name) => {
+      if (!name) rejectIntake('MALFORMED_HTML');
+      if (Object.hasOwn(entities, name)) return entities[name];
+      if (!/^#(?:[0-9]+|x[0-9a-f]+)$/i.test(name)) rejectIntake('MALFORMED_HTML');
+      const n = name[1].toLowerCase() === 'x' ? parseInt(name.slice(2), 16) : Number(name.slice(1));
+      if (!Number.isSafeInteger(n) || n === 0 || n > 0x10ffff || (n >= 0xd800 && n <= 0xdfff) || (n < 32 && ![9, 10, 13].includes(n))) rejectIntake('MALFORMED_HTML');
+      return String.fromCodePoint(n);
+    });
+  }
+
+  export function readableHtml(raw) {
+    const stack = [], output = [];
+    let pos = 0, hiddenDepth = 0;
+    const hidden = () => hiddenDepth > 0;
+    while (pos < raw.length) {
+      if (['script', 'style'].includes(stack.at(-1))) {
+        const closing = new RegExp(`</${stack.at(-1)}\\s*>`, 'ig');
+        closing.lastIndex = pos;
+        const match = closing.exec(raw);
+        if (!match) rejectIntake('MALFORMED_HTML');
+        pos = match.index;
+      }
+      if (raw.startsWith('<!--', pos)) {
+        const end = raw.indexOf('-->', pos + 4);
+        if (end < 0 || raw.slice(pos + 4, end).includes('--')) rejectIntake('MALFORMED_HTML');
+        pos = end + 3;
+        continue;
+      }
+      if (raw[pos] !== '<') {
+        const end = raw.indexOf('<', pos);
+        const segment = raw.slice(pos, end < 0 ? raw.length : end);
+        if (!hidden()) output.push(htmlEntities(segment));
+        pos += segment.length;
+        continue;
+      }
+      const token = /^(?:<!doctype html\s*>|<\/?[a-z][a-z0-9]*(?:\s+[a-z_:][a-z0-9_.:-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'`=<>]+))?)*\s*\/?>)/i.exec(raw.slice(pos))?.[0];
+      if (!token) rejectIntake('MALFORMED_HTML');
+      if (token.includes('&')) htmlEntities(token);
+      pos += token.length;
+      if (/^<!/i.test(token)) { if (stack.length) rejectIntake('MALFORMED_HTML'); continue; }
+      const name = /^<\/?([a-z0-9]+)/i.exec(token)[1].toLowerCase();
+      if (!htmlTags.has(name)) rejectIntake('MALFORMED_HTML');
+      const closing = token.startsWith('</');
+      if (closing) {
+        if (!new RegExp(`^</${name}\\s*>$`, 'i').test(token) || voidTags.has(name) || stack.pop() !== name) rejectIntake('MALFORMED_HTML');
+        if (hiddenTags.has(name)) hiddenDepth--;
+      } else if (!voidTags.has(name)) {
+        if (token.endsWith('/>')) rejectIntake('MALFORMED_HTML');
+        if (stack.length >= 128) rejectIntake('MALFORMED_HTML');
+        stack.push(name);
+        if (hiddenTags.has(name)) hiddenDepth++;
+      }
+      if (!hidden() && blockTags.has(name)) output.push('\n');
+    }
+    if (stack.length) rejectIntake('MALFORMED_HTML');
+    return output.join('').replace(/[ \t\r\f]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n+/g, '\n').trim();
+  }
+
+  function mediaType(headers, htmlAllowed = true) {
+    const value = headers['content-type'];
+    const match = typeof value === 'string' && /^(text\/plain|text\/html)\s*;\s*charset\s*=\s*"?([\w-]+)"?\s*$/i.exec(value);
+    if (!match || (!htmlAllowed && match[1].toLowerCase() !== 'text/plain')) rejectIntake('UNSUPPORTED_TYPE');
+    const encoding = match[2].toLowerCase();
+    if (!['utf-8', 'us-ascii'].includes(encoding) || (match[1].toLowerCase() === 'text/html' && encoding !== 'utf-8')) rejectIntake('UNSUPPORTED_ENCODING');
+    if (headers['content-encoding'] && headers['content-encoding'].toLowerCase() !== 'identity') rejectIntake('UNSUPPORTED_ENCODING');
+    return { html: match[1].toLowerCase() === 'text/html', ascii: encoding === 'us-ascii' };
+  }
+
+  function budget(deps) {
+    const now = deps.now ?? Date.now;
+    const started = now(), limit = Math.min(deps.deadlineMs ?? INTAKE_LIMITS.deadlineMs, INTAKE_LIMITS.deadlineMs);
+    if (!Number.isFinite(limit) || limit <= 0) rejectIntake('INVALID_INPUT');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), limit);
+    const remaining = () => {
+      if (controller.signal.aborted || now() - started >= limit) rejectIntake('TIMEOUT');
+    };
+    const run = async fn => {
+      remaining();
+      let abort;
+      try {
+        const result = await Promise.race([
+          Promise.resolve().then(fn),
+          new Promise((_, reject) => {
+            abort = () => reject(new IntakeError('TIMEOUT'));
+            controller.signal.addEventListener('abort', abort, { once: true });
+          }),
+        ]);
+        remaining();
+        return result;
+      } finally { if (abort) controller.signal.removeEventListener('abort', abort); }
+    };
+    return { run, remaining, signal: controller.signal, close: () => { clearTimeout(timer); controller.abort(); } };
+  }
+
+  async function secureRequest({ url, address, family, signal }) {
+    return new Promise((resolve, reject) => {
+      const hostname = new URL(url).hostname.replace(/^\[|\]$/g, '');
+      const request = https.get(url, {
+        agent: false, signal, headers: { 'User-Agent': 'DevEnvThreatCorpusIntake/1', Accept: 'text/plain, text/html', 'Accept-Encoding': 'identity' },
+        lookup: (_host, options, callback) => options.all
+          ? callback(null, [{ address, family }]) : callback(null, address, family),
+        servername: isIP(hostname) ? undefined : hostname,
+        rejectUnauthorized: true,
+      }, response => {
+        const peerAddress = response.socket.remoteAddress;
+        if (!isPublicAddress(peerAddress) || ipIdentity(peerAddress) !== ipIdentity(address)) {
+          response.destroy();
+          reject(new IntakeError('PEER_MISMATCH'));
+          return;
+        }
+        resolve({ status: response.statusCode, headers: response.headers, peerAddress, body: response, close: () => response.destroy() });
+      });
+      request.once('error', () => reject(new IntakeError(signal.aborted ? 'TIMEOUT' : 'NETWORK')));
+    });
+  }
+
+  const ipIdentity = address => isIP(address) === 6 ? ipv6Number(address).toString() : address;
+  async function checkedRequest(url, deps, time) {
+    const safe = intakeUrl(url), host = new URL(safe).hostname.replace(/^\[|\]$/g, '');
+    let addresses;
+    try {
+      addresses = isIP(host) ? [{ address: host, family: isIP(host) }]
+        : await time.run(() => (deps.resolve ?? (name => lookup(name, { all: true, verbatim: true })))(host, { signal: time.signal }));
+    } catch (error) { throw error instanceof IntakeError ? error : new IntakeError('NETWORK'); }
+    if (!Array.isArray(addresses) || !addresses.length || addresses.some(item => !isPublicAddress(item.address) || item.family !== isIP(item.address))) rejectIntake('UNSAFE_ADDRESS');
+    const pinned = addresses[0];
+    let response;
+    try {
+      response = await time.run(() => (deps.request ?? secureRequest)({ url: safe, ...pinned, signal: time.signal }));
+    } catch (error) { throw error instanceof IntakeError ? error : new IntakeError('NETWORK'); }
+    if (!response || !isPublicAddress(response.peerAddress) || ipIdentity(response.peerAddress) !== ipIdentity(pinned.address)) {
+      response?.close?.();
+      rejectIntake('PEER_MISMATCH');
+    }
+    return response;
+  }
+
+  async function responseBytes(response, time) {
+    if (response.headers['content-length'] !== undefined) {
+      const length = String(response.headers['content-length']);
+      if (!/^\d+$/.test(length)) rejectIntake('HTTP_STATUS');
+      if (Number(length) > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+    }
+    const chunks = [];
+    let size = 0;
+    const iterator = response.body?.[Symbol.asyncIterator]?.();
+    if (!iterator) rejectIntake('NETWORK');
+    while (true) {
+      const next = await time.run(() => iterator.next());
+      if (next.done) break;
+      if (!(next.value instanceof Uint8Array)) rejectIntake('NETWORK');
+      size += next.value.byteLength;
+      if (size > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+      chunks.push(Buffer.from(next.value));
+    }
+    if (response.headers['content-length'] !== undefined && Number(response.headers['content-length']) !== size) rejectIntake('HTTP_STATUS');
+    return Buffer.concat(chunks, size);
+  }
+
+  async function fetchBounded(initial, deps, time, state, robots = false) {
+    let url = initial, redirects = 0;
+    while (true) {
+      const response = await checkedRequest(url, deps, time);
+      try {
+        if ([301, 302, 303, 307, 308].includes(response.status)) {
+          if (redirects++ >= INTAKE_LIMITS.redirects) rejectIntake('REDIRECT_LIMIT');
+          if (typeof response.headers.location !== 'string' || !response.headers.location) rejectIntake('HTTP_STATUS');
+          let next;
+          try { next = intakeUrl(new URL(response.headers.location, url).href); } catch { rejectIntake('UNSAFE_URL'); }
+          if (robots && new URL(next).origin !== new URL(initial).origin) rejectIntake('ROBOTS_UNSUPPORTED');
+          url = next;
+          continue;
+        }
+        if ([401, 403, 451].includes(response.status)) rejectIntake('ACCESS_DENIED');
+        if (robots && [404, 410].includes(response.status)) return { missing: true, final: url };
+        if (response.status >= 500 || response.status === 429) rejectIntake('NETWORK');
+        if (response.status !== 200) rejectIntake('HTTP_STATUS');
+        const type = mediaType(response.headers, !robots);
+        const raw = strictText(await responseBytes(response, time), type.ascii);
+        return { raw, type, final: url };
+      } finally { response.close?.(); }
+    }
+  }
+
+  function robotsAllows(raw, target) {
+    const groups = [];
+    let group = null, rulesStarted = false;
+    for (const line of raw.split(/\r?\n/)) {
+      const clean = line.replace(/#.*$/, '').trim();
+      if (!clean) continue;
+      const match = /^([a-z-]+)\s*:\s*(.*)$/i.exec(clean);
+      if (!match) rejectIntake('ROBOTS_UNSUPPORTED');
+      const [, directive, value] = match, key = directive.toLowerCase();
+      if (key === 'user-agent') {
+        if (!value || !/^(?:\*|[a-z0-9_-]+(?:\/[a-z0-9_.-]+)?)$/i.test(value)) rejectIntake('ROBOTS_UNSUPPORTED');
+        if (!group || rulesStarted) { group = { agents: [], rules: [] }; groups.push(group); rulesStarted = false; }
+        group.agents.push(value.toLowerCase());
+      } else if (['allow', 'disallow'].includes(key)) {
+        if (!group || (value && (!value.startsWith('/') || /[*$%\\\u0080-\uffff]/u.test(value)))) rejectIntake('ROBOTS_UNSUPPORTED');
+        rulesStarted = true;
+        if (value) group.rules.push({ allow: key === 'allow', value });
+      } else if (key !== 'sitemap') rejectIntake('ROBOTS_UNSUPPORTED');
+    }
+    // Apply both wildcard and named groups: a specific rule cannot override a broader denial.
+    const applicable = groups.filter(g => g.agents.some(a => a === '*' || 'devenvthreatcorpusintake/1'.startsWith(a)));
+    const destination = new URL(target);
+    const pathname = destination.pathname + destination.search;
+    if (pathname.includes('%')) rejectIntake('ROBOTS_UNSUPPORTED');
+    return applicable.every(g => {
+      const rules = g.rules.filter(r => pathname.startsWith(r.value)).sort((a, b) => b.value.length - a.value.length || Number(a.allow) - Number(b.allow));
+      return !rules.length || rules[0].allow;
+    });
+  }
+
+  async function retrieve(url, deps, state) {
+    const time = budget(deps);
+    const policies = new Map();
+    const policy = async target => {
+      const origin = new URL(target).origin;
+      if (!policies.has(origin)) {
+        const result = await fetchBounded(`${origin}/robots.txt`, deps, time, state, true);
+        policies.set(origin, result.missing ? null : result.raw);
+      }
+      if (policies.get(origin) !== null && !robotsAllows(policies.get(origin), target)) rejectIntake('ROBOTS_DENIED');
+    };
+    try {
+      for (let attempt = 0; attempt <= INTAKE_LIMITS.retries; attempt++) {
+        state.retries = attempt;
+        try {
+          let target = url;
+          for (let redirects = 0; ; redirects++) {
+            await policy(target);
+            const response = await checkedRequest(target, deps, time);
+            try {
+              if ([301, 302, 303, 307, 308].includes(response.status)) {
+                if (redirects >= INTAKE_LIMITS.redirects) rejectIntake('REDIRECT_LIMIT');
+                if (typeof response.headers.location !== 'string' || !response.headers.location) rejectIntake('HTTP_STATUS');
+                try { target = intakeUrl(new URL(response.headers.location, target).href); } catch { rejectIntake('UNSAFE_URL'); }
+                continue;
+              }
+              state.finalHash = sha256(target);
+              if ([401, 403, 451].includes(response.status)) rejectIntake('ACCESS_DENIED');
+              if (response.status >= 500 || response.status === 429) rejectIntake('NETWORK');
+              if (response.status !== 200) rejectIntake('HTTP_STATUS');
+              const type = mediaType(response.headers);
+              const raw = strictText(await responseBytes(response, time), type.ascii);
+              const normalized = normalizeText(type.html ? readableHtml(raw) : raw);
+              time.remaining();
+              return { raw, normalized, parserVersion: type.html ? HTML_PARSER_VERSION : TEXT_PARSER_VERSION };
+            } finally { response.close?.(); }
+          }
+        } catch (error) {
+          const failure = error instanceof IntakeError ? error : new IntakeError('NETWORK');
+          if (failure.code !== 'NETWORK' || attempt === INTAKE_LIMITS.retries) throw failure;
+        }
+      }
+    } finally { time.close(); }
+  }
+
+  function absoluteSafe(file) {
+    if (typeof file !== 'string' || !path.isAbsolute(file) || file.includes('\0') || file.split(path.sep).some(part => part === '.' || part === '..') || path.normalize(file) !== file) rejectIntake('UNSAFE_PATH');
+    return file;
+  }
+
+  async function safeComponents(file) {
+    absoluteSafe(file);
+    let current = path.parse(file).root;
+    for (const part of file.slice(current.length).split(path.sep).filter(Boolean)) {
+      current = path.join(current, part);
+      const stat = await fs.lstat(current);
+      if (stat.isSymbolicLink()) rejectIntake('UNSAFE_PATH');
+    }
+  }
+
+  async function readPrivate(file, { corpus = false, privateOnly = false } = {}) {
+    try {
+      await safeComponents(file);
+      const before = await fs.lstat(file);
+      if (!before.isFile() || before.nlink !== 1 || ((corpus || privateOnly) && (before.mode & 0o077))) rejectIntake('UNSAFE_PATH');
+      const handle = await fs.open(file, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+      try {
+        const stat = await handle.stat();
+        if (!stat.isFile() || stat.nlink !== 1 || ((corpus || privateOnly) && (stat.mode & 0o077))) rejectIntake('UNSAFE_PATH');
+        if (!corpus && stat.size > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+        const chunks = [];
+        let size = 0;
+        for await (const chunk of handle.createReadStream({ autoClose: false })) {
+          size += chunk.length;
+          if (!corpus && size > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+          chunks.push(chunk);
+        }
+        return Buffer.concat(chunks, size);
+      } finally { await handle.close(); }
+    } catch (error) {
+      if (error instanceof IntakeError) throw error;
+      rejectIntake(corpus ? 'INVALID_CORPUS' : 'UNSAFE_PATH');
+    }
+  }
+
+  export async function validatePrivateCorpus(file) {
+    const bytes = await readPrivate(file, { corpus: true });
+    try { return assertValid(JSON.parse(strictText(bytes))); } catch { rejectIntake('INVALID_CORPUS'); }
+  }
+
+  function emptyCorpus() {
+    return { schemaVersion: CONTRACT_VERSION, name: 'Private manual intake', sources: [], sourceRevisions: [], passages: [], cases: [], claims: [], categorizations: [], timelines: [], reviews: [], collectionManifests: [], governance: {} };
+  }
+
+  async function openStore(directory) {
+    absoluteSafe(directory);
+    const relative = path.relative(repoRoot, directory);
+    if (relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative)
+      && relative !== '.private-intake' && !relative.startsWith(`.private-intake${path.sep}`))) rejectIntake('UNSAFE_PATH');
+    try {
+      await safeComponents(path.dirname(directory));
+      try { await fs.mkdir(directory, { mode: 0o700 }); } catch (error) { if (error.code !== 'EEXIST') throw error; }
+      await safeComponents(directory);
+      const stat = await fs.lstat(directory);
+      if (!stat.isDirectory() || (stat.mode & 0o077)) rejectIntake('UNSAFE_PATH');
+      const lockPath = path.join(directory, '.intake.lock');
+      let lock;
+      try { lock = await fs.open(lockPath, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY | fsConstants.O_NOFOLLOW, 0o600); }
+      catch (error) { rejectIntake(error.code === 'EEXIST' ? 'STORE_BUSY' : 'PERSISTENCE'); }
+      const verifyDirectory = async () => {
+        await safeComponents(directory);
+        const current = await fs.lstat(directory);
+        if (current.dev !== stat.dev || current.ino !== stat.ino || (current.mode & 0o077)) rejectIntake('UNSAFE_PATH');
+      };
+      return {
+        file: path.join(directory, 'corpus.json'),
+        verifyDirectory,
+        close: async () => { await lock.close(); await verifyDirectory(); await fs.unlink(lockPath); },
+      };
+    } catch (error) { throw error instanceof IntakeError ? error : new IntakeError('PERSISTENCE'); }
+  }
+
+  async function persist(store, corpus) {
+    let temporary, handle;
+    const unchanged = async () => {
+      await store.verifyDirectory();
+      try {
+        const stat = await fs.lstat(store.file);
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || (stat.mode & 0o077)) rejectIntake('UNSAFE_PATH');
+        if (store.baseline === null || digest(await validatePrivateCorpus(store.file)) !== store.baseline) rejectIntake('PERSISTENCE');
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        if (store.baseline !== null) rejectIntake('PERSISTENCE');
+      }
+    };
+    try {
+      await unchanged();
+      assertValid(corpus);
+      temporary = path.join(path.dirname(store.file), `.intake-${randomUUID()}.pending`);
+      handle = await fs.open(temporary, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY | fsConstants.O_NOFOLLOW, 0o600);
+      await handle.writeFile(canonicalSerialize(corpus), 'utf8');
+      await handle.sync();
+      await handle.close();
+      handle = null;
+      await unchanged();
+      await fs.rename(temporary, store.file);
+      temporary = null;
+      const directory = await fs.open(path.dirname(store.file), fsConstants.O_RDONLY);
+      try { await directory.sync(); } finally { await directory.close(); }
+    } catch (error) { throw error instanceof IntakeError ? error : new IntakeError('PERSISTENCE'); }
+    finally {
+      await handle?.close().catch(() => {});
+      if (temporary) await fs.unlink(temporary).catch(() => {});
+    }
+  }
+
+  const unknownDate = () => ({ precision: 'unknown', value: null, start: null, end: null, nullReasons: { value: 'not_reported', start: 'not_applicable', end: 'not_applicable' } });
+  function provenance(kind, supplier) {
+    return { kind: kind === 'url' ? 'supplied-url' : 'supplied-text', suppliedBy: supplier, description: 'Operator supplied input; intake only, no extraction or research approval.', nullReasons: {} };
+  }
+
+  export async function intakeSource(input, deps = {}) {
+    let store;
+    try {
+      if (!input || !['text', 'file', 'url'].includes(input.kind) || typeof input.suppliedBy !== 'string'
+        || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(input.suppliedBy)) rejectIntake('INVALID_INPUT');
+      store = await openStore(input.store);
+      let corpus;
+      try {
+        await fs.lstat(store.file);
+        corpus = await validatePrivateCorpus(store.file);
+        store.baseline = digest(corpus);
+      } catch (error) {
+        if (error.code === 'ENOENT') { corpus = emptyCorpus(); store.baseline = null; } else throw error;
+      }
+      const state = { retries: 0, finalHash: null };
+      const eventTime = new Date((deps.now ?? Date.now)()).toISOString();
+      const inputProvenance = provenance(input.kind, input.suppliedBy);
+      let canonical = null, original = null, content, source, inputHash = null, failure = null;
+      try {
+        if (input.kind === 'url' || input.sourceUrl !== undefined) {
+          original = input.kind === 'url' ? input.url : input.sourceUrl;
+          canonical = intakeUrl(original);
+          inputHash = sha256(canonical);
+        }
+        if (input.kind === 'url') content = await retrieve(canonical, deps, state);
+        else {
+          let bytes;
+          if (input.kind === 'text') {
+            if (typeof input.text !== 'string') rejectIntake('INVALID_INPUT');
+            if (/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(input.text)) rejectIntake('MALFORMED_TEXT');
+            bytes = Buffer.from(input.text, 'utf8');
+            if (bytes.length > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+          } else bytes = await readPrivate(input.file);
+          const raw = strictText(bytes);
+          inputHash ??= sha256(raw);
+          content = { raw, normalized: normalizeText(raw), parserVersion: TEXT_PARSER_VERSION };
+        }
+        if (!content.normalized.trim()) rejectIntake('EMPTY_CONTENT');
+      } catch (error) { failure = safeCodes.has(error?.code) ? error.code : 'MALFORMED_TEXT'; }
+      const identity = canonical ? `${URL_NORMALIZATION_VERSION}\n${canonical}` : content ? `supplied-bytes/1\n${sha256(content.raw)}` : null;
+      if (identity) {
+        const sourceId = stableId('source', identity);
+        source = corpus.sources.find(item => item.id === sourceId);
+        if (source && (source.canonicalUrl !== canonical || (!canonical && !source.revisionIds.some(id => corpus.sourceRevisions.find(r => r.id === id)?.rawHash === sha256(content.raw))))) rejectIntake('IDENTITY_COLLISION');
+        if (!source) {
+          source = {
+            id: sourceId, originalUrl: original, canonicalUrl: canonical, title: null, publisher: null, author: null,
+            publicationDate: unknownDate(), updateDate: unknownDate(), retrievalDate: unknownDate(),
+            inputKind: { text: 'supplied-text', file: 'text-file', url: 'url' }[input.kind],
+            provenance: inputProvenance, revisionIds: [], extractionStatus: 'Not started', collectionState: 'Collected',
+            nullReasons: { title: 'not_reported', publisher: 'not_reported', author: 'not_reported', ...(!canonical ? { originalUrl: 'not_reported', canonicalUrl: 'not_reported' } : {}) },
+          };
+          corpus.sources.push(source);
+        }
+      }
+      let revision;
+      if (!failure) {
+        const candidate = {
+          id: stableId('source-revision', canonicalSerialize({ sourceId: source.id, rawHash: sha256(content.raw), normalizedHash: sha256(content.normalized), normalizationVersion: NORMALIZATION_VERSION, parserVersion: content.parserVersion })),
+          sourceId: source.id, rawHash: sha256(content.raw), normalizedHash: sha256(content.normalized),
+          normalizationVersion: NORMALIZATION_VERSION, parserVersion: content.parserVersion,
+          provenance: inputProvenance, rawContent: content.raw, normalizedContent: content.normalized, retention: 'private', nullReasons: {},
+        };
+        revision = corpus.sourceRevisions.find(item => item.id === candidate.id);
+        if (revision && ['sourceId', 'rawHash', 'normalizedHash', 'normalizationVersion', 'parserVersion', 'rawContent', 'normalizedContent'].some(key => revision[key] !== candidate[key])) rejectIntake('IDENTITY_COLLISION');
+        if (!revision) { revision = candidate; corpus.sourceRevisions.push(revision); source.revisionIds.push(revision.id); }
+        if (input.kind === 'url' && source.retrievalDate.precision === 'unknown') source.retrievalDate = {
+          precision: 'day', value: eventTime.slice(0, 10), start: null, end: null, nullReasons: { start: 'not_applicable', end: 'not_applicable' },
+        };
+      }
+      const manifestIdentity = canonicalSerialize({ sourceId: source?.id ?? null, revisionId: revision?.id ?? null, inputHash, inputKind: input.kind, supplier: input.suppliedBy, version: INTAKE_VERSION, ...(failure ? { eventTime, event: randomUUID() } : {}) });
+      const manifestId = stableId('intake-manifest', manifestIdentity);
+      let manifest = corpus.collectionManifests.find(item => item.id === manifestId);
+      if (manifest && (manifest.inputHash !== inputHash || manifest.inputSourceIds[0] !== source?.id || manifest.inputRevisionIds[0] !== revision?.id
+        || manifest.provenance.suppliedBy !== input.suppliedBy || manifest.provenance.kind !== inputProvenance.kind
+        || manifest.toolVersion !== INTAKE_VERSION || manifest.outcome !== (failure ? 'Failed' : 'Succeeded')
+        || manifest.outputHash !== (revision ? digest(revision) : null))) rejectIntake('IDENTITY_COLLISION');
+      if (!manifest) {
+        manifest = {
+          id: manifestId, kind: 'manual-collection', inputSourceIds: source ? [source.id] : [], inputRevisionIds: revision ? [revision.id] : [],
+          outcome: failure ? 'Failed' : 'Succeeded', provenance: inputProvenance, toolVersion: INTAKE_VERSION,
+          inputHash, outputHash: revision ? digest(revision) : null,
+          limitations: [
+            `event-time=${eventTime}`, `status=${failure ? 'failed' : 'succeeded'}`, `error-code=${failure ?? 'NONE'}`,
+            `retry-count=${state.retries}`, `final-target-sha256=${state.finalHash ?? 'NONE'}`,
+            `url-normalization=${URL_NORMALIZATION_VERSION}`, 'intake-only; metadata not inferred; private retention; no research approval',
+          ],
+          nullReasons: { ...(inputHash === null ? { inputHash: 'not_reported' } : {}), ...(revision ? {} : { outputHash: 'not_applicable' }) },
+        };
+        corpus.collectionManifests.push(manifest);
+      }
+      await persist(store, corpus);
+      return { status: failure ? 'failed' : 'succeeded', code: failure ?? 'OK', ...(source ? { sourceId: source.id } : {}), ...(revision ? { revisionId: revision.id } : {}), manifestId: manifest.id };
+    } catch (error) { return { status: 'failed', code: safeCode(error) }; }
+    finally { await store?.close().catch(() => {}); }
+  }
+
+  async function intakeCli(args) {
+    try {
+      const [command, kind, ...rest] = args;
+      const parse = values => {
+        const result = {};
+        if (values.length % 2) rejectIntake('INVALID_INPUT');
+        for (let i = 0; i < values.length; i += 2) {
+          if (!/^--[a-z-]+$/.test(values[i]) || Object.hasOwn(result, values[i])) rejectIntake('INVALID_INPUT');
+          result[values[i]] = values[i + 1];
+        }
+        return result;
+      };
+      if (command === 'validate') {
+        const options = parse(args.slice(1));
+        if (Object.keys(options).length !== 1 || !options['--file']) rejectIntake('INVALID_INPUT');
+        await validatePrivateCorpus(options['--file']);
+        return { status: 'succeeded', code: 'VALID' };
+      }
+      const options = parse(rest), allowed = new Set([`--${kind}`, '--supplied-by', '--store', ...(kind !== 'url' ? ['--source-url'] : [])]);
+      if (command !== 'intake' || !['text', 'file', 'url'].includes(kind) || Object.keys(options).some(key => !allowed.has(key))
+        || !Object.hasOwn(options, `--${kind}`) || !options['--supplied-by'] || !options['--store']) rejectIntake('INVALID_INPUT');
+      return await intakeSource({ kind, [kind]: options[`--${kind}`], suppliedBy: options['--supplied-by'], store: options['--store'], ...(options['--source-url'] !== undefined ? { sourceUrl: options['--source-url'] } : {}) });
+    } catch (error) { return { status: 'failed', code: safeCode(error) }; }
+  }
+
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    const result = await intakeCli(process.argv.slice(2));
+    process.stdout.write(JSON.stringify(result) + '\n');
+    process.exitCode = result.status === 'succeeded' ? 0 : 1;
+  }

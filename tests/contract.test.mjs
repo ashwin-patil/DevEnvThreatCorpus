@@ -379,7 +379,10 @@ test('AC-09 schema/type core declarations and controlled enum sets stay aligned'
 
 test('AC-09 configured project command executes offline contract tests within trusted-base mapped surfaces', () => {
   const config = read('../project.config.json');
-  assert.deepEqual(config.project_commands, [['node', '--test', 'tests/contract.test.mjs']]);
+  assert.deepEqual(config.project_commands, [
+    ['node', '--test', 'tests/contract.test.mjs'],
+    ['node', '--test', 'tests/intake.test.mjs'],
+  ]);
   const governance = config.paths.governance;
   const mapped = (path, patterns) => patterns.some(pattern => pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern);
   for (const path of ['scripts/package.json', 'scripts/package-lock.json', 'scripts/.nvmrc', 'scripts/.node-version']) assert.ok(mapped(path, governance), path);

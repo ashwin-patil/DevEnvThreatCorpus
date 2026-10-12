@@ -5,7 +5,8 @@
     "status": "advisory"
   },
   "project_commands": [
-    ["node", "--test", "tests/contract.test.mjs"]
+    ["node", "--test", "tests/contract.test.mjs"],
+    ["node", "--test", "tests/intake.test.mjs"]
   ],
   "paths": {
     "learning_index": "docs/learnings/README.md",

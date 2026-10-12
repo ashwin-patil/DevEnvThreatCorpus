@@ -17,9 +17,9 @@
 # DevEnvThreatCorpus
 
 DevEnvThreatCorpus is building a human-reviewed corpus for research on
-developer-environment threats. The current work establishes the data contract
-and validation foundation for a new corpus; it is not yet a blog-processing
-application or pipeline.
+developer-environment threats. The current work provides the data contract,
+offline validation, and operator-triggered source intake for a new corpus.
+Claim extraction and review operations are not yet implemented.
 
 ## Current implementation
 
@@ -28,15 +28,59 @@ categorization, timelines, and review events. Its validator checks schema shape
 and relationships between records, including evidence references, content
 hashes, date precision, conflicts, and review dependencies. Canonical
 serialization and identity helpers support deterministic record comparison.
+Manual HTTPS URL, UTF-8 text, and UTF-8 file intake persist private source
+revisions and explicit success/failure manifests using that same contract.
 
 The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
 under `handoff/` is retained as historical and design reference only.
 
-**No blogs have been processed by this contract or pipeline in this
-implementation.** Test records are synthetic fixtures used to check the
-contract; they are not extracted blog content or evidence that intake and
-review workflows are operational.
+**No live blogs or legacy records are used in the offline exercise or tests.**
+Fixtures are visibly synthetic, not incident evidence. Retrieval success does
+not establish research truth or human acceptance.
+
+## Manual intake: offline exercise
+
+Run these Bash commands from the clone with the pinned Node runtime. All
+repository paths below are absolute; adjust `R` to your clone location.
+The explicit private store is ignored by Git and must never be published.
+
+```bash
+R=/home/runner/work/DevEnvThreatCorpus/DevEnvThreatCorpus
+S="$R/.private-intake/exercise"
+umask 077
+mkdir -p "$S"
+node "$R/scripts/contract.mjs" intake text --text 'Synthetic intake exercise; not incident evidence.' --supplied-by operator --store "$S"
+node "$R/scripts/contract.mjs" intake file --file "$R/tests/fixtures/intake/benign.txt" --supplied-by operator --store "$S"
+node "$R/scripts/contract.mjs" validate --file "$S/corpus.json"
+# Inspect only locally: this file includes retained article content.
+node --input-type=module -e 'import fs from "node:fs"; const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); console.log(JSON.stringify({sources:c.sources,revisions:c.sourceRevisions,manifests:c.collectionManifests},null,2));' "$S/corpus.json"
+# The identical rerun must add no sources, revisions, or success manifests.
+node "$R/scripts/contract.mjs" intake file --file "$R/tests/fixtures/intake/benign.txt" --supplied-by operator --store "$S"
+# Expected nonzero exit and a retained Failed manifest; no network request.
+node "$R/scripts/contract.mjs" intake url --url http://example.org/offline-fixture --supplied-by operator --store "$S"
+# Supplied-text fallback is a separate, attributed event; it performs no fetch.
+node "$R/scripts/contract.mjs" intake file --file "$R/tests/fixtures/intake/benign.txt" --source-url https://example.org/offline-fixture --supplied-by operator --store "$S"
+node "$R/scripts/contract.mjs" validate --file "$S/corpus.json"
+```
+
+The invalid HTTP input demonstrates failure-history preservation, not
+same-source recovery: it is rejected before source registration. The fallback
+explicitly associates supplied content with its HTTPS URL. Offline transport
+tests separately exercise inaccessible valid-HTTPS requests and same-source
+fallback without contacting a website.
+
+To request a real public HTTPS source deliberately, replace the fixture URL:
+
+```bash
+node "$R/scripts/contract.mjs" intake url --url https://example.org/article --supplied-by operator --store "$S"
+```
+
+That command uses the network; it is not part of the offline exercise.
+See [intake rules and limitations](docs/architecture.md#manual-intake-contract)
+for access policy, supported encodings/HTML, identity, bounds, safe retention,
+and failure handling. Do not pass credentials or confidential text on a shared
+command line; use a permission-restricted UTF-8 file instead.
 
 ## Validate locally
 
@@ -50,19 +94,21 @@ python scripts/verify.py
 ```
 
 `python scripts/verify.py` runs the repository governance checks and configured
-project commands, including the offline Node contract suite. To run that
-focused suite directly with the pinned Node runtime:
+project commands, including the offline Node contract and intake suites. To run
+the focused suites directly with the pinned Node runtime:
 
 ```powershell
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/contract.test.mjs
+npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/intake.test.mjs
 ```
 
 The tests check valid and invalid synthetic records: source and passage
 provenance, case/claim relationships, hash and locator consistency,
 categorization and timeline constraints, conflict links, current human-review
 requirements, clean-start behavior, optional enrichment, and deterministic
-serialization. They do not fetch websites or assess whether a research claim
-is factually true.
+serialization. Intake checks additionally use injected fake DNS/transports and
+temporary private stores; they do not contact websites or assess whether a
+research claim is factually true.
 
 ## Project status and next work
 
@@ -71,6 +117,8 @@ Implemented now:
 - JSON Schema 0.3.0 and matching TypeScript declarations.
 - Offline validation for structural rules and cross-record relationships.
 - Deterministic identity and serialization helpers.
+- Manual URL/text/file intake, bounded destination-checked HTTPS retrieval,
+  private atomic retention, linked revisions, and recoverable failure manifests.
 - Synthetic positive and negative contract fixtures with acceptance-focused
   tests.
 - Project documentation describing the clean-start decision and evidence
@@ -78,8 +126,7 @@ Implemented now:
 
 Not implemented yet:
 
-- Fetching or registering blogs from URLs or supplied files.
-- Article parsing, claim extraction, or assisted research workflows.
+- Claim extraction, semantic article interpretation, or assisted research workflows.
 - Authenticated reviewer identity, a review interface, or durable review
   storage.
 - Public exports, deployment, or an operational corpus-processing pipeline.
