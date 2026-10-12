@@ -322,6 +322,7 @@ def validate_scaffold(config: dict[str, Any]) -> None:
         raise VerificationError("Copilot setup must not execute configured project commands")
     for name, workflow in (
         ("Verify", verify_workflow),
+        ("PR Policy", policy_workflow),
         ("Copilot setup", setup_workflow),
     ):
         if "pip install --requirement requirements-governance.txt" not in workflow:
