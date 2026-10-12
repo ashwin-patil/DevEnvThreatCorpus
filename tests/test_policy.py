@@ -283,11 +283,11 @@ class PolicyTests(unittest.TestCase):
             evaluate(with_files([item]), base_config())
 
     def test_ac06_trusted_config_not_head_mapping_controls_new_application_paths(self) -> None:
-        payload = with_files([changed("src/new.mjs"), changed("README.md"), changed("CHANGELOG.md")])
+        payload = with_files([changed("unmapped_app/new.mjs"), changed("README.md"), changed("CHANGELOG.md")])
         with self.assertRaisesRegex(VerificationError, "no configured surface"):
             evaluate(payload, base_config())
         trusted = base_config()
-        trusted["paths"]["application"].append("src/**")
+        trusted["paths"]["application"].append("unmapped_app/**")
         evaluate(payload, trusted)
 
     def test_patch_metadata_is_validated_and_revision_bound(self) -> None:
