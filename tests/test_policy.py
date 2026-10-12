@@ -191,6 +191,29 @@ class PolicyTests(unittest.TestCase):
         # Added prose passes the mechanical floor; only a human can judge its relevance.
         evaluate(with_files([changed("scripts/pr_policy.py"), changed("docs/lifecycle.md"), changed("CHANGELOG.md", patch="+Unrelated prose")]), base_config())
 
+    def test_ac03_hidden_comment_edits_do_not_satisfy_upkeep(self) -> None:
+        hidden_patches = (
+            "@@ -1,3 +1,4 @@\n <!--\n+Hidden update\n -->",
+            "@@ -10,2 +10,3 @@\n Context inside existing comment\n+Hidden update\n -->",
+            "+<!-- unfinished comment",
+            "+<!--\n+Hidden update\n+-->",
+        )
+        for path, message in (("docs/lifecycle.md", "documentation update"), ("CHANGELOG.md", "root CHANGELOG.md"), ("README.md", "root README.md")):
+            for patch in hidden_patches:
+                files = [
+                    changed("scripts/contract.mjs"), changed("docs/lifecycle.md"),
+                    changed("CHANGELOG.md"), changed("README.md"),
+                ]
+                files = [item for item in files if item["path"] != path] + [changed(path, patch=patch)]
+                if path == "docs/lifecycle.md":
+                    files = [item for item in files if item["path"] != "README.md"]
+                with self.subTest(path=path, patch=patch), self.assertRaisesRegex(VerificationError, message):
+                    evaluate(with_files(files), base_config())
+        evaluate(with_files([
+            changed("scripts/pr_policy.py"), changed("docs/lifecycle.md"),
+            changed("CHANGELOG.md", patch=" <!--\n+Hidden update\n -->\n+Visible release note"),
+        ]), base_config())
+
     def test_ac03_documentation_only_and_test_only_maintenance_need_no_changelog(self) -> None:
         for path in ("docs/lifecycle.md", "README.md", "tests/test_policy.py", "CHANGELOG.md"):
             with self.subTest(path=path):

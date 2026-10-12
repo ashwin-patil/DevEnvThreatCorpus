@@ -55,14 +55,22 @@ def _matches(path: str, pattern: str) -> bool:
 def _has_added_prose(item: dict[str, Any]) -> bool:
     if item["status"] == "removed" or item["patch"] is None:
         return False
-    added = "\n".join(
-        line[1:] for line in item["patch"].splitlines()
-        if line.startswith("+") and not line.startswith("+++")
-    )
-    added = re.sub(r"<!--.*?-->", "", added, flags=re.DOTALL)
+    destination = [
+        (line.startswith("+"), line[1:]) for line in item["patch"].splitlines()
+        if line.startswith((" ", "+")) and not line.startswith("+++")
+    ]
+    text = "\n".join(line for _, line in destination)
+
+    def blank_comment(match: re.Match[str]) -> str:
+        return "".join("\n" if char == "\n" else " " for char in match.group())
+
+    text = re.sub(r"<!--.*?(?:-->|$)", blank_comment, text, flags=re.DOTALL)
+    # An orphan closing delimiter means the opening may be outside the patch.
+    while "-->" in text:
+        text = re.sub(r"\A.*?-->", blank_comment, text, count=1, flags=re.DOTALL)
     return any(
-        not line.lstrip().startswith("#") and any(char.isalnum() for char in line)
-        for line in added.splitlines()
+        added and not line.lstrip().startswith("#") and any(char.isalnum() for char in line)
+        for (added, _), line in zip(destination, text.split("\n"))
     )
 
 
