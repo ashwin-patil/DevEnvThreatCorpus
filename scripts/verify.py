@@ -346,6 +346,15 @@ def validate_scaffold(config: dict[str, Any]) -> None:
     if "pr.body" in policy_workflow:
         raise VerificationError("PR Policy must not require PR-body evidence")
     setup_workflow = (ROOT / ".github/workflows/copilot-setup-steps.yml").read_text(encoding="utf-8")
+    for token in (
+        "copilot-setup-steps:",
+        "actions/checkout@",
+        "actions/setup-python@",
+        "actions/setup-node@",
+        "scripts/.node-version",
+    ):
+        if token not in setup_workflow:
+            raise VerificationError(f"Copilot setup workflow is missing contract: {token}")
     if "scripts/verify.py" in setup_workflow:
         raise VerificationError("Copilot setup must not execute configured project commands")
     for name, workflow in (
@@ -489,6 +498,19 @@ def validate_yaml_tree(root: Path = ROOT) -> None:
     setup = workflows[".github/workflows/copilot-setup-steps.yml"]
     if "workflow_dispatch" not in setup["on"]:
         raise VerificationError("Copilot setup workflow must remain an explicitly invoked setup example")
+    if "copilot-setup-steps" not in setup.get("jobs", {}):
+        raise VerificationError("Copilot setup workflow must define the exact job ID copilot-setup-steps")
+    setup_steps = setup["jobs"]["copilot-setup-steps"].get("steps", [])
+    has_setup_node = any(
+        isinstance(step, dict)
+        and step.get("uses", "").startswith("actions/setup-node@")
+        and step.get("with", {}).get("node-version-file") == "scripts/.node-version"
+        for step in setup_steps
+    )
+    if not has_setup_node:
+        raise VerificationError(
+            "Copilot setup workflow must provision Node runtime via actions/setup-node using scripts/.node-version"
+        )
     setup_text = (root / ".github/workflows/copilot-setup-steps.yml").read_text(encoding="utf-8")
     if "python scripts/verify.py" in setup_text:
         raise VerificationError("Copilot setup must not execute project verification commands")

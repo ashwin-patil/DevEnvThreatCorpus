@@ -3,6 +3,9 @@
 ## 2026-10-12
 
 - Issue #4: accept standalone implementation requirements with optional PRD/context links; enforce same-PR documentation and substantive root changelog upkeep for application/governance changes, configured README triggers, and conditional learning-index updates. Explicit application mappings, rename/deletion regressions, trusted-base bootstrap guidance, and human relevance review preserve policy boundaries. Live merge-settings inspection is blocked by API access; independent human approval and final-revision hosted evidence remain required.
+- Align Copilot cloud agent setup in `.github/workflows/copilot-setup-steps.yml` by renaming `jobs.setup` to the required exact job ID `jobs.copilot-setup-steps`, preserving least-privilege permissions and governance Python dependencies, and explicitly provisioning the repository's pinned Node runtime using `scripts/.node-version` via pinned `actions/setup-node`.
+- Add focused regression coverage in `scripts/verify.py` and `tests/test_verify.py` to enforce the setup job ID and Node runtime provisioning.
+- Update setup documentation in `docs/setup-and-configuration.md`.
 - Define the Issue #1 offline 0.3.0 source/case/claim contracts, relationship checks, and synthetic acceptance fixtures. New records start from scratch; the frozen 0.2.0 handoff is reference-only. Intake, extraction, review operations, exports, and new enrichment are not implemented.
 - Add the phased DevEnvThreatCorpus product handoff and frozen reference package for future issue-by-issue implementation.
 - Install the pinned governance dependency in PR Policy and verify workflow dependency setup.
