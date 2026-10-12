@@ -100,10 +100,14 @@ export interface OtelAction {
   id: ID; behaviorId: ID; action: string; standardSourceIds: ID[]; customFields: string[]; sample: Record<string, unknown>;
   sampleFormat: string; sampleOrigin: string; stability: string; limitations: string; origin: Origin; disposition: Disposition; [extension: string]: unknown;
 }
+export interface Governance {
+  controlledAliases?: Record<string, string[]>;
+  [extension: string]: unknown;
+}
 export interface Corpus {
   schemaVersion: '0.3.0'; name: string; sources: Source[]; sourceRevisions: SourceRevision[]; passages: Passage[]; cases: Case[]; claims: Claim[];
   categorizations: Categorization[]; timelines: Timeline[]; reviews: ReviewEvent[]; collectionManifests: CollectionManifest[];
-  governance: Record<string, unknown>; migration?: Migration; legacy?: Record<string, unknown>;
+  governance: Governance; migration?: Migration; legacy?: Record<string, unknown>;
   paths?: Path[]; behaviors?: Behavior[]; frameworks?: Technique[]; mappings?: Mapping[]; telemetry?: SecurityTelemetry[];
   detections?: Detection[]; otel?: OtelAction[]; otelReference?: Record<string, unknown>;
 }

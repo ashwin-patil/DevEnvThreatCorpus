@@ -37,6 +37,9 @@ of FND-11/13/14/15/16/17. It does not establish completion of foundation.
   `Human source paraphrase`, and `Human inference` origins for manual collection.
   These do not relabel migrated LLM records; reviewer acceptance never changes
   authorship. Synthetic fixtures are labeled as such, not incident evidence.
+- Controlled tool/platform/tag aliases are unique arrays of nonempty strings.
+  Malformed alias maps fail structural validation rather than permitting
+  substring matches or throwing during category membership checks.
 - Content/dependency hash checks establish structural acceptance eligibility,
   not authenticated authorization. Actual reviewer authentication, append-only
   storage enforcement, review operations, and release eligibility workflows

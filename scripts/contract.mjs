@@ -347,7 +347,8 @@ export function validateCorpus(corpus) {
     const supportedSources = new Set(category.supportingClaimIds.map(id => index.claims.get(id)?.sourceId));
     if (category.sourceIds.some(id => !supportedSources.has(id)) || [...supportedSources].some(id => !category.sourceIds.includes(id))) fail('categorizations', category.id, 'source scope must match supporting claim sources');
     if (category.value !== null) {
-      const values = categories[category.dimension] ?? corpus.governance.controlledAliases?.[category.dimension] ?? [];
+      const aliases = corpus.governance.controlledAliases?.[category.dimension];
+      const values = categories[category.dimension] ?? (Array.isArray(aliases) ? aliases : []);
       const other = category.value === 'other' || category.value === 'other/unknown';
       if (!values.includes(category.value) && !other) fail('categorizations', category.id, 'value not in controlled dimension');
       if (other && !category.otherText) fail('categorizations', category.id, 'other value requires explicit otherText');

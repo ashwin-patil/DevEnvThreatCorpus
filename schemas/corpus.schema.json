@@ -17,7 +17,7 @@
     "timelines": { "type": "array", "items": { "$ref": "#/$defs/timeline" } },
     "reviews": { "type": "array", "items": { "$ref": "#/$defs/review" } },
     "collectionManifests": { "type": "array", "items": { "$ref": "#/$defs/manifest" } },
-    "governance": { "type": "object" },
+    "governance": { "$ref": "#/$defs/governance" },
     "migration": { "$ref": "#/$defs/migration" },
     "behaviors": { "type": "array", "items": { "$ref": "#/$defs/behavior" } },
     "paths": { "type": "array", "items": { "$ref": "#/$defs/path" } },
@@ -38,6 +38,16 @@
     "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "nullableHash": { "anyOf": [{ "$ref": "#/$defs/hash" }, { "type": "null" }] },
     "nullReasons": { "type": "object", "additionalProperties": { "enum": ["unknown", "not_reported", "not_applicable"] } },
+    "aliasValues": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/text" } },
+    "governance": {
+      "type": "object",
+      "properties": {
+        "controlledAliases": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/aliasValues" }
+        }
+      }
+    },
     "lifecycle": { "enum": ["Collected", "Extracted — review pending", "Reviewed", "Needs correction", "Excluded"] },
     "disposition": { "enum": ["Pending", "Accepted", "Needs correction", "Excluded"] },
     "evidenceStatus": { "enum": ["Source-reported observation", "Attempted behavior", "Demonstrated capability or proof of concept", "Potential consequence", "Researcher inference", "Unclear or disputed"] },

@@ -16,5 +16,11 @@
   { "id": "missing-date-key", "path": ["sources", 0, "publicationDate"], "value": { "precision": "unknown" }, "error": "missing value", "gate": "AC-06" },
   { "id": "accepted-without-review", "path": ["claims", 0, "disposition"], "value": "Accepted", "error": "requires current human review", "gate": "AC-08" },
   { "id": "future-major", "path": ["schemaVersion"], "value": "1.0.0", "error": "must equal", "gate": "AC-09" },
-  { "id": "executable-url", "path": ["sources", 1, "originalUrl"], "value": "javascript:alert(1)", "error": "must be credential-free HTTPS", "gate": "AC-01" }
+  { "id": "executable-url", "path": ["sources", 1, "originalUrl"], "value": "javascript:alert(1)", "error": "must be credential-free HTTPS", "gate": "AC-01" },
+  { "id": "alias-string", "path": ["governance", "controlledAliases", "tool"], "value": "Claude Code", "error": "must be array", "gate": "AC-05" },
+  { "id": "alias-object", "path": ["governance", "controlledAliases", "tool"], "value": {}, "error": "must be array", "gate": "AC-05" },
+  { "id": "alias-invalid-item", "path": ["governance", "controlledAliases", "tool"], "value": [42], "error": "must be string", "gate": "AC-05" },
+  { "id": "alias-empty-item", "path": ["governance", "controlledAliases", "tool"], "value": [""], "error": "empty string is not an unknown value", "gate": "AC-05" },
+  { "id": "alias-whitespace-item", "path": ["governance", "controlledAliases", "tool"], "value": [" "], "error": "invalid string pattern", "gate": "AC-05" },
+  { "id": "alias-duplicate-item", "path": ["governance", "controlledAliases", "tool"], "value": ["Claude Code", "Claude Code"], "error": "duplicate array item", "gate": "AC-05" }
 ]

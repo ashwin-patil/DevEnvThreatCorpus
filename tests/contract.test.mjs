@@ -164,6 +164,24 @@ test('AC-05 controlled aliases, explicit other values, and category claim/source
   fails(corpus, 'source scope must match');
 });
 
+test('AC-05 malformed controlled aliases cannot bypass exact membership or throw; unrelated governance survives', () => {
+  const corpus = fixture(), category = corpus.categorizations[0];
+  category.dimension = 'tool';
+  category.value = 'Claude';
+  fails(corpus, 'value not in controlled dimension');
+  for (const aliases of ['Claude Code', {}, null, [42], [''], [' '], ['Claude Code', 'Claude Code']]) {
+    corpus.governance.controlledAliases.tool = aliases;
+    assert.doesNotThrow(() => validateCorpus(corpus));
+    assert.ok(validateCorpus(corpus).some(error => error.includes('corpus.governance.controlledAliases.tool')), JSON.stringify(aliases));
+  }
+  corpus.governance.controlledAliases.tool = ['Claude Code'];
+  fails(corpus, 'value not in controlled dimension');
+  category.value = 'Claude Code';
+  corpus.governance.legacyConsumerRule = { retained: true };
+  assertValid(corpus);
+  assert.deepEqual(corpus.governance.legacyConsumerRule, { retained: true });
+});
+
 test('AC-06 real calendar and day/month/year/range/unknown preserve publication vs activity types', () => {
   const corpus = assertValid(fixture());
   assert.deepEqual(new Set(corpus.timelines.map(item => item.date.precision)), new Set(['day', 'month', 'year', 'range', 'unknown']));
@@ -433,7 +451,7 @@ test('AC-09 durable migration before/after/report reproduce exactly; frozen base
 
 test('AC-09 schema/type core declarations and controlled enum sets stay aligned', () => {
   const declarations = readFileSync(new URL('../schemas/contract.d.ts', import.meta.url), 'utf8');
-  for (const name of ['Source', 'SourceRevision', 'Passage', 'Case', 'Claim', 'Categorization', 'Timeline', 'ReviewEvent', 'CollectionManifest', 'Corpus']) assert.match(declarations, new RegExp(`interface ${name}\\b`));
+  for (const name of ['Source', 'SourceRevision', 'Passage', 'Case', 'Claim', 'Categorization', 'Timeline', 'ReviewEvent', 'CollectionManifest', 'Governance', 'Corpus']) assert.match(declarations, new RegExp(`interface ${name}\\b`));
   for (const name of ['lifecycle', 'disposition', 'evidenceStatus', 'origin']) {
     for (const value of schema.$defs[name].enum) assert.ok(declarations.includes(`'${value}'`), `${name}: ${value}`);
   }
