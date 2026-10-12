@@ -21,6 +21,7 @@ from scripts.verify import (
     load_json,
     run_project_commands,
     validate_config,
+    validate_scaffold,
     validate_schema_contract,
     validate_yaml_tree,
     verification_mode_message,
@@ -174,6 +175,43 @@ class CommandExecutionTests(unittest.TestCase):
                 failures = run_project_commands(config, Path(directory))
         self.assertEqual(failures, [])
         self.assertIn(str(Path(directory)), output.getvalue())
+
+
+class WorkflowValidationTests(unittest.TestCase):
+    def test_current_workflows_and_scaffold_pass_verification(self) -> None:
+        config = load_json(CONFIG_PATH)
+        validate_scaffold(config)
+        validate_yaml_tree(ROOT)
+
+    def test_copilot_setup_workflow_enforces_exact_job_id_and_node_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflows_dir = root / ".github/workflows"
+            workflows_dir.mkdir(parents=True)
+            for name in ("verify.yml", "pr-policy.yml", "copilot-setup-steps.yml"):
+                (workflows_dir / name).write_text(
+                    (ROOT / ".github/workflows" / name).read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+            (root / ".github/ISSUE_TEMPLATE").mkdir(parents=True)
+            (root / ".github/ISSUE_TEMPLATE/config.yml").write_text(
+                "blank_issues_enabled: false\n", encoding="utf-8"
+            )
+            validate_yaml_tree(root)
+
+            setup_content = (workflows_dir / "copilot-setup-steps.yml").read_text(encoding="utf-8")
+            bad_job_workflow = setup_content.replace("copilot-setup-steps:", "setup:", 1)
+            (workflows_dir / "copilot-setup-steps.yml").write_text(bad_job_workflow, encoding="utf-8")
+            with self.assertRaisesRegex(VerificationError, "exact job ID copilot-setup-steps"):
+                validate_yaml_tree(root)
+
+            no_node_workflow = setup_content.replace(
+                'node-version-file: "scripts/.node-version"',
+                'node-version-file: "wrong/.node-version"',
+            )
+            (workflows_dir / "copilot-setup-steps.yml").write_text(no_node_workflow, encoding="utf-8")
+            with self.assertRaisesRegex(VerificationError, "provision Node runtime"):
+                validate_yaml_tree(root)
 
 
 if __name__ == "__main__":
