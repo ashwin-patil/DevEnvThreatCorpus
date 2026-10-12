@@ -119,6 +119,8 @@ Implemented now:
 - Deterministic identity and serialization helpers.
 - Manual URL/text/file intake, bounded destination-checked HTTPS retrieval,
   private atomic retention, linked revisions, and recoverable failure manifests.
+- Governance and trusted-base path mappings authorizing upcoming manual claim
+  extraction entrypoints (`scripts/extract.mjs`).
 - Synthetic positive and negative contract fixtures with acceptance-focused
   tests.
 - Project documentation describing the clean-start decision and evidence

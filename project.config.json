@@ -12,11 +12,13 @@
     "learning_index": "docs/learnings/README.md",
     "application": [
       "scripts/contract.mjs",
+      "scripts/extract.mjs",
       "schemas/corpus.schema.json",
       "schemas/contract.d.ts"
     ],
     "readme_triggers": [
       "scripts/contract.mjs",
+      "scripts/extract.mjs",
       "schemas/corpus.schema.json",
       "schemas/contract.d.ts",
       "scripts/package.json",
