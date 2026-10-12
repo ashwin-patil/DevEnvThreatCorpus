@@ -1,5 +1,5 @@
 name: Implementation task
-description: Define one bounded, verifiable implementation task from a reviewed PRD.
+description: Define one bounded, verifiable implementation task with requirements directly in this issue.
 title: "[Task] "
 labels:
   - implementation
@@ -10,11 +10,11 @@ body:
   - type: input
     id: parent-prd
     attributes:
-      label: Parent PRD issue
-      description: Link the human-reviewed PRD issue.
-      placeholder: "#123"
+      label: Optional requirements context
+      description: Requirements may be captured directly below; no separate PRD issue or file is required. Optionally link a PRD issue, repository document, or other requirements source.
+      placeholder: "#123 or a document/source URL (optional)"
     validations:
-      required: true
+      required: false
   - type: textarea
     id: dependencies
     attributes:

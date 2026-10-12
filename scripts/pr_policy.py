@@ -17,6 +17,7 @@ if __package__ in {None, ""}:
 from scripts.verify import (
     CONFIG_PATH,
     ROOT,
+    REQUIRED_PATH_CATEGORIES,
     VerificationError,
     _unique_object,
     load_json,
@@ -49,6 +50,28 @@ def _matches(path: str, pattern: str) -> bool:
         prefix = pattern[:-3].rstrip("/")
         return path == prefix or path.startswith(prefix + "/")
     return fnmatch.fnmatchcase(path, pattern)
+
+
+def _has_added_prose(item: dict[str, Any]) -> bool:
+    if item["status"] == "removed" or item["patch"] is None:
+        return False
+    destination = [
+        (line.startswith("+"), line[1:]) for line in item["patch"].splitlines()
+        if line.startswith((" ", "+")) and not line.startswith("+++")
+    ]
+    text = "\n".join(line for _, line in destination)
+
+    def blank_comment(match: re.Match[str]) -> str:
+        return "".join("\n" if char == "\n" else " " for char in match.group())
+
+    text = re.sub(r"<!--.*?(?:--!?>|$)", blank_comment, text, flags=re.DOTALL)
+    # An orphan closing delimiter means the opening may be outside the patch.
+    while re.search(r"--!?>", text):
+        text = re.sub(r"\A.*?--!?>", blank_comment, text, count=1, flags=re.DOTALL)
+    return any(
+        added and not line.lstrip().startswith("#") and any(char.isalnum() for char in line)
+        for (added, _), line in zip(destination, text.split("\n"))
+    )
 
 
 def _check_snapshot(snapshot: Any, label: str) -> dict[str, Any]:
@@ -90,11 +113,14 @@ def _check_snapshot(snapshot: Any, label: str) -> dict[str, Any]:
     seen: set[str] = set()
     normalized = []
     for item in snapshot["files"]:
-        if not isinstance(item, dict) or set(item) != {"path", "status", "previous_path"}:
+        if not isinstance(item, dict) or set(item) != {"path", "status", "previous_path", "patch"}:
             _fail(f"{label} contains incomplete file metadata")
         path = _safe_path(item["path"], f"{label} file path")
         status = item["status"]
         previous = item["previous_path"]
+        patch = item["patch"]
+        if patch is not None and not isinstance(patch, str):
+            _fail(f"{label} contains invalid patch metadata")
         if path in seen:
             _fail(f"{label} contains duplicate file metadata for {path}")
         seen.add(path)
@@ -110,7 +136,7 @@ def _check_snapshot(snapshot: Any, label: str) -> dict[str, Any]:
                 _fail(f"{label} copy must have distinct source and destination paths")
         elif previous is not None:
             _fail(f"{label} non-rename file must not have a previous path: {path}")
-        normalized.append({"path": path, "status": status, "previous_path": previous})
+        normalized.append({"path": path, "status": status, "previous_path": previous, "patch": patch})
     snapshot["files"] = sorted(normalized, key=lambda item: (item["path"], item["status"]))
     return snapshot
 
@@ -128,19 +154,57 @@ def evaluate(payload: Any, config: dict[str, Any]) -> dict[str, Any]:
     if not issue_ids:
         _fail("linked originating issue must have stable acceptance criterion IDs")
     paths = {item["path"] for item in before["files"]}
-    for path in paths:
+    affected = paths | {
+        item["previous_path"] for item in before["files"]
+        if item["status"] == "renamed"
+    }
+    for path in affected:
         if not any(
             _matches(path, pattern)
-            for category in ("documentation", "tests", "changelog", "learnings", "governance")
+            for category in REQUIRED_PATH_CATEGORIES
             for pattern in config["paths"][category]
         ):
             _fail(f"changed path has no configured surface mapping: {path}; update project.config.json")
     index = config["paths"]["learning_index"]
     if any(
         path != index and any(_matches(path, pattern) for pattern in config["paths"]["learnings"])
-        for path in paths
-    ) and index not in paths:
+        for path in affected
+    ) and not any(
+        item["path"] == index and item["status"] != "removed" and item["patch"]
+        and any(
+            line[:1] in {"+", "-"} and not line.startswith(("+++", "---")) and line[1:].strip()
+            for line in item["patch"].splitlines()
+        )
+        for item in before["files"]
+    ):
         _fail("a changed learning note must update the learning index in the same PR")
+
+    implementation = any(
+        _matches(path, pattern)
+        for path in affected
+        for category in ("application", "governance")
+        for pattern in config["paths"][category]
+    )
+    if implementation:
+        if not any(
+            _has_added_prose(item)
+            and any(_matches(item["path"], pattern) for pattern in config["paths"]["documentation"])
+            and not any(
+                _matches(item["path"], pattern)
+                for category in ("learnings", "changelog")
+                for pattern in config["paths"][category]
+            )
+            for item in before["files"]
+        ):
+            _fail("implementation changes require a content-bearing documentation update in the same PR; relevance needs human review")
+        if not any(
+            item["path"] == "CHANGELOG.md" and _has_added_prose(item)
+            for item in before["files"]
+        ):
+            _fail("implementation changes require a substantive root CHANGELOG.md update (added prose, not headings/deletion/rename alone); quality needs human review")
+    if any(_matches(path, pattern) for path in affected for pattern in config["paths"]["readme_triggers"]):
+        if not any(item["path"] == "README.md" and _has_added_prose(item) for item in before["files"]):
+            _fail("entrypoint/setup/usage surface requires a content-bearing root README.md update")
 
     return {"changed_paths": len(paths), "criteria": len(set(issue_ids))}
 
@@ -161,6 +225,8 @@ def main() -> int:
     print(
         f"PR metadata policy PASS: {result['changed_paths']} changed paths; "
         f"{result['criteria']} linked-issue criteria. "
+        "Human review required: documentation relevance/accuracy, changelog substance, "
+        "and README applicability beyond configured triggers. "
         "This metadata result is not proof of test correctness or approval."
     )
     return 0
