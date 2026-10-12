@@ -10,7 +10,7 @@ The `paths` mappings classify documentation, tests, changelog, learnings, and go
 
 ## Dependencies and extension points
 
-The governance checks use Python's standard library and `unittest`; no third-party validation dependencies are required. `.github/copilot-setup-steps.yml` is intentionally a minimal governance setup example. Add a project-specific step to install the language runtime/dependencies needed by configured commands. The setup job timeout limits that GitHub Actions job only; it does not set a total Copilot cloud-agent session timeout.
+The governance checks use Python's standard library and `unittest`; no third-party validation dependencies are required. In `.github/workflows/copilot-setup-steps.yml`, GitHub Copilot cloud agent requires the exact job ID `copilot-setup-steps` (`jobs.copilot-setup-steps`); an unrecognized job ID such as `setup` triggers cloud agent configuration warnings. The setup workflow maintains least-privilege `contents: read` permissions, installs governance dependencies (`requirements-governance.txt` with Python 3.12), and explicitly provisions the repository's pinned Node runtime using `actions/setup-node` pinned to a full commit SHA with `node-version-file: "scripts/.node-version"`. Consuming projects can extend this workflow to install additional language runtimes or dependencies needed by configured commands. The setup job timeout limits that GitHub Actions job only; it does not set a total Copilot cloud-agent session timeout.
 
 ## Model preference
 
