@@ -1,0 +1,163 @@
+[
+  {
+    "id": "nx",
+    "name": "Nx / s1ngularity",
+    "kind": "Campaign",
+    "date": "2025-08-26",
+    "role": "Victim agent",
+    "sourceIds": [
+      "nx",
+      "nx-step"
+    ],
+    "summary": "A compromised release connects CI credential theft, package execution and attempted use of local AI tools.",
+    "limit": "Local AI use was attempted; the selected postmortem does not establish the success of each agent-mediated action. Actor identity is not asserted.",
+    "admission": {
+      "decision": "Include",
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "reason": "Anchor case named in chat; bridges CI supply chain and victim-side agent evidence.",
+      "reviewStatus": "Unreviewed",
+      "scoreOrigin": "LLM proposed admission score"
+    },
+    "pathIds": [
+      "path-nx"
+    ],
+    "origin": "LLM synthesis",
+    "reviewStatus": "Unreviewed",
+    "reviewer": null,
+    "enabled": true
+  },
+  {
+    "id": "deadbugz",
+    "name": "Deadbugz / productivity-suite",
+    "kind": "Campaign",
+    "date": "2026-08-10",
+    "role": "Victim agent",
+    "sourceIds": [
+      "deadbugz"
+    ],
+    "summary": "A public delivery campaign exposes delayed malicious MCP definitions after ordinary tool use.",
+    "limit": "Reviewed pull requests were unmerged at report time. The report confirms poisoned metadata, not successful credential theft on victims. Attribution is to a public delivery account only.",
+    "admission": {
+      "decision": "Include",
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "reason": "Named in chat; adds runtime gating and an explicit attempted-versus-confirmed distinction.",
+      "reviewStatus": "Unreviewed",
+      "scoreOrigin": "LLM proposed admission score"
+    },
+    "pathIds": [
+      "path-deadbugz"
+    ],
+    "origin": "LLM synthesis",
+    "reviewStatus": "Unreviewed",
+    "reviewer": null,
+    "enabled": true
+  },
+  {
+    "id": "shai",
+    "name": "Shai-Hulud / September wave",
+    "kind": "Campaign",
+    "date": "2025-09-15",
+    "role": "Conventional malware",
+    "sourceIds": [
+      "shai"
+    ],
+    "summary": "A credential-stealing npm payload spreads using publishing privileges and adds repository persistence.",
+    "limit": "This record models the September 2025 report. Shared behaviors with Nx do not establish common actor attribution. No AI-agent execution is asserted.",
+    "admission": {
+      "decision": "Include",
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "reason": "Supplemental StepSecurity seed adds propagation, branching and a published runtime-analysis reference.",
+      "reviewStatus": "Unreviewed",
+      "scoreOrigin": "LLM proposed admission score"
+    },
+    "pathIds": [
+      "path-shai"
+    ],
+    "origin": "LLM synthesis",
+    "reviewStatus": "Unreviewed",
+    "reviewer": null,
+    "enabled": true
+  },
+  {
+    "id": "whatsapp",
+    "name": "WhatsApp MCP sleeper",
+    "kind": "Research exercise",
+    "date": null,
+    "role": "Victim agent",
+    "sourceIds": [
+      "whatsapp"
+    ],
+    "summary": "A controlled experiment shows one MCP integration steering actions of another trusted integration.",
+    "limit": "A demonstrated attack primitive, not an observed campaign. The malicious server need not be invoked directly. Exact publication date is not verified.",
+    "admission": {
+      "decision": "Include",
+      "scores": [
+        2,
+        2,
+        2,
+        1,
+        2
+      ],
+      "reason": "Supplemental research cited by Pillar; provides a second example of delayed metadata poisoning.",
+      "reviewStatus": "Unreviewed",
+      "scoreOrigin": "LLM proposed admission score"
+    },
+    "pathIds": [
+      "path-whatsapp"
+    ],
+    "origin": "LLM synthesis",
+    "reviewStatus": "Unreviewed",
+    "reviewer": null,
+    "enabled": true
+  },
+  {
+    "id": "gambit",
+    "name": "Gambit / suspected ransomware affiliate",
+    "kind": "Comparator",
+    "date": "2026-06",
+    "role": "Attacker agent",
+    "sourceIds": [
+      "gambit"
+    ],
+    "summary": "An operator used Claude Code while conducting remote intrusions; Case 1 is a scope comparator.",
+    "limit": "Gambit assesses a suspected The Gentlemen affiliate with medium confidence. Its playbook combines multiple intrusions; not all steps occurred in every case.",
+    "admission": {
+      "decision": "Include",
+      "scores": [
+        2,
+        2,
+        2,
+        1,
+        1
+      ],
+      "reason": "Direct chat URL; clarifies which telemetry is outside the victim defender’s control.",
+      "reviewStatus": "Unreviewed",
+      "scoreOrigin": "LLM proposed admission score"
+    },
+    "pathIds": [
+      "path-gambit"
+    ],
+    "origin": "LLM synthesis",
+    "reviewStatus": "Unreviewed",
+    "reviewer": null,
+    "enabled": true
+  }
+]

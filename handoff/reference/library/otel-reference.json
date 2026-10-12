@@ -1,0 +1,145 @@
+{
+  "id": "otel-reference",
+  "checked": "2026-10-11",
+  "logsStatus": "Stable",
+  "genAiStatus": "Development",
+  "sourceIds": [
+    "otel-logs",
+    "otel-traces",
+    "otel-agents",
+    "otel-mcp",
+    "otel-events"
+  ],
+  "fields": [
+    [
+      "Timestamp",
+      "uint64 nanoseconds",
+      "Source event time"
+    ],
+    [
+      "ObservedTimestamp",
+      "uint64 nanoseconds",
+      "Collector observation time"
+    ],
+    [
+      "TraceId",
+      "16-byte identifier",
+      "Optional trace correlation"
+    ],
+    [
+      "SpanId",
+      "8-byte identifier",
+      "Optional span correlation"
+    ],
+    [
+      "TraceFlags",
+      "byte",
+      "Trace flags"
+    ],
+    [
+      "SeverityNumber",
+      "integer",
+      "Normalized severity"
+    ],
+    [
+      "SeverityText",
+      "string",
+      "Original severity"
+    ],
+    [
+      "Body",
+      "AnyValue",
+      "Redacted event payload"
+    ],
+    [
+      "Resource",
+      "attributes",
+      "Producing service or host"
+    ],
+    [
+      "InstrumentationScope",
+      "scope",
+      "Emitting instrumentation"
+    ],
+    [
+      "Attributes",
+      "key/value collection",
+      "Standard or custom attributes"
+    ],
+    [
+      "EventName",
+      "string",
+      "Event class"
+    ]
+  ],
+  "conventions": [
+    {
+      "field": "gen_ai.operation.name",
+      "example": "execute_tool",
+      "status": "Development",
+      "sourceId": "otel-agents"
+    },
+    {
+      "field": "gen_ai.tool.name",
+      "example": "read_file",
+      "status": "Development",
+      "sourceId": "otel-agents"
+    },
+    {
+      "field": "gen_ai.tool.call.id",
+      "example": "synthetic-call-1",
+      "status": "Development",
+      "sourceId": "otel-agents"
+    },
+    {
+      "field": "mcp.method.name",
+      "example": "tools/call",
+      "status": "Development",
+      "sourceId": "otel-mcp"
+    },
+    {
+      "field": "mcp.session.id",
+      "example": "synthetic-session",
+      "status": "Development",
+      "sourceId": "otel-mcp"
+    }
+  ],
+  "signalTypes": [
+    [
+      "Logs",
+      "Standalone structured events; can carry trace context"
+    ],
+    [
+      "Spans",
+      "Timed operations with parent/child identity, attributes and status"
+    ],
+    [
+      "Span events",
+      "Timestamped annotations within an operation"
+    ],
+    [
+      "Metrics",
+      "Aggregated counters/distributions; not a substitute for event provenance"
+    ]
+  ],
+  "privacy": "Do not collect secret values, full tool arguments or full model content by default. Use redaction, access controls and retention. SDK support and trace propagation require per-harness validation.",
+  "genAiCommit": "6fd0d763a092db245a54104fc1124031eb3c51d2",
+  "syntheticSpan": {
+    "name": "tools/call read_file",
+    "kind": "CLIENT",
+    "traceId": "11111111111111111111111111111111",
+    "spanId": "3333333333333333",
+    "parentSpanId": "2222222222222222",
+    "startTimeUnixNano": "1791676800000000000",
+    "endTimeUnixNano": "1791676800100000000",
+    "attributes": {
+      "mcp.method.name": "tools/call",
+      "mcp.session.id": "synthetic-session",
+      "gen_ai.tool.name": "read_file",
+      "gen_ai.tool.call.id": "synthetic-call-1",
+      "devthreat.synthetic": true
+    },
+    "status": "UNSET"
+  },
+  "spanNotice": "Illustrative logical MCP client span using selected development attributes. Not a complete OTLP payload or a conformance test. No real incident data."
+}

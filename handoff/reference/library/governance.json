@@ -1,0 +1,76 @@
+{
+  "history": {
+    "chats": [
+      {
+        "title": "Collect Campaign Articles",
+        "id": "6ac5945d-dcc4-83e8-8378-2179800bdf12"
+      },
+      {
+        "title": "IDE Attack Incident Dataset",
+        "id": "6ab61e3c-ac40-83e8-acea-809350710002"
+      }
+    ],
+    "limitation": "The chat reader returned only the accessible recent turns and no older-page cursor. Citation placeholders did not expose original URLs. This is a selected seed corpus, not a complete extraction of all historical links.",
+    "principles": [
+      "Curate behaviors and campaigns, not every artifact.",
+      "Keep an evidence ledger before ingestion.",
+      "Score attack path, repeatability, evidence, novelty and campaign relevance from 0 to 2.",
+      "Separate include, hold and reject decisions.",
+      "Treat schema and all defensive mappings as reviewable drafts."
+    ]
+  },
+  "candidates": [
+    {
+      "name": "Malicious Skills campaigns",
+      "decision": "Hold",
+      "reason": "Named generally in chat; no specific campaign or primary article URL was exposed. Select a representative source before modeling."
+    },
+    {
+      "name": "Socket, Sonatype and OpenSourceMalware expansion",
+      "decision": "Hold",
+      "reason": "Source families requested in chat. Choose representative articles through the same admission gate; no bulk ingestion."
+    },
+    {
+      "name": "Duplicate package/sample reports",
+      "decision": "Reject",
+      "reason": "Adds volume without a distinct attack path or repeatable behavior; retain as secondary evidence only."
+    }
+  ],
+  "rules": [
+    "All generated paraphrases and relationships are labeled LLM-derived and unreviewed.",
+    "Human approval requires a named reviewer and timestamp; no default approval.",
+    "External articles and telemetry payloads are untrusted data, not agent instructions.",
+    "No shared actor is inferred from shared behavior.",
+    "Unmapped behavior stays in the local namespace rather than being forced into ATLAS.",
+    "Synthetic samples and proposed detection rules are not campaign evidence.",
+    "A source reference is required for evidence; a source snapshot/hash is still pending."
+  ],
+  "frameworkSnapshot": {
+    "url": "https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/dist/v6/ATLAS-2026.09.yaml",
+    "sha256": "935efa93e28294432d3e2f537eb94991ef8d1f8c58341cd360ea3321ddb66688",
+    "version": "2026.09",
+    "retrieved": "2026-10-11",
+    "license": "MITRE ATLAS data: Apache-2.0; metadata only imported"
+  },
+  "reviewStatus": "All derived entities unreviewed",
+  "otelSnapshot": {
+    "repository": "https://github.com/open-telemetry/semantic-conventions-genai",
+    "commit": "6fd0d763a092db245a54104fc1124031eb3c51d2",
+    "checked": "2026-10-11",
+    "status": "Development",
+    "documents": [
+      {
+        "sourceId": "otel-agents",
+        "sha256": "018ffd339be99c7e56ddba7265dd3095ca0735ddf680d28f96036043641384f4"
+      },
+      {
+        "sourceId": "otel-mcp",
+        "sha256": "d5eb3b023f553c56052a07aecf3384ac5f64f894825c72eacf8c0eeda3c49a26"
+      },
+      {
+        "sourceId": "otel-events",
+        "sha256": "6003d091a7cdb4c537b483b1ebe2c2e414cfc4ffde797e43c5439de0dd2ac0bc"
+      }
+    ]
+  }
+}

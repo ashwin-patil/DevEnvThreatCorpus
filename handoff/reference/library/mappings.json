@@ -1,0 +1,291 @@
+[
+  {
+    "id": "map-nx-3-install-T1195.002",
+    "pathId": "path-nx",
+    "nodeId": "nx-3",
+    "campaignId": "nx",
+    "behaviorId": "install",
+    "techniqueId": "T1195.002",
+    "evidenceIds": [
+      "nx-e3"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-nx-4-invoke-AML.T0053",
+    "pathId": "path-nx",
+    "nodeId": "nx-4",
+    "campaignId": "nx",
+    "behaviorId": "invoke",
+    "techniqueId": "AML.T0053",
+    "evidenceIds": [
+      "nx-e4"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Intent or attempt only",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-nx-5-secrets-T1552.001",
+    "pathId": "path-nx",
+    "nodeId": "nx-5",
+    "campaignId": "nx",
+    "behaviorId": "secrets",
+    "techniqueId": "T1552.001",
+    "evidenceIds": [
+      "nx-e5"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-deadbugz-3-poison-AML.T0110.000",
+    "pathId": "path-deadbugz",
+    "nodeId": "deadbugz-3",
+    "campaignId": "deadbugz",
+    "behaviorId": "poison",
+    "techniqueId": "AML.T0110.000",
+    "evidenceIds": [
+      "deadbugz-e3"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-deadbugz-3-poison-AML.T0051",
+    "pathId": "path-deadbugz",
+    "nodeId": "deadbugz-3",
+    "campaignId": "deadbugz",
+    "behaviorId": "poison",
+    "techniqueId": "AML.T0051",
+    "evidenceIds": [
+      "deadbugz-e3"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-deadbugz-4-secrets-AML.T0098",
+    "pathId": "path-deadbugz",
+    "nodeId": "deadbugz-4",
+    "campaignId": "deadbugz",
+    "behaviorId": "secrets",
+    "techniqueId": "AML.T0098",
+    "evidenceIds": [
+      "deadbugz-e4"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Intent or attempt only",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-deadbugz-4-cross-tool-AML.T0051",
+    "pathId": "path-deadbugz",
+    "nodeId": "deadbugz-4",
+    "campaignId": "deadbugz",
+    "behaviorId": "cross-tool",
+    "techniqueId": "AML.T0051",
+    "evidenceIds": [
+      "deadbugz-e4"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Intent or attempt only",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-shai-1-install-T1195.002",
+    "pathId": "path-shai",
+    "nodeId": "shai-1",
+    "campaignId": "shai",
+    "behaviorId": "install",
+    "techniqueId": "T1195.002",
+    "evidenceIds": [
+      "shai-e1"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-shai-2-secrets-T1552.001",
+    "pathId": "path-shai",
+    "nodeId": "shai-2",
+    "campaignId": "shai",
+    "behaviorId": "secrets",
+    "techniqueId": "T1552.001",
+    "evidenceIds": [
+      "shai-e2"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-2-poison-AML.T0110.000",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-2",
+    "campaignId": "whatsapp",
+    "behaviorId": "poison",
+    "techniqueId": "AML.T0110.000",
+    "evidenceIds": [
+      "whatsapp-e2"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-2-poison-AML.T0051",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-2",
+    "campaignId": "whatsapp",
+    "behaviorId": "poison",
+    "techniqueId": "AML.T0051",
+    "evidenceIds": [
+      "whatsapp-e2"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-3-cross-tool-AML.T0051",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-3",
+    "campaignId": "whatsapp",
+    "behaviorId": "cross-tool",
+    "techniqueId": "AML.T0051",
+    "evidenceIds": [
+      "whatsapp-e3"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-3-cross-tool-AML.T0053",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-3",
+    "campaignId": "whatsapp",
+    "behaviorId": "cross-tool",
+    "techniqueId": "AML.T0053",
+    "evidenceIds": [
+      "whatsapp-e3"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-3-cross-tool-AML.T0086",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-3",
+    "campaignId": "whatsapp",
+    "behaviorId": "cross-tool",
+    "techniqueId": "AML.T0086",
+    "evidenceIds": [
+      "whatsapp-e3"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-4-cross-tool-AML.T0051",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-4",
+    "campaignId": "whatsapp",
+    "behaviorId": "cross-tool",
+    "techniqueId": "AML.T0051",
+    "evidenceIds": [
+      "whatsapp-e4"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-4-cross-tool-AML.T0053",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-4",
+    "campaignId": "whatsapp",
+    "behaviorId": "cross-tool",
+    "techniqueId": "AML.T0053",
+    "evidenceIds": [
+      "whatsapp-e4"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  },
+  {
+    "id": "map-whatsapp-4-cross-tool-AML.T0086",
+    "pathId": "path-whatsapp",
+    "nodeId": "whatsapp-4",
+    "campaignId": "whatsapp",
+    "behaviorId": "cross-tool",
+    "techniqueId": "AML.T0086",
+    "evidenceIds": [
+      "whatsapp-e4"
+    ],
+    "origin": "LLM inferred mapping",
+    "reviewStatus": "Unreviewed",
+    "rationale": "Candidate mapping from the cited node behavior; must be checked against the technique definition and case scope.",
+    "applicability": "Source-described behavior; independent verification pending",
+    "confidence": "Not assessed",
+    "reviewer": null
+  }
+]

@@ -1,0 +1,448 @@
+[
+  {
+    "id": "otel-install",
+    "behaviorId": "install",
+    "action": "Proposed install span linked to package identity, version, provenance and child process IDs.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.package.name",
+      "devthreat.package.version",
+      "devthreat.install.id"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.install.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "install",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.package.name": "synthetic-redacted-value",
+        "devthreat.package.version": "synthetic-redacted-value",
+        "devthreat.install.id": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "Package installs often happen outside an instrumented agent. EDR and registry history remain necessary.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "otel-invoke",
+    "behaviorId": "invoke",
+    "action": "Proposed session linkage from launching process to agent tool spans; capture policy mode without secret values.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.session.id",
+      "devthreat.launch.parent_pid",
+      "devthreat.policy.mode"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.invoke.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "invoke",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.session.id": "synthetic-redacted-value",
+        "devthreat.launch.parent_pid": "synthetic-redacted-value",
+        "devthreat.policy.mode": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "A process launch proves an invocation attempt, not successful model-guided theft.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "otel-poison",
+    "behaviorId": "poison",
+    "action": "Proposed metadata-change event with old/new digests, server identity and approval version.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.mcp.server.id",
+      "devthreat.tool.definition.sha256",
+      "devthreat.approval.version"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.poison.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "poison",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.mcp.server.id": "synthetic-redacted-value",
+        "devthreat.tool.definition.sha256": "synthetic-redacted-value",
+        "devthreat.approval.version": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "Many clients do not retain historical definitions; hashes alone cannot explain content.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "otel-secrets",
+    "behaviorId": "secrets",
+    "action": "Proposed sensitive-access event records data class, result and tool-call correlation. Never export credential values.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.data.class",
+      "devthreat.access.result",
+      "devthreat.tool.call.id"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.secrets.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "secrets",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.data.class": "synthetic-redacted-value",
+        "devthreat.access.result": "synthetic-redacted-value",
+        "devthreat.tool.call.id": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "EDR may not capture individual file reads or environment reads. Add explicit application audit hooks.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "otel-repo-exfil",
+    "behaviorId": "repo-exfil",
+    "action": "Proposed outbound action span linking destination class, repository visibility and originating install/session.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.destination.class",
+      "devthreat.repository.visibility",
+      "devthreat.install.id"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.repo_exfil.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "repo-exfil",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.destination.class": "synthetic-redacted-value",
+        "devthreat.repository.visibility": "synthetic-redacted-value",
+        "devthreat.install.id": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "TLS network metadata does not reveal content; API/audit coverage varies. Nx exfiltration via gh is not proven to be an agent tool action.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "otel-propagate",
+    "behaviorId": "propagate",
+    "action": "Proposed publish span linked to publisher identity, artifact digest and preceding installation.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.publisher.id",
+      "devthreat.artifact.sha256",
+      "devthreat.install.id"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.propagate.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "propagate",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.publisher.id": "synthetic-redacted-value",
+        "devthreat.artifact.sha256": "synthetic-redacted-value",
+        "devthreat.install.id": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "This seed is conventional supply-chain propagation. No AI-specific ATLAS mapping is asserted.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "otel-cross-tool",
+    "behaviorId": "cross-tool",
+    "action": "Proposed tool-call spans link instruction origin, approval and outbound destination. Retain redacted summaries.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.context.origin",
+      "devthreat.tool.call.id",
+      "devthreat.destination.class"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.cross_tool.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "cross-tool",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.context.origin": "synthetic-redacted-value",
+        "devthreat.tool.call.id": "synthetic-redacted-value",
+        "devthreat.destination.class": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "Requires provenance beyond process telemetry. A tool call alone does not prove an injection.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  },
+  {
+    "id": "otel-attacker-ai",
+    "behaviorId": "attacker-ai",
+    "action": "Instrument victim services where possible; attacker session traces are usually unavailable to defenders.",
+    "signalType": "Custom security LogRecord; tool and MCP spans may provide correlation",
+    "standardSourceIds": [
+      "otel-logs",
+      "otel-traces",
+      "otel-agents",
+      "otel-mcp"
+    ],
+    "customFields": [
+      "devthreat.remote.identity",
+      "devthreat.service.action"
+    ],
+    "standardFields": [
+      "TraceId",
+      "SpanId",
+      "EventName",
+      "Resource",
+      "InstrumentationScope"
+    ],
+    "sample": {
+      "Timestamp": "1791676800000000000",
+      "ObservedTimestamp": "1791676800000000000",
+      "TraceId": "11111111111111111111111111111111",
+      "SpanId": "2222222222222222",
+      "SeverityNumber": 9,
+      "SeverityText": "INFO",
+      "EventName": "devthreat.attacker_ai.observed",
+      "Body": "Synthetic redacted instrumentation example",
+      "Resource": {
+        "service.name": "developer-agent-demo",
+        "host.id": "synthetic-host"
+      },
+      "InstrumentationScope": {
+        "name": "devthreat.prototype",
+        "version": "0.2.0"
+      },
+      "Attributes": {
+        "devthreat.behavior.id": "attacker-ai",
+        "devthreat.synthetic": true,
+        "devthreat.review.status": "unreviewed",
+        "devthreat.remote.identity": "synthetic-redacted-value",
+        "devthreat.service.action": "synthetic-redacted-value"
+      }
+    },
+    "sampleFormat": "Illustrative logical LogRecord JSON, not an OTLP wire envelope",
+    "sampleOrigin": "LLM synthetic fixture; not incident evidence",
+    "stability": "Core logs model: Stable. GenAI/MCP conventions: Development. Custom devthreat namespace: prototype.",
+    "limitations": "This comparator does not justify claiming that victim-side agent OTEL would capture attacker conversations.",
+    "origin": "LLM proposed instrumentation",
+    "reviewStatus": "Unreviewed"
+  }
+]

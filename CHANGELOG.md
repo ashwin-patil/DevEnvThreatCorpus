@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-12
+
+- Add the phased DevEnvThreatCorpus product handoff and frozen reference package for future issue-by-issue implementation.
+
 ## 2026-10-06
 
 - Replace PR-body verification declarations with linked-issue and changed-file metadata checks; rely on the separate required `Verify` check for executed evidence and human review for acceptance.

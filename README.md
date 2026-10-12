@@ -17,6 +17,8 @@ A language-neutral GitHub template for **human-supervised** AI-assisted delivery
 
 This repository provides GitHub intake forms, guidance, a versioned JSON configuration contract, offline governance verification, a read-only PR metadata evaluator, and minimal workflows. It is intentionally not a runtime application or orchestration service. It does not include a website, database, embeddings, unrelated scanners, automatic dispatch/retries/evidence publishing, or StarBase-specific data or exceptions. Consuming projects may use any language.
 
+The proposed product roadmap and frozen prototype handoff is documented in [handoff/00-START-HERE.md](handoff/00-START-HERE.md). It describes future work; it does not mean those services are implemented or authorize external issue publication or deployment.
+
 ## Bootstrap checklist
 
 - [ ] Confirm repository identity, visibility, template setting, and default branch.
