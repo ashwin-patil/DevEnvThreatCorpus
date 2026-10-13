@@ -383,6 +383,8 @@ test('AC-09 configured project command executes offline contract tests within tr
     ['node', '--test', 'tests/contract.test.mjs'],
     ['node', '--test', 'tests/intake.test.mjs'],
     ['node', '--test', 'tests/extract.test.mjs'],
+    ['node', '--test', 'tests/workbench.test.mjs'],
+    ['node', '--test', 'tests/server.test.mjs'],
   ]);
   const governance = config.paths.governance;
   const mapped = (path, patterns) => patterns.some(pattern => pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern);

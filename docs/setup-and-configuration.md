@@ -30,6 +30,16 @@ For a new surface, first land a human-authorized, reviewed mapping/policy prereq
 
 ## Dependencies and extension points
 
+The local Research Workbench needs only the pinned Node runtime:
+`node scripts/server.mjs` serves the vanilla `src/` assets on
+`http://127.0.0.1:4173/`. An optional `--corpus` takes an absolute private
+mode-0600 corpus file and validates it before serving; `--port` changes the local
+port. There is no install/build step or network dependency. Restart to refresh
+the read-only snapshot and never expose private retained text through a public
+host or tunnel. The configured workbench and server Node tests join the existing
+application commands in `python scripts/verify.py`; independent human UX and
+documentation relevance review is still necessary.
+
 The governance checks use Python's standard library and `unittest` plus the pinned PyYAML parser. In `.github/workflows/copilot-setup-steps.yml`, GitHub Copilot cloud agent requires the exact job ID `copilot-setup-steps` (`jobs.copilot-setup-steps`); an unrecognized job ID such as `setup` triggers cloud agent configuration warnings. The setup workflow maintains least-privilege `contents: read` permissions, installs governance dependencies (`requirements-governance.txt` with Python 3.12), and explicitly provisions the repository's pinned Node runtime using `actions/setup-node` pinned to a full commit SHA with `node-version-file: "scripts/.node-version"`. Consuming projects can extend this workflow to install additional language runtimes or dependencies needed by configured commands. The setup job timeout limits that GitHub Actions job only; it does not set a total Copilot cloud-agent session timeout.
 
 ## Model preference

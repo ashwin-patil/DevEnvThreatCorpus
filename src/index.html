@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DevEnvThreatCorpus · Research workbench</title>
+  <link rel="icon" href="/docs/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/src/style.css">
+  <script type="module" src="/src/app.mjs"></script>
+</head>
+<body>
+  <a id="skip-content" class="skip-link" href="#content">Skip to research content</a>
+  <header>
+    <a class="brand" href="#cases"><img src="/docs/assets/logo.svg" alt="DevEnvThreatCorpus" width="360" height="80"></a>
+    <div class="header-right"><span>Offline · read-only</span><button id="demo" type="button">Load synthetic demo</button><button id="reload-corpus" type="button">Reload local corpus</button></div>
+  </header>
+  <main>
+    <section class="hero"><div><p class="eyebrow">SOURCE → CLAIM → UNDERSTANDING</p><h1>Follow the evidence.<br><span>Keep the uncertainty.</span></h1><p class="intro">A source-linked workbench for developer environment threat research. Assertions, inferences and contradictions stay distinct.</p></div><aside class="hero-note"><span class="eyebrow">RESEARCH WORKBENCH / 0.3.0</span><p>Start with the source.<br>Understand what it supports.</p><small>No curator writes, exports or live fetching.</small></aside></section>
+    <p id="status" role="status">Loading the configured local corpus…</p>
+    <section id="stats" class="stats" aria-label="Total corpus counts"></section>
+    <nav id="views" aria-label="Research views"></nav>
+    <form id="toolbar" class="toolbar" role="search">
+      <label class="search">Search <input id="search" type="search" placeholder="Cases, source text, claims, metadata…" aria-describedby="filter-help"></label>
+      <label>Tag matching <select id="tag-mode"><option>OR</option><option>AND</option></select></label>
+      <button id="reset" type="button">Reset search & filters</button>
+      <p id="filter-help">Search AND every selected facet; OR within each facet, except tags use the selected mode. Source tags/cases are linked associations, not attribution. Disposition includes linked claims / categories and collection state.</p>
+      <div id="facets" class="facets"></div>
+    </form>
+    <p id="result" role="status"></p>
+    <div id="content" tabindex="-1"></div>
+    <footer><span>DevEnvThreatCorpus / schema 0.3.0</span><span>Read-only local evidence · origin ≠ evidence ≠ disposition · human approval remains independent</span></footer>
+  </main>
+  <noscript>This offline workbench requires JavaScript modules. No third-party scripts are used.</noscript>
+</body>
+</html>

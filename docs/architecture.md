@@ -1,5 +1,39 @@
 # Fresh-start corpus architecture
 
+## Read-only local Research Workbench
+
+`src/index.html`, `src/style.css`, and vanilla ES modules implement the first
+operational Phase 1 workbench. `node scripts/server.mjs` serves these local assets
+and the official SVG logo/favicon with no external CDN or live retrieval.
+Without `--corpus` it starts empty; the explicitly selected synthetic demo reads
+only the benign 0.3.0 test fixture, not the frozen 0.2.0 reference corpus.
+`--corpus /absolute/private/store/corpus.json` uses the existing private-file and
+full contract validator before opening the listener. This includes retained
+normalized article text; it is a private preview, not a public distribution.
+
+The server binds only `127.0.0.1`, rejects foreign Host/Origin and cross-site
+requests, exposes only exact allowlisted assets and read-only corpus endpoints,
+and sends no-store, same-origin, and restrictive content-security headers.
+There is no directory listing, arbitrary file path API, write endpoint, remote
+fetch, or browser storage. Corpus responses are validated startup snapshots;
+restart after intake/extraction changes. Local users can inspect the data, so do
+not expose the port through tunnels or deploy this server.
+
+Passage positions are half-open Unicode code-point offsets into the *exact*
+retained `sourceRevisionId`, not UTF-16 indexes or offsets into the latest source
+revision. Overlaps must preserve all linked claims without duplicating text.
+Source-grounded assertions and researcher inferences retain separate labels;
+inferences show rationale and supporting claims rather than fabricated passages.
+Conflict comparison preserves both records, dispositions, and uncertainty, not
+a resolution or ranking. Imported content is displayed as text, never executable
+markup. Sources remain browsable without a case. Search and facet counts describe
+the supplied corpus, not threat prevalence.
+
+Node unit/DOM and server checks are configured in `project.config.json`.
+Automated fixture assertions and agent browser exercises do not substitute for
+independent human visual inspection at desktop/mobile widths, keyboard review,
+research-semantics review, or documentation relevance approval before merge.
+
 ## Decision
 
 The 0.3.0 corpus is built from newly supplied source inputs. Existing 0.2.0
