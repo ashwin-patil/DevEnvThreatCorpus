@@ -9,6 +9,28 @@ import {
 const fixture = async () => JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const catalogUrl = PINNED_FRAMEWORK_CATALOG.catalogs[0].materialUrl;
 
+for (const evidenceStatus of ['Potential consequence', 'Unclear or disputed']) {
+  test(`issue45 preserves ${evidenceStatus} without projecting observed behavior`, async () => {
+    const corpus = await fixture();
+    corpus.claims.find(c => c.id === 'synthetic-claim-a').evidenceStatus = evidenceStatus;
+    const annotation = normalize(corpus).annotations.find(a => a.type === 'observed-behavior');
+    assert.notEqual(annotation.context.behavior, 'observed');
+    assert.notEqual(annotation.evidenceStatus, 'evidence-backed');
+    assert.equal(annotation.context.notes, evidenceStatus);
+  });
+}
+
+test('issue45 node mapping rejects additional claims outside that node support', async () => {
+  const corpus = await fixture(), value = candidate();
+  value.paths = [{ localId: 'path', scope: 'representative', supportingClaimIds: ['local-claim'],
+    nodes: [{ localId: 'node', title: 'Synthetic node', detail: 'Synthetic support boundary.',
+      behaviorIds: ['benign-use'], supportingClaimIds: ['local-claim'], evidenceStatus: 'Source-reported observation' }],
+    edges: [] }];
+  Object.assign(value.mappings[0], { pathId: 'path', nodeId: 'node',
+    supportingClaimIds: ['local-claim', 'synthetic-claim-b'] });
+  assert.throws(() => normalize(corpus, value), /path\/node/);
+});
+
 function addCatalogSource(corpus) {
   const source = structuredClone(corpus.sources[1]);
   Object.assign(source, {

@@ -248,6 +248,10 @@ revision list. Use `--revisions` only to select comma-separated retained revisio
 IDs explicitly. Unavailable text is recorded rather than fetched or omitted.
 Requests and candidates are each limited to 2 MiB.
 
+Potential consequences and disputed behavior remain inference in the research
+annotation projection, with the original classification in context notes.
+Node-specific technique candidates may cite only claims supporting that node.
+
 ```bash
 R=/absolute/path/to/DevEnvThreatCorpus
 S=/absolute/private/store

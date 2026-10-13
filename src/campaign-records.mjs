@@ -213,14 +213,15 @@ export function normalizeCampaignRecords({
       const passage = (claim.passageIds ?? []).map(passageId => byPassage.get(passageId))
         .find(item => item?.sourceRevisionId === claim.sourceRevisionId && typeof item.text === 'string'
           && (literal === undefined || item.text.includes(literal)));
+      const resolvedContext = typeof context === 'function' ? context(claim) : context;
       annotations.push({
         id: makeId('annotation', `${key}:${claimId}`),
         type, value, caseId, sourceId: claim.sourceId, sourceRevisionId: claim.sourceRevisionId,
-        evidenceStatus: passage ? 'evidence-backed'
+        evidenceStatus: resolvedContext?.behavior === 'inferred' ? 'inference' : passage ? 'evidence-backed'
           : claim.evidenceStatus === 'Researcher inference' ? 'inference' : 'unresolved',
         ...(passage ? { support: { quote: passage.text, locator: { start: passage.start, end: passage.end } } } : {}),
-        claimIds: [claimId], ...(context ? {
-          context: structuredClone(typeof context === 'function' ? context(claim) : context),
+        claimIds: [claimId], ...(resolvedContext ? {
+          context: structuredClone(resolvedContext),
         } : {}),
         ...(normalizedValue !== undefined ? { normalizedValue } : {}),
         ...(externalReferenceUrl !== undefined ? { externalReferenceUrl } : {}),
@@ -257,8 +258,11 @@ export function normalizeCampaignRecords({
       claimRefs: behaviorClaimIds,
       context: claim => ({
         behavior: claim.evidenceStatus === 'Researcher inference' ? 'inferred'
+          : ['Potential consequence', 'Unclear or disputed'].includes(claim.evidenceStatus) ? 'inferred'
           : claim.evidenceStatus === 'Attempted behavior' ? 'attempted'
             : claim.evidenceStatus === 'Demonstrated capability or proof of concept' ? 'demonstrated' : 'observed',
+        ...(['Potential consequence', 'Unclear or disputed'].includes(claim.evidenceStatus)
+          ? { notes: claim.evidenceStatus } : {}),
       }),
     });
     register('behaviors', localId, {
@@ -515,7 +519,7 @@ export function normalizeCampaignRecords({
       const nodeId = path?.nodes.find(node => node.id === makeId('node', `${item.pathId}:${item.nodeId}`))?.id;
       if (!path || !nodeId) invalid('mapping path/node reference is unknown');
       const node = path.nodes.find(value => value.id === nodeId);
-      if (!node.behaviorIds.includes(behaviorId) || !supportingClaimIds.some(claimId => node.claimIds.includes(claimId))) {
+      if (!node.behaviorIds.includes(behaviorId) || !supportingClaimIds.every(claimId => node.claimIds.includes(claimId))) {
         invalid('mapping path/node does not share behavior and claim support');
       }
       mapping.pathId = pathId; mapping.nodeId = nodeId;

@@ -2,6 +2,12 @@
 
 ## 2026-10-13 — Passage-grounded campaign extraction
 
+- Local follow-up testing preserves potential/disputed behavior as inference in
+  the annotation projection, with its original classification visible in notes;
+  it no longer appears as an observed action. Node-specific mapping validation
+  now requires every supporting claim to belong to the selected node, preventing
+  unrelated same-case claims from being attached to that node's technique.
+
 - Issue #45 adds a researcher-mediated, offline
   `prepare -> Codex chat handoff -> validate -> apply -> status/export` workflow
   for existing cases under `scripts/extract.mjs campaign`. Requests freeze

@@ -1,5 +1,10 @@
 # Fresh-start corpus architecture
 
+Campaign behavior annotations retain potential-consequence and disputed claim
+classifications in context notes and project them conservatively as inference,
+not observed activity. Node-scoped campaign mappings require all supporting
+claims, as well as the behavior, to belong to the selected node.
+
 ## Optional research presentation and private annotations
 
 The researcher-authorized local presentation integration adapts the former

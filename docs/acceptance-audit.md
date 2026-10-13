@@ -13,9 +13,26 @@ Implementation and corrections remain on draft [PR #47](https://github.com/ashwi
 which closes that one issue. Exact command output, the final full commit SHA and
 safe aggregate private-evaluation results belong in revision-bound PR comments;
 hosted evidence belongs under [PR #47 checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/47/checks).
-The currently visible hosted runs require approval and report
-`action_required`; they are **not** passing evidence. No merge or publication is
-authorized, and a person must approve before merge.
+The cloud session stopped with a failure before final verification. Its initial
+run state is not passing evidence; current hosted results must be inspected for
+the latest head. Same-PR fixes are authorized, while merge and public corpus
+publication still require a person.
+
+Local follow-up reproduced and fixed behavior annotations that promoted
+potential/disputed claims to observed activity, and node-scoped mappings that
+accepted additional claims outside the node's support. Three focused synthetic
+regressions demonstrate those boundaries. Full final-revision commands, SHA and
+hosted results are recorded in the PR description rather than a self-referential
+commit assertion here.
+
+The original three retained revision hashes were verified in a protected local
+copy. Preparation covered 25 segments with no unavailable sources. A deliberately
+partial source-grounded smoke candidate exercised validation, atomic apply,
+idempotent replay, JSON/Markdown exports and browser evidence presentation:
+four exact quotations from three examined segments remained pending, case count
+and review history stayed unchanged, and all remaining segments were explicitly
+skipped. This is pipeline testing, not completed corpus extraction or human gold
+evaluation. No frozen human checklist was present; AC-10 remains unmet.
 
 The configured Codex chat handoff is the only model/provider integration.
 `GPT-6.1 Sol High` is requested advisory metadata for the implementation; the
@@ -36,10 +53,10 @@ UX, accessibility, visual and documentation judgments below remain
 | AC-07 | Candidate normalization separates article-mentioned/proposed telemetry and published references/hypotheses, disables unaudited templates, and restricts OTEL to inert allowlisted synthetic values. `tests/campaign-records.test.mjs` covers pending labels, empty template allowlist and unsafe samples | `needs-human-review` — execute checks; human gold, labeling and proposal/deployment-boundary review required |
 | AC-08 | `applyCampaign` plus review-aware `updatePrivateCorpus` publishes core records and the versioned `governance.campaignExtraction` run in one locked atomic `corpus.json`; `tests/campaign.test.mjs` covers replay, staleness, collision/tampering, lock/interrupted-file behavior, private paths and prior manual/history preservation | `needs-human-review` — final POSIX execution and review-staleness inspection required |
 | AC-09 | `campaignStatus`, `campaignAnnotations` and dependency-closing `campaignExport`; same-origin bounded server routes and workbench integration in `scripts/server.mjs`, `src/app.mjs`, `src/studio.mjs`; `tests/campaign.test.mjs`, `tests/exports.test.mjs`, server and workbench suites cover closure, escaped Markdown, route/file bounds, pending status and JSON/Markdown paths | `needs-human-review` — reported pre-final focused results are not final evidence; execute checks, then independently inspect exact passages/literals and browser behavior at 1440×900, 1024×768 and 390×844 in light/dark themes with keyboard traversal |
-| AC-10 | Protected evaluation procedure and safe reporting boundary are documented in `README.md`; private artifacts must contain three original retained revisions, a pre-evaluation baseline/hash set, frozen human gold, candidate/export checks and quote equality results | **fail** — the protected revisions and frozen gold are unavailable here, so no real extraction, coverage measurement or independent human research review occurred |
+| AC-10 | Protected evaluation procedure and safe reporting boundary are documented in `README.md`; retained revisions were hash-verified and partial pipeline smoke tested locally, preserving private baseline and pending state | **fail** — comprehensive extraction, frozen human gold measurement and independent human research review remain outstanding; partial smoke coverage is not acceptance |
 | AC-11 | Usage, architecture, this matrix and substantive `CHANGELOG.md` map the implemented boundary; existing and focused campaign suites are configured through `python scripts/verify.py` | `needs-human-review` — record exact commands/results and final full SHA only after the final commit; hosted checks are currently unapproved/`action_required`; independent documentation relevance/accuracy review required |
 
-No row is an automated `pass` yet. Fresh execution must include
+Automated command success does not close the composite human-review criteria. Fresh execution must include
 `python scripts/verify.py` and every configured application command on the final
 full SHA; a later commit invalidates that evidence. The private POSIX exercise
 must copy and protect the pre-evaluation store, retain baseline and gold hashes,
