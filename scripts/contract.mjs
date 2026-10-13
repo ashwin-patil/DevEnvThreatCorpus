@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
 import https from 'node:https';
+import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';
+import { Readable } from 'node:stream';
+import { ARTICLE_PARSER_VERSION, parseArticle, PUBLISHERS } from '../src/article.mjs';
+export { PUBLISHERS };
 
 export const schema = JSON.parse(readFileSync(new URL('../schemas/corpus.schema.json', import.meta.url), 'utf8'));
 export const CONTRACT_VERSION = '0.3.0';
@@ -735,7 +739,10 @@ export function validateCorpus(corpus) {
     if (revision.rawContent !== null && revision.normalizedContent !== null) {
       try {
         const normalized = revision.parserVersion === HTML_PARSER_VERSION
-          ? normalizeText(readableHtml(revision.rawContent)) : normalizeText(revision.rawContent);
+          ? normalizeText(readableHtml(revision.rawContent)) : revision.parserVersion === 'readable-html/3'
+            ? normalizeText(parseArticle(revision.rawContent, undefined, { replaceNulls: false }).text) : revision.parserVersion === 'readable-html/2'
+            ? normalizeText(parseArticle(revision.rawContent, undefined, { legacyRoots: true, replaceNulls: false }).text) : revision.parserVersion === 'readable-html/1'
+            ? normalizeText(legacyReadableHtml(revision.rawContent)) : normalizeText(revision.rawContent);
         if (normalized !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch');
       } catch { fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch'); }
     }
@@ -947,7 +954,7 @@ export function assertAppendOnlyReviews(previous, next) {
 
   // Manual intake deliberately shares the corpus contract rather than a second record store.
   export const INTAKE_VERSION = 'manual-intake/1';
-  export const HTML_PARSER_VERSION = 'readable-html/1';
+  export const HTML_PARSER_VERSION = ARTICLE_PARSER_VERSION;
   export const TEXT_PARSER_VERSION = 'utf8-text/1';
   export const INTAKE_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, deadlineMs: 20_000, retries: 2, redirects: 3 });
   const repoRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -1015,12 +1022,12 @@ export function assertAppendOnlyReviews(previous, next) {
     ].some(([base, bits]) => inRange(base, bits));
   }
 
-  function strictText(bytes, ascii = false) {
+  function strictText(bytes, ascii = false, allowHtmlNulls = false) {
     try {
       if (ascii && bytes.some(byte => byte > 127)) rejectIntake('UNSUPPORTED_ENCODING');
       // BOM handling is explicit: retain it in rawContent so rawHash covers every input byte.
       const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-      if (text.includes('\0') || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(text)) rejectIntake('MALFORMED_TEXT');
+      if ((!allowHtmlNulls && text.includes('\0')) || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(text)) rejectIntake('MALFORMED_TEXT');
       return text;
     } catch (error) {
       if (error instanceof IntakeError) throw error;
@@ -1044,7 +1051,7 @@ export function assertAppendOnlyReviews(previous, next) {
     });
   }
 
-  export function readableHtml(raw) {
+  function legacyReadableHtml(raw) {
     const stack = [], output = [];
     let pos = 0, hiddenDepth = 0;
     const hidden = () => hiddenDepth > 0;
@@ -1092,14 +1099,31 @@ export function assertAppendOnlyReviews(previous, next) {
     return output.join('').replace(/[ \t\r\f]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n+/g, '\n').trim();
   }
 
+  export function readableHtml(raw) {
+    return parseArticle(raw).text;
+  }
+
   function mediaType(headers, htmlAllowed = true) {
     const value = headers['content-type'];
-    const match = typeof value === 'string' && /^(text\/plain|text\/html)\s*;\s*charset\s*=\s*"?([\w-]+)"?\s*$/i.exec(value);
+    const match = typeof value === 'string' && /^(text\/plain|text\/html|application\/xhtml\+xml)(?:\s*;|$)/i.exec(value);
     if (!match || (!htmlAllowed && match[1].toLowerCase() !== 'text/plain')) rejectIntake('UNSUPPORTED_TYPE');
-    const encoding = match[2].toLowerCase();
-    if (!['utf-8', 'us-ascii'].includes(encoding) || (match[1].toLowerCase() === 'text/html' && encoding !== 'utf-8')) rejectIntake('UNSUPPORTED_ENCODING');
-    if (headers['content-encoding'] && headers['content-encoding'].toLowerCase() !== 'identity') rejectIntake('UNSUPPORTED_ENCODING');
-    return { html: match[1].toLowerCase() === 'text/html', ascii: encoding === 'us-ascii' };
+    const charset = /;\s*charset\s*=\s*"?([\w-]+)"?/i.exec(value)?.[1]?.toLowerCase();
+    return { html: match[1].toLowerCase() !== 'text/plain', charset };
+  }
+
+  function decodeResponse(bytes, type) {
+    let charset = type.charset;
+    if (!charset && type.html) {
+      const prefix = bytes.subarray(0, 1024).toString('latin1');
+      charset = /<meta\b[^>]*charset\s*=\s*["']?\s*([\w-]+)/i.exec(prefix)?.[1]?.toLowerCase();
+    }
+    charset ??= 'utf-8';
+    if (['utf-8', 'utf8'].includes(charset)) return { raw: strictText(bytes, false, type.html), charset: 'utf-8' };
+    if (['us-ascii', 'ascii'].includes(charset)) return { raw: strictText(bytes, true, type.html), charset: 'us-ascii' };
+    if (!['windows-1252', 'iso-8859-1', 'latin1'].includes(charset)) rejectIntake('UNSUPPORTED_ENCODING');
+    const raw = new TextDecoder('windows-1252', { fatal: true }).decode(bytes);
+    if (!type.html && raw.includes('\0')) rejectIntake('MALFORMED_TEXT');
+    return { raw, charset: 'windows-1252' };
   }
 
   function budget(deps) {
@@ -1133,7 +1157,7 @@ export function assertAppendOnlyReviews(previous, next) {
     return new Promise((resolve, reject) => {
       const hostname = new URL(url).hostname.replace(/^\[|\]$/g, '');
       const request = https.get(url, {
-        agent: false, signal, headers: { 'User-Agent': 'DevEnvThreatCorpusIntake/1', Accept: 'text/plain, text/html', 'Accept-Encoding': 'identity' },
+        agent: false, signal, headers: { 'User-Agent': 'DevEnvThreatCorpusIntake/1', Accept: 'text/plain, text/html, image/*', 'Accept-Encoding': 'gzip, deflate, br' },
         lookup: (_host, options, callback) => options.all
           ? callback(null, [{ address, family }]) : callback(null, address, family),
         servername: isIP(hostname) ? undefined : hostname,
@@ -1172,11 +1196,11 @@ export function assertAppendOnlyReviews(previous, next) {
     return response;
   }
 
-  async function responseBytes(response, time) {
+  async function responseBytes(response, time, limit = INTAKE_LIMITS.bytes, onBytes = () => {}) {
     if (response.headers['content-length'] !== undefined) {
       const length = String(response.headers['content-length']);
       if (!/^\d+$/.test(length)) rejectIntake('HTTP_STATUS');
-      if (Number(length) > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+      if (Number(length) > limit) rejectIntake('TOO_LARGE');
     }
     const chunks = [];
     let size = 0;
@@ -1187,11 +1211,34 @@ export function assertAppendOnlyReviews(previous, next) {
       if (next.done) break;
       if (!(next.value instanceof Uint8Array)) rejectIntake('NETWORK');
       size += next.value.byteLength;
-      if (size > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+      onBytes(next.value.byteLength);
+      if (size > limit) rejectIntake('TOO_LARGE');
       chunks.push(Buffer.from(next.value));
     }
     if (response.headers['content-length'] !== undefined && Number(response.headers['content-length']) !== size) rejectIntake('HTTP_STATUS');
-    return Buffer.concat(chunks, size);
+    const compressed = Buffer.concat(chunks, size);
+    const encoding = String(response.headers['content-encoding'] ?? 'identity').toLowerCase().trim();
+    if (encoding === 'identity') return compressed;
+    const factory = { gzip: createGunzip, deflate: createInflate, br: createBrotliDecompress }[encoding];
+    if (!factory) rejectIntake('UNSUPPORTED_ENCODING');
+    const decoder = factory(), input = Readable.from([compressed]);
+    input.pipe(decoder);
+    const decoded = [];
+    let decodedSize = 0, charged = size;
+    try {
+      const output = decoder[Symbol.asyncIterator]();
+      while (true) {
+        const next = await time.run(() => output.next());
+        if (next.done) break;
+        decodedSize += next.value.length;
+        if (decodedSize > charged) { onBytes(decodedSize - charged); charged = decodedSize; }
+        if (decodedSize > limit) rejectIntake('TOO_LARGE');
+        decoded.push(next.value);
+      }
+      return Buffer.concat(decoded, decodedSize);
+    } catch (error) {
+      throw error instanceof IntakeError ? error : new IntakeError('UNSUPPORTED_ENCODING');
+    } finally { input.destroy(); decoder.destroy(); }
   }
 
   async function fetchBounded(initial, deps, time, state, robots = false) {
@@ -1213,7 +1260,7 @@ export function assertAppendOnlyReviews(previous, next) {
         if (response.status >= 500 || response.status === 429) rejectIntake('NETWORK');
         if (response.status !== 200) rejectIntake('HTTP_STATUS');
         const type = mediaType(response.headers, !robots);
-        const raw = strictText(await responseBytes(response, time), type.ascii);
+        const { raw } = decodeResponse(await responseBytes(response, time), type);
         return { raw, type, final: url };
       } finally { response.close?.(); }
     }
@@ -1226,32 +1273,61 @@ export function assertAppendOnlyReviews(previous, next) {
       const clean = line.replace(/#.*$/, '').trim();
       if (!clean) continue;
       const match = /^([a-z-]+)\s*:\s*(.*)$/i.exec(clean);
-      if (!match) rejectIntake('ROBOTS_UNSUPPORTED');
+      if (!match) continue;
       const [, directive, value] = match, key = directive.toLowerCase();
       if (key === 'user-agent') {
         if (!value || !/^(?:\*|[a-z0-9_-]+(?:\/[a-z0-9_.-]+)?)$/i.test(value)) rejectIntake('ROBOTS_UNSUPPORTED');
         if (!group || rulesStarted) { group = { agents: [], rules: [] }; groups.push(group); rulesStarted = false; }
         group.agents.push(value.toLowerCase());
       } else if (['allow', 'disallow'].includes(key)) {
-        if (!group || (value && (!value.startsWith('/') || /[*$%\\\u0080-\uffff]/u.test(value)))) rejectIntake('ROBOTS_UNSUPPORTED');
+        if (!group || (value && !value.startsWith('/'))) rejectIntake('ROBOTS_UNSUPPORTED');
         rulesStarted = true;
         if (value) group.rules.push({ allow: key === 'allow', value });
-      } else if (!['sitemap', 'host', 'content-signal', 'clean-param'].includes(key)) rejectIntake('ROBOTS_UNSUPPORTED');
+      }
     }
-    // Apply both wildcard and named groups: a specific rule cannot override a broader denial.
-    const applicable = groups.filter(g => g.agents.some(a => a === '*' || 'devenvthreatcorpusintake/1'.startsWith(a)));
+    const named = groups.filter(g => g.agents.some(a => a !== '*' && 'devenvthreatcorpusintake/1'.startsWith(a)));
+    const specificity = named.length ? Math.max(...named.flatMap(g => g.agents.filter(a => a !== '*' && 'devenvthreatcorpusintake/1'.startsWith(a)).map(a => a.length))) : 0;
+    const applicable = specificity ? named.filter(g => g.agents.some(a => a.length === specificity && 'devenvthreatcorpusintake/1'.startsWith(a)))
+      : groups.filter(g => g.agents.includes('*'));
     const destination = new URL(target);
-    const pathname = destination.pathname + destination.search;
-    if (pathname.includes('%')) rejectIntake('ROBOTS_UNSUPPORTED');
-    return applicable.every(g => {
-      const rules = g.rules.filter(r => pathname.startsWith(r.value)).sort((a, b) => b.value.length - a.value.length || Number(a.allow) - Number(b.allow));
-      return !rules.length || rules[0].allow;
-    });
+    const normalized = value => value.replace(/[^\x00-\x7f]/gu, char => encodeURIComponent(char))
+      .replace(/%[a-f0-9]{2}/gi, octet => /^[a-z0-9._~-]$/i.test(String.fromCharCode(parseInt(octet.slice(1), 16)))
+        ? String.fromCharCode(parseInt(octet.slice(1), 16)) : octet.toUpperCase());
+    const pathname = normalized(destination.pathname + destination.search);
+    const rules = applicable.flatMap(g => g.rules).map(rule => {
+      const value = normalized(rule.value);
+      const anchor = value.endsWith('$');
+      const parts = (anchor ? value.slice(0, -1) : value).split('*');
+      let matches = pathname.startsWith(parts[0]), cursor = parts[0].length;
+      for (let index = 1; matches && index < parts.length - 1; index++) {
+        const offset = pathname.indexOf(parts[index], cursor);
+        matches = offset !== -1;
+        cursor = offset + parts[index].length;
+      }
+      if (parts.length === 1) matches &&= !anchor || pathname.length === cursor;
+      else if (matches) {
+        const tail = parts.at(-1);
+        matches = anchor ? pathname.endsWith(tail) && pathname.length - tail.length >= cursor : pathname.indexOf(tail, cursor) !== -1;
+      }
+      return { ...rule, length: value.replace(/[*$]/g, '').replace(/%[0-9A-F]{2}/g, 'x').length, matches };
+    }).filter(rule => rule.matches).sort((a, b) => b.length - a.length || Number(b.allow) - Number(a.allow));
+    return !rules.length || rules[0].allow;
   }
 
-  async function retrieve(url, deps, state) {
+  export const IMAGE_LIMITS = Object.freeze({ images: 20, bytes: 5 * 1024 * 1024, totalBytes: 50 * 1024 * 1024 });
+  function imageLimits(deps) {
+    const supplied = deps.imageLimits ?? {};
+    if (!supplied || typeof supplied !== 'object' || Array.isArray(supplied) || Object.keys(supplied).some(key => !Object.hasOwn(IMAGE_LIMITS, key))) rejectIntake('INVALID_INPUT');
+    const limits = { ...IMAGE_LIMITS, ...supplied };
+    if (Object.keys(limits).some(key => !Number.isSafeInteger(limits[key]) || limits[key] < 0 || limits[key] > IMAGE_LIMITS[key])) rejectIntake('INVALID_INPUT');
+    return limits;
+  }
+  const imageExtensions = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/avif': 'avif', 'image/bmp': 'bmp', 'image/x-icon': 'ico', 'image/vnd.microsoft.icon': 'ico' };
+
+  async function retrieve(url, deps, state, archive = false) {
     const time = budget(deps);
     const policies = new Map();
+    const limits = imageLimits(deps);
     const policy = async target => {
       const origin = new URL(target).origin;
       if (!policies.has(origin)) {
@@ -1280,10 +1356,60 @@ export function assertAppendOnlyReviews(previous, next) {
               if (response.status >= 500 || response.status === 429) rejectIntake('NETWORK');
               if (response.status !== 200) rejectIntake('HTTP_STATUS');
               const type = mediaType(response.headers);
-              const raw = strictText(await responseBytes(response, time), type.ascii);
-              const normalized = normalizeText(type.html ? readableHtml(raw) : raw);
+              const bytes = await responseBytes(response, time);
+              const { raw, charset } = decodeResponse(bytes, type);
+              const article = type.html ? parseArticle(raw, target) : { text: raw, metadata: {}, images: [] };
+              const normalized = normalizeText(article.text);
               time.remaining();
-              return { raw, normalized, parserVersion: type.html ? HTML_PARSER_VERSION : TEXT_PARSER_VERSION };
+              const content = { raw, normalized, bytes, charset, html: type.html, finalUrl: target,
+                metadata: article.metadata, assets: [], imageBytes: new Map(),
+                parserVersion: type.html ? HTML_PARSER_VERSION : TEXT_PARSER_VERSION };
+              if (archive) {
+                let total = 0, attempted = 0;
+                const seen = new Set();
+                for (const originalUrl of article.images) {
+                  const asset = { originalUrl, url: null, finalUrl: null, localPath: null, hash: null, status: 'failed', reason: null };
+                  content.assets.push(asset);
+                  try {
+                    asset.url = new URL(originalUrl, target).href;
+                    let imageUrl = intakeUrl(asset.url);
+                    if (seen.has(imageUrl)) { asset.status = 'skipped'; asset.reason = 'DUPLICATE'; continue; }
+                    seen.add(imageUrl);
+                    if (attempted >= limits.images) { asset.status = 'skipped'; asset.reason = 'IMAGE_COUNT_LIMIT'; continue; }
+                    if (total >= limits.totalBytes || !limits.bytes) { asset.status = 'skipped'; asset.reason = 'IMAGE_TOTAL_LIMIT'; continue; }
+                    attempted++;
+                    for (let redirects = 0; ; redirects++) {
+                      await policy(imageUrl);
+                      const image = await checkedRequest(imageUrl, deps, time);
+                      try {
+                        if ([301, 302, 303, 307, 308].includes(image.status)) {
+                          if (redirects >= INTAKE_LIMITS.redirects) rejectIntake('REDIRECT_LIMIT');
+                          if (typeof image.headers.location !== 'string' || !image.headers.location) rejectIntake('HTTP_STATUS');
+                          imageUrl = intakeUrl(new URL(image.headers.location, imageUrl).href);
+                          continue;
+                        }
+                        if ([401, 403, 451].includes(image.status)) rejectIntake('ACCESS_DENIED');
+                        if (image.status !== 200) rejectIntake('HTTP_STATUS');
+                        const mime = String(image.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+                        const extension = imageExtensions[mime];
+                        if (!extension) rejectIntake('UNSUPPORTED_TYPE');
+                        const data = await responseBytes(image, time, Math.min(limits.bytes, limits.totalBytes - total), count => { total += count; });
+                        asset.finalUrl = imageUrl;
+                        asset.hash = sha256(data);
+                        asset.localPath = `images/${asset.hash}.${extension}`;
+                        asset.status = 'collected';
+                        asset.contentType = mime;
+                        asset.bytes = data.length;
+                        content.imageBytes.set(asset.localPath, data);
+                        break;
+                      } finally { image.close?.(); }
+                    }
+                  } catch (error) {
+                    asset.reason = safeCodes.has(error?.code) ? error.code : 'UNSAFE_URL';
+                  }
+                }
+              }
+              return content;
             } finally { response.close?.(); }
           }
         } catch (error) {
@@ -1309,7 +1435,7 @@ export function assertAppendOnlyReviews(previous, next) {
     }
   }
 
-  async function readPrivate(file, { corpus = false, privateOnly = false } = {}) {
+  async function readPrivate(file, { corpus = false, privateOnly = false, maxBytes = INTAKE_LIMITS.bytes } = {}) {
     try {
       await safeComponents(file);
       const before = await fs.lstat(file);
@@ -1318,12 +1444,12 @@ export function assertAppendOnlyReviews(previous, next) {
       try {
         const stat = await handle.stat();
         if (!stat.isFile() || stat.nlink !== 1 || ((corpus || privateOnly) && (stat.mode & 0o077))) rejectIntake('UNSAFE_PATH');
-        if (!corpus && stat.size > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+        if (!corpus && stat.size > maxBytes) rejectIntake('TOO_LARGE');
         const chunks = [];
         let size = 0;
         for await (const chunk of handle.createReadStream({ autoClose: false })) {
           size += chunk.length;
-          if (!corpus && size > INTAKE_LIMITS.bytes) rejectIntake('TOO_LARGE');
+          if (!corpus && size > maxBytes) rejectIntake('TOO_LARGE');
           chunks.push(chunk);
         }
         return Buffer.concat(chunks, size);
@@ -1463,6 +1589,91 @@ export function assertAppendOnlyReviews(previous, next) {
   }
 
   const unknownDate = () => ({ precision: 'unknown', value: null, start: null, end: null, nullReasons: { value: 'not_reported', start: 'not_applicable', end: 'not_applicable' } });
+  const archiveArtifacts = new Set(['original.html', 'article.txt', 'metadata.json', 'assets.json']);
+  const archiveByteLimit = artifact => artifact === 'assets.json' ? 50 * 1024 * 1024
+    : artifact === 'original.html' ? INTAKE_LIMITS.bytes : 3 * INTAKE_LIMITS.bytes;
+  function archivePath({ store, sourceId, revisionId }) {
+    absoluteSafe(store);
+    const relative = path.relative(repoRoot, store);
+    if (relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative)
+      && relative !== '.private-intake' && !relative.startsWith(`.private-intake${path.sep}`))) rejectIntake('UNSAFE_PATH');
+    if (![sourceId, revisionId].every(id => typeof id === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,160}$/.test(id))) rejectIntake('INVALID_INPUT');
+    return path.join(store, 'articles', sourceId, revisionId);
+  }
+  async function privateDirectory(directory, create = false) {
+    if (create) {
+      try { await fs.mkdir(directory, { mode: 0o700 }); }
+      catch (error) { if (error.code !== 'EEXIST') throw error; }
+    }
+    await safeComponents(directory);
+    const stat = await fs.lstat(directory);
+    if (!stat.isDirectory() || (stat.mode & 0o077)) rejectIntake('UNSAFE_PATH');
+  }
+  export async function readArchiveArtifact(input) {
+    if (!input || !archiveArtifacts.has(input.artifact)) rejectIntake('INVALID_INPUT');
+    const directory = archivePath(input);
+    for (const dir of [input.store, path.join(input.store, 'articles'), path.dirname(directory), directory]) await privateDirectory(dir);
+    return readPrivate(path.join(directory, input.artifact), { privateOnly: true, maxBytes: archiveByteLimit(input.artifact) });
+  }
+  function metadataDate(value) {
+    if (typeof value !== 'string') return unknownDate();
+    const match = /^(\d{4}(?:-\d{2}(?:-\d{2})?)?)(?:T.*)?$/.exec(value);
+    if (!match || !realDate(match[1])) return unknownDate();
+    return { precision: { 4: 'year', 7: 'month', 10: 'day' }[match[1].length], value: match[1], start: null, end: null, nullReasons: { start: 'not_applicable', end: 'not_applicable' } };
+  }
+  async function archiveArticle(store, input, source, revision, content, retrievedAt) {
+    const directory = archivePath({ store: input.store, sourceId: source.id, revisionId: revision.id });
+    const warnings = content.assets.filter(asset => asset.status !== 'collected' && asset.reason !== 'DUPLICATE')
+      .map(asset => ({ url: asset.url ?? asset.originalUrl, code: asset.reason }));
+    await store.verifyDirectory();
+    await privateDirectory(path.join(input.store, 'articles'), true);
+    await privateDirectory(path.dirname(directory), true);
+    try {
+      await fs.lstat(directory);
+      const metadata = JSON.parse((await readArchiveArtifact({ store: input.store, sourceId: source.id, revisionId: revision.id, artifact: 'metadata.json' })).toString('utf8'));
+      if (metadata.sourceId !== source.id || metadata.revisionId !== revision.id || metadata.rawHash !== revision.rawHash || metadata.normalizedHash !== revision.normalizedHash) rejectIntake('IDENTITY_COLLISION');
+      const original = await readArchiveArtifact({ store: input.store, sourceId: source.id, revisionId: revision.id, artifact: 'original.html' });
+      const article = await readArchiveArtifact({ store: input.store, sourceId: source.id, revisionId: revision.id, artifact: 'article.txt' });
+      if (sha256(original) !== metadata.originalBytesHash || sha256(article) !== revision.normalizedHash) rejectIntake('IDENTITY_COLLISION');
+      const assets = JSON.parse((await readArchiveArtifact({ store: input.store, sourceId: source.id, revisionId: revision.id, artifact: 'assets.json' })).toString('utf8'));
+      if (!Array.isArray(assets.assets) || !Array.isArray(assets.warnings)) rejectIntake('PERSISTENCE');
+      return { alreadyPresent: true, warnings: assets.warnings };
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    const staging = path.join(path.dirname(directory), `.archive-${randomUUID()}.pending`);
+    const paths = Object.fromEntries([...archiveArtifacts].map(artifact => [artifact, `articles/${source.id}/${revision.id}/${artifact}`]));
+    const metadata = {
+      schemaVersion: 'article-archive/1', sourceId: source.id, revisionId: revision.id,
+      originalUrl: input.url, finalUrl: content.finalUrl, canonicalUrl: source.canonicalUrl,
+      title: content.metadata.title ?? source.title, publisher: content.metadata.publisher ?? source.publisher, pagePublisher: content.metadata.pagePublisher ?? null,
+      author: content.metadata.author ?? source.author, publicationDate: content.metadata.publicationDate ?? null,
+      updateDate: content.metadata.updateDate ?? null, retrievedAt,
+      rawHash: revision.rawHash, normalizedHash: revision.normalizedHash, originalBytesHash: sha256(content.bytes),
+      parserVersion: content.parserVersion, normalizationVersion: NORMALIZATION_VERSION,
+      charset: content.charset, contentType: content.html ? 'text/html' : 'text/plain',
+      paths, imageLimits: imageLimits(input.archiveDeps ?? {}),
+      limitations: ['Untrusted response HTML is download-only; no browser execution or access-control bypass.', 'Static HTML and article images only; no JavaScript rendering or recursive asset crawling.'],
+    };
+    try {
+      await fs.mkdir(staging, { mode: 0o700 });
+      await fs.mkdir(path.join(staging, 'images'), { mode: 0o700 });
+      const files = new Map([
+        ['original.html', content.bytes], ['article.txt', Buffer.from(content.normalized)],
+        ['metadata.json', Buffer.from(canonicalSerialize(metadata))],
+        ['assets.json', Buffer.from(canonicalSerialize({ schemaVersion: 'article-assets/1', assets: content.assets, warnings }))],
+        ...content.imageBytes,
+      ]);
+      for (const [file, bytes] of files) {
+        if (archiveArtifacts.has(file) && bytes.length > archiveByteLimit(file)) rejectIntake('TOO_LARGE');
+        await fs.writeFile(path.join(staging, file), bytes, { flag: 'wx', mode: 0o600 });
+      }
+      await store.verifyDirectory();
+      await privateDirectory(path.dirname(directory));
+      try { await fs.lstat(directory); rejectIntake('PERSISTENCE'); }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
+      await fs.rename(staging, directory);
+      return { alreadyPresent: false, warnings };
+    } finally { await fs.rm(staging, { recursive: true, force: true }).catch(() => {}); }
+  }
   function provenance(kind, supplier) {
     return { kind: kind === 'url' ? 'supplied-url' : 'supplied-text', suppliedBy: supplier, description: 'Operator supplied input; intake only, no extraction or research approval.', nullReasons: {} };
   }
@@ -1491,7 +1702,7 @@ export function assertAppendOnlyReviews(previous, next) {
           canonical = intakeUrl(original);
           inputHash = sha256(canonical);
         }
-        if (input.kind === 'url') content = await retrieve(canonical, deps, state);
+        if (input.kind === 'url') content = await retrieve(canonical, deps, state, Boolean(input.archive));
         else {
           let bytes;
           if (input.kind === 'text') {
@@ -1522,7 +1733,7 @@ export function assertAppendOnlyReviews(previous, next) {
           corpus.sources.push(source);
         }
       }
-      let revision;
+      let revision, archiveResult;
       if (!failure) {
         const candidate = {
           id: stableId('source-revision', canonicalSerialize({ sourceId: source.id, rawHash: sha256(content.raw), normalizedHash: sha256(content.normalized), normalizationVersion: NORMALIZATION_VERSION, parserVersion: content.parserVersion })),
@@ -1532,8 +1743,20 @@ export function assertAppendOnlyReviews(previous, next) {
         };
         revision = corpus.sourceRevisions.find(item => item.id === candidate.id);
         if (revision && ['sourceId', 'rawHash', 'normalizedHash', 'normalizationVersion', 'parserVersion', 'rawContent', 'normalizedContent'].some(key => revision[key] !== candidate[key])) rejectIntake('IDENTITY_COLLISION');
-        if (!revision) { revision = candidate; corpus.sourceRevisions.push(revision); source.revisionIds.push(revision.id); }
-        if (input.kind === 'url' && source.retrievalDate.precision === 'unknown') source.retrievalDate = {
+        try {
+          if (input.archive) archiveResult = await archiveArticle(store, { ...input, archiveDeps: deps }, source, revision ?? candidate, content, eventTime);
+        } catch (error) { failure = safeCode(error); }
+        if (!failure && !revision) { revision = candidate; corpus.sourceRevisions.push(revision); source.revisionIds.push(revision.id); }
+        if (failure) revision = undefined;
+        if (!failure && input.kind === 'url') {
+          for (const key of ['title', 'publisher', 'author']) {
+            if (content.metadata[key] && source[key] === null) { source[key] = content.metadata[key]; delete source.nullReasons[key]; }
+          }
+          for (const key of ['publicationDate', 'updateDate']) {
+            if (source[key].precision === 'unknown') source[key] = metadataDate(content.metadata[key]);
+          }
+        }
+        if (!failure && input.kind === 'url' && source.retrievalDate.precision === 'unknown') source.retrievalDate = {
           precision: 'day', value: eventTime.slice(0, 10), start: null, end: null, nullReasons: { start: 'not_applicable', end: 'not_applicable' },
         };
       }
@@ -1558,10 +1781,76 @@ export function assertAppendOnlyReviews(previous, next) {
         };
         corpus.collectionManifests.push(manifest);
       }
+      if (store.baseline !== digest(corpus)) corpus = reviewEligibleCorpus(corpus);
       await persist(store, corpus);
-      return { status: failure ? 'failed' : 'succeeded', code: failure ?? 'OK', ...(source ? { sourceId: source.id } : {}), ...(revision ? { revisionId: revision.id } : {}), manifestId: manifest.id };
+      return { status: failure ? 'failed' : 'succeeded', code: failure ?? 'OK', ...(source ? { sourceId: source.id } : {}), ...(revision ? { revisionId: revision.id } : {}), manifestId: manifest.id,
+        ...(archiveResult ? archiveResult : {}) };
     } catch (error) { return { status: 'failed', code: safeCode(error) }; }
     finally { await store?.close().catch(() => {}); }
+  }
+
+  export const BATCH_LIMIT = 20;
+  export async function collectBatch(input, deps = {}) {
+    let caseId = input?.caseId ?? null;
+    try {
+      if (!input || !Array.isArray(input.urls) || !input.urls.length || input.urls.length > BATCH_LIMIT
+        || input.urls.some(url => typeof url !== 'string' || url.length > 8192)
+        || typeof input.operator !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(input.operator)
+        || Boolean(input.caseId) === Boolean(input.caseName)
+        || (input.caseId && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,160}$/.test(input.caseId))
+        || (input.caseName && (typeof input.caseName !== 'string' || !input.caseName.trim() || input.caseName.length > 200 || /[\u0000-\u001f]/u.test(input.caseName)))) rejectIntake('INVALID_INPUT');
+      imageLimits(deps);
+      const store = await openStore(input.store);
+      try {
+        if (input.caseId) {
+          const corpus = await validatePrivateCorpus(store.file, { reviewAware: true });
+          if (!corpus.cases.some(record => record.id === input.caseId)) rejectIntake('NOT_FOUND');
+        }
+      } finally { await store.close(); }
+      caseId ??= stableId('case', `explicit-campaign/1\n${randomUUID()}`);
+      const results = [], seen = new Map();
+      let linked = false;
+      for (const url of input.urls) {
+        if (seen.has(url)) {
+          const prior = seen.get(url);
+          results.push({ ...prior, status: prior.status === 'failed' ? 'failed' : prior.warnings.length ? 'collected with image warnings' : 'already present' });
+          continue;
+        }
+        const collected = await intakeSource({ kind: 'url', url, suppliedBy: input.operator, store: input.store, archive: true }, deps);
+        const result = { url, status: 'failed', code: collected.code, sourceId: collected.sourceId ?? null, revisionId: collected.revisionId ?? null, warnings: collected.warnings ?? [] };
+        if (collected.status === 'succeeded') {
+          const association = await updatePrivateCorpus(input.store, corpus => {
+            let campaign = corpus.cases.find(record => record.id === caseId);
+            if (!campaign) {
+              if (input.caseId) rejectIntake('NOT_FOUND');
+              campaign = {
+                id: caseId, name: input.caseName.trim(), aliases: [], kind: 'Campaign', summary: null,
+                summaryClaimIds: [], sourceIds: [collected.sourceId], collectionState: 'Collected', disposition: 'Pending',
+                limits: 'Explicit operator grouping only; collection does not establish campaign attribution or approve claims.',
+                origin: 'Human authored', revision: 'r1', history: [], nullReasons: { summary: 'not_reported' },
+              };
+              corpus.cases.push(campaign);
+            } else if (!campaign.sourceIds.includes(collected.sourceId)) {
+              campaign.sourceIds.push(collected.sourceId);
+              campaign.revision = stableId('case-revision', canonicalSerialize({ caseId, sourceIds: campaign.sourceIds.slice().sort(), previous: campaign.revision }));
+              campaign.disposition = 'Pending';
+              campaign.collectionState = 'Extracted — review pending';
+            }
+            Object.assign(corpus, reviewEligibleCorpus(corpus));
+            return { caseId };
+          }, { reviewAware: true });
+          if (association.status === 'succeeded') {
+            linked = true;
+            result.status = result.warnings.length ? 'collected with image warnings' : collected.alreadyPresent ? 'already present' : 'collected';
+            result.code = result.warnings.length ? 'IMAGE_WARNINGS' : 'OK';
+          } else result.code = association.code;
+        }
+        seen.set(url, result);
+        results.push(result);
+      }
+      const successes = results.filter(result => result.status !== 'failed').length;
+      return { status: successes === results.length ? 'succeeded' : successes ? 'partial' : 'failed', caseId: input.caseId || linked ? caseId : null, results };
+    } catch (error) { return { status: 'failed', caseId: input?.caseId ?? null, code: safeCode(error), results: [] }; }
   }
 
   async function intakeCli(args) {
@@ -1584,6 +1873,15 @@ export function assertAppendOnlyReviews(previous, next) {
       }
       if (command === 'intake') {
         const rest = args.slice(2);
+        if (kind === 'batch') {
+          const options = parse(rest), allowed = new Set(['--urls-file', '--case-id', '--case-name', '--supplied-by', '--store', '--max-images', '--image-bytes', '--image-total-bytes']);
+          if (Object.keys(options).some(key => !allowed.has(key)) || !options['--urls-file'] || !options['--supplied-by'] || !options['--store']) rejectIntake('INVALID_INPUT');
+          const text = strictText(await readPrivate(options['--urls-file']));
+          const urls = text.replace(/^\ufeff/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+          const limits = Object.fromEntries([['--max-images', 'images'], ['--image-bytes', 'bytes'], ['--image-total-bytes', 'totalBytes']]
+            .filter(([option]) => options[option] !== undefined).map(([option, key]) => [key, Number(options[option])]));
+          return await collectBatch({ urls, caseId: options['--case-id'], caseName: options['--case-name'], operator: options['--supplied-by'], store: options['--store'] }, { imageLimits: limits });
+        }
         const options = parse(rest), allowed = new Set([`--${kind}`, '--supplied-by', '--store', ...(kind !== 'url' ? ['--source-url'] : [])]);
         if (!['text', 'file', 'url'].includes(kind) || Object.keys(options).some(key => !allowed.has(key))
           || !Object.hasOwn(options, `--${kind}`) || !options['--supplied-by'] || !options['--store']) rejectIntake('INVALID_INPUT');

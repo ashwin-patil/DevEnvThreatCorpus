@@ -7,23 +7,115 @@ import {
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
 } from '../src/model.mjs';
-import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison } from '../src/render.mjs';
+import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
+import { renderExploration, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
 import {
   DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
-  createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal, corpusProposal, renderStudio, downloadProposal,
+  createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal, corpusProposal, renderStudio, downloadProposal, webIntakeInput,
 } from '../src/studio.mjs';
 import { assertValid, validateShape, categories, schema, normalizeText, digest, sha256, canonicalSerialize, intakeSource, reviewBaseDigest } from '../scripts/contract.mjs';
 import { applyExtraction } from '../scripts/extract.mjs';
 import { applyReview } from '../scripts/review.mjs';
 import { emptyCorpus } from '../scripts/server.mjs';
-import { mkdtemp, rm } from 'node:fs/promises';
-import os from 'node:os';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
+const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
+
+test('research views retain optional core-only empty states and synthetic graph support without mutating evidence', async () => {
+  assertValid(researchFixture);
+  const { app, content } = await mounted(researchFixture), before = canonicalSerialize(app.getModel().corpus);
+  for (const view of ['paths', 'behaviors', 'frameworks', 'telemetry', 'otel']) {
+    app.navigate(view);
+    assert.ok(content.textContent.length);
+    assert.ok(!content.textContent.includes('Unknown target'));
+    const empty = await mounted(emptyCorpus(), `#${view}`);
+    assert.match(empty.content.textContent, /No (authored attack paths|records)/);
+  }
+  app.navigate('paths');
+  await button(content, '→').trigger('click');
+  assert.match(content.textContent, /Synthetic conditional relationship/);
+  const svg = descendants(content).find(n => n.tagName === 'SVG');
+  const box = svg.getAttribute('viewBox');
+  await button(content, 'Zoom in').trigger('click'); assert.notEqual(svg.getAttribute('viewBox'), box);
+  await button(content, 'Reset layout').trigger('click'); assert.equal(svg.getAttribute('viewBox'), box);
+  await button(content, 'Benign tool response').trigger('click'); assert.match(content.textContent, /no real incident or attack/);
+  assert.equal(canonicalSerialize(app.getModel().corpus), before);
+});
+
+test('research case filters prevent cross-case paths and mapped enrichment contamination', () => {
+  const m = createModel(researchFixture), firstCase = researchFixture.cases[0].id, otherCase = researchFixture.cases[1].id;
+  assert.equal(explorationRecords(m, 'paths', { cases: [firstCase] }).records.length, 1);
+  for (const view of ['paths', 'behaviors', 'frameworks', 'telemetry', 'otel'])
+    assert.equal(explorationRecords(m, view, { cases: [otherCase] }).records.length, 0, view);
+  assert.equal(explorationRecords(m, 'frameworks', { query: 'not an official technique' }).records.length, 1);
+  assert.equal(Object.keys(graphLayout(researchFixture.paths[0])).length, 2);
+});
+
+test('research catalog controls and talk bundles retain scoped references, telemetry and hypotheses', async () => {
+  const m = createModel(structuredClone(researchFixture));
+  m.corpus.frameworks.push({ ...m.corpus.frameworks[0], id: 'unmapped-catalog-entry', framework: 'ATT&CK' });
+  const doc = new FakeDocument(), root = renderExploration(doc, m, 'frameworks', {}, () => {});
+  const controls = descendants(root).filter(n => n.tagName === 'SELECT');
+  const cards = descendants(root).filter(n => n.className === 'panel research-card');
+  controls[0].value = 'ATT&CK'; await controls[0].trigger('change');
+  assert.equal(cards[0].hidden, true); assert.equal(cards[1].hidden, false);
+  controls[1].value = 'Mapped to selected cases'; await controls[1].trigger('change'); assert.equal(cards[1].hidden, true);
+  const bundle = talkBundle(m, researchFixture.cases[0].id);
+  for (const key of ['paths', 'mappings', 'behaviors', 'frameworks', 'telemetry', 'detections', 'otel']) assert.equal(bundle[key].length, 1, key);
+  assert.match(talkMarkdown(bundle), /Candidate framework mappings/);
+  assert.match(talkMarkdown(bundle), /Untested hypothesis/);
+});
+
+test('pending TTP, data-source and detection annotations are visible without fabricated core enrichment', () => {
+  const m = model(), c = m.corpus.cases[0], r = m.corpus.sourceRevisions[0];
+  m.annotations = ['ttp-references', 'data-sources', 'detection-references'].map((type, index) => ({
+    id: `annotation-${index}`, caseId: c.id, sourceId: r.sourceId, sourceRevisionId: r.id, type,
+    value: `Pending reference ${index}`, origin: 'manual', evidenceStatus: 'inference', status: 'pending',
+  }));
+  assert.match(renderExploration(new FakeDocument(), m, 'frameworks', {}, () => {}).textContent, /Pending reference 0/);
+  const telemetry = renderExploration(new FakeDocument(), m, 'telemetry', {}, () => {});
+  assert.match(telemetry.textContent, /Pending reference 1/); assert.match(telemetry.textContent, /Pending reference 2/);
+  assert.ok(!m.corpus.mappings && !m.corpus.telemetry, 'display does not promote annotations into core records');
+});
+
+test('campaign enrichment preserves exact evidence, overlapping contexts and safe draft talk exports', async () => {
+  const m = model(), record = m.corpus.cases[0], revision = m.corpus.sourceRevisions[0], before = canonicalSerialize(m.corpus);
+  const quote = [...revision.normalizedContent].slice(0, 5).join('');
+  m.annotations = [{ id: 'test-pending', caseId: record.id, sourceId: revision.sourceId, sourceRevisionId: revision.id,
+    type: 'commands-ai-artifacts', value: '<script>untrusted</script> --flag', context: { artifactKind: 'command' },
+    origin: 'manual', evidenceStatus: 'evidence-backed', status: 'pending', support: { locator: { start: 0, end: 5 } },
+    externalReferenceUrl: 'javascript:untrusted()' }];
+  const calls = [], doc = new FakeDocument(), panel = renderEvidencePanel(doc, m, record, (...args) => calls.push(args));
+  assert.match(panel.textContent, /pending/); assert.ok(panel.textContent.includes(quote));
+  assert.equal(descendants(panel).filter(n => n.tagName === 'SCRIPT').length, 0);
+  assert.equal(descendants(panel).filter(n => n.tagName === 'A' && n.href?.startsWith('javascript:')).length, 0);
+  await button(panel, 'Source:').trigger('click'); assert.deepEqual(calls[0], ['sources', revision.sourceId, revision.id]);
+  const bundle = talkBundle(m, record.id);
+  assert.equal(bundle.annotations.length, 1); assert.equal(bundle.private, true);
+  assert.equal(bundle.citations.length, caseSourceIds(m, record.id).length);
+  assert.ok(bundle.claims.every(c => c.caseId === record.id));
+  assert.ok(!Object.hasOwn(bundle, 'sourceRevisions'), 'talk bundle does not silently include full article archives');
+  assert.match(talkMarkdown(bundle), /\\<script\\>/);
+  assert.equal(canonicalSerialize(m.corpus), before);
+});
+
+test('private annotation reads fail visibly while preserving the loaded corpus and read-only demos', async () => {
+  const requests = [];
+  const loaded = await fetchCorpus(async endpoint => {
+    requests.push(endpoint); return endpoint === '/api/enrichment' ? response(null, 500) : response(fresh(), 200, true);
+  }, '/api/corpus');
+  assert.deepEqual(requests, ['/api/corpus', '/api/enrichment']);
+  assert.equal(loaded.corpus.claims.length, fixture.claims.length); assert.deepEqual(loaded.annotations, []);
+  assert.match(loaded.annotationError, /could not be loaded/);
+  const demoRequests = [];
+  await fetchCorpus(async endpoint => { demoRequests.push(endpoint); return response(researchFixture); }, '/api/demo-research');
+  assert.deepEqual(demoRequests, ['/api/demo-research']);
+});
 
 test('Issue #25 AC-01 all category dimensions support OR / AND within and AND across facets', () => {
   for (const dimension of Object.keys(COMPARISON_DIMENSIONS)) {
@@ -247,8 +339,9 @@ function fakeWindow(hash = '') {
   };
   return win;
 }
-function response(corpus = fresh(), status = 200) {
-  return { ok: status === 200, status, async json() { return corpus; } };
+function response(corpus = fresh(), status = 200, collectionEnabled = false) {
+  return { ok: status === 200, status, headers: { get: key => key === 'x-collection-enabled' && collectionEnabled ? 'true' : null },
+    async json() { return corpus; } };
 }
 async function mounted(corpus = fresh(), hash = '') {
   const doc = new FakeDocument(), win = fakeWindow(hash), requests = [];
@@ -530,7 +623,8 @@ test('all core views and curator studio render with visible active navigation', 
     assert.ok(content.textContent.length > 100);
   }
   assert.equal(doc.getElementById('toolbar').hidden, true);
-  assert.match(content.textContent, /There is no live source fetching, server write, automatic acceptance/);
+  assert.match(content.textContent, /new campaigns remain Pending, never accepted/);
+  assert.match(content.textContent, /--corpus and no-store modes remain read-only/);
 });
 test('deep-link claim reload resolves its older snapshot, not the newest revision', async () => {
   const corpus = fresh();
@@ -772,7 +866,9 @@ test('Issue #31 AC-02 pasted fixture generates a standalone schema-valid private
   assert.equal(proposal.sources[0].publicationDate.precision, 'unknown');
   assert.throws(() => extractionProposal(state), /New intake\/cases/);
   assert.equal(canonicalSerialize(state.base), before);
-  const store = await mkdtemp(path.join(os.tmpdir(), 'studio-intake-'));
+  const root = new URL('../.private-intake/', import.meta.url);
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  const store = await mkdtemp(path.join(root.pathname, 'studio-intake-'));
   t.after(() => rm(store, { recursive: true, force: true }));
   const result = await intakeSource({ kind: 'text', text: input.text, sourceUrl: input.url, suppliedBy: input.suppliedBy, store });
   assert.equal(result.status, 'succeeded');
@@ -914,4 +1010,175 @@ test('official wide wordmark has its native aspect ratio, accessible brand name 
   const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /\.brand img\{[^}]*width:100%;height:auto/);
   assert.match(css, /\.brand\{[^}]*width:300px/);
+});
+
+test('Issue #39 AC-01 web batch controls validate explicit HTTPS inputs, campaign choice, operator and maximum 20', () => {
+  const valid = { urls: 'https://socket.dev/a\nhttps://redcanary.com/b\nhttps://socket.dev/a\n',
+    operator: 'operator', caseName: 'Pending campaign', caseId: '' };
+  assert.deepEqual(webIntakeInput(valid), { urls: ['https://socket.dev/a', 'https://redcanary.com/b'], operator: 'operator', caseName: 'Pending campaign' });
+  assert.deepEqual(webIntakeInput({ ...valid, caseId: 'existing', caseName: '' }).caseId, 'existing');
+  for (const change of [{ urls: '' }, { urls: Array(21).fill('https://socket.dev/a').join('\n') },
+    { urls: 'javascript:alert(1)' }, { urls: 'https://operator@socket.dev/a' },
+    { urls: 'not-a-url' }, { operator: '' }, { operator: 'bad operator' }, { caseName: '' }, { caseId: 'existing' },
+    { caseName: 'a'.repeat(201) }, { caseName: 'control\ncharacter' }]) {
+    assert.throws(() => webIntakeInput({ ...valid, ...change }));
+  }
+});
+
+test('Issue #39 AC-01/02/05 studio fetch shows waiting and partial outcomes, refreshes links, preserves drafts, retries only selected failed input', async () => {
+  const doc = new FakeDocument(), win = fakeWindow('#studio'), calls = [];
+  let corpus = fresh(), release, entered;
+  const pending = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  const outcomes = { caseId: 'synthetic-case-a', results: [
+    { url: 'https://socket.dev/a', status: 'collected', code: 'OK', sourceId: 'synthetic-source-a', revisionId: 'synthetic-revision-a', warnings: [] },
+    { url: 'https://redcanary.com/b', status: 'collected with image warnings', code: 'OK', sourceId: 'synthetic-source-b', revisionId: 'synthetic-revision-b', warnings: ['Image denied: ACCESS_DENIED'] },
+    { url: 'https://socket.dev/c', status: 'failed', code: 'ACCESS_DENIED', warnings: [] },
+  ] };
+  const app = mountWorkbench(doc, win, async (endpoint, options) => {
+    calls.push([endpoint, options]);
+    if (endpoint === '/api/intake') {
+      entered(); await pending;
+      corpus.cases[0].name = 'Refreshed private campaign'; corpus.governance = {};
+      return response(structuredClone(outcomes));
+    }
+    if (endpoint === '/api/enrichment') return response({ schemaVersion: 'talk-enrichment/1', annotations: [] });
+    return response(structuredClone(corpus), 200, true);
+  });
+  await app.ready;
+  const content = doc.getElementById('content');
+  for (const [label, value] of [
+    ['Existing campaign (or leave blank to create)', 'synthetic-case-a'],
+    ['Operator identifier', 'operator'],
+    ['Article URLs (one per line; maximum 20)', outcomes.results.map(item => item.url).join('\n')],
+  ]) {
+    const input = inputNamed(content, label); input.value = value;
+    await input.trigger(input.tagName === 'SELECT' ? 'change' : 'input');
+  }
+  const privateName = inputNamed(content, 'New case name');
+  privateName.value = 'Private draft preserved';
+  inputNamed(content, 'New case kind').value = 'Campaign';
+  await button(content, 'Create draft case').trigger('click');
+  const collection = button(content, 'Fetch articles').trigger('click');
+  await started;
+  assert.match(content.textContent, /Fetching sequentially/);
+  assert.equal(button(content, 'Fetching articles').disabled, true);
+  assert.equal(doc.getElementById('reload-corpus').disabled, true);
+  await app.load('/api/demo');
+  assert.equal(calls.length, 3);
+  release(); await collection;
+  assert.deepEqual(calls.map(item => item[0]), ['/api/corpus', '/api/enrichment', '/api/intake', '/api/corpus', '/api/enrichment']);
+  assert.equal(calls[2][1].method, 'POST');
+  assert.deepEqual(JSON.parse(calls[2][1].body), { urls: outcomes.results.map(item => item.url), operator: 'operator', caseId: 'synthetic-case-a' });
+  assert.match(content.textContent, /collected with image warnings.*OK/);
+  assert.match(content.textContent, /Image denied: ACCESS_DENIED/);
+  assert.match(content.textContent, /failed.*ACCESS_DENIED/);
+  assert.match(inputNamed(content, 'Existing campaign (or leave blank to create)').textContent, /Refreshed private campaign/);
+  assert.match(inputNamed(content, 'Case').textContent, /Private draft preserved/);
+  const failed = descendants(content).find(node => node.type === 'checkbox' && node.parentNode.textContent.includes('manual retry'));
+  failed.checked = true; await failed.trigger('change');
+  await button(content, 'Use selected failed URLs').trigger('click');
+  assert.equal(inputNamed(content, 'Article URLs (one per line; maximum 20)').value, 'https://socket.dev/c');
+  assert.equal(calls.filter(item => item[0] === '/api/intake').length, 1);
+  await button(content, 'Open campaign and all citations').trigger('click');
+  assert.match(content.textContent, /Refreshed private campaign/);
+  app.navigate('studio');
+  assert.equal(inputNamed(content, 'Article URLs (one per line; maximum 20)').value, 'https://socket.dev/c');
+  await button(content, 'Clear URLs').trigger('click');
+  assert.equal(inputNamed(content, 'Article URLs (one per line; maximum 20)').value, '');
+});
+
+test('Issue #39 AC-01/02 web transport failure remains visible, never retries, and no-store / demo prohibit writes', async () => {
+  const doc = new FakeDocument(), win = fakeWindow('#studio'), calls = [];
+  const app = mountWorkbench(doc, win, async (endpoint, options) => {
+    calls.push([endpoint, options]);
+    if (endpoint === '/api/intake') return response({ message: 'Another collection is in progress.' }, 409);
+    return response(fresh(), 200, endpoint === '/api/corpus');
+  });
+  await app.ready;
+  const content = doc.getElementById('content');
+  for (const [label, value] of [['New pending campaign name (only when no existing campaign selected)', 'New pending'],
+    ['Operator identifier', 'operator'], ['Article URLs (one per line; maximum 20)', 'https://socket.dev/a']]) {
+    const input = inputNamed(content, label); input.value = value; await input.trigger('input');
+  }
+  await button(content, 'Fetch articles').trigger('click');
+  assert.match(content.textContent, /Another collection is in progress/);
+  assert.equal(button(content, 'Fetch articles').disabled, false);
+  assert.equal(calls.filter(item => item[0] === '/api/intake').length, 1);
+  await app.load('/api/demo');
+  assert.match(content.textContent, /Synthetic demo is read-only/);
+  assert.equal(button(content, 'Fetch articles'), undefined);
+  const local = fresh(); local.governance = {};
+  const readonly = await mounted(local, '#studio');
+  assert.match(readonly.content.textContent, /--corpus and no-store modes remain read-only/);
+  assert.equal(button(readonly.content, 'Fetch articles'), undefined);
+  assert.ok(readonly.requests.every(([, options]) => options.method === undefined));
+});
+
+test('Issue #39 AC-04 every case-linked citation renders metadata and safe external links and exports complete JSON', async () => {
+  const corpus = fresh(), doc = new FakeDocument(), m = createModel(corpus), record = corpus.cases[0];
+  record.sourceIds.push('synthetic-source-b');
+  corpus.sources[0].publisher = 'StepSecurity';
+  corpus.sources[0].originalUrl = 'https://www.stepsecurity.io/blog/one';
+  corpus.sources[1].publisher = null; corpus.sources[1].originalUrl = 'https://socket.dev/blog/two';
+  let exported;
+  const rendered = renderCase(doc, m, record, () => {}, value => { exported = value; });
+  const references = descendants(rendered).filter(node => node.className === 'citation');
+  assert.equal(references.length, 2);
+  for (const reference of references) {
+    for (const field of ['Normalized publisher', 'Original URL', 'Publication date', 'Retrieved']) assert.match(reference.textContent, new RegExp(field));
+    const link = descendants(reference).find(node => node.tagName === 'A');
+    assert.ok(link.href.startsWith('https://')); assert.equal(link.rel, 'noopener noreferrer');
+  }
+  assert.match(references[0].textContent, /StepSecurity/);
+  assert.match(references[1].textContent, /Not available/);
+  await button(rendered, 'Download all campaign citations').trigger('click');
+  assert.deepEqual(exported, caseCitations(m, record));
+  assert.equal(exported.citations.length, 2);
+  assert.equal(exported.citations[1].publisher, null);
+  for (const url of ['javascript:alert(1)', 'http://socket.dev/a', 'https://operator@socket.dev/a', 'data:text/html,<script>']) assert.equal(safeExternalUrl(url), null);
+  corpus.sources[1].originalUrl = 'javascript:alert(1)'; corpus.sources[1].canonicalUrl = 'https://operator@socket.dev/a';
+  assert.equal(caseCitations(m, record).citations[1].url, null);
+  const unsafe = renderCase(doc, m, record, () => {});
+  assert.equal(descendants(unsafe).filter(node => node.tagName === 'A').length, 1);
+});
+
+test('Issue #39 AC-05 archives offer only selected revision attachments and extracted text by default', () => {
+  const corpus = fresh(), source = corpus.sources[0], revision = corpus.sourceRevisions[0];
+  source.id = `source-${'a'.repeat(64)}`; revision.sourceId = source.id;
+  revision.id = `source-revision-${'b'.repeat(64)}`; source.revisionIds = [revision.id]; source.inputKind = 'url';
+  revision.rawContent = '<script>untrusted()</script>';
+  const m = createModel(corpus); m.collectionEnabled = true;
+  const rendered = renderSource(new FakeDocument(), m, source, revision.id, () => {}, () => {}, () => {});
+  const links = descendants(rendered).filter(node => node.tagName === 'A' && node.download);
+  assert.deepEqual(links.map(node => node.download), ['article.txt', 'original.html', 'metadata.json', 'assets.json']);
+  assert.ok(links.every(node => node.href.startsWith(`/api/archive/${source.id}/${revision.id}/`)));
+  assert.match(rendered.textContent, /download only, never rendered/);
+  assert.equal(descendants(rendered).find(node => node.className === 'source-text').textContent, revision.normalizedContent);
+  assert.ok(!rendered.textContent.includes('untrusted()'));
+  for (const inputKind of ['text', 'file']) {
+    source.inputKind = inputKind;
+    const fetched = renderSource(new FakeDocument(), m, source, revision.id, () => {}, () => {}, () => {});
+    assert.equal(descendants(fetched).filter(node => node.download).length, 4);
+  }
+  m.collectionEnabled = false;
+  const readonly = renderSource(new FakeDocument(), m, source, revision.id, () => {}, () => {}, () => {});
+  assert.equal(descendants(readonly).filter(node => node.download).length, 0);
+});
+
+test('Issue #39 AC-02 failed intake remains visibly failed after corpus reload, not collected evidence', async () => {
+  const corpus = fresh(), source = corpus.sources[0];
+  source.revisionIds = []; source.title = null; source.collectionState = 'Collected';
+  corpus.sourceRevisions = corpus.sourceRevisions.filter(revision => revision.sourceId !== source.id);
+  corpus.collectionManifests = [{
+    id: 'failed-intake', outcome: 'Failed', inputSourceIds: [source.id], inputRevisionIds: [],
+    provenance: { suppliedBy: 'operator' }, limitations: ['error-code=ACCESS_DENIED', 'event-time=2026-10-13T00:00:00Z'],
+  }];
+  const { app, content } = await mounted(corpus, '#studio');
+  assert.match(content.textContent, /Persisted failed intake attempts.*not successful evidence/);
+  assert.match(content.textContent, /error-code=ACCESS_DENIED/);
+  app.navigate('sources', source.id);
+  assert.match(content.textContent, /No retained revision \/ failed or incomplete intake/);
+  assert.match(content.textContent, /Failed intake attempt — not successful evidence.*ACCESS_DENIED/);
+  assert.match(content.textContent, /No source snapshot is available/);
 });

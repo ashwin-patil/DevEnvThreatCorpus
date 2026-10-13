@@ -1,7 +1,39 @@
 # Changelog
 
+## 2026-10-13 — HTML intake compatibility
+
+- Allow NUL characters in returned HTML without rejecting usable articles such
+  as the Nx postmortem. Preserve original content/response hashes privately;
+  replace NULs only while parsing under `readable-html/4`. Keep prior parser
+  revisions reproducible, reject malformed UTF-8 and NUL-containing plain text,
+  and add archive/idempotency/charset regressions without committing real text.
+
+## 2026-10-12 — Local research presentation integration
+
+- Restore optional attack-path, behavior, framework, security telemetry, and
+  OpenTelemetry exploration on the 0.3.0 evidence model using existing layout
+  tokens. Add graph interactions with keyboard/text alternatives, scoped
+  candidate mappings, and explicit proposal/synthetic status.
+- Display validated private enrichment sidecars on campaign pages and provide
+  private Markdown/JSON talk bundles with citations and evidence. Annotation
+  reads fail closed without changing collection, claims, or review decisions.
+  Add separate benign research-view fixtures; do not import legacy incidents.
+
 ## 2026-10-13
 
+- Issue #39: add shared, bounded CLI/local-web batch URL collection with explicit
+  pending campaign links, partial-failure outcomes, revision idempotency,
+  tolerant public HTML/compression/robots handling, normalized citations, and
+  private HTML/text/image archives. Add opt-in same-origin persistent web intake,
+  reloadable corpus data, download-only untrusted HTML, and versioned private
+  evidence-linked enrichment import/export that cannot accept canonical claims.
+  Focused fixtures and usage/architecture/audit guidance distinguish offline
+  checks from required live-network and independent human acceptance evidence.
+  Continuation fixes exclude hidden article roots, consistently bound expanded
+  UTF-8 archives, retain download controls for previously supplied-text sources,
+  and accept valid core identifiers in enrichment references.
+  Version the corrected HTML parser while preserving validation of previously
+  retained revisions and their immutable evidence.
 - Issue #25: add the offline Comparison & timelines tab with explicit multi-label
   AND/OR facets, claim-level evidence/reviewer-disposition filters, inclusive
   precision-preserving typed date overlap, and unordered unknown dates. Preserve

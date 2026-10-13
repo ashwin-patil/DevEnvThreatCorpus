@@ -6,6 +6,99 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #39 batch article intake and private campaign corpus
+
+### Researcher-requested local presentation follow-up
+
+The researcher requested integration of the older presentation features while
+preserving existing functionality and layout. This extends presentation beyond
+the original intake issue; no legacy incidents are migrated or accepted.
+
+| Requirement | Evidence / verification | Human boundary |
+|---|---|---|
+| Preserve core collection, review, comparison, and studio | Existing configured suites plus updated workbench/server regression assertions | No review or acceptance contract changes |
+| Restore paths, behaviors, framework references, telemetry, OTEL | `src/explore.mjs`, safe DOM/SVG rendering, optional-core empty states, synthetic fixture, case-scope/graph/catalog tests | Authored relationships and pending/synthetic labels remain visible |
+| Display private evidence-linked annotations | Validated read-only `/api/enrichment`; grouped campaign panel; exact passage navigation; sidecar failure/isolation tests | Not independent confirmation or automatic acceptance |
+| Export private talk bundles | JSON/Markdown provenance, scoped citations/claims/passages/annotations and enrichment tests; imported Markdown escaped | Presentation exports are not reviewed releases or article publication |
+| Preserve layout / interactions | Real-browser node/edge, zoom/reset, reference navigation and export smoke checks; desktop/tablet/mobile width measurements | Independent visual review remains required |
+
+Local execution evidence and screenshots are retained privately by the
+researcher; final revision and exact outcomes must accompany any resulting PR.
+The original basic synthetic demo remains unchanged. The new research demo is
+separate, benign, and prominently marked synthetic.
+
+Originating implementation requirements are [Issue #39](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/39),
+including its authoritative clarification that the 2–4 hour estimate does not
+reduce scope. Corrections and execution evidence stay on [PR #40](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/40).
+No collected article, image, annotation, or private corpus is attached to this
+audit. Exact commands, full tested commit, per-suite results, live smoke
+outcomes, automated review, and limitations belong in that PR's revision-bound
+comments and [checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/40/checks).
+
+| ID | Required outcome and implementation / check evidence | Acceptance boundary |
+|---|---|---|
+| AC-01 | `scripts/contract.mjs` shared batch/CLI and campaign persistence; `scripts/server.mjs` same-origin intake; `src/app.mjs` collection controls. Focused intake/server tests exercise at least three URLs and explicit pending case links | Executed fixture checks required; successful live CLI and web collection must be recorded separately |
+| AC-02 | Intake/server fixtures exercise per-URL failure, unchanged resubmission, new revision on changed content, and unique explicit source links | A failure remains an intake result, never successful evidence; no campaign merge |
+| AC-03 | Intake fixtures exercise tolerant static HTML, compression, private HTML/text/metadata/image retention, lazy/relative URLs, asset limits, and warning outcomes | Fixture success does not establish real publisher compatibility; access-denied/JavaScript sources remain unsupported |
+| AC-04 | Collection metadata and workbench case/source rendering preserve every linked citation, normalized publisher, original URL, and available date; workbench tests inspect safe DOM/citation output | `needs-human-review`: independently inspect citation completeness and missing-data handling |
+| AC-05 | Dynamic store-mode corpus reload and allowlisted attachment downloads in `scripts/server.mjs`; server/workbench tests cover persistence, hostile origins, and archived-content isolation | `needs-human-review`: independent browser UX and archived-content isolation review; agent browser exercises are supplemental |
+| AC-06 | `src/enrichment.mjs`, `scripts/extract.mjs`, and focused extraction fixtures cover versioned sidecars, all annotation types, exact revision-linked evidence, repeated quotes, inference/unresolved support, import/export, and pending-only/no-review-mutation invariants | Imported agent or manual assertions are unreviewed, not confirmation of maliciousness |
+| AC-07 | Existing configured Node commands plus `python scripts/verify.py`; `git check-ignore` for nested archive/enrichment paths; secret scan and automated PR review | Final committed revision execution and live-network evidence required; independent human approval before merge |
+
+All seven IDs retain their originating meaning. No subjective criterion is
+certified by agent self-audit, metadata policy, or a fixture test. DNS, TLS,
+robots, publisher access, browser-tool, or runner limitations must be reported
+concretely rather than converted to a pass. Subsequent commits invalidate
+earlier verification. Documentation relevance, README applicability, research
+semantics, and release approval remain independent human responsibilities.
+
+### Continuation environment findings
+
+#### Subsequent local verification and HTML fix
+
+Local Ubuntu WSL testing reproduced successful live collection of both
+StepSecurity articles through CLI and a real browser, with explicit image
+access warnings. The Nx postmortem initially failed because its returned HTML
+contained nine NUL bytes. `readable-html/4` now retains the original response
+privately and applies NUL replacement only to the HTML parsing projection;
+prior parser transformations and evidence remain reproducible.
+
+A live retry of `https://nx.dev/blog/s1ngularity-postmortem` succeeded, retained
+8,741 normalized characters and one 47,688-byte AVIF image with no image
+warnings, and linked the source to the explicitly selected existing campaign.
+A browser retry reported `already present · OK`, establishing unchanged-input
+idempotency. Earlier failed intake manifests remain history. No real article
+text, image, private sidecar, or private corpus was committed. The final tested
+commit, full-suite outcomes, and remaining hosted/human review boundaries are
+recorded in the PR summary comment; these local results supersede the earlier
+cloud DNS limitation for the locally tested sources, not for all publishers.
+
+The continuation from `39ea6305d770ec44383ebe82977086845f485edd` recovered
+the pushed implementation, not an unfinished local worktree. Hosted
+[Verify run 38354186934](https://github.com/ashwin-patil/DevEnvThreatCorpus/actions/runs/38354186934)
+reported `action_required` with zero jobs; it is not passing hosted evidence.
+The preceding [agent job](https://github.com/ashwin-patil/DevEnvThreatCorpus/actions/runs/38352989745/job/115149392644)
+completed setup successfully but its processing step was cancelled. Its
+retrieved log tail contains cleanup, not a root-cause diagnostic; a session
+deadline or application failure cannot be inferred from that record.
+
+Live CLI, same-origin HTTP intake, and installed Chromium form attempts used
+the three public article URLs in the README. All returned `NETWORK` for each
+URL, retained failed-source manifests, and produced no successful revisions
+or campaign links. `getent ahosts nx.dev` returned no addresses and
+`curl --max-time 15 -I https://nx.dev/blog/s1ngularity-postmortem` reported
+`Could not resolve host: nx.dev`. The browser MCP transport was closed;
+installed Chromium/ChromeDriver provided supplemental form/reload checks.
+These observations establish concrete environment limitations, not live
+collection acceptance. A maintainer must authorize the hosted checks and
+repeat successful CLI/browser collection on a network-capable final revision.
+Exact final commands, outcomes, and tested SHA remain recorded on PR #40.
+Full-diff continuation review identified four corrected fixture gaps: hidden
+extraction roots (AC-03), charset-expanded archive read/idempotency bounds
+(AC-02/AC-03), fetched revisions of initially supplied-text sources (AC-05),
+and core-compatible enrichment reference identifiers (AC-06). Regression
+checks are in the existing intake, workbench, and extraction suites.
+
 ## Issue #25 comparison and timelines
 
 Originating requirements: [Issue #25](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/25).

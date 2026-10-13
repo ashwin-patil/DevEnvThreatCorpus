@@ -21,6 +21,48 @@ function field(doc, parent, label, value) {
   parent.append(row);
 }
 
+export function safeExternalUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+}
+
+function externalLink(doc, value) {
+  const safe = safeExternalUrl(value);
+  if (!safe) return element(doc, 'span', value ?? 'Not available (unknown)');
+  const link = element(doc, 'a', value);
+  link.href = safe; link.target = '_blank'; link.rel = 'noopener noreferrer';
+  return link;
+}
+
+export function caseCitations(model, record) {
+  return { schemaVersion: 'campaign-citations/1', caseId: record.id, caseName: record.name,
+    citations: caseSourceIds(model, record.id).map(id => {
+      const source = model.sources.get(id);
+      return { sourceId: id, title: source?.title ?? null, publisher: source?.publisher ?? null,
+        url: safeExternalUrl(source?.originalUrl) ?? safeExternalUrl(source?.canonicalUrl),
+        publicationDate: source?.publicationDate ?? null, retrievalDate: source?.retrievalDate ?? null,
+        sourceRevisionIds: [...(source?.revisionIds ?? [])] };
+    }) };
+}
+
+function archiveDownloads(doc, model, source, revision) {
+  if (!model.collectionEnabled ||
+      !/^source-[a-f0-9]{64}$/.test(source.id) || !/^source-revision-[a-f0-9]{64}$/.test(revision.id)) return null;
+  const section = element(doc, 'section', null, 'archive-downloads');
+  section.append(element(doc, 'h3', 'Private archive downloads (when retained)'),
+    element(doc, 'p', 'Extracted text is displayed below. Original HTML is untrusted: download only, never rendered in this workbench. Legacy snapshots may not have archived files.', 'subtle'));
+  for (const [artifact, label] of [['article.txt', 'Extracted article text'], ['original.html', 'Original HTML (untrusted)'],
+    ['metadata.json', 'Citation / archive metadata'], ['assets.json', 'Image outcomes / hashes']]) {
+    const link = element(doc, 'a', label, 'chip');
+    link.href = `/api/archive/${source.id}/${revision.id}/${artifact}`;
+    link.download = artifact;
+    section.append(link);
+  }
+  return section;
+}
+
 export function renderClaim(doc, model, claim, navigate, compact = false) {
   const card = element(doc, 'article', null, 'claim-card');
   card.append(element(doc, 'p', claim.inference ? 'Researcher inference — not a source assertion' :
@@ -96,6 +138,11 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
     field(doc, section, key, metadata(source, key));
   }
   for (const key of ['publicationDate', 'updateDate', 'retrievalDate']) field(doc, section, key, dateLabel(source[key]));
+  if (safeExternalUrl(source.originalUrl) || safeExternalUrl(source.canonicalUrl)) {
+    const original = element(doc, 'p', 'Original source: ');
+    original.append(externalLink(doc, safeExternalUrl(source.originalUrl) ? source.originalUrl : source.canonicalUrl));
+    section.append(original);
+  }
   field(doc, section, 'Provenance', `${source.provenance.kind} · ${metadata(source.provenance, 'suppliedBy')} · ${source.provenance.description}`);
   const label = element(doc, 'label', 'Source revision (older snapshots preserved) ');
   const select = element(doc, 'select');
@@ -105,6 +152,9 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
     option.value = revision.id; select.append(option);
   }
   const revision = revisions.find(r => r.id === revisionId) ?? revisions.at(-1);
+  for (const manifest of model.corpus.collectionManifests.filter(item => item.outcome === 'Failed' && item.inputSourceIds.includes(source.id))) {
+    section.append(element(doc, 'p', `Failed intake attempt — not successful evidence: ${manifest.limitations.filter(text => /^(?:error-code|event-time)=/.test(text)).join(' · ')}`));
+  }
   if (revisionId && !revisions.some(r => r.id === revisionId)) {
     section.append(element(doc, 'p', `Requested revision ${revisionId} is not available for this source; showing ${revision?.id ?? 'no snapshot'} instead.`, 'subtle'));
   }
@@ -118,6 +168,8 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   field(doc, section, 'Normalized hash', metadata(revision, 'normalizedHash'));
   field(doc, section, 'Raw hash / retention', `${metadata(revision, 'rawHash')} · ${revision.retention}`);
   field(doc, section, 'Snapshot provenance', `${revision.provenance.kind} · ${metadata(revision.provenance, 'suppliedBy')} · ${revision.provenance.description}`);
+  const archive = archiveDownloads(doc, model, source, revision);
+  if (archive) section.append(archive);
   const split = element(doc, 'div', null, 'evidence-split');
   const left = element(doc, 'section'), right = element(doc, 'section');
   const passages = model.corpus.passages.filter(p => p.sourceRevisionId === revision.id);
@@ -149,15 +201,26 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   return section;
 }
 
-export function renderCase(doc, model, record, navigate) {
+export function renderCase(doc, model, record, navigate, exportReferences) {
   const panel = element(doc, 'article', null, 'panel');
   panel.append(element(doc, 'h2', record.name));
   for (const key of ['kind', 'summary', 'limits', 'origin', 'disposition', 'collectionState', 'revision']) {
     field(doc, panel, key, metadata(record, key));
   }
   panel.append(element(doc, 'h3', 'Sources · shared citation is not shared attribution'));
-  for (const id of caseSourceIds(model, record.id)) panel.append(action(doc,
-    metadata(model.sources.get(id), 'title'), () => navigate('sources', id)));
+  const references = caseCitations(model, record);
+  if (exportReferences) panel.append(action(doc, 'Download all campaign citations (JSON)', () => exportReferences(references)));
+  for (const citation of references.citations) {
+    const source = model.sources.get(citation.sourceId), reference = element(doc, 'section', null, 'citation');
+    reference.append(action(doc, metadata(source, 'title'), () => navigate('sources', citation.sourceId)));
+    field(doc, reference, 'Normalized publisher', metadata(source, 'publisher'));
+    const url = element(doc, 'p', 'Original URL: ');
+    url.append(externalLink(doc, source?.originalUrl ?? source?.canonicalUrl)); reference.append(url);
+    field(doc, reference, 'Publication date', dateLabel(citation.publicationDate));
+    field(doc, reference, 'Retrieved', dateLabel(citation.retrievalDate));
+    if (!source?.revisionIds.length) reference.append(element(doc, 'p', 'No retained revision: this intake is not successful source evidence.'));
+    panel.append(reference);
+  }
   panel.append(element(doc, 'h3', 'Summary claim basis'));
   for (const id of record.summaryClaimIds) panel.append(action(doc,
     model.claims.get(id)?.description ?? id, () => navigate('claims', id)));

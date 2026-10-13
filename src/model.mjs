@@ -1,4 +1,4 @@
-export const VIEWS = { cases: 'Case library', sources: 'Research library', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', method: 'Trust & method' };
+export const VIEWS = { cases: 'Case library', sources: 'Research library', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
 export const FACETS = ['cases', 'sources', 'publishers', 'tags', 'disposition'];
 export const COMPARISON_DIMENSIONS = {
   trust_surface: 'Trust surface', ai_involvement: 'AI involvement', execution_location: 'Execution location',

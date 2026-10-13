@@ -1,12 +1,24 @@
 import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
-import { createStudio, renderStudio, selectedPassage, hashText } from './studio.mjs';
+import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
+import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, explorationRecords } from './explore.mjs';
 
 export async function fetchCorpus(fetcher, endpoint) {
   const response = await fetcher(endpoint, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Local corpus request failed (${response.status}).`);
   const corpus = await response.json(), model = createModel(corpus);
   model.snapshot = await hashText(JSON.stringify(corpus));
+  model.collectionEnabled = endpoint === '/api/corpus' && response.headers?.get?.('x-collection-enabled') === 'true';
+  model.annotations = [];
+  if (model.collectionEnabled) {
+    try {
+      const annotations = await fetcher('/api/enrichment', { cache: 'no-store' });
+      if (!annotations.ok) throw new Error('Unavailable enrichment');
+      const document = await annotations.json();
+      if (document.schemaVersion !== 'talk-enrichment/1' || !Array.isArray(document.annotations)) throw new Error('Invalid enrichment response');
+      model.annotations = document.annotations;
+    } catch { model.annotationError = 'Private annotations could not be loaded or validated. Core records remain available; check the sidecar and reload.'; }
+  }
   return model;
 }
 
@@ -37,7 +49,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   function trustLabel() {
     return model?.corpus.governance?.synthetic ?
       'SYNTHETIC DEMO — generated benign fixture, not incident evidence.' :
-      'Local corpus · read-only · supplied dispositions are not independent approval.';
+      `Local corpus · ${model?.collectionEnabled ? 'private collection enabled; intake stays pending' : 'read-only snapshot'} · supplied dispositions are not independent approval.`;
   }
   function buildFacets() {
     $('facets').replaceChildren();
@@ -125,10 +137,11 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       if (route.id && (studio.sourceId !== route.id || studio.revisionId !== route.revisionId)) {
         studio.sourceId = route.id; studio.revisionId = route.revisionId; studio.selection = null;
       }
-      $('content').append(renderStudio(doc, win, studio)); return;
+      $('content').append(renderStudio(doc, win, studio, { enabled: model.collectionEnabled,
+        collect: collectArticles, refresh: render, navigate })); return;
     }
     if (route.view === 'method') {
-      $('result').textContent = 'Trust & method · read-only scope';
+      $('result').textContent = 'Trust & method · collection is not acceptance';
       const panel = element(doc, 'section', null, 'panel');
       panel.append(element(doc, 'h2', 'Evidence before interpretation'));
       for (const text of [
@@ -137,8 +150,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         'LLM content stays labeled by its recorded origin. Pending, Needs correction and Excluded records remain visible; acceptance metadata is not proof of research truth.',
         'Claims navigate to their exact source revision. Old snapshots and conflicting claims remain available. Unicode passages use half-open code-point intervals [start, end); overlapping claims are not merged.',
         'Null values keep their recorded reasons. Publication, discovery, disclosure and incident activity dates retain type and precision; missing content is not invented.',
-        'The corpus stays read-only. Only same-origin local corpus endpoints and bundled assets are requested. The curator studio retains pasted text and pending annotations in memory and downloads private proposals. There is no live source fetching, server write, automatic acceptance or curator review. Local browsing filters never change canonical records.',
-        'Comparison and timelines describe observations within the collected dataset, not attribution or prevalence. Graph, framework and detection views are not implemented. Their absence does not mean no attack occurred. Human research review and merge approval remain independent.',
+        'Only same-origin local endpoints and bundled assets are requested by the browser. With --store, explicit Fetch articles sends public HTTPS URLs to the backend, which persists collection and campaign links; new campaigns remain Pending, never accepted. --corpus and no-store modes remain read-only snapshots. The curator studio retains pasted text and pending annotations in memory and downloads private proposals. There is no automatic acceptance, model call or curator review. Local browsing filters never change canonical records. Untrusted original HTML is download-only; extracted text is displayed by default.',
+        'Comparison, attack paths and behavior views describe recorded observations and research proposals, not attribution or prevalence. Framework membership does not establish occurrence. Security telemetry and detection hypotheses are distinct from synthetic OpenTelemetry examples. Optional enrichment is displayed with its recorded origin and disposition; human research review and merge approval remain independent.',
       ]) panel.append(element(doc, 'p', text));
       $('content').append(panel); return;
     }
@@ -159,6 +172,12 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         empty('No cases match the current comparison filters. Unknown dates do not match bounded ranges.'));
       return;
     }
+    if (Object.hasOwn(EXPLORE_VIEWS, route.view)) {
+      const selection = explorationRecords(model, route.view, filters);
+      const annotationCount = (model.annotations ?? []).filter(a => (VIEW_ANNOTATIONS[route.view] ?? []).includes(a.type) && selection.caseIds.has(a.caseId) && (!filters.query || JSON.stringify(a).toLowerCase().includes(filters.query.toLowerCase()))).length;
+      $('result').textContent = `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
+      $('content').append(renderExploration(doc, model, route.view, filters, navigate, route.id, () => load('/api/demo-research'))); return;
+    }
     const records = filterRecords(model, route.view, filters);
     $('result').textContent = `${records.length} matching ${route.view} / ${model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;
     if (!records.length) {
@@ -178,12 +197,23 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       button.setAttribute('aria-pressed', String(record.id === selected.id));
       button.append(element(doc, 'small', record.kind ?? (record.inference ? 'Researcher inference' : route.view === 'claims' ? 'Author / source assertion' : 'Source record')),
         element(doc, 'strong', record.name ?? record.title ?? record.description ?? metadata(record, 'title')),
-        element(doc, 'small', record.disposition ?? record.collectionState));
+        element(doc, 'small', route.view === 'sources' && !record.revisionIds.length ?
+          'No retained revision / failed or incomplete intake' : record.disposition ?? record.collectionState));
       list.append(button);
     }
     const detail = element(doc, 'div');
     if (route.id && !model[route.view].has(route.id)) detail.append(element(doc, 'p', 'Unknown target; showing a matching record instead.', 'subtle'));
-    if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate));
+    if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate,
+      value => downloadProposal(doc, win, value, 'campaign-citations.json')),
+      renderEvidencePanel(doc, model, selected, navigate, (format, value) => {
+        if (format === 'json') downloadProposal(doc, win, value, 'campaign-talk-bundle.json');
+        else {
+          const url = win.URL.createObjectURL(new win.Blob([value], { type: 'text/markdown;charset=utf-8' }));
+          const link = element(doc, 'a'); link.href = url; link.download = 'campaign-talk-bundle.md'; doc.body.append(link);
+          try { link.click(); } finally { link.remove(); }
+          win.setTimeout(() => win.URL.revokeObjectURL(url), 1000);
+        }
+      }));
     if (route.view === 'sources') detail.append(renderSource(doc, model, selected, route.revisionId, navigate,
       id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
       ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
@@ -202,7 +232,47 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     studio.sourceId = revision.sourceId; studio.revisionId = revision.id; studio.selection = selection;
     navigate('studio', revision.sourceId, revision.id);
   }
+  function renderStats() {
+    $('stats').replaceChildren();
+    for (const [label, count] of [['Cases', model.corpus.cases.length], ['Sources', model.corpus.sources.length],
+      ['Claims', model.corpus.claims.length], ['Needs correction claims', model.corpus.claims.filter(c => c.disposition === 'Needs correction').length]]) {
+      const stat = element(doc, 'div', null, 'stat');
+      stat.append(element(doc, 'strong', count), element(doc, 'span', label)); $('stats').append(stat);
+    }
+  }
+  async function collectArticles() {
+    const batch = studio.webIntake;
+    if (!model.collectionEnabled || batch.waiting) return;
+    let input;
+    try { input = webIntakeInput(batch); }
+    catch (error) { batch.error = error.message; render(); return; }
+    batch.waiting = true; batch.error = ''; render();
+    $('demo').disabled = true; $('reload-corpus').disabled = true;
+    try {
+      const response = await fetcher('/api/intake', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+      let result;
+      try { result = await response.json(); } catch { throw new Error(`Collection request failed (${response.status}); reload before explicit retry.`); }
+      if (!response.ok || !Array.isArray(result.results) || (result.status === 'failed' && !result.results.length)) {
+        throw new Error(result.message ?? `Collection failed (${result.code ?? response.status}).`);
+      }
+      batch.results = result.results; batch.resultCaseId = result.caseId ?? '';
+      if (result.caseId) { batch.caseId = result.caseId; batch.caseName = ''; }
+      try {
+        const loaded = await fetchCorpus(fetcher, '/api/corpus');
+        model = loaded; studio.base = model.corpus;
+        reset(); renderStats();
+        status(`${trustLabel()} Collection finished; inspect per-URL outcomes and campaign citations.`);
+      } catch {
+        batch.error = 'Collection outcomes received, but corpus refresh failed. Successful articles may be persisted; reload before resubmitting.';
+      }
+    } catch (error) { batch.error = error.message; }
+    finally {
+      batch.waiting = false; $('demo').disabled = false; $('reload-corpus').disabled = false; render();
+    }
+  }
   async function load(endpoint) {
+    if (studio?.webIntake.waiting) return;
     if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length) &&
         !win.confirm('Switching corpus discards private studio drafts. Download first. Discard drafts?')) return;
     const token = ++request;
@@ -213,12 +283,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       const loaded = await fetchCorpus(fetcher, endpoint);
       if (token !== request) return;
       model = loaded; studio = createStudio(model.corpus); reset();
-      $('stats').replaceChildren();
-      for (const [label, count] of [['Cases', model.corpus.cases.length], ['Sources', model.corpus.sources.length],
-        ['Claims', model.corpus.claims.length], ['Needs correction claims', model.corpus.claims.filter(c => c.disposition === 'Needs correction').length]]) {
-        const stat = element(doc, 'div', null, 'stat');
-        stat.append(element(doc, 'strong', count), element(doc, 'span', label)); $('stats').append(stat);
-      }
+      renderStats();
       status(`${trustLabel()} ${model.corpus.name}`, model.corpus.governance?.synthetic ? 'synthetic' : '');
       render();
     } catch (error) {
@@ -253,7 +318,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   win.addEventListener('hashchange', restoreRoute);
   win.addEventListener('popstate', restoreRoute);
   win.addEventListener('beforeunload', event => {
-    if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length)) {
+    if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length || studio.webIntake.waiting)) {
       event.preventDefault(); event.returnValue = '';
     }
   });

@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { runEnrichment } from '../src/enrichment.mjs';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
 } from './contract.mjs';
@@ -143,6 +144,7 @@ export async function runExtraction({ templateFile, store, suppliedBy }) {
 }
 
 async function cli(args) {
+  if (args[0] === 'enrichment') return enrichmentCli(args.slice(1));
   const values = {};
   if (args.length % 2) return { status: 'failed', code: 'INVALID_INPUT' };
   for (let index = 0; index < args.length; index += 2) {
@@ -153,6 +155,28 @@ async function cli(args) {
   }
   if (Object.keys(values).length !== 3) return { status: 'failed', code: 'INVALID_INPUT' };
   return runExtraction({ templateFile: values['--template'], store: values['--store'], suppliedBy: values['--supplied-by'] });
+}
+
+async function enrichmentCli([command, ...args]) {
+  const required = {
+    validate: ['--store', '--input'], import: ['--store', '--input'],
+    export: ['--store', '--output'],
+    template: ['--store', '--case', '--source', '--revision', '--output'],
+  }[command];
+  if (!required || args.length % 2) return { status: 'failed', code: 'INVALID_INPUT' };
+  const allowed = [...required, ...(command === 'export' ? ['--case'] : [])];
+  const values = {};
+  for (let index = 0; index < args.length; index += 2) {
+    if (!allowed.includes(args[index]) || Object.hasOwn(values, args[index]) || !args[index + 1]) {
+      return { status: 'failed', code: 'INVALID_INPUT' };
+    }
+    values[args[index]] = args[index + 1];
+  }
+  if (required.some(key => !Object.hasOwn(values, key))) return { status: 'failed', code: 'INVALID_INPUT' };
+  return runEnrichment({
+    command, store: values['--store'], inputFile: values['--input'], outputFile: values['--output'],
+    caseId: values['--case'], sourceId: values['--source'], sourceRevisionId: values['--revision'],
+  });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
