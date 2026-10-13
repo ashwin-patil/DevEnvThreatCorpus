@@ -1,4 +1,4 @@
-import { element, action, safeExternalUrl, caseCitations, renderClaim } from './render.mjs';
+import { element, action, safeExternalUrl, caseCitations, renderClaim, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend } from './render.mjs';
 import { filterRecords, metadata, caseSourceIds } from './model.mjs';
 import { publisherDisplay, behaviorInventory } from './research-inventory.mjs';
 import { aiLibrary } from './ai-library.mjs';
@@ -49,8 +49,9 @@ function behaviorLinks(doc, parent, model, claimIds, paths, navigate) {
     const items = groups.filter(g => g.kind === kind); if (!items.length) continue;
     const section = element(doc, 'section', null, `behavior-category ${kind}`);
     section.append(element(doc, 'h4', label));
+    section.append(reviewLegend(doc));
     for (const group of items) {
-      const chip = action(doc, group.name, () => navigate('behaviors', group.members[0].id));
+      const chip = reviewChip(doc, group.name, group.members[0].disposition, () => navigate('behaviors', group.members[0].id));
       chip.title = group.basis; section.append(chip);
     }
     parent.append(section);
@@ -182,10 +183,9 @@ function annotationCard(doc, model, annotation, navigate) {
     ? [...revision.normalizedContent].slice(locator.start, locator.end).join('') : annotation.support?.quote;
   if (quote) card.append(element(doc, 'blockquote', quote));
   if (locator) row(doc, card, 'Code-point passage', `[${locator.start}, ${locator.end})`);
-  row(doc, card, 'Exact revision', annotation.sourceRevisionId);
+  card.append(technicalDetails(doc, [['Exact revision', annotation.sourceRevisionId], ['Annotation identifier', annotation.id]]));
   row(doc, card, 'Model / prompt', [annotation.modelVersion, annotation.promptVersion].filter(Boolean));
-  card.append(action(doc, `Source: ${metadata(model.sources.get(annotation.sourceId), 'title')}`,
-    () => navigate('sources', annotation.sourceId, annotation.sourceRevisionId)));
+  card.append(sourceCitation(doc, model, annotation.sourceId, navigate, annotation.sourceRevisionId));
   if (annotation.externalReferenceUrl) card.append(reference(doc, annotation.externalReferenceUrl, 'Public reference'));
   return card;
 }
@@ -391,6 +391,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     const inventory = element(doc, 'section', null, 'panel behavior-inventory');
     inventory.append(element(doc, 'h2', 'Normalized behavior inventory'), element(doc, 'p',
       'Suggested local concepts group similar labels for review. Atomic behaviors are actions; activity patterns describe transitions or chains. Labels with arrows are treated as pattern candidates, not proven chronology. No source record, evidence status or review decision is merged or replaced.'));
+    inventory.append(reviewLegend(doc));
     for (const [kind, label] of [['atomic-behavior', 'Actions'], ['activity-pattern', 'Activity patterns']]) {
       const category = element(doc, 'section', null, `behavior-category ${kind}`);
       category.append(element(doc, 'h3', label));
@@ -398,7 +399,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       const item = element(doc, 'article', null, 'claim-card');
       item.append(element(doc, 'h4', group.name),
         element(doc, 'p', group.basis, 'subtle'), element(doc, 'p', `${group.members.length} source-specific record(s)${group.members.length > 1 ? ' · possible overlap; inspect evidence before consolidation' : ''}`));
-      for (const member of group.members) item.append(action(doc, `${member.name} · ${member.disposition ?? 'Pending'}`, () => navigate('behaviors', member.id)));
+      for (const member of group.members) item.append(reviewChip(doc, member.name, member.disposition, () => navigate('behaviors', member.id)));
       category.append(item);
       }
       if (category.children.length > 1) inventory.append(category);
@@ -427,17 +428,29 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   if (view === 'frameworks') {
     const runs = (model.corpus.governance?.campaignExtraction?.runs ?? []).filter(r => selected.caseIds.has(r.caseId));
     const unresolved = runs.flatMap(r => r.unresolvedMappings ?? []);
-    const catalogs = new Map(runs.flatMap(r => r.catalogSnapshot?.catalogs ?? [])
+    const available = Object.values(model.campaignStatus ?? {}).flatMap(s => s.availableCatalogSnapshot?.catalogs ?? []);
+    const catalogs = new Map([...available, ...runs.flatMap(r => r.catalogSnapshot?.catalogs ?? [])]
       .map(c => [`${c.framework}:${c.version}:${c.materialDigest}`, c]));
     const catalogPanel = element(doc, 'section', null, 'panel resolver-catalog');
     catalogPanel.append(element(doc, 'h2', 'Mapping and catalog coverage'), element(doc, 'p',
       `${selected.mappings.length} recorded mappings · ${unresolved.length} unresolved candidates · ${catalogs.size} pinned resolver catalogs`),
       element(doc, 'p', 'Resolver references are catalog membership only, not campaign observations. Only validated candidate mappings appear in the mapped technique cards. Missing mappings do not mean no relevant technique applies.', 'subtle'));
+    catalogPanel.append(element(doc, 'p', 'Catalogs include the current local resolver and any retained run snapshots. Preparing a new extraction uses the current resolver; earlier runs keep their original catalog provenance.', 'subtle'));
     if (!catalogs.size) catalogPanel.append(element(doc, 'p', 'No resolver snapshot is recorded in this corpus. Prepare/import a grounded extraction candidate to retain its catalog provenance.'));
     for (const c of catalogs.values()) {
-      catalogPanel.append(element(doc, 'h3', `${c.framework} ${c.version} · ${c.techniques?.length ?? 0} resolver entries`));
-      for (const t of c.techniques ?? []) catalogPanel.append(reference(doc, t.url, `${t.id} · ${t.name} · reference only`));
-      catalogPanel.append(element(doc, 'p', `Pinned revision: ${c.immutableRevision}`, 'subtle'));
+      const details = element(doc, 'details', null, 'catalog-entries');
+      details.append(element(doc, 'summary', `${c.framework} ${c.version} · ${c.techniques?.length ?? 0} resolver entries`));
+      details.append(element(doc, 'p', 'Reference catalog for candidate extraction; no incident occurrence or acceptance is implied.', 'subtle'));
+      const search = element(doc, 'input'); search.type = 'search'; search.placeholder = 'Search technique ID, name or description'; search.setAttribute('aria-label', `Search ${c.framework} catalog`);
+      const entries = element(doc, 'div', null, 'catalog-list');
+      for (const t of c.techniques ?? []) {
+        const entry = reference(doc, t.url, `${t.id} · ${t.name}`);
+        entry.title = t.description ?? t.name;
+        entry.dataset.search = `${t.id} ${t.name} ${t.description ?? ''}`.toLocaleLowerCase(); entries.append(entry);
+      }
+      search.addEventListener('input', () => { for (const entry of entries.children) entry.hidden = !entry.dataset.search.includes(search.value.toLocaleLowerCase()); });
+      details.append(search, entries, technicalDetails(doc, [['Pinned revision', c.immutableRevision], ['Material SHA-256', c.materialDigest]]), reference(doc, c.materialUrl, 'Official pinned material'), reference(doc, c.licenseUrl, c.license));
+      catalogPanel.append(details);
     }
     if (![...catalogs.values()].some(c => c.framework === 'ATLAS')) catalogPanel.append(element(doc, 'p', 'No ATLAS resolver catalog is currently loaded; ATLAS candidates remain unresolved.'));
     for (const u of unresolved) {
@@ -448,7 +461,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     }
     panel.append(catalogPanel);
     const controls = element(doc, 'div', null, 'graph-toolbar'), state = { framework: 'All frameworks', catalogScope: 'Full catalog' };
-    const count = element(doc, 'p', `${selected.records.length} catalog entries`, 'subtle'); count.setAttribute('role', 'status');
+    const count = element(doc, 'p', `${selected.records.length} retained technique records`, 'subtle'); count.setAttribute('role', 'status');
     for (const [label, values, key] of [
       ['Framework', ['All frameworks', ...new Set(selected.records.map(r => r.framework))], 'framework'],
       ['Catalog scope', ['Full catalog', 'Mapped to selected cases'], 'catalogScope'],

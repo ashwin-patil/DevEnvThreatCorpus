@@ -258,10 +258,49 @@ test('issue45 request catalog snapshot deterministically freezes resolver pins a
   const first = catalogSnapshot();
   const second = catalogSnapshot();
   assert.deepEqual(first, second);
-  assert.equal(first.resolverVersion, 'pinned-catalog-resolver/1');
+  assert.equal(first.resolverVersion, 'pinned-catalog-resolver/2');
   assert.match(first.digest, /^[a-f0-9]{64}$/);
   assert.equal(first.catalogs[0].materialDigest,
     'dc1639caa5501d720e280cf1cbd8fbe009884a0c9b3e6e9ed9d0c25166c3d8f4');
   first.catalogs[0].techniques[0].name = 'caller mutation';
   assert.notEqual(catalogSnapshot().catalogs[0].techniques[0].name, 'caller mutation');
+});
+
+test('official ATLAS projection resolves grounded proposals and fails closed on unknown ID/version', async () => {
+  const snapshot = catalogSnapshot(), atlas = snapshot.catalogs.find(c => c.framework === 'ATLAS');
+  assert.equal(atlas.version, '2026.09');
+  assert.equal(atlas.techniques.length, 208);
+  assert.equal(atlas.materialDigest, '935efa93e28294432d3e2f537eb94991ef8d1f8c58341cd360ea3321ddb66688');
+  assert.equal(new Set(atlas.techniques.map(t => t.id)).size, 208);
+  for (const t of atlas.techniques) {
+    assert.ok(t.description.length > 0);
+    assert.equal(t.url, `https://atlas.mitre.org/techniques/${t.id}`);
+    if (t.parentId) assert.ok(atlas.techniques.some(p => p.id === t.parentId));
+  }
+  const corpus = await fixture(), value = candidate();
+  Object.assign(value.mappings[0], { framework: 'ATLAS', version: '2026.09', techniqueId: 'AML.T0051' });
+  const output = normalize(corpus, value);
+  assert.equal(output.records.frameworks[0].name, 'LLM Prompt Injection');
+  assert.equal(output.records.mappings[0].disposition, 'Pending');
+  assert.equal(output.records.mappings[0].origin, 'LLM inferred mapping');
+  assert.deepEqual(output.records.mappings[0].claimIds, ['synthetic-claim-a']);
+  for (const [version, techniqueId] of [['2026.08', 'AML.T0051'], ['2026.09', 'AML.T9999']]) {
+    Object.assign(value.mappings[0], { version, techniqueId });
+    const unresolved = normalize(corpus, value);
+    assert.equal(unresolved.records.mappings.length, 0);
+    assert.equal(unresolved.unresolvedMappings[0].reason, 'not-in-pinned-catalog');
+  }
+  Object.assign(value.mappings[0], { version: '2026.09', techniqueId: 'AML.T0051', mappingBasis: 'source-mentioned', sourceLiteral: 'AML.T0051' });
+  assert.equal(normalize(corpus, value).unresolvedMappings[0].reason, 'source-literal-not-found-in-supporting-passage');
+});
+
+test('resolver upgrade reuses the historical ATT&CK catalog source without a provenance collision', async () => {
+  const corpus = await fixture(), first = normalize(corpus, candidate());
+  const historicalSource = structuredClone(first.records.sources[0]);
+  assert.equal(historicalSource.provenance.suppliedBy, 'pinned-catalog-resolver/1');
+  corpus.sources.push(historicalSource);
+  const second = normalize(corpus, candidate());
+  assert.equal(second.records.sources.length, 0);
+  assert.equal(second.records.frameworks[0].sourceId, historicalSource.id);
+  assert.deepEqual(corpus.sources.at(-1), historicalSource);
 });

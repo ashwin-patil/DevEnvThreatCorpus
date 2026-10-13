@@ -140,7 +140,7 @@ function catalogSource(catalog) {
     },
     inputKind: 'url',
     provenance: {
-      kind: 'supplied-url', suppliedBy: PINNED_FRAMEWORK_CATALOG.resolverVersion,
+      kind: 'supplied-url', suppliedBy: catalog.sourceResolverVersion,
       description: 'Pinned official framework catalog identity; separate from incident evidence.',
       nullReasons: {},
     },

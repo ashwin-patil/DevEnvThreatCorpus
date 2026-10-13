@@ -192,6 +192,22 @@ test('issue45 AC-08 stale/tampered request, busy lock and interrupted pending fi
   assert.equal((await runCampaign({ command: 'apply', store, request, candidate })).status, 'succeeded');
 });
 
+test('catalog upgrade exposes current pins without rewriting historical applied run provenance', async () => {
+  const corpus = await fixture(), request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  assert.equal(request.catalogSnapshot.catalogs.find(c => c.framework === 'ATLAS').techniques.length, 208);
+  applyCampaign(corpus, request, candidateFor(request));
+  const run = corpus.governance.campaignExtraction.runs[0];
+  // Model an older, integrity-bound run snapshot; available pins are separate.
+  run.catalogSnapshot = { resolverVersion: 'pinned-catalog-resolver/1', digest: 'a'.repeat(64), catalogs: [structuredClone(request.catalogSnapshot.catalogs[0])] };
+  const { envelopeHash, ...body } = run; run.envelopeHash = digest(body);
+  const before = canonicalSerialize(corpus);
+  assert.doesNotThrow(() => validateCampaignSnapshot(corpus));
+  const status = campaignStatus(corpus, 'synthetic-case-a');
+  assert.equal(status.runs[0].catalogSnapshot.catalogs.length, 1);
+  assert.equal(status.availableCatalogSnapshot.catalogs.length, 2);
+  assert.equal(canonicalSerialize(corpus), before);
+});
+
 test('issue45 AC-08 snapshot tampering and changed content under a generated ID fail closed', async () => {
   const corpus = await fixture(), request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = candidateFor(request);
   applyCampaign(corpus, request, candidate);

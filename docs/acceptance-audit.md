@@ -1,5 +1,20 @@
 # Acceptance audit
 
+### ATLAS reference catalog and evidence readability (PR #47)
+
+AC-06: `tests/campaign-records.test.mjs` checks ATLAS membership, wrong-version/ID
+failures, absent source literals, official name and Pending inferred mapping
+provenance. The projection pins 208 official techniques/sub-techniques with raw
+SHA-256 and Git blob hash; source hashes were verified before generation. Current
+resolver catalogs do not replace historic run snapshots or create mappings.
+AC-09: `tests/workbench.test.mjs` checks compact citations still navigate to exact
+claim/revision targets, collapsed IDs and undated entries remain retrievable, and
+review symbols/accessible labels distinguish Pending from attack outcome. The
+catalog disclosure/search test checks reference counts separately from mappings
+and unchanged corpus content. These are implementation checks, not independent
+semantic or UX acceptance. AC-10 human-authored frozen gold and independent review
+remain unmet; final executed commands/SHA and browser checks are recorded on PR #47.
+
 ### Card spacing and publisher follow-up (PR #47)
 
 Publisher regressions cover explicit HTML publisher declarations, canonical

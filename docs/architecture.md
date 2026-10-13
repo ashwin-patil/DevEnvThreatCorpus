@@ -1,5 +1,24 @@
 # Fresh-start corpus architecture
 
+### ATLAS catalog and compact evidence presentation
+
+Framework resolver `/2` includes a checked-in official ATLAS 2026.09 projection
+in `src/atlas-catalog.json`. The upstream immutable commit, raw material SHA-256,
+Git blob SHA and license URL are pinned in the projection. No runtime network
+lookup is required. The upstream copyright/license notice is preserved under
+`docs/licenses`; descriptions are adapted into an ID/name/description/parent/tactic
+projection, not imported as incident claims or case studies. Requests freeze this
+catalog in their hash; prompt `/4` distinguishes explicit source IDs from grounded
+researcher proposals. Existing applied run envelopes remain independent of the
+current resolver. Read-only campaign status exposes the current catalog separately
+from historical run snapshots; the UI does not mutate records.
+
+Compact publisher citations retain exact revision/claim navigation. Technical
+identifiers and code-point intervals use collapsed disclosures; undated timeline
+records remain available under an explicit Undated entries disclosure. Review
+color/symbol chips expose accessible labels and a legend independently of usage
+classification and evidence status.
+
 ### Campaign AI artifacts
 
 `src/ai-library.mjs` provides read-only product and exact-prompt projections over

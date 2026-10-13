@@ -16,6 +16,20 @@
 
 # DevEnvThreatCorpus
 
+The local ATLAS & TTPs view separates campaign mapping counts from resolver
+references. New campaign extraction requests include the pinned MITRE ATLAS
+2026.09 catalog (208 techniques/sub-techniques, official descriptions and parent
+relationships) alongside the existing ATT&CK projection. Catalog sections expand
+and search by ID, name or description. Catalog membership is not incident evidence:
+source-mentioned IDs must occur in supporting passages; grounded analogies remain
+researcher-proposed and Pending. Historical runs retain their original snapshots.
+
+Citation chips show publisher names and navigate to exact evidence or source
+revisions. Full IDs, hashes and Unicode offsets remain in collapsed Technical
+provenance and private exports. Undated timeline entries are collapsed without
+inventing dates. Behavior chips use review colors/symbols and a Human review
+legend; Pending means awaiting human review, separate from attack outcome.
+
 DevEnvThreatCorpus is building a human-reviewed corpus for research on
 developer-environment threats. The current work provides the data contract,
 offline validation, operator-triggered source intake, researcher-triggered

@@ -17,9 +17,42 @@ export function action(doc, label, handler, className = 'chip') {
 }
 
 function field(doc, parent, label, value) {
+  if (value == null || /^(?:Not available|Unknown)(?: \(|$)/u.test(String(value))) return;
   const row = element(doc, 'p');
   row.append(element(doc, 'strong', `${label}: `), element(doc, 'span', value));
   parent.append(row);
+}
+
+export function technicalDetails(doc, rows) {
+  const details = element(doc, 'details', null, 'technical-details');
+  details.append(element(doc, 'summary', 'Technical provenance'));
+  for (const [label, value] of rows) field(doc, details, label, value);
+  return details;
+}
+export function sourceCitation(doc, model, sourceId, navigate, revisionId, prefix = 'Source') {
+  const source = model.sources.get(sourceId), publisher = publisherDisplay(source).name;
+  const chip = action(doc, `${prefix}: ${publisher}`, () => navigate('sources', sourceId, revisionId));
+  chip.title = metadata(source, 'title'); chip.setAttribute('aria-label', `${prefix}: ${publisher} — ${metadata(source, 'title')}`);
+  return chip;
+}
+export function claimCitation(doc, model, id, navigate, label = 'Supporting evidence') {
+  const claim = model.claims.get(id), source = model.sources.get(claim?.sourceId);
+  const chip = action(doc, `${label} · ${publisherDisplay(source).name}`, () => navigate('claims', id));
+  chip.title = claim?.description ?? 'Supporting claim unavailable'; return chip;
+}
+const REVIEW = { Pending: ['Awaiting human review', '◐', 'pending'], Accepted: ['Recorded acceptance; eligibility requires review', '✓', 'accepted'],
+  'Needs correction': ['Needs correction', '!', 'correction'], Excluded: ['Excluded', '×', 'excluded'] };
+export function reviewChip(doc, name, disposition, handler) {
+  const [label, symbol, key] = REVIEW[disposition] ?? ['Review state unavailable', '?', 'unclassified'];
+  const chip = action(doc, `${symbol} ${name}`, handler, `chip review-${key}`);
+  chip.title = label; chip.setAttribute('aria-label', `${name}: ${label}`); return chip;
+}
+export function reviewLegend(doc) {
+  const legend = element(doc, 'aside', null, 'usage-legend'); legend.setAttribute('aria-label', 'Human review legend');
+  legend.append(element(doc, 'strong', 'Human review'));
+  for (const [state, [label, symbol, key]] of Object.entries(REVIEW)) legend.append(element(doc, 'span', `${symbol} ${state}`, `usage-key review-${key}`));
+  legend.append(element(doc, 'p', 'Pending means awaiting human review. Review state is separate from whether an attack was attempted or succeeded. Recorded acceptance still requires eligibility checks.', 'legend-note subtle'));
+  return legend;
 }
 
 export function safeExternalUrl(value) {
@@ -69,15 +102,14 @@ export function renderClaim(doc, model, claim, navigate, compact = false) {
   card.append(element(doc, 'p', claim.inference ? 'Researcher inference — not a source assertion' :
     'Author / source assertion — not independently established', 'eyebrow'));
   card.append(action(doc, claim.description, () => navigate('claims', claim.id), 'claim-title'));
-  field(doc, card, 'Claim ID / revision', `${claim.id} / ${claim.revision}`);
+  card.append(technicalDetails(doc, [['Claim identifier', claim.id], ['Claim revision', claim.revision], ['Source revision', claim.sourceRevisionId], ['Missing metadata reasons', JSON.stringify(claim.nullReasons ?? {})]]));
   for (const key of ['origin', 'evidenceStatus', 'disposition', 'uncertainty', 'observationContext']) {
     field(doc, card, { evidenceStatus: 'Evidence status', observationContext: 'Observation context' }[key] ??
       key[0].toUpperCase() + key.slice(1), metadata(claim, key));
   }
   const source = model.sources.get(claim.sourceId);
-  card.append(action(doc, `Source: ${metadata(source, 'title')} · exact revision ${claim.sourceRevisionId}`,
-    () => navigate('sources', claim.sourceId, claim.sourceRevisionId)));
-  card.append(action(doc, `Case: ${model.cases.get(claim.caseId)?.name ?? claim.caseId}`,
+  card.append(sourceCitation(doc, model, claim.sourceId, navigate, claim.sourceRevisionId));
+  card.append(action(doc, `Case: ${model.cases.get(claim.caseId)?.name ?? 'Case unavailable'}`,
     () => navigate('cases', claim.caseId)));
   if (!compact) {
     if (claim.inference) {
@@ -91,7 +123,7 @@ export function renderClaim(doc, model, claim, navigate, compact = false) {
     for (const id of claim.passageIds) {
       const passage = model.passages.get(id);
       if (!passage) continue;
-      field(doc, card, 'Passage / locator / code-point interval', `${id} · ${passage.locator} · [${passage.start}, ${passage.end})`);
+      card.append(technicalDetails(doc, [['Passage identifier', id], ['Locator', passage.locator], ['Code-point interval', `[${passage.start}, ${passage.end})`]]));
       card.append(element(doc, 'blockquote', metadata(passage, 'text')));
     }
     if (!claim.passageIds.length && !claim.inference) card.append(element(doc, 'p', 'No retained supporting passage.'));
@@ -124,8 +156,8 @@ export function renderSourceText(doc, revision, passages, onPassages) {
       const button = action(doc, segment.text, () => {
         if (!doc.getSelection?.()?.toString()) onPassages(segment.passageIds);
       }, 'passage-highlight');
-      button.setAttribute('aria-label', `${segment.text} · passages ${segment.passageIds.join(', ')} · code points ${segment.start}–${segment.end}; show linked claims`);
-      button.title = `Overlapping passages: ${segment.passageIds.join(', ')}`;
+      button.setAttribute('aria-label', `${segment.text} · ${segment.passageIds.length} linked passages · code points ${segment.start}–${segment.end}; show linked claims`);
+      button.title = `${segment.passageIds.length} overlapping evidence passages`;
       text.append(button);
     } else text.append(element(doc, 'span', segment.text));
   }
@@ -150,8 +182,8 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   const label = element(doc, 'label', 'Source revision (older snapshots preserved) ');
   const select = element(doc, 'select');
   const revisions = model.corpus.sourceRevisions.filter(r => r.sourceId === source.id);
-  for (const revision of revisions) {
-    const option = element(doc, 'option', revision.id);
+  for (const [index, revision] of revisions.entries()) {
+    const option = element(doc, 'option', `Snapshot ${index + 1}`);
     option.value = revision.id; select.append(option);
   }
   const revision = revisions.find(r => r.id === revisionId) ?? revisions.at(-1);
@@ -171,7 +203,7 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
     section.append(history);
   }
   if (revisionId && !revisions.some(r => r.id === revisionId)) {
-    section.append(element(doc, 'p', `Requested revision ${revisionId} is not available for this source; showing ${revision?.id ?? 'no snapshot'} instead.`, 'subtle'));
+    section.append(element(doc, 'p', 'Requested revision is not available for this source; showing the available snapshot below.', 'subtle'));
   }
   select.value = revision?.id ?? '';
   select.addEventListener('change', () => onRevision(select.value));
@@ -179,9 +211,7 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   if (!revision) {
     section.append(element(doc, 'p', 'No source snapshot is available.')); return section;
   }
-  field(doc, section, 'Snapshot / normalization / parser', `${revision.id} · ${revision.normalizationVersion} · ${revision.parserVersion}`);
-  field(doc, section, 'Normalized hash', metadata(revision, 'normalizedHash'));
-  field(doc, section, 'Raw hash / retention', `${metadata(revision, 'rawHash')} · ${revision.retention}`);
+  section.append(technicalDetails(doc, [['Snapshot identifier', revision.id], ['Normalization / parser', `${revision.normalizationVersion} · ${revision.parserVersion}`], ['Normalized hash', revision.normalizedHash], ['Raw hash / retention', `${revision.rawHash} · ${revision.retention}`], ['Missing metadata reasons', JSON.stringify(source.nullReasons ?? {})]]));
   field(doc, section, 'Snapshot provenance', `${revision.provenance.kind} · ${metadata(revision.provenance, 'suppliedBy')} · ${revision.provenance.description}`);
   const archive = archiveDownloads(doc, model, source, revision);
   if (archive) section.append(archive);
@@ -200,11 +230,15 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   left.append(element(doc, 'h3', 'Normalized source text'),
     element(doc, 'p', 'Highlight intervals use Unicode code points, not bytes or UTF-16. Click a highlight to reveal every overlapping passage’s claims.', 'subtle'),
     sourceText);
-  for (const passage of passages) left.append(action(doc,
-    `${passage.locator} · [${passage.start}, ${passage.end}) · ${passage.id}`, () => onPassages([passage.id])));
+  const passageLinks = element(doc, 'details'); passageLinks.append(element(doc, 'summary', `Evidence passages · ${passages.length}`));
+  for (const [index, passage] of passages.entries()) {
+    const chip = action(doc, `${publisherDisplay(source).name} · Passage ${index + 1}`, () => onPassages([passage.id]));
+    chip.title = `Show claims supported by code points ${passage.start}–${passage.end}`; passageLinks.append(chip);
+  }
+  if (passages.length) left.append(passageLinks);
   right.append(element(doc, 'h3', 'Linked claims · exact selected revision'));
   if (activePassages.length) {
-    right.append(element(doc, 'p', `Passage selection: ${activePassages.join(', ')}`),
+    right.append(element(doc, 'p', `${activePassages.length} evidence passage(s) selected`),
       action(doc, 'Show all revision claims', () => onPassages([])));
   }
   const claims = linkedClaims(model, source.id, revision.id).filter(c =>
@@ -246,8 +280,8 @@ export function renderCase(doc, model, record, navigate, exportReferences) {
     const block = element(doc, 'div', null, 'claim-card');
     field(doc, block, category.dimension, `${metadata(category, 'value')} · ${category.origin} · ${category.disposition}`);
     if (category.otherText !== null) field(doc, block, 'Other detail', category.otherText);
-    for (const id of category.supportingClaimIds) block.append(action(doc, `Category basis: ${id}`, () => navigate('claims', id)));
-    for (const id of category.sourceIds) block.append(action(doc, `Category source: ${id}`, () => navigate('sources', id)));
+    for (const id of category.supportingClaimIds) block.append(claimCitation(doc, model, id, navigate, 'Category evidence'));
+    for (const id of category.sourceIds) block.append(sourceCitation(doc, model, id, navigate, undefined, 'Category source'));
     panel.append(block);
   }
   panel.append(element(doc, 'h3', 'Typed dates · publication is not execution'));
@@ -263,20 +297,21 @@ export function renderCase(doc, model, record, navigate, exportReferences) {
 
 export function renderTimelineItem(doc, model, item, navigate) {
   const block = element(doc, 'article', null, 'claim-card');
-  field(doc, block, item.dateType, `${dateLabel(item.date)} · ${item.description}`);
+  if (item.date == null) field(doc, block, 'Undated entry', `${item.dateType} · ${item.description}`);
+  else field(doc, block, item.dateType, `${dateLabel(item.date)} · ${item.description}`);
   if (item.kind === 'source') {
     field(doc, block, 'Basis', 'Source metadata only — not an incident or execution date');
-    block.append(action(doc, `Source: ${item.sourceId}`, () => navigate('sources', item.sourceId)));
+    block.append(sourceCitation(doc, model, item.sourceId, navigate));
     return block;
   }
-  block.append(action(doc, `Case: ${model.cases.get(item.caseId)?.name ?? item.caseId}`, () => navigate('cases', item.caseId)));
+  block.append(action(doc, `Case: ${model.cases.get(item.caseId)?.name ?? 'Case unavailable'}`, () => navigate('cases', item.caseId)));
   field(doc, block, 'Basis', item.basis);
   field(doc, block, 'Uncertainty', metadata(item, 'uncertainty'));
   field(doc, block, 'Origin / disposition', `${item.origin} · ${item.disposition}`);
-  for (const id of item.supportingClaimIds) block.append(action(doc, `Date basis: ${id}`, () => navigate('claims', id)));
+  for (const id of item.supportingClaimIds) block.append(claimCitation(doc, model, id, navigate, 'Date evidence'));
   for (const id of item.sourceRevisionIds) {
     const revision = model.sourceRevisions.get(id);
-    if (revision) block.append(action(doc, `Date snapshot: ${id}`, () => navigate('sources', revision.sourceId, id)));
+    if (revision) block.append(sourceCitation(doc, model, revision.sourceId, navigate, id, 'Date source'));
   }
   return block;
 }
@@ -296,8 +331,8 @@ export function renderComparison(doc, model, selection, filters, navigate) {
       const card = element(doc, 'article', null, 'claim-card');
       card.append(element(doc, 'p', `Recorded category assertion: ${category.dimension} = ${metadata(category, 'value')} · ${category.origin} · ${category.disposition}`));
       if (category.otherText !== null) field(doc, card, 'Other detail', category.otherText);
-      for (const id of category.supportingClaimIds) card.append(action(doc, `Category basis: ${id}`, () => navigate('claims', id)));
-      for (const id of category.sourceIds) card.append(action(doc, `Category source: ${id}`, () => navigate('sources', id)));
+      for (const id of category.supportingClaimIds) card.append(claimCitation(doc, model, id, navigate, 'Category evidence'));
+      for (const id of category.sourceIds) card.append(sourceCitation(doc, model, id, navigate, undefined, 'Category source'));
       column.append(card);
     }
     column.append(element(doc, 'h4', 'Source-supported claims · not independently established'));
@@ -321,9 +356,8 @@ export function renderComparison(doc, model, selection, filters, navigate) {
     new Set(selection.supported.filter(c => c.sourceId === id).map(c => c.caseId)).size > 1);
   for (const id of shared) {
     const row = element(doc, 'div', null, 'claim-card');
-    row.append(action(doc, `Shared source: ${metadata(model.sources.get(id), 'title')}`, () => navigate('sources', id)));
-    for (const claim of selection.supported.filter(c => c.sourceId === id)) row.append(action(doc,
-      `${model.cases.get(claim.caseId).name}: ${claim.id}`, () => navigate('claims', claim.id)));
+    row.append(sourceCitation(doc, model, id, navigate, undefined, 'Shared source'));
+    for (const [index, claim] of selection.supported.filter(c => c.sourceId === id).entries()) row.append(claimCitation(doc, model, claim.id, navigate, `${model.cases.get(claim.caseId).name} · Evidence ${index + 1}`));
     panel.append(row);
   }
   if (!shared.length) panel.append(element(doc, 'p', 'No shared citations among matching source-supported claims.'));
@@ -339,8 +373,12 @@ export function renderComparison(doc, model, selection, filters, navigate) {
   panel.append(element(doc, 'h3', 'Typed timeline · source metadata is not execution'),
     element(doc, 'p', 'Timeline shows selected case context, not only matching claims. Dated entries sort by earliest possible bound, not a known event day. Overlapping approximate intervals do not establish event order. Source metadata appears once per source; case timeline assertions remain distinct.'));
   for (const item of timeline.dated) panel.append(renderTimelineItem(doc, model, item, navigate));
-  panel.append(element(doc, 'h3', `Unknown dates · unordered (${timeline.unknown.length} entries)`));
-  for (const item of timeline.unknown) panel.append(renderTimelineItem(doc, model, item, navigate));
+  if (timeline.unknown.length) {
+    const undated = element(doc, 'details', null, 'undated-entries');
+    undated.append(element(doc, 'summary', `Undated entries · ${timeline.unknown.length}`), element(doc, 'p', 'Dates are not reported; entries remain unordered and are excluded from dated chronology.'));
+    for (const item of timeline.unknown) undated.append(renderTimelineItem(doc, model, item, navigate));
+    panel.append(undated);
+  }
   if (!timeline.dated.length && !timeline.unknown.length) panel.append(element(doc, 'p', 'No timeline entries match the typed date filter.'));
   return panel;
 }

@@ -2,6 +2,16 @@
 
 ## 2026-10-13 — Passage-grounded campaign extraction
 
+- Add the official immutable MITRE ATLAS 2026.09 catalog projection (208
+  techniques/sub-techniques) with descriptions, provenance hashes and license
+  notice. Freeze resolver `/2` in new extraction requests and explain grounded
+  proposal semantics in prompt `/4`. Show searchable catalog disclosures separately
+  from recorded mappings, retaining historical run provenance.
+- Replace GUID-heavy citation/passage labels with publisher/evidence labels while
+  preserving exact navigation and private provenance. Collapse technical details
+  and undated entries; suppress missing metadata placeholders. Behavior review
+  chips use colors, symbols and accessible legends instead of Pending suffixes.
+
 - Remove large empty row gaps beneath variable-height research/artifact cards
   using column flow with consistent gutters; preserve expandable campaign grid
   positions. Make usage colors override base card styling. Unify publisher
