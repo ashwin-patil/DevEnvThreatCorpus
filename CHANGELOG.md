@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-13
+
+- Issue #30: safely ignore informational `Host:`, `Content-Signal:`, and `Clean-param:` robots declarations alongside `Sitemap:` during manual URL intake. Preserve literal-path access enforcement and fail-closed rejection of unsupported policies and cross-origin robots redirects; add offline regression coverage and document the supported directives without introducing crawling or URL rewriting.
+- Issue #21: implement private local claim acceptance, correction, and exclusion
+  with explicit self-attested reviewer identity, rationale, append-only UTC
+  events, input-base/content/dependency hashes, and preserved provenance.
+  Add read-only review-aware status/validation, conservative stale-acceptance
+  invalidation and explicit re-review, schema-valid corrections requiring
+  separate acceptance, configured regression tests, and workflow/audit guidance.
+  No browser writes, authenticated hosted review, model, export eligibility,
+  conflict resolution, or source/case attribution changes are introduced.
+
+- Issue #20: authorize the planned `scripts/review.mjs` manual review CLI in the trusted-base application and README-trigger mappings before implementation. Update setup guidance and README to clarify that this mapping is a prerequisite only; review behavior remains unimplemented.
+
 ## 2026-10-12
 
 - Issue #30: allow standard benign informational directives in the conservative robots.txt parser (`Host:`, `Content-Signal:`, `Clean-param:`, and `Sitemap:`) so that standard public documentation and engineering blogs are not rejected with `ROBOTS_UNSUPPORTED` when access is otherwise allowed. Retain fail-closed enforcement for invalid or ambiguous path expressions, redirects, and crawl delays; add regression test coverage in `tests/intake.test.mjs` and update architecture documentation.

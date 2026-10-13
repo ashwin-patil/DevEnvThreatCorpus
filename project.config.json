@@ -8,6 +8,7 @@
     ["node", "--test", "tests/contract.test.mjs"],
     ["node", "--test", "tests/intake.test.mjs"],
     ["node", "--test", "tests/extract.test.mjs"],
+    ["node", "--test", "tests/review.test.mjs"],
     ["node", "--test", "tests/workbench.test.mjs"],
     ["node", "--test", "tests/server.test.mjs"]
   ],
@@ -16,6 +17,7 @@
     "application": [
       "scripts/contract.mjs",
       "scripts/extract.mjs",
+      "scripts/review.mjs",
       "scripts/server.mjs",
       "src/**",
       "schemas/corpus.schema.json",
@@ -24,6 +26,7 @@
     "readme_triggers": [
       "scripts/contract.mjs",
       "scripts/extract.mjs",
+      "scripts/review.mjs",
       "scripts/server.mjs",
       "src/**",
       "schemas/corpus.schema.json",

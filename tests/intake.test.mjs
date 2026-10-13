@@ -313,12 +313,34 @@ test('AC-05 credential/sensitive query/executable URLs fail safely; meaningful p
   assert.notEqual(intakeUrl('https://articles.example/read?id=7'), intakeUrl('https://articles.example/read?id=8'));
 });
 
+test('Issue #30 AC-01 robots informational directives allow otherwise permitted intake', async t => {
+  const directory = await workspace(t);
+  for (const [name, policy] of [
+    ['host', 'Host: other.example\nUser-agent: *\nAllow: /synthetic'],
+    ['content-signal', 'User-agent: *\nContent-Signal: search=yes, ai-train=no\nAllow: /synthetic'],
+    ['clean-param', 'User-agent: *\nAllow: /synthetic\nClean-param: id /synthetic'],
+    ['combined', 'hOsT: other.example # informational only\nUser-agent: *\nContent-Signal: search=yes, ai-train=no\nUser-agent: DevEnvThreatCorpusIntake\nDisallow: /\nClean-param: id /synthetic\nAllow: /synthetic'],
+  ]) {
+    const store = path.join(directory, name);
+    const deps = fake(undefined, { robots: () => response(policy) });
+    assert.equal((await intakeSource(urlInput(store), deps)).status, 'succeeded');
+    assert.deepEqual(deps.calls.map(c => c.url), ['https://articles.example/robots.txt', url]);
+    assert.equal((await corpusAt(store)).sources[0].originalUrl, url);
+  }
+});
+
 test('AC-05 robots fail closed without override, including access restrictions and unsupported policies', async t => {
   const directory = await workspace(t);
   for (const [name, robots, expected] of [
     ['deny', response('User-agent: *\nDisallow: /synthetic'), 'ROBOTS_DENIED'],
     ['agent', response('User-agent: DevEnvThreatCorpusIntake\nDisallow: /'), 'ROBOTS_DENIED'],
     ['unsupported', response('User-agent: *\nDisallow: /*secret'), 'ROBOTS_UNSUPPORTED'],
+    ['allow-wildcard', response('Host: articles.example\nUser-agent: *\nAllow: /synthetic*'), 'ROBOTS_UNSUPPORTED'],
+    ['end-anchor', response('Content-Signal: search=yes\nUser-agent: *\nDisallow: /synthetic$'), 'ROBOTS_UNSUPPORTED'],
+    ['unparsed-agent', response('Host: articles.example\nUser-agent: Bad Agent\nAllow: /'), 'ROBOTS_UNSUPPORTED'],
+    ['metadata-deny', response('User-agent: *\nDisallow: /synthetic\nHost: other.example\nContent-Signal: search=yes\nClean-param: id /synthetic\nUser-agent: DevEnvThreatCorpusIntake\nAllow: /'), 'ROBOTS_DENIED'],
+    ['metadata-delay', response('Host: articles.example\nUser-agent: *\nCrawl-delay: 2'), 'ROBOTS_UNSUPPORTED'],
+    ['unknown-directive', response('Host: articles.example\nUser-agent: *\nUnknown: value'), 'ROBOTS_UNSUPPORTED'],
     ['delay', response('User-agent: *\nCrawl-delay: 2'), 'ROBOTS_UNSUPPORTED'],
     ['auth', response('', { status: 401 }), 'ACCESS_DENIED'],
     ['cross-origin', response('', { status: 302, headers: { location: 'https://other.example/robots.txt' } }), 'ROBOTS_UNSUPPORTED'],

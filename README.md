@@ -19,8 +19,9 @@
 DevEnvThreatCorpus is building a human-reviewed corpus for research on
 developer-environment threats. The current work provides the data contract,
 offline validation, operator-triggered source intake, and researcher-triggered
-manual claim extraction for a new corpus. Claim acceptance and review operations
-are not implemented.
+manual claim extraction, and local human claim review for a new corpus.
+The private review CLI records append-only decisions and checks current
+acceptance eligibility; local reviewer identity is self-attested, not authenticated.
 
 ## Current implementation
 
@@ -34,6 +35,8 @@ revisions and explicit success/failure manifests using that same contract. The
 offline manual extraction CLI adds pending, passage-grounded claims and case
 associations from a researcher-completed template; it does not accept or review
 claims.
+The separate manual review CLI accepts, corrects, or excludes explicit claims;
+its status/validation commands distinguish recorded acceptance from current eligibility.
 
 The read-only Research Workbench displays fresh 0.3.0 cases, sources, exact
 revision passages, and claims locally, with search, facets, and explicit conflict
@@ -85,6 +88,12 @@ node "$R/scripts/contract.mjs" intake url --url https://example.org/article --su
 ```
 
 That command uses the network; it is not part of the offline exercise.
+The robots parser ignores informational `Sitemap:`, `Host:`, `Content-Signal:`,
+and `Clean-param:` declarations without changing the requested URL or access
+rules. Denials, wildcard (`*`, `$`) Allow/Disallow paths, unsupported crawl
+delays, malformed user-agent records, and cross-origin robots redirects still
+fail closed. Robots permission does not replace operator authorization or
+article-storage rights.
 See [intake rules and limitations](docs/architecture.md#manual-intake-contract)
 for access policy, supported encodings/HTML, identity, bounds, safe retention,
 and failure handling. Do not pass credentials or confidential text on a shared
@@ -259,6 +268,52 @@ corpus unchanged. A successful extraction records a manifest and leaves claims
 acceptance, or conflict resolution. See [manual extraction rules and
 limitations](docs/architecture.md#manual-extraction-contract).
 
+## Manual claim review: offline exercise
+
+Review is an explicit human operation, not an intake/extraction side effect.
+Use the synthetic fixture only to exercise commands; it is not incident evidence:
+
+```bash
+R=/home/runner/work/DevEnvThreatCorpus/DevEnvThreatCorpus
+S="$R/.private-intake/review-exercise"
+umask 077
+mkdir -p "$S"
+cp "$R/tests/fixtures/benign/core-only.json" "$S/corpus.json"
+cp "$R/tests/fixtures/review/accept.json" "$S/decision.json"
+chmod 600 "$S/corpus.json" "$S/decision.json"
+node "$R/scripts/review.mjs" status --file "$S/corpus.json" > "$S/status.json"
+# Copy the current base digest into the synthetic decision, not a cached approval.
+node -e 'const fs=require("node:fs");const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));d.baseDigest=JSON.parse(fs.readFileSync(process.argv[2],"utf8")).baseDigest;fs.writeFileSync(process.argv[1],JSON.stringify(d,null,2)+"\n");' "$S/decision.json" "$S/status.json"
+node "$R/scripts/review.mjs" decide --template "$S/decision.json" --store "$S" --reviewer synthetic-human-reviewer
+node "$R/scripts/review.mjs" status --file "$S/corpus.json"
+node "$R/scripts/review.mjs" validate --file "$S/corpus.json"
+```
+
+For real review, inspect the claim and its exact cited passages first; supply
+your own reviewer identifier (1–64 ASCII letters/digits, `_`, `.`, `-`, starting
+with a letter/digit) and substantive rationale. Do not use the fixture's identity
+or rationale as actual research approval. The template requires
+`schemaVersion: "manual-review/1"`, `claimId`, `baseDigest`, `rationale`, and
+`action: "accept"`, `"correct"`, or `"exclude"`.
+
+To correct, edit the private decision to set `"action": "correct"` and add, for
+example, `"correction": {"description": "Corrected claim wording"}`. The claim
+becomes `Needs correction` with a new revision and event, never automatically
+accepted. To exclude, set `"action": "exclude"` and remove `correction`.
+Accept/exclude cannot include a correction. After changing content, rerun
+`status` and copy the new `baseDigest` before a separate accept decision.
+Decisions may revisit existing dispositions; each successful invocation appends
+an event, including repeated decisions, rather than deduplicating human actions.
+
+Review-aware `status` and `validate` are read-only and report only current
+acceptance: stale recorded acceptance is effectively `Pending`. Strict
+`contract.mjs validate` and the unchanged workbench reject stale acceptance.
+No export path is provided or certified review-eligible.
+Unknown claims, stale bases, invalid corrections, blank rationale, malformed
+templates, unsafe paths, and concurrent writers exit nonzero without modifying
+the corpus. See [review semantics and failure codes](docs/architecture.md#manual-claim-review-contract)
+for audit, correction-field, identity, and storage limitations.
+
 ## Research Workbench: offline preview
 
 With the pinned Node runtime, start the loopback-only preview from the repository
@@ -305,7 +360,7 @@ python scripts/verify.py
 ```
 
 `python scripts/verify.py` runs the repository governance checks and configured
-project commands, including the offline contract, intake, extraction, workbench,
+project commands, including the offline contract, intake, extraction, review, workbench,
 and preview-server suites.
 To run the focused suites directly with the pinned Node runtime:
 
@@ -313,6 +368,7 @@ To run the focused suites directly with the pinned Node runtime:
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/contract.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/intake.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/extract.test.mjs
+node --test tests/review.test.mjs
 node --test tests/workbench.test.mjs
 node --test tests/server.test.mjs
 ```
@@ -324,6 +380,8 @@ requirements, clean-start behavior, optional enrichment, and deterministic
 serialization. Intake checks use injected fake DNS/transports, while extraction
 tests use synthetic corpus/templates and temporary private stores. Neither suite
 contacts websites or assesses whether a research claim is factually true.
+Review tests exercise private decisions, append-only history, stale acceptance,
+negative inputs, and separate provenance/status axes without authenticating a human.
 
 ## Project status and next work
 
@@ -337,6 +395,8 @@ Implemented now:
 - Offline manual extraction from researcher-completed templates, exact
   revision-grounded passages, explicit case/source links, inference and conflict
   records, and pending-only outcomes.
+- Private local claim acceptance, correction, and exclusion with append-only
+  digest-bound events, explicit reviewer attribution, and current-eligibility checks.
 - Read-only client-side research workbench (`src/**`) with Unicode passage
   inspection, case/claim exploration, conflicts, facets, local branding, and a
   loopback-only offline preview server (`scripts/server.mjs`).
@@ -348,8 +408,7 @@ Implemented now:
 Not implemented yet:
 
 - Semantic article interpretation or assisted research workflows.
-- Authenticated reviewer identity, a review interface, or durable review
-  storage.
+- Authenticated reviewer identity, hosted review, or an in-browser curator interface.
 - Public exports, deployment, or an operational corpus-processing pipeline.
 
 See [Architecture](docs/architecture.md) for the intended fresh-input flow,

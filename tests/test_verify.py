@@ -110,6 +110,8 @@ class ConfigValidationTests(unittest.TestCase):
 
     def test_ac06_application_and_readme_mapping_configuration(self) -> None:
         for category in ("application", "readme_triggers"):
+            self.assertIn("scripts/review.mjs", self.config["paths"][category])
+        for category in ("application", "readme_triggers"):
             with self.subTest(category=category):
                 broken = copy.deepcopy(self.config)
                 del broken["paths"][category]
