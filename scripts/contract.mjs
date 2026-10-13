@@ -1588,6 +1588,8 @@ export function assertAppendOnlyReviews(previous, next) {
 
   const unknownDate = () => ({ precision: 'unknown', value: null, start: null, end: null, nullReasons: { value: 'not_reported', start: 'not_applicable', end: 'not_applicable' } });
   const archiveArtifacts = new Set(['original.html', 'article.txt', 'metadata.json', 'assets.json']);
+  const archiveByteLimit = artifact => artifact === 'assets.json' ? 50 * 1024 * 1024
+    : artifact === 'original.html' ? INTAKE_LIMITS.bytes : 3 * INTAKE_LIMITS.bytes;
   function archivePath({ store, sourceId, revisionId }) {
     absoluteSafe(store);
     const relative = path.relative(repoRoot, store);
@@ -1609,7 +1611,7 @@ export function assertAppendOnlyReviews(previous, next) {
     if (!input || !archiveArtifacts.has(input.artifact)) rejectIntake('INVALID_INPUT');
     const directory = archivePath(input);
     for (const dir of [input.store, path.join(input.store, 'articles'), path.dirname(directory), directory]) await privateDirectory(dir);
-    return readPrivate(path.join(directory, input.artifact), { privateOnly: true, maxBytes: input.artifact === 'assets.json' ? 50 * 1024 * 1024 : INTAKE_LIMITS.bytes });
+    return readPrivate(path.join(directory, input.artifact), { privateOnly: true, maxBytes: archiveByteLimit(input.artifact) });
   }
   function metadataDate(value) {
     if (typeof value !== 'string') return unknownDate();
@@ -1658,7 +1660,10 @@ export function assertAppendOnlyReviews(previous, next) {
         ['assets.json', Buffer.from(canonicalSerialize({ schemaVersion: 'article-assets/1', assets: content.assets, warnings }))],
         ...content.imageBytes,
       ]);
-      for (const [file, bytes] of files) await fs.writeFile(path.join(staging, file), bytes, { flag: 'wx', mode: 0o600 });
+      for (const [file, bytes] of files) {
+        if (archiveArtifacts.has(file) && bytes.length > archiveByteLimit(file)) rejectIntake('TOO_LARGE');
+        await fs.writeFile(path.join(staging, file), bytes, { flag: 'wx', mode: 0o600 });
+      }
       await store.verifyDirectory();
       await privateDirectory(path.dirname(directory));
       try { await fs.lstat(directory); rejectIntake('PERSISTENCE'); }

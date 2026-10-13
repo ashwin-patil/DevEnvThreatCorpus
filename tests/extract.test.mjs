@@ -161,6 +161,23 @@ const enrichmentInvoke = (command, directory, args = []) => spawnSync(process.ex
   new URL('../scripts/extract.mjs', import.meta.url).pathname, 'enrichment', command, '--store', directory, ...args,
 ], { encoding: 'utf8' });
 
+test('issue39 AC-06 enrichment preserves the core colon and long reference ID contract', async t => {
+  const caseId = `case:${'x'.repeat(140)}`, sourceId = 'source:article', sourceRevisionId = 'revision:article';
+  let input = JSON.stringify(await fixture('./fixtures/benign/core-only.json'));
+  for (const [oldId, newId] of [['synthetic-case-a', caseId], ['synthetic-source-a', sourceId], ['synthetic-revision-a', sourceRevisionId]]) {
+    input = input.replaceAll(JSON.stringify(oldId), JSON.stringify(newId));
+  }
+  const corpus = JSON.parse(input);
+  assert.deepEqual(validateCorpus(corpus), []);
+  const { directory, corpusFile } = await makeStore(corpus);
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const before = await readFile(corpusFile, 'utf8');
+  const template = createEnrichmentTemplate({ corpus, caseId, sourceId, sourceRevisionId });
+  const child = enrichmentInvoke('import', directory, ['--input', await writeTemplate(directory, template)]);
+  assert.equal(child.status, 0, child.stdout);
+  assert.equal(await readFile(corpusFile, 'utf8'), before);
+});
+
 test('issue39 AC-06 enrichment template, validation, import, and export retain all eight pending types privately', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));

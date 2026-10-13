@@ -10,6 +10,9 @@
   evidence-linked enrichment import/export that cannot accept canonical claims.
   Focused fixtures and usage/architecture/audit guidance distinguish offline
   checks from required live-network and independent human acceptance evidence.
+  Continuation fixes exclude hidden article roots, consistently bound expanded
+  UTF-8 archives, retain download controls for previously supplied-text sources,
+  and accept valid core identifiers in enrichment references.
 - Issue #25: add the offline Comparison & timelines tab with explicit multi-label
   AND/OR facets, claim-level evidence/reviewer-disposition filters, inclusive
   precision-preserving typed date overlap, and unordered unknown dates. Preserve

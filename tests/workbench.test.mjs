@@ -1062,6 +1062,11 @@ test('Issue #39 AC-05 archives offer only selected revision attachments and extr
   assert.match(rendered.textContent, /download only, never rendered/);
   assert.equal(descendants(rendered).find(node => node.className === 'source-text').textContent, revision.normalizedContent);
   assert.ok(!rendered.textContent.includes('untrusted()'));
+  for (const inputKind of ['text', 'file']) {
+    source.inputKind = inputKind;
+    const fetched = renderSource(new FakeDocument(), m, source, revision.id, () => {}, () => {}, () => {});
+    assert.equal(descendants(fetched).filter(node => node.download).length, 4);
+  }
   m.collectionEnabled = false;
   const readonly = renderSource(new FakeDocument(), m, source, revision.id, () => {}, () => {}, () => {});
   assert.equal(descendants(readonly).filter(node => node.download).length, 0);

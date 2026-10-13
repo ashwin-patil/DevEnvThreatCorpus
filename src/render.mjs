@@ -48,7 +48,7 @@ export function caseCitations(model, record) {
 }
 
 function archiveDownloads(doc, model, source, revision) {
-  if (!model.collectionEnabled || source.inputKind !== 'url' ||
+  if (!model.collectionEnabled ||
       !/^source-[a-f0-9]{64}$/.test(source.id) || !/^source-revision-[a-f0-9]{64}$/.test(revision.id)) return null;
   const section = element(doc, 'section', null, 'archive-downloads');
   section.append(element(doc, 'h3', 'Private archive downloads (when retained)'),

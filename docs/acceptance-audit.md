@@ -55,6 +55,11 @@ These observations establish concrete environment limitations, not live
 collection acceptance. A maintainer must authorize the hosted checks and
 repeat successful CLI/browser collection on a network-capable final revision.
 Exact final commands, outcomes, and tested SHA remain recorded on PR #40.
+Full-diff continuation review identified four corrected fixture gaps: hidden
+extraction roots (AC-03), charset-expanded archive read/idempotency bounds
+(AC-02/AC-03), fetched revisions of initially supplied-text sources (AC-05),
+and core-compatible enrichment reference identifiers (AC-06). Regression
+checks are in the existing intake, workbench, and extraction suites.
 
 ## Issue #25 comparison and timelines
 

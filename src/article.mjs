@@ -71,11 +71,12 @@ function tree(raw) {
   return root;
 }
 
-function nodes(root, predicate) {
+function nodes(root, predicate, visible = false) {
   const result = [], pending = [root];
   while (pending.length) {
     const node = pending.pop();
     if (typeof node === 'string') continue;
+    if (visible && (hiddenTags.has(node.name) || Object.hasOwn(node.attrs, 'hidden') || node.attrs['aria-hidden'] === 'true')) continue;
     if (predicate(node)) result.push(node);
     for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
   }
@@ -111,9 +112,9 @@ const clean = value => typeof value === 'string' && value.trim() ? value.trim() 
 
 export function parseArticle(raw, url) {
   const root = tree(raw);
-  const article = nodes(root, node => node.name === 'article')[0]
-    ?? nodes(root, node => node.name === 'main' || node.attrs.role === 'main')[0]
-    ?? nodes(root, node => node.name === 'body')[0] ?? root;
+  const article = nodes(root, node => node.name === 'article', true)[0]
+    ?? nodes(root, node => node.name === 'main' || node.attrs.role === 'main', true)[0]
+    ?? nodes(root, node => node.name === 'body', true)[0] ?? root;
   const meta = {};
   for (const node of nodes(root, node => node.name === 'meta')) {
     const key = (node.attrs.property ?? node.attrs.name ?? node.attrs.itemprop ?? '').toLowerCase();

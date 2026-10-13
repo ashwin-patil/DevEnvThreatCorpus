@@ -12,6 +12,7 @@ import {
   sha256, normalizeText, canonicalSerialize, stableId, validateCorpus,
   collectBatch, readArchiveArtifact, IMAGE_LIMITS, BATCH_LIMIT,
 } from '../scripts/contract.mjs';
+import { parseArticle } from '../src/article.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixture = name => fileURLToPath(new URL(`./fixtures/intake/${name}`, import.meta.url));
@@ -540,6 +541,30 @@ const htmlResponse = (html, options = {}) => response(html, {
 });
 const batchInput = (store, urls, options = {}) => ({ store, urls, operator, caseName: 'Explicit synthetic campaign', ...options });
 const artifact = (store, result, name) => readArchiveArtifact({ store, sourceId: result.sourceId, revisionId: result.revisionId, artifact: name });
+
+test('Issue #39 AC-03 extraction ignores hidden article roots and their images', () => {
+  for (const wrapper of ['template', 'nav', 'div hidden', 'div aria-hidden="true"']) {
+    const name = wrapper.split(' ')[0];
+    const article = parseArticle(`<${wrapper}><article>Placeholder<img src="/hidden.png"></article></${name}><main>Actual report<img src="/visible.png"></main>`);
+    assert.equal(article.text, 'Actual report');
+    assert.deepEqual(article.images, ['/visible.png']);
+  }
+});
+
+test('Issue #39 AC-02/03 expanded legacy text archives remain readable and idempotent', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'expanded');
+  const text = 'é'.repeat(1_200_000), bytes = Buffer.from(`<article>${text}</article>`, 'latin1');
+  const transport = fake(() => htmlResponse('', {
+    headers: { 'content-type': 'text/html; charset=windows-1252' },
+    body: (async function* () { yield bytes; })(),
+  }));
+  const first = await collectBatch(batchInput(store, [url]), transport);
+  assert.equal(first.status, 'succeeded');
+  assert.equal((await artifact(store, first.results[0], 'article.txt')).toString(), text);
+  const repeated = await collectBatch(batchInput(store, [url], { caseName: undefined, caseId: first.caseId }), transport);
+  assert.equal(repeated.results[0].status, 'already present');
+  assert.equal((await corpusAt(store)).sourceRevisions.length, 1);
+});
 
 test('Issue #39 AC-01/02 three successes, durable partial failure and per-input deduplication link one pending campaign', async t => {
   const directory = await workspace(t), store = path.join(directory, 'batch');

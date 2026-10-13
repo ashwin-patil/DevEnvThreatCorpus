@@ -13,6 +13,7 @@ export const ANNOTATION_TYPES = Object.freeze([
 ]);
 const text = { type: 'string', minLength: 1, maxLength: 65536 };
 const identifier = { type: 'string', pattern: '^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$' };
+const referenceIdentifier = { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' };
 const enumeration = values => ({ type: 'string', enum: values });
 const shape = (properties, required = []) => ({ type: 'object', additionalProperties: false, properties, required });
 const list = values => ({ type: 'array', minItems: 1, maxItems: 20, uniqueItems: true, items: enumeration(values) });
@@ -46,7 +47,7 @@ export const enrichmentSchema = {
       type: 'array', maxItems: ENRICHMENT_LIMITS.annotations,
       items: {
         ...shape({
-          id: identifier, caseId: identifier, sourceId: identifier, sourceRevisionId: identifier,
+          id: identifier, caseId: referenceIdentifier, sourceId: referenceIdentifier, sourceRevisionId: referenceIdentifier,
           type: enumeration(ANNOTATION_TYPES), value: text, normalizedValue: text,
           context: contextSchema,
           evidenceStatus: enumeration(['evidence-backed', 'inference', 'unresolved']),

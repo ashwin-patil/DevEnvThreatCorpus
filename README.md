@@ -159,6 +159,12 @@ author, or date information remains unknown. The hostname publisher map is
 editable in the collection implementation; page publisher text is retained
 separately from its normalized citation name.
 
+Article responses remain bounded to 2 MiB after decompression. UTF-8 archive
+text and metadata allow up to 6 MiB for supported charset expansion, with the
+same limits enforced when writing and downloading. Hidden/template article
+roots and their images are excluded from extraction. Archive links are tied
+to the selected revision even when the source was initially supplied as text.
+
 Extracted text is the default view. Original HTML is untrusted and download-only,
 never rendered in the workbench origin. Do not open it in a privileged browser
 context. All article and enrichment files remain private and Git-ignored.
@@ -188,6 +194,8 @@ claims/review decisions nor imply confirmed maliciousness. Outputs refuse
 existing files; use a fresh output name. See the [enrichment contract](docs/architecture.md#private-talk-enrichment-contract)
 for required fields, evidence locators, overlapping role dimensions,
 agent/model provenance, and observed-versus-proposed distinctions.
+Case/source/revision references use the existing core identifier syntax,
+including colons; annotation IDs retain their separate sidecar restrictions.
 
 ## Manual extraction: offline exercise
 
