@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { chmod, link, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { canonicalSerialize, reviewBaseDigest, sha256, validateCorpus } from '../scripts/contract.mjs';
 import { applyReview } from '../scripts/review.mjs';
 import {
@@ -196,8 +197,11 @@ test('issue39 AC-06 enrichment template, validation, import, and export retain a
   assert.ok(exported.annotations.every(item => item.status === 'pending' && item.evidenceStatus === 'inference'));
   assert.equal(enrichmentInvoke('import', directory, ['--input', output]).status, 0);
   assert.equal(await readFile(corpusFile, 'utf8'), corpusBefore, 'enrichment must not mutate canonical claims or reviews');
-  const ignored = spawnSync('git', ['check-ignore', sidecarFile, templateFile, output], { encoding: 'utf8' });
-  assert.equal(ignored.status, 0);
+  const repository = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
+  const ignored = spawnSync('git', ['-c', `safe.directory=${repository}`, 'check-ignore', sidecarFile, templateFile, output], {
+    encoding: 'utf8', cwd: repository, env: { ...process.env, GIT_CONFIG_COUNT: '0' },
+  });
+  assert.equal(ignored.status, 0, ignored.stderr);
   assert.equal(ignored.stdout.trim().split('\n').length, 3);
 });
 
@@ -230,6 +234,30 @@ test('issue39 AC-06 all types resolve exact Unicode quotes, with code-point half
     assert.equal(item.status, 'pending');
   }
   assert.deepEqual(stored.annotations.find(item => item.type === 'role-context').context.roles, template.annotations[0].context.roles);
+});
+
+test('issue39 AC-06 reference-scoped template IDs accumulate more than 20 annotations across campaigns and articles', async t => {
+  const { directory, corpusFile } = await makeStore();
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const corpus = await readJson(corpusFile);
+  const original = await readFile(corpusFile, 'utf8');
+  const templates = [
+    enrichmentTemplate(corpus),
+    createEnrichmentTemplate({ corpus, caseId: 'synthetic-case-b', sourceId: 'synthetic-source-a', sourceRevisionId: 'synthetic-revision-a' }),
+    createEnrichmentTemplate({ corpus, caseId: 'synthetic-case-a', sourceId: 'synthetic-source-b', sourceRevisionId: 'synthetic-revision-b' }),
+  ];
+  assert.deepEqual(enrichmentTemplate(corpus), templates[0], 'identical references produce deterministic IDs');
+  assert.equal(new Set(templates.flatMap(template => template.annotations.map(item => item.id))).size, 24);
+  for (const template of templates) {
+    const imported = await runEnrichment({ command: 'import', store: directory, inputFile: await writeTemplate(directory, template) });
+    assert.equal(imported.status, 'succeeded', JSON.stringify(imported));
+  }
+  const sidecar = path.join(directory, 'enrichment', 'annotations.json');
+  const stored = await readJson(sidecar);
+  assert.equal(stored.annotations.length, 24);
+  assert.equal((await runEnrichment({ command: 'import', store: directory, inputFile: await writeTemplate(directory, templates[0]) })).status, 'succeeded');
+  assert.equal((await readJson(sidecar)).annotations.length, 24);
+  assert.equal(await readFile(corpusFile, 'utf8'), original);
 });
 
 test('issue39 AC-06 repeated or missing quotes stay explicitly unresolved; locators disambiguate repeated Unicode', async t => {
@@ -273,6 +301,7 @@ for (const [name, mutate] of [
   ['unknown core review field', item => { item.disposition = 'Accepted'; }],
   ['untrusted accepted status', item => { item.status = 'accepted'; }],
   ['agent without versions', item => { item.origin = 'agent'; }],
+  ['agent without model version', item => { item.origin = 'agent'; item.promptVersion = 'prompt/1'; }],
   ['agent with empty prompt version', item => { item.origin = 'agent'; item.modelVersion = 'model/1'; item.promptVersion = ''; }],
   ['unsupported evidence-backed assertion', item => { item.evidenceStatus = 'evidence-backed'; }],
   ['mismatched locator text', item => { item.support = { quote: 'invented', locator: { start: 0, end: 6 } }; }],
@@ -328,6 +357,56 @@ test('issue39 AC-06 conflicting annotation ID imports fail atomically', async t 
   const child = enrichmentInvoke('import', directory, ['--input', await writeTemplate(directory, template)]);
   assert.equal(result(child).code, 'ANNOTATION_COLLISION');
   assert.equal(await readFile(sidecar, 'utf8'), original);
+});
+
+test('issue39 AC-06 missing revision links, unavailable evidence, duplicate IDs, and inferred classifications fail closed', async () => {
+  const corpus = await fixture('./fixtures/benign/core-only.json');
+  const template = enrichmentTemplate(corpus);
+  const item = template.annotations.find(record => record.type === 'commands-ai-artifacts');
+  item.evidenceStatus = 'evidence-backed';
+  item.support = { quote: '😀 Café' };
+  const unlinked = structuredClone(corpus);
+  unlinked.sources[0].revisionIds = [];
+  assert.ok(validateEnrichment(template, unlinked).some(message => message.includes('unlinked')));
+  const unretained = structuredClone(corpus);
+  unretained.sourceRevisions[0].normalizedContent = null;
+  assert.ok(validateEnrichment(template, unretained).some(message => message.includes('retained')));
+  item.evidenceStatus = 'unresolved';
+  assert.deepEqual(validateEnrichment(template, unretained), []);
+  item.support.quote = '\ud83d';
+  item.evidenceStatus = 'evidence-backed';
+  assert.ok(validateEnrichment(template, corpus).length, 'a surrogate fragment cannot stand in for a Unicode code point');
+  template.annotations.push(structuredClone(template.annotations[0]));
+  assert.ok(validateEnrichment(template, corpus).some(message => message.includes('duplicate ID')));
+  template.annotations.pop();
+  item.evidenceStatus = 'inference';
+  delete item.support;
+  for (const type of ['observed-behavior', 'data-sources', 'ttp-references', 'detection-references']) {
+    const proposed = template.annotations.find(record => record.type === type);
+    proposed.evidenceStatus = 'evidence-backed';
+    proposed.support = { quote: '😀 Café' };
+    assert.ok(validateEnrichment(template, corpus).length, `${type} proposals cannot become evidence-backed`);
+    proposed.evidenceStatus = 'inference';
+  }
+});
+
+test('issue39 AC-06 tampered sidecar status and busy intake locks do not publish or alter private records', async t => {
+  const { directory, corpusFile } = await makeStore();
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = await writeTemplate(directory, enrichmentTemplate(await readJson(corpusFile)));
+  const original = await readFile(corpusFile, 'utf8');
+  await writeFile(path.join(directory, '.intake.lock'), '', { mode: 0o600 });
+  assert.equal((await runEnrichment({ command: 'import', store: directory, inputFile: file })).code, 'STORE_BUSY');
+  await rm(path.join(directory, '.intake.lock'));
+  assert.equal(enrichmentInvoke('import', directory, ['--input', file]).status, 0);
+  const sidecar = path.join(directory, 'enrichment', 'annotations.json');
+  const tampered = await readJson(sidecar);
+  tampered.annotations[0].status = 'accepted';
+  await writeFile(sidecar, JSON.stringify(tampered), { mode: 0o600 });
+  const output = path.join(directory, 'out.json');
+  assert.equal((await runEnrichment({ command: 'export', store: directory, outputFile: output })).code, 'INVALID_ENRICHMENT');
+  await assert.rejects(stat(output), { code: 'ENOENT' });
+  assert.equal(await readFile(corpusFile, 'utf8'), original);
 });
 
 test('issue39 AC-06 strict annotation and byte limits and CLI argument validation', async t => {

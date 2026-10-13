@@ -144,8 +144,14 @@ export function parseArticle(raw, url) {
     publicationDate: meta['article:published_time'] ?? meta.datepublished ?? clean(structured.datePublished),
     updateDate: meta['article:modified_time'] ?? meta.datemodified ?? clean(structured.dateModified),
   };
-  const images = [];
-  for (const node of nodes(article, node => node.name === 'img' && !Object.hasOwn(node.attrs, 'hidden'))) {
+  const images = [], imageNodes = [], pending = [article];
+  while (pending.length) {
+    const node = pending.pop();
+    if (typeof node === 'string' || hiddenTags.has(node.name) || Object.hasOwn(node.attrs, 'hidden') || node.attrs['aria-hidden'] === 'true') continue;
+    if (node.name === 'img') imageNodes.push(node);
+    pending.push(...node.children.toReversed());
+  }
+  for (const node of imageNodes) {
     const attrs = node.attrs;
     const candidate = attrs['data-src'] || attrs['data-original'] || attrs['data-lazy-src']
       || (attrs['data-srcset'] || attrs.srcset || '').split(',')[0].trim().split(/\s+/)[0] || attrs.src;

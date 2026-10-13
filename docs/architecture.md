@@ -559,7 +559,8 @@ preserve missing metadata rather than fabricating it.
 validator; `scripts/extract.mjs enrichment template|validate|import|export`
 provides the private CLI. Sidecars remain outside the core 0.3.0 schema and
 are stored in `<store>/enrichment/annotations.json`, with mode-0700 directories
-and mode-0600 files. Documents are bounded to 2 MiB and 20 annotations.
+and mode-0600 files. Documents and the combined store are bounded to 2 MiB
+and 1,000 annotations.
 Import is idempotent by annotation ID; a changed value under the same ID is
 a collision rather than silent replacement. Exports refuse existing outputs.
 

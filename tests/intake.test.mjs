@@ -534,3 +534,233 @@ test('AC-08 output and manifests never disclose paths, URLs, input content or ra
   assert.ok((await fs.readdir(store)).every(name => ['corpus.json', 'unrelated.txt'].includes(name)));
   assert.equal(result.sourceId, stableId('source', `supplied-bytes/1\n${sha256(sensitive)}`));
 });
+
+const htmlResponse = (html, options = {}) => response(html, {
+  ...options, headers: { 'content-type': 'text/html', ...options.headers },
+});
+const batchInput = (store, urls, options = {}) => ({ store, urls, operator, caseName: 'Explicit synthetic campaign', ...options });
+const artifact = (store, result, name) => readArchiveArtifact({ store, sourceId: result.sourceId, revisionId: result.revisionId, artifact: name });
+
+test('Issue #39 AC-01/02 three successes, durable partial failure and per-input deduplication link one pending campaign', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'batch');
+  const urls = ['https://articles.example/one', 'https://articles.example/two', 'https://articles.example/three', 'https://articles.example/denied', 'https://articles.example/one'];
+  const transport = fake(request => new URL(request.url).pathname === '/denied'
+    ? response('', { status: 403 }) : htmlResponse('<article><h1>Ordinary heading<p>Retained text'));
+  const collected = await collectBatch(batchInput(store, urls), transport);
+  assert.equal(collected.status, 'partial');
+  assert.deepEqual(collected.results.map(result => result.status), ['collected', 'collected', 'collected', 'failed', 'already present']);
+  assert.equal(collected.results[3].code, 'ACCESS_DENIED');
+  assert.equal(transport.calls.filter(request => new URL(request.url).pathname === '/one').length, 1);
+  const corpus = await corpusAt(store), campaign = corpus.cases[0];
+  assert.equal(campaign.id, collected.caseId);
+  assert.equal(campaign.kind, 'Campaign');
+  assert.equal(campaign.disposition, 'Pending');
+  assert.equal(campaign.sourceIds.length, 3);
+  assert.equal(corpus.sources.length, 4);
+  assert.equal(corpus.sourceRevisions.length, 3);
+  assert.equal(corpus.collectionManifests.filter(manifest => manifest.outcome === 'Failed').length, 1);
+  assert.equal(corpus.reviews.length, 0);
+  const before = await fs.readFile(path.join(store, 'corpus.json'));
+  const retry = await collectBatch(batchInput(store, urls.slice(0, 3), { caseName: undefined, caseId: collected.caseId }), transport);
+  assert.equal(retry.status, 'succeeded');
+  assert.ok(retry.results.every(result => result.status === 'already present'));
+  assert.deepEqual(await fs.readFile(path.join(store, 'corpus.json')), before);
+  const changed = await collectBatch(batchInput(store, [urls[0]], { caseName: undefined, caseId: collected.caseId }),
+    fake(() => htmlResponse('<article><h1>Ordinary heading<p>Changed article')));
+  assert.equal(changed.results[0].status, 'collected');
+  assert.equal(changed.results[0].sourceId, collected.results[0].sourceId);
+  assert.notEqual(changed.results[0].revisionId, collected.results[0].revisionId);
+  assert.equal((await corpusAt(store)).cases[0].sourceIds.length, 3);
+  const second = await collectBatch(batchInput(store, [urls[0]], { caseName: 'Independent explicitly chosen campaign' }),
+    fake(() => htmlResponse('<article><h1>Ordinary heading<p>Changed article')));
+  assert.notEqual(second.caseId, collected.caseId);
+  assert.equal((await corpusAt(store)).cases.length, 2);
+});
+
+test('Issue #39 AC-03/04 archive preserves HTML and metadata, mapped publishers and exact preformatted commands', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'metadata');
+  const html = '<!doctype html><html><head><title>Reported title</title><meta property="og:site_name" content="Page publisher">'
+    + '<meta name="author" content="Reported author"><meta property="article:published_time" content="2026-10-11T13:00:00Z">'
+    + '</head><body><nav>Not article text<img src="/nav.png"></nav><article><h1>Heading</h1><p>First<p>Second'
+    + '<ul><li>One<li>Two</ul><pre><code>npm test -- --run\n  printf "exact  spacing"\n\nlast line</code></pre>'
+    + '<img data-src="/lazy.png" src="data:image/png;base64,x"><script>globalThis.bad=true</script></article></body>';
+  const transport = fake(request => new URL(request.url).pathname === '/lazy.png'
+    ? response('image', { headers: { 'content-type': 'image/png' } }) : htmlResponse(html));
+  const collected = await collectBatch(batchInput(store, ['https://stepsecurity.io/blog/article']), transport);
+  assert.equal(collected.status, 'succeeded');
+  const result = collected.results[0], corpus = await corpusAt(store), source = corpus.sources[0];
+  assert.equal(source.publisher, 'StepSecurity');
+  assert.equal(source.title, 'Reported title');
+  assert.equal(source.author, 'Reported author');
+  assert.equal(source.publicationDate.value, '2026-10-11');
+  assert.equal((await artifact(store, result, 'original.html')).toString(), html);
+  const text = (await artifact(store, result, 'article.txt')).toString();
+  assert.ok(text.includes('Heading\nFirst\nSecond\nOne\nTwo'));
+  assert.ok(text.includes('npm test -- --run\n  printf "exact  spacing"\n\nlast line'));
+  assert.ok(!text.includes('Not article text') && !text.includes('globalThis'));
+  const metadata = JSON.parse(await artifact(store, result, 'metadata.json'));
+  assert.equal(metadata.pagePublisher, 'Page publisher');
+  assert.equal(metadata.publisher, 'StepSecurity');
+  assert.equal(metadata.originalUrl, 'https://stepsecurity.io/blog/article');
+  assert.equal(metadata.finalUrl, metadata.originalUrl);
+  assert.equal(metadata.rawHash, corpus.sourceRevisions[0].rawHash);
+  assert.equal(metadata.originalBytesHash, sha256(Buffer.from(html)));
+  const assets = JSON.parse(await artifact(store, result, 'assets.json'));
+  assert.equal(assets.assets.length, 1);
+  assert.equal(assets.assets[0].originalUrl, '/lazy.png');
+  assert.equal(assets.assets[0].hash, sha256('image'));
+  assert.equal(await fs.readFile(path.join(store, metadata.paths['assets.json']), 'utf8'), (await artifact(store, result, 'assets.json')).toString());
+  assert.equal((await fs.stat(path.join(store, 'articles', result.sourceId, result.revisionId))).mode & 0o777, 0o700);
+  assert.equal((await fs.stat(path.join(store, 'articles', result.sourceId, result.revisionId, 'original.html'))).mode & 0o777, 0o600);
+  const gitEnvironment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_CONFIG_(?:COUNT|KEY_\d+|VALUE_\d+)$/.test(key)));
+  const ignored = spawnSync('git', ['check-ignore', path.join(store, 'articles', result.sourceId, result.revisionId, 'original.html')], { cwd: root, env: gitEnvironment });
+  assert.equal(ignored.status, 0);
+  for (const [host, expected] of [['socket.dev', 'Socket'], ['blog.redcanary.com', 'Red Canary'], ['unknown.example', null]]) {
+    const independent = path.join(directory, host);
+    await collectBatch(batchInput(independent, [`https://${host}/article`]), fake(() => htmlResponse('<article><p>No reported metadata')));
+    const unknown = (await corpusAt(independent)).sources[0];
+    assert.equal(unknown.publisher, expected);
+    assert.equal(unknown.title, null);
+    assert.equal(unknown.author, null);
+  }
+});
+
+test('Issue #39 AC-03 common compression, optional charsets, meta charset and decoded-byte limits', async t => {
+  const directory = await workspace(t);
+  for (const [name, compress] of [['gzip', gzipSync], ['deflate', deflateSync], ['br', brotliCompressSync]]) {
+    const store = path.join(directory, name), raw = '<article><h1>Café</h1><p>Compressed static article';
+    const bytes = compress(Buffer.from(raw));
+    const collected = await collectBatch(batchInput(store, ['https://articles.example/article']), fake(() => htmlResponse('', {
+      headers: { 'content-encoding': name, 'content-length': String(bytes.length) }, body: (async function* () { yield bytes; })(),
+    })));
+    assert.equal(collected.status, 'succeeded');
+    assert.equal((await artifact(store, collected.results[0], 'original.html')).toString(), raw);
+  }
+  for (const [name, html, headers] of [
+    ['http-charset', '<article><p>Caf\xe9', { 'content-type': 'text/html; charset=iso-8859-1; extra=value' }],
+    ['meta-charset', '<meta charset="windows-1252"><article><p>Caf\xe9', {}],
+  ]) {
+    const store = path.join(directory, name), bytes = Buffer.from(html, 'latin1');
+    const collected = await collectBatch(batchInput(store, ['https://articles.example/article']), fake(() => htmlResponse('', {
+      headers, body: (async function* () { yield bytes; })(),
+    })));
+    assert.equal(collected.status, 'succeeded');
+    assert.equal((await artifact(store, collected.results[0], 'article.txt')).toString(), 'Café');
+    assert.deepEqual(await artifact(store, collected.results[0], 'original.html'), bytes);
+    assert.equal(JSON.parse(await artifact(store, collected.results[0], 'metadata.json')).charset, 'windows-1252');
+  }
+  const oversized = gzipSync(Buffer.from('x'.repeat(INTAKE_LIMITS.bytes + 1))), store = path.join(directory, 'bomb');
+  await checkFailure(store, urlInput(store), fake(() => response('', {
+    headers: { 'content-type': 'text/plain', 'content-encoding': 'gzip' }, body: (async function* () { yield oversized; })(),
+  })), 'TOO_LARGE');
+});
+
+test('Issue #39 AC-03/07 images reuse DNS/peer/HTTPS/redirect/robots boundaries without discarding text', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'images');
+  const html = '<article><p>Usable article text<img src="/good.png"><img src="https://127.0.0.1/private">'
+    + '<img src="http://other.example/unsafe"><img src="/redirect.png"><img src="/denied.png"><img src="/not-image.png">'
+    + '<img src="/wrong-peer.png"><img src="/large.png"><img src="/robots-blocked.png"><img src="/after.png">';
+  const transport = fake(request => {
+    const pathname = new URL(request.url).pathname;
+    if (pathname === '/article') return htmlResponse(html);
+    if (pathname === '/redirect.png') return response('', { status: 302, headers: { location: 'https://10.0.0.1/secret' } });
+    if (pathname === '/denied.png') return response('', { status: 403 });
+    if (pathname === '/not-image.png') return htmlResponse('<script>bad</script>');
+    return response(pathname === '/large.png' ? '123456789' : 'png', {
+      headers: { 'content-type': 'image/png' }, peerAddress: pathname === '/wrong-peer.png' ? '8.8.8.8' : publicIP,
+    });
+  }, { robots: () => response('User-agent: *\nDisallow: /*blocked*') });
+  const collected = await collectBatch(batchInput(store, ['https://articles.example/article']), { ...transport, imageLimits: { bytes: 8 } });
+  assert.equal(collected.status, 'succeeded');
+  assert.equal(collected.results[0].status, 'collected with image warnings');
+  const assets = JSON.parse(await artifact(store, collected.results[0], 'assets.json'));
+  assert.deepEqual(assets.assets.map(asset => asset.reason), [null, 'UNSAFE_ADDRESS', 'UNSAFE_URL', 'UNSAFE_ADDRESS', 'ACCESS_DENIED', 'UNSUPPORTED_TYPE', 'PEER_MISMATCH', 'TOO_LARGE', 'ROBOTS_DENIED', null]);
+  assert.ok(transport.calls.every(request => new URL(request.url).protocol === 'https:' && request.address === publicIP));
+  assert.ok(!transport.calls.some(request => new URL(request.url).pathname === '/robots-blocked.png'));
+  assert.equal((await artifact(store, collected.results[0], 'article.txt')).toString(), 'Usable article text');
+});
+
+test('Issue #39 AC-03/07 bounded configurable count/individual/total image work and deadline', async t => {
+  const directory = await workspace(t);
+  assert.deepEqual(IMAGE_LIMITS, { images: 20, bytes: 5242880, totalBytes: 52428800 });
+  for (const [name, limits, expected] of [
+    ['count', { images: 1 }, [null, 'IMAGE_COUNT_LIMIT', 'IMAGE_COUNT_LIMIT']],
+    ['total', { bytes: 3, totalBytes: 4 }, [null, 'TOO_LARGE', 'IMAGE_TOTAL_LIMIT']],
+    ['disabled', { images: 0 }, ['IMAGE_COUNT_LIMIT', 'IMAGE_COUNT_LIMIT', 'IMAGE_COUNT_LIMIT']],
+  ]) {
+    const store = path.join(directory, name);
+    const transport = fake(request => new URL(request.url).pathname === '/article'
+      ? htmlResponse('<article><p>Article<img src="/1.png"><img src="/2.png"><img src="/3.png">')
+      : response('png', { headers: { 'content-type': 'image/png' } }));
+    const collected = await collectBatch(batchInput(store, ['https://articles.example/article']), { ...transport, imageLimits: limits });
+    assert.equal(collected.status, 'succeeded');
+    assert.deepEqual(JSON.parse(await artifact(store, collected.results[0], 'assets.json')).assets.map(asset => asset.reason), expected);
+  }
+  for (const imageLimits of [{ images: 21 }, { bytes: 5242881 }, { totalBytes: 52428801 }, { images: -1 }, { bytes: 1.5 }, { unknown: 1 }]) {
+    const failed = await collectBatch(batchInput(path.join(directory, `bad-${randomUUID()}`), [url]), { imageLimits });
+    assert.equal(failed.code, 'INVALID_INPUT');
+  }
+  const store = path.join(directory, 'deadline');
+  const transport = fake(request => new URL(request.url).pathname === '/article'
+    ? htmlResponse('<article><p>Retain text<img src="/hang.png">')
+    : response('', { headers: { 'content-type': 'image/png' }, body: (async function* () { await new Promise(() => {}); })() }));
+  const result = await collectBatch(batchInput(store, ['https://articles.example/article']), { ...transport, deadlineMs: 25 });
+  assert.equal(result.status, 'succeeded');
+  assert.equal(result.results[0].warnings[0].code, 'TIMEOUT');
+});
+
+test('Issue #39 AC-05/07 archive reader rejects traversal, links and nonprivate artifacts; archive failures persist no successful revision', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'reader');
+  const collected = await collectBatch(batchInput(store, [url]), fake(() => htmlResponse('<article><p>Private')));
+  assert.equal(collected.status, 'succeeded');
+  const result = collected.results[0], input = { store, sourceId: result.sourceId, revisionId: result.revisionId, artifact: 'original.html' };
+  for (const changed of [{ artifact: '../corpus.json' }, { artifact: 'images/x.png' }, { sourceId: '..' }, { revisionId: '../escape' }, { store: 'relative' }]) {
+    await assert.rejects(readArchiveArtifact({ ...input, ...changed }), error => ['INVALID_INPUT', 'UNSAFE_PATH'].includes(error.code));
+  }
+  const file = path.join(store, 'articles', result.sourceId, result.revisionId, 'original.html'), retained = await fs.readFile(file);
+  await fs.chmod(file, 0o644);
+  await assert.rejects(readArchiveArtifact(input), { code: 'UNSAFE_PATH' });
+  await fs.chmod(file, 0o600);
+  const hardlink = path.join(directory, 'hardlink');
+  await fs.link(file, hardlink);
+  await assert.rejects(readArchiveArtifact(input), { code: 'UNSAFE_PATH' });
+  await fs.unlink(hardlink);
+  await fs.unlink(file);
+  await fs.symlink(path.join(store, 'corpus.json'), file);
+  await assert.rejects(readArchiveArtifact(input), { code: 'UNSAFE_PATH' });
+  await fs.unlink(file);
+  await fs.writeFile(file, retained, { mode: 0o600 });
+  const revisionDirectory = path.dirname(file);
+  await fs.chmod(revisionDirectory, 0o755);
+  await assert.rejects(readArchiveArtifact(input), { code: 'UNSAFE_PATH' });
+  await fs.chmod(revisionDirectory, 0o700);
+  const unsafeStore = path.join(directory, 'unsafe-archive');
+  await intakeSource(supplied(unsafeStore));
+  await fs.symlink(directory, path.join(unsafeStore, 'articles'));
+  const failed = await collectBatch(batchInput(unsafeStore, [url]), fake(() => htmlResponse('<article><p>Archive must fail')));
+  assert.equal(failed.status, 'failed');
+  assert.equal(failed.results[0].code, 'UNSAFE_PATH');
+  const corpus = await corpusAt(unsafeStore);
+  assert.equal(corpus.sourceRevisions.length, 1);
+  assert.equal(corpus.collectionManifests.find(manifest => manifest.inputSourceIds.includes(failed.results[0].sourceId)).outcome, 'Failed');
+  assert.deepEqual(corpus.cases, []);
+});
+
+test('Issue #39 AC-01/02 batch input limit applies before deduplication and CLI UTF-8 URL file persists per-input failures', async t => {
+  const directory = await workspace(t);
+  assert.equal(BATCH_LIMIT, 20);
+  const transport = fake();
+  for (const options of [{ urls: Array(21).fill(url) }, { urls: [] }, { caseId: 'unknown', caseName: 'also' }, { caseName: undefined }, { operator: 'invalid operator' }]) {
+    const result = await collectBatch({ ...batchInput(path.join(directory, `invalid-${randomUUID()}`), [url]), ...options }, transport);
+    assert.equal(result.code, 'INVALID_INPUT');
+  }
+  assert.equal(transport.calls.length, 0);
+  const file = path.join(directory, 'urls.txt'), store = path.join(directory, 'cli');
+  await fs.writeFile(file, '\ufeffhttp://articles.example/one\n\nhttp://articles.example/two\r\nhttp://articles.example/three\n', { mode: 0o600 });
+  const result = cli(['intake', 'batch', '--urls-file', file, '--case-name', 'CLI explicit campaign', '--supplied-by', operator, '--store', store]);
+  assert.equal(result.status, 1);
+  assert.equal(result.result.results.length, 3);
+  assert.ok(result.result.results.every(item => item.status === 'failed' && item.code === 'UNSAFE_URL'));
+  assert.equal((await corpusAt(store)).collectionManifests.length, 3);
+  assert.deepEqual((await corpusAt(store)).cases, []);
+});

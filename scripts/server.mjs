@@ -41,8 +41,9 @@ function validIntake(input) {
     Array.isArray(input.urls) && input.urls.length > 0 && input.urls.length <= WEB_INTAKE_LIMITS.urls &&
     input.urls.every(url => typeof url === 'string' && url.length > 0 && url.length <= 8192) &&
     typeof input.operator === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(input.operator) &&
-    ((typeof input.caseId === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(input.caseId) && input.caseName === undefined) ||
-     (typeof input.caseName === 'string' && input.caseName.trim().length > 0 && input.caseName.length <= 512 && input.caseId === undefined));
+    ((typeof input.caseId === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,160}$/.test(input.caseId) && input.caseName === undefined) ||
+     (typeof input.caseName === 'string' && input.caseName.trim().length > 0 && input.caseName.length <= 200 &&
+      !/[\u0000-\u001f]/u.test(input.caseName) && input.caseId === undefined));
 }
 
 const root = new URL('../', import.meta.url);
@@ -87,7 +88,8 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
       'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
     };
     const send = (status, body, type = 'text/plain', extra = {}) => {
-      response.writeHead(status, { ...headers, 'Content-Type': `${type}; charset=utf-8`, ...extra });
+      response.writeHead(status, { ...headers, 'Content-Type': `${type}; charset=utf-8`,
+        ...(!['GET', 'HEAD'].includes(request.method) ? { Connection: 'close' } : {}), ...extra });
       response.end(request.method === 'HEAD' ? undefined : body);
     };
     if (!hosts.includes(request.headers.host) ||
@@ -112,6 +114,8 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
         const input = await intakeBody(request);
         if (!validIntake(input)) return send(400, 'Supply 1–20 URLs, an operator identifier, and either an existing case ID or a new pending case name; no other fields.');
         const result = await collectBatch({ ...input, store }, intakeDeps);
+        if (result.code && !result.results?.length) return send(result.code === 'STORE_BUSY' ? 409 : 400,
+          JSON.stringify({ ...result, message: `Collection could not start (${result.code}). Check campaign and private store permissions; reload before retrying.` }), 'application/json');
         return send(200, JSON.stringify(result), 'application/json');
       } catch (error) {
         return send(error.status ?? 400, JSON.stringify({ status: 'failed', code: error.code ?? 'INVALID_INPUT',

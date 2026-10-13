@@ -3,10 +3,10 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { canonicalSerialize, readPrivateTemplate, validatePrivateCorpus } from '../scripts/contract.mjs';
+import { canonicalSerialize, readPrivateTemplate, stableId, validatePrivateCorpus } from '../scripts/contract.mjs';
 
 export const ENRICHMENT_VERSION = 'talk-enrichment/1';
-export const ENRICHMENT_LIMITS = Object.freeze({ annotations: 20, bytes: 2 * 1024 * 1024 });
+export const ENRICHMENT_LIMITS = Object.freeze({ annotations: 1000, bytes: 2 * 1024 * 1024 });
 export const ANNOTATION_TYPES = Object.freeze([
   'role-context', 'observed-behavior', 'data-sources', 'commands-ai-artifacts',
   'traditional-indicators', 'ttp-references', 'detection-references', 'talk-tags',
@@ -137,7 +137,9 @@ function resolveSupport(annotation, revision) {
   const offset = revision.normalizedContent.indexOf(support.quote);
   if (offset < 0 || revision.normalizedContent.indexOf(support.quote, offset + 1) !== -1) return null;
   const start = [...revision.normalizedContent.slice(0, offset)].length;
-  return { quote: support.quote, locator: { start, end: start + [...support.quote].length } };
+  const end = start + [...support.quote].length;
+  if (points.slice(start, end).join('') !== support.quote) return null;
+  return { quote: support.quote, locator: { start, end } };
 }
 
 export function validateEnrichment(document, corpus) {
@@ -213,7 +215,8 @@ export function createEnrichmentTemplate({ corpus, caseId, sourceId, sourceRevis
   return assertEnrichment({
     schemaVersion: ENRICHMENT_VERSION,
     annotations: ANNOTATION_TYPES.map(type => ({
-      id: `annotation-${type}`, caseId, sourceId, sourceRevisionId, type,
+      id: stableId(`annotation-${type}`, canonicalSerialize({ caseId, sourceId, sourceRevisionId })),
+      caseId, sourceId, sourceRevisionId, type,
       value: `Replace this ${type} placeholder; it is not source evidence.`,
       ...(defaults[type] ? { context: defaults[type] } : {}),
       evidenceStatus: 'inference', origin: 'manual', status: 'pending',
@@ -278,6 +281,11 @@ function serialize(document) {
   return output;
 }
 
+async function syncDirectory(directory) {
+  const handle = await fs.open(directory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+  try { await handle.sync(); } finally { await handle.close(); }
+}
+
 async function privateOutput(file, document) {
   const output = serialize(document);
   absoluteSafe(file, true);
@@ -289,12 +297,13 @@ async function privateOutput(file, document) {
     await handle.writeFile(output, 'utf8');
     await handle.sync();
     await verify();
+    await syncDirectory(path.dirname(file));
   } catch (error) {
     if (handle) {
       await verify();
       await fs.unlink(file);
     }
-    throw error;
+    throw error.code === 'EEXIST' ? failure('UNSAFE_PATH') : error;
   } finally { await handle?.close(); }
 }
 
@@ -334,6 +343,7 @@ async function importDocument(directory, document, corpus) {
       try { await fs.lstat(file); throw failure('PERSISTENCE'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     } else if (await readPrivateTemplate(file) !== baseline) throw failure('PERSISTENCE');
     await fs.rename(pending, file);
+    await syncDirectory(directory);
   } finally {
     await handle?.close();
     await verify();

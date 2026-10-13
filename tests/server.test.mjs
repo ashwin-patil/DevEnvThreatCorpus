@@ -21,7 +21,8 @@ function request(port, url, headers = {}, method = 'GET', body) {
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString() }));
     });
     req.on('error', reject);
-    req.end(body);
+    if (headers['Transfer-Encoding'] === 'chunked' && body) req.write(body);
+    req.end(headers['Transfer-Encoding'] === 'chunked' ? undefined : body);
   });
 }
 
@@ -45,8 +46,8 @@ function transport(article) {
       const url = new URL(input.url);
       if (url.pathname === '/robots.txt') return respond('', 404);
       if (article) return article(input, respond);
-      if (url.pathname === '/failed') return respond('', 403);
-      return respond(`<html><head><title>Article ${url.pathname}</title></head><body><article><h1>Article ${url.pathname}</h1><p>Retained synthetic source text.</p><script>window.untrusted = true</script></article></body></html>`);
+      if (['/failed', '/denied-image.png'].includes(url.pathname)) return respond('', 403);
+      return respond(`<html><head><title>Article ${url.pathname}</title></head><body><article><h1>Article ${url.pathname}</h1><p>Retained synthetic source text.</p>${url.pathname === '/blog/two' ? '<img src="/denied-image.png" alt="Synthetic denied image">' : ''}<script>window.untrusted = true</script></article></body></html>`);
     },
   };
 }
@@ -132,17 +133,19 @@ test('Issue #39 AC-01/02/05 web collects three articles with partial failure, pe
   assert.equal(result.status, 200);
   const batch = JSON.parse(result.body);
   assert.equal(batch.results.length, 4);
-  assert.deepEqual(batch.results.map(item => item.status), ['collected', 'collected', 'collected', 'failed']);
+  assert.deepEqual(batch.results.map(item => item.status), ['collected', 'collected with image warnings', 'collected', 'failed']);
+  assert.ok(batch.results[1].warnings.length);
   assert.equal(batch.results[3].code, 'ACCESS_DENIED');
   const loaded = JSON.parse((await request(port, '/api/corpus')).body);
   const campaign = loaded.cases.find(item => item.id === batch.caseId);
   assert.equal(campaign.disposition, 'Pending'); assert.equal(campaign.sourceIds.length, 3);
   assert.equal(loaded.sourceRevisions.length, 3); assert.equal(loaded.reviews.length, 0);
+  assert.deepEqual(campaign.sourceIds.map(id => loaded.sources.find(source => source.id === id).publisher).sort(), ['Red Canary', 'Socket', 'StepSecurity']);
   assert.deepEqual(validateCorpus(loaded), []);
   const repeated = JSON.parse((await request(port, '/api/intake', sameOrigin(port), 'POST',
     JSON.stringify({ urls: [...articleUrls, articleUrls[0]], caseId: batch.caseId, operator: 'web-operator' }))).body);
-  assert.equal(repeated.results.length, 3);
-  assert.ok(repeated.results.every(item => item.status === 'already present'));
+  assert.equal(repeated.results.length, 4);
+  assert.ok(repeated.results.every(item => ['already present', 'collected with image warnings'].includes(item.status)));
   const secondPort = await start(t, { store, intakeDeps: transport() });
   const reloaded = JSON.parse((await request(secondPort, '/api/corpus')).body);
   assert.equal(reloaded.sourceRevisions.length, 3);
@@ -178,18 +181,39 @@ test('Issue #39 AC-05 intake enforces exact host/origin, fetch metadata, JSON fi
     { ...input, store: '/arbitrary/path' }, { ...input, unknown: true }, { ...input, caseId: 'also-selected' },
     { ...input, urls: [] }, { ...input, urls: Array(21).fill(articleUrls[0]) },
     { ...input, operator: 'invalid operator' }, { ...input, caseName: null }, [], null,
+    { ...input, caseName: 'a'.repeat(201) }, { ...input, caseName: 'control\ncharacter' },
   ]) assert.equal((await request(port, '/api/intake', sameOrigin(port), 'POST', JSON.stringify(value))).status, 400);
   assert.equal((await request(port, '/api/intake', sameOrigin(port), 'POST', '{invalid')).status, 400);
   assert.equal((await request(port, '/api/intake', { ...sameOrigin(port), 'Content-Length': WEB_INTAKE_LIMITS.bodyBytes + 1 }, 'POST')).status, 413);
-  assert.equal((await request(port, '/api/intake', { ...sameOrigin(port), 'Transfer-Encoding': 'chunked' }, 'POST', 'x'.repeat(WEB_INTAKE_LIMITS.bodyBytes + 1))).status, 413);
+  const oversized = await request(port, '/api/intake', { ...sameOrigin(port), 'Transfer-Encoding': 'chunked' }, 'POST', 'x'.repeat(WEB_INTAKE_LIMITS.bodyBytes + 1));
+  assert.equal(oversized.status, 413, oversized.body);
   const pending = request(port, '/api/intake', sameOrigin(port), 'POST', body);
   await started;
   try { assert.equal((await request(port, '/api/intake', sameOrigin(port), 'POST', body)).status, 409); }
   finally { release(); }
   assert.equal((await pending).status, 200);
+  const invalidCase = await request(port, '/api/intake', sameOrigin(port), 'POST',
+    JSON.stringify({ urls: [articleUrls[0]], caseId: 'unknown-case', operator: 'operator' }));
+  assert.equal(invalidCase.status, 400); assert.match(invalidCase.body, /NOT_FOUND/);
   const server = await createPreviewServer({ store });
   assert.equal(server.headersTimeout, 10_000); assert.equal(server.requestTimeout, 15_000);
   assert.equal(server.keepAliveTimeout, 5_000);
+});
+
+test('Issue #39 AC-05 incomplete JSON body times out and releases the write guard', async t => {
+  const store = path.join(await workspace(t), 'store'), port = await start(t, { store, intakeDeps: transport() });
+  const timed = await new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path: '/api/intake', method: 'POST',
+      headers: { ...sameOrigin(port), 'Content-Length': '100' } }, response => {
+      const chunks = []; response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString() }));
+    });
+    req.on('error', reject); req.write('{');
+  });
+  assert.equal(timed.status, 408); assert.match(timed.body, /timed out/);
+  const collected = await request(port, '/api/intake', sameOrigin(port), 'POST',
+    JSON.stringify({ urls: [articleUrls[0]], caseName: 'After timeout', operator: 'operator' }));
+  assert.equal(collected.status, 200); assert.equal(JSON.parse(collected.body).results[0].status, 'collected');
 });
 
 test('Issue #39 AC-03/05 archive artifacts are allowlisted attachments, never executable HTML or arbitrary files', async t => {

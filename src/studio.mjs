@@ -222,6 +222,7 @@ export function webIntakeInput(state) {
   }
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(state.operator)) throw new Error('Operator must be a 1–64 character ASCII identifier.');
   if (Boolean(state.caseId) === Boolean(state.caseName.trim())) throw new Error('Choose an existing campaign OR enter a new pending campaign name.');
+  if (state.caseName.length > 200 || /[\u0000-\u001f]/u.test(state.caseName)) throw new Error('Campaign name must be at most 200 characters without control characters.');
   return { urls: [...new Set(urls)], operator: state.operator,
     ...(state.caseId ? { caseId: state.caseId } : { caseName: state.caseName.trim() }) };
 }
@@ -230,6 +231,23 @@ export function renderWebIntake(doc, state, { enabled = false, collect, refresh,
   const section = element(doc, 'section', null, 'web-intake');
   section.append(element(doc, 'h3', 'Fetch articles into a private campaign'),
     element(doc, 'p', 'Maximum 20 public HTTPS URLs per batch, one per line. Collection persists locally; new campaigns remain Pending. It does not accept evidence or perform review.'));
+  const failures = state.base.collectionManifests.filter(manifest => manifest.outcome === 'Failed');
+  if (failures.length) {
+    const retained = element(doc, 'details');
+    retained.append(element(doc, 'summary', `Persisted failed intake attempts (${failures.length}) — not successful evidence`));
+    for (const manifest of failures) {
+      const item = element(doc, 'div', null, 'intake-outcome');
+      item.append(element(doc, 'p', `Failed intake ${manifest.id} · operator ${manifest.provenance.suppliedBy ?? 'unknown'}`));
+      for (const detail of manifest.limitations.filter(text => /^(?:error-code|event-time)=/.test(text))) item.append(element(doc, 'p', detail));
+      for (const id of manifest.inputSourceIds) {
+        const source = state.base.sources.find(record => record.id === id);
+        item.append(element(doc, 'p', source?.originalUrl ?? `Source ${id}`));
+        if (navigate) item.append(action(doc, 'Open failed intake context', () => navigate('sources', id)));
+      }
+      retained.append(item);
+    }
+    section.append(retained);
+  }
   if (!enabled) {
     section.append(element(doc, 'p', state.base.governance?.synthetic ?
       'Synthetic demo is read-only. Reload the local corpus to collect into your private store.' :
@@ -253,7 +271,7 @@ export function renderWebIntake(doc, state, { enabled = false, collect, refresh,
   }
   campaign.value = batch.caseId;
   const name = control('New pending campaign name (only when no existing campaign selected)', 'caseName');
-  name.value = batch.caseName; name.maxLength = 512;
+  name.value = batch.caseName; name.maxLength = 200;
   const operator = control('Operator identifier', 'operator');
   operator.value = batch.operator; operator.maxLength = 64;
   const urls = control('Article URLs (one per line; maximum 20)', 'urls', 'textarea');
@@ -442,6 +460,6 @@ export function renderStudio(doc, win, state, collection = {}) {
     action(doc, 'Download manual-extraction/1', run(() => downloadProposal(doc, win, extractionProposal(state), 'manual-extraction.json'))),
     action(doc, 'Download private corpus proposal', run(async () => downloadProposal(doc, win, await corpusProposal(state), 'curator-proposal.json'))));
   panel.append(drafts);
-  function refresh() { panel.replaceWith(renderStudio(doc, win, state)); }
+  function refresh() { panel.replaceWith(renderStudio(doc, win, state, collection)); }
   return panel;
 }

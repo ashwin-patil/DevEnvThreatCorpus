@@ -152,6 +152,9 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
     option.value = revision.id; select.append(option);
   }
   const revision = revisions.find(r => r.id === revisionId) ?? revisions.at(-1);
+  for (const manifest of model.corpus.collectionManifests.filter(item => item.outcome === 'Failed' && item.inputSourceIds.includes(source.id))) {
+    section.append(element(doc, 'p', `Failed intake attempt — not successful evidence: ${manifest.limitations.filter(text => /^(?:error-code|event-time)=/.test(text)).join(' · ')}`));
+  }
   if (revisionId && !revisions.some(r => r.id === revisionId)) {
     section.append(element(doc, 'p', `Requested revision ${revisionId} is not available for this source; showing ${revision?.id ?? 'no snapshot'} instead.`, 'subtle'));
   }

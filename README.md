@@ -111,6 +111,15 @@ article creates a new revision. Sources may belong to several explicitly
 selected cases. Failures do not discard other results. Retry only the failed
 URLs; collection is not research acceptance or automatic attribution.
 
+Failure codes distinguish network (`NETWORK`, `TIMEOUT`), HTTP/access
+(`HTTP_STATUS`, `ACCESS_DENIED`, `ROBOTS_DENIED`), content
+(`UNSUPPORTED_TYPE`, `UNSUPPORTED_ENCODING`, `MALFORMED_TEXT`, `EMPTY_CONTENT`,
+`TOO_LARGE`), and storage (`UNSAFE_PATH`, `STORE_BUSY`, `PERSISTENCE`) failures.
+Check connectivity for network errors, respect access denials, use authorized
+supplied-text fallback for unsupported articles, and check private permissions
+or wait for an active writer for storage errors. A failed result is not a
+collected source revision.
+
 This runnable example uses public article URLs already referenced in the
 research handoff, but imports **no legacy records or claims**. Confirm permission
 to retrieve and retain these articles before running it:
@@ -130,7 +139,7 @@ node "$R/scripts/contract.mjs" intake batch --urls-file "$S/urls.txt" --case-nam
 node "$R/scripts/server.mjs" --store "$S" --port 4173
 ```
 
-Open `http://127.0.0.1:4173/` and use **Fetch articles** with the campaign,
+Open `http://127.0.0.1:4173/#studio` and use **Fetch articles** with the campaign,
 operator, and multiline URL controls. Wait for per-URL outcomes, then inspect
 the updated cases and sources. Reloading the browser or local corpus retains
 collection and links; no server restart is needed in `--store` mode. The
@@ -139,7 +148,10 @@ this loopback server through a public host or tunnel.
 
 Archives live beneath `$S/articles/<source-id>/<revision-id>/`: returned HTML,
 extracted article text, citation metadata, and the image asset manifest.
-Defaults bound article images to 20, 5 MiB each, and 50 MiB total. Image failures
+Defaults bound article images to 20, 5 MiB each, and 50 MiB total. CLI flags
+`--max-images`, `--image-bytes`, and `--image-total-bytes` can lower those
+limits (byte limits are integer bytes; zero disables the corresponding work).
+Image failures
 are warnings, not grounds to discard usable text. Only body images, including
 supported lazy URLs, are requested; there is no link crawl, arbitrary asset
 download, JavaScript rendering, or access-restriction bypass. Unknown publisher,

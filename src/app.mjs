@@ -180,7 +180,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       button.setAttribute('aria-pressed', String(record.id === selected.id));
       button.append(element(doc, 'small', record.kind ?? (record.inference ? 'Researcher inference' : route.view === 'claims' ? 'Author / source assertion' : 'Source record')),
         element(doc, 'strong', record.name ?? record.title ?? record.description ?? metadata(record, 'title')),
-        element(doc, 'small', record.disposition ?? record.collectionState));
+        element(doc, 'small', route.view === 'sources' && !record.revisionIds.length ?
+          'No retained revision / failed or incomplete intake' : record.disposition ?? record.collectionState));
       list.append(button);
     }
     const detail = element(doc, 'div');
@@ -226,7 +227,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
       let result;
       try { result = await response.json(); } catch { throw new Error(`Collection request failed (${response.status}); reload before explicit retry.`); }
-      if (!response.ok || !Array.isArray(result.results)) throw new Error(result.message ?? `Collection failed (${result.code ?? response.status}).`);
+      if (!response.ok || !Array.isArray(result.results) || (result.status === 'failed' && !result.results.length)) {
+        throw new Error(result.message ?? `Collection failed (${result.code ?? response.status}).`);
+      }
       batch.results = result.results; batch.resultCaseId = result.caseId ?? '';
       if (result.caseId) { batch.caseId = result.caseId; batch.caseName = ''; }
       try {
