@@ -152,8 +152,20 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
     option.value = revision.id; select.append(option);
   }
   const revision = revisions.find(r => r.id === revisionId) ?? revisions.at(-1);
-  for (const manifest of model.corpus.collectionManifests.filter(item => item.outcome === 'Failed' && item.inputSourceIds.includes(source.id))) {
-    section.append(element(doc, 'p', `Failed intake attempt — not successful evidence: ${manifest.limitations.filter(text => /^(?:error-code|event-time)=/.test(text)).join(' · ')}`));
+  const attempts = model.corpus.collectionManifests.filter(item => item.inputSourceIds.includes(source.id));
+  const eventTime = manifest => Date.parse(manifest.limitations.find(text => text.startsWith('event-time='))?.slice(11) ?? '');
+  const successes = attempts.filter(item => item.outcome === 'Succeeded').map(eventTime).filter(Number.isFinite);
+  const latestSuccess = successes.length ? Math.max(...successes) : -Infinity;
+  const earlierFailures = [];
+  for (const manifest of attempts.filter(item => item.outcome === 'Failed')) {
+    const note = element(doc, 'p', `Failed intake attempt — not successful evidence: ${manifest.limitations.filter(text => /^(?:error-code|event-time)=/.test(text)).join(' · ')}`);
+    if (revision && eventTime(manifest) < latestSuccess) earlierFailures.push(note);
+    else section.append(note);
+  }
+  if (earlierFailures.length) {
+    const history = element(doc, 'details');
+    history.append(element(doc, 'summary', `Previous intake history (${earlierFailures.length}) — a later collection succeeded`), ...earlierFailures);
+    section.append(history);
   }
   if (revisionId && !revisions.some(r => r.id === revisionId)) {
     section.append(element(doc, 'p', `Requested revision ${revisionId} is not available for this source; showing ${revision?.id ?? 'no snapshot'} instead.`, 'subtle'));

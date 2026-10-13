@@ -1181,4 +1181,17 @@ test('Issue #39 AC-02 failed intake remains visibly failed after corpus reload, 
   assert.match(content.textContent, /No retained revision \/ failed or incomplete intake/);
   assert.match(content.textContent, /Failed intake attempt — not successful evidence.*ACCESS_DENIED/);
   assert.match(content.textContent, /No source snapshot is available/);
+  const recovered = fresh(), recoveredSource = recovered.sources[0];
+  recovered.collectionManifests = [...corpus.collectionManifests, {
+    id: 'success-after-failure', outcome: 'Succeeded', inputSourceIds: [source.id], inputRevisionIds: recoveredSource.revisionIds,
+    limitations: ['event-time=2026-10-13T01:00:00Z'],
+  }];
+  const panel = renderSource(new FakeDocument(), createModel(recovered), recoveredSource, '', () => {}, () => {}, () => {});
+  const history = panel.children.find(node => node.tagName === 'DETAILS' && node.textContent.includes('Previous intake history'));
+  assert.ok(history); assert.ok(!history.open);
+  assert.ok(!panel.children.some(node => node.tagName === 'P' && node.textContent.startsWith('Failed intake attempt')));
+  recovered.collectionManifests.push({ ...corpus.collectionManifests[0], id: 'new-failure', limitations: ['error-code=NETWORK', 'event-time=2026-10-13T02:00:00Z'] });
+  const currentFailure = renderSource(new FakeDocument(), createModel(recovered), recoveredSource, '', () => {}, () => {}, () => {});
+  assert.ok(currentFailure.children.some(node => node.tagName === 'P' && node.textContent.includes('error-code=NETWORK')),
+    'a subsequent failure must not be hidden by an earlier successful snapshot');
 });

@@ -2,6 +2,10 @@
 
 ## 2026-10-13 — HTML intake compatibility
 
+- Move failed source-intake attempts that precede a successful collection into
+  collapsed history. Preserve the audit manifests; unresolved and subsequent
+  failures remain visible so an older snapshot cannot conceal a new failure.
+
 - Allow NUL characters in returned HTML without rejecting usable articles such
   as the Nx postmortem. Preserve original content/response hashes privately;
   replace NULs only while parsing under `readable-html/4`. Keep prior parser
