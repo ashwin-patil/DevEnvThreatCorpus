@@ -8,6 +8,13 @@ The PR policy reads GitHub's linked-issue and complete changed-file metadata: it
 
 ## Issue #45 passage-grounded campaign extraction
 
+The researcher-requested UI follow-up makes the source library a card overview
+with case/article/claim/path/behavior navigation while retaining exact source-ID
+routes. Focused workbench regressions cover direct behaviors without paths,
+article-filter isolation, independent sources, safe imported titles, and explicit
+resolver-reference/unresolved/mapping distinctions in the TTP view. No missing
+ATLAS catalog or candidate mapping is filled with legacy incident assertions.
+
 The originating requirements are [Issue #45](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/45).
 Implementation and corrections remain on draft [PR #47](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/47),
 which closes that one issue. Exact command output, the final full commit SHA and

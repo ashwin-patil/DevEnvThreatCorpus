@@ -2,6 +2,14 @@
 
 ## 2026-10-13 — Passage-grounded campaign extraction
 
+- Research library now opens as case-grouped research cards with explicit links
+  to articles, claims, supported paths and behaviors; independent sources remain
+  visible and exact source/revision detail stays available on selection. Direct
+  claim-backed behaviors retain related-case and support links even without a
+  path or technique mapping. The TTP view separately explains pinned resolver
+  coverage, unresolved candidates and recorded mappings, including missing ATLAS
+  coverage, instead of presenting an unexplained empty tab.
+
 - Local follow-up testing preserves potential/disputed behavior as inference in
   the annotation projection, with its original classification visible in notes;
   it no longer appears as an observed action. Node-specific mapping validation

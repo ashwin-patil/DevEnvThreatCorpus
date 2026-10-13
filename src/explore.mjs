@@ -1,5 +1,5 @@
 import { element, action, safeExternalUrl, caseCitations, renderClaim } from './render.mjs';
-import { filterRecords, metadata } from './model.mjs';
+import { filterRecords, metadata, caseSourceIds } from './model.mjs';
 
 export const EXPLORE_VIEWS = { paths: 'Attack paths', behaviors: 'Behaviors', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry' };
 export const ANNOTATION_LABELS = {
@@ -12,6 +12,63 @@ export const VIEW_ANNOTATIONS = { behaviors: ['observed-behavior'], frameworks: 
 const list = (model, key) => model.corpus[key] ?? [];
 export const caseAnnotations = (model, id) => (model.annotations ?? []).filter(a => a.caseId === id);
 const normalized = a => a.normalizedValue ?? a.value;
+
+function behaviorSupport(model, behavior) {
+  return [...new Set([...(behavior.claimIds ?? []),
+    ...(behavior.occurrences ?? []).flatMap(o => o.claimIds ?? []),
+    ...(model.corpus.governance?.campaignExtraction?.runs ?? []).flatMap(r =>
+      (r.recordSupport ?? []).filter(s => s.recordType === 'behaviors' && s.recordId === behavior.id)
+        .flatMap(s => s.supportingClaimIds ?? []))])];
+}
+
+export function renderResearchLibrary(doc, model, sources, navigate, filters = {}) {
+  const panel = element(doc, 'section', null, 'research-library');
+  panel.append(element(doc, 'h2', 'Research library'), element(doc, 'p',
+    'Browse research records, their articles and linked behaviors. Case associations are researcher-selected; they do not establish common attribution. Open an article for exact revision text or a claim for its evidence.', 'subtle'));
+  const visible = new Set(sources.map(s => s.id)), associated = new Set();
+  const grid = element(doc, 'div', null, 'research-grid');
+  for (const record of model.corpus.cases) {
+    if (filters.cases?.length && !filters.cases.includes(record.id)) continue;
+    const ids = caseSourceIds(model, record.id).filter(id => visible.has(id));
+    if (!ids.length) continue;
+    ids.forEach(id => associated.add(id));
+    const card = element(doc, 'article', null, 'panel research-card');
+    card.append(element(doc, 'p', `${record.kind} · ${record.origin} · ${record.disposition}`, 'subtle'),
+      element(doc, 'h2', record.name), element(doc, 'p', record.summary ?? 'No case summary recorded.'),
+      element(doc, 'p', record.limits ?? 'Independent research review remains required.', 'limits'),
+      action(doc, 'Open case', () => navigate('cases', record.id)));
+    const claims = model.corpus.claims.filter(c => c.caseId === record.id && visible.has(c.sourceId));
+    const claimIds = new Set(claims.map(c => c.id));
+    const paths = list(model, 'paths').filter(p => p.caseId === record.id
+      && p.nodes.some(n => n.claimIds.some(id => claimIds.has(id))));
+    card.append(element(doc, 'h3', 'Attack paths'));
+    for (const p of paths) card.append(action(doc, p.name ?? `${record.name} attack path`, () => navigate('paths', p.id)));
+    if (!paths.length) card.append(element(doc, 'p', 'No supported path recorded for these articles.', 'subtle'));
+    card.append(element(doc, 'h3', 'Research'));
+    for (const id of ids) {
+      const s = model.sources.get(id);
+      card.append(action(doc, `${s.publisher ?? 'Unknown publisher'} · ${metadata(s, 'title')}`, () => navigate('sources', id)));
+    }
+    const pathBehaviors = new Set(paths.flatMap(p => p.nodes.filter(n => n.claimIds.some(id => claimIds.has(id))).flatMap(n => n.behaviorIds)));
+    const behaviors = list(model, 'behaviors').filter(b => pathBehaviors.has(b.id)
+      || behaviorSupport(model, b).some(id => claimIds.has(id)));
+    card.append(element(doc, 'h3', 'Behaviors'));
+    for (const b of behaviors) card.append(action(doc, b.name, () => navigate('behaviors', b.id)));
+    if (!behaviors.length) card.append(element(doc, 'p', 'No linked behaviors recorded. Collection alone does not extract behavior.', 'subtle'));
+    const evidence = element(doc, 'details'); evidence.append(element(doc, 'summary', `Claims & evidence · ${claims.length}`));
+    for (const c of claims) evidence.append(action(doc, c.description, () => navigate('claims', c.id)));
+    card.append(evidence);
+    grid.append(card);
+  }
+  for (const source of sources.filter(s => !associated.has(s.id))) {
+    const card = element(doc, 'article', null, 'panel research-card');
+    card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'),
+      element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', metadata(source, 'publisher')),
+      action(doc, 'Open research source', () => navigate('sources', source.id)));
+    grid.append(card);
+  }
+  panel.append(grid); return panel;
+}
 
 function reference(doc, url, label = url) {
   const safe = safeExternalUrl(url);
@@ -124,6 +181,8 @@ export function explorationRecords(model, view, filters = {}) {
   const paths = list(model, 'paths').filter(p => caseIds.has(p.caseId));
   const behaviorIds = new Set(paths.flatMap(p => p.nodes.flatMap(n => n.behaviorIds)));
   const mappings = list(model, 'mappings').filter(m => caseIds.has(m.caseId));
+  for (const b of list(model, 'behaviors')) if (behaviorSupport(model, b).some(id =>
+    caseIds.has(model.claims.get(id)?.caseId))) behaviorIds.add(b.id);
   for (const m of mappings) behaviorIds.add(m.behaviorId);
   const scoped = Object.entries(filters).some(([key, value]) => key !== 'query' && key !== 'tagMode' && Array.isArray(value) && value.length);
   let records = view === 'paths' ? paths : view === 'behaviors' ? list(model, 'behaviors').filter(b => !scoped || behaviorIds.has(b.id)) :
@@ -222,6 +281,28 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   }
   const grid = element(doc, 'div', null, 'research-grid');
   if (view === 'frameworks') {
+    const runs = (model.corpus.governance?.campaignExtraction?.runs ?? []).filter(r => selected.caseIds.has(r.caseId));
+    const unresolved = runs.flatMap(r => r.unresolvedMappings ?? []);
+    const catalogs = new Map(runs.flatMap(r => r.catalogSnapshot?.catalogs ?? [])
+      .map(c => [`${c.framework}:${c.version}:${c.materialDigest}`, c]));
+    const catalogPanel = element(doc, 'section', null, 'panel resolver-catalog');
+    catalogPanel.append(element(doc, 'h2', 'Mapping and catalog coverage'), element(doc, 'p',
+      `${selected.mappings.length} recorded mappings · ${unresolved.length} unresolved candidates · ${catalogs.size} pinned resolver catalogs`),
+      element(doc, 'p', 'Resolver references are catalog membership only, not campaign observations. Only validated candidate mappings appear in the mapped technique cards. Missing mappings do not mean no relevant technique applies.', 'subtle'));
+    if (!catalogs.size) catalogPanel.append(element(doc, 'p', 'No resolver snapshot is recorded in this corpus. Prepare/import a grounded extraction candidate to retain its catalog provenance.'));
+    for (const c of catalogs.values()) {
+      catalogPanel.append(element(doc, 'h3', `${c.framework} ${c.version} · ${c.techniques?.length ?? 0} resolver entries`));
+      for (const t of c.techniques ?? []) catalogPanel.append(reference(doc, t.url, `${t.id} · ${t.name} · reference only`));
+      catalogPanel.append(element(doc, 'p', `Pinned revision: ${c.immutableRevision}`, 'subtle'));
+    }
+    if (![...catalogs.values()].some(c => c.framework === 'ATLAS')) catalogPanel.append(element(doc, 'p', 'No ATLAS resolver catalog is currently loaded; ATLAS candidates remain unresolved.'));
+    for (const u of unresolved) {
+      const card = element(doc, 'article', null, 'claim-card');
+      card.append(element(doc, 'h3', `${u.framework} ${u.version} · ${u.techniqueLiteral} · unresolved`));
+      row(doc, card, 'Rationale', u.rationale); row(doc, card, 'Applicability', u.applicability);
+      card.append(support(doc, model, u.supportingClaimIds, navigate)); catalogPanel.append(card);
+    }
+    panel.append(catalogPanel);
     const controls = element(doc, 'div', null, 'graph-toolbar'), state = { framework: 'All frameworks', catalogScope: 'Full catalog' };
     const count = element(doc, 'p', `${selected.records.length} catalog entries`, 'subtle'); count.setAttribute('role', 'status');
     for (const [label, values, key] of [
@@ -247,10 +328,12 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     if (view === 'behaviors') {
       row(doc, card, 'Local namespace', record.namespace); row(doc, card, 'Description', record.description); row(doc, card, 'Trust boundary', record.boundary);
       const paths = selected.paths.filter(p => p.nodes.some(n => n.behaviorIds.includes(record.id)));
-      const caseIds = new Set([...paths.map(p => p.caseId), ...selected.mappings.filter(m => m.behaviorId === record.id).map(m => m.caseId)]);
+      const directSupport = behaviorSupport(model, record);
+      const caseIds = new Set([...paths.map(p => p.caseId), ...selected.mappings.filter(m => m.behaviorId === record.id).map(m => m.caseId),
+        ...directSupport.map(id => model.claims.get(id)?.caseId).filter(id => selected.caseIds.has(id))]);
       row(doc, card, 'Distinct related cases', caseIds.size);
       for (const id of caseIds) card.append(action(doc, model.cases.get(id)?.name ?? id, () => navigate('cases', id)));
-      card.append(support(doc, model, paths.flatMap(p => p.nodes.filter(n => n.behaviorIds.includes(record.id)).flatMap(n => n.claimIds)), navigate));
+      card.append(support(doc, model, [...directSupport, ...paths.flatMap(p => p.nodes.filter(n => n.behaviorIds.includes(record.id)).flatMap(n => n.claimIds))], navigate));
       for (const [key, target] of [['signalIds', 'telemetry'], ['detectionIds', 'telemetry'], ['otelIds', 'otel']]) for (const id of record[key] ?? []) card.append(action(doc, id, () => navigate(target, id)));
     } else if (view === 'frameworks') {
       card.dataset.framework = record.framework;

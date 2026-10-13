@@ -1,5 +1,13 @@
 # Fresh-start corpus architecture
 
+The source-library overview uses read-only case-grouped research cards with
+independent unassociated source cards. Behavior links derive from actual
+case/source claim support, occurrences and supported path nodes; a missing path
+or mapping does not hide direct claim-backed behavior. Existing source-ID routes
+still open exact revision text with a return action to the card overview. TTP
+presentation separates immutable resolver references and unresolved candidates
+from core technique/mapping records, without inventing missing ATLAS content.
+
 Campaign behavior annotations retain potential-consequence and disputed claim
 classifications in context notes and project them conservatively as inference,
 not observed activity. Node-scoped campaign mappings require all supporting

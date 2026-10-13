@@ -248,6 +248,14 @@ revision list. Use `--revisions` only to select comma-separated retained revisio
 IDs explicitly. Unavailable text is recorded rather than fetched or omitted.
 Requests and candidates are each limited to 2 MiB.
 
+**Research library** opens as cards grouped by existing cases, with article,
+claim, path and supported-behavior links; sources without cases remain independent
+cards. Selecting an article opens its exact revision/evidence detail, while
+**Claims & evidence** remains the claim-first inspection view. **ATLAS & TTPs**
+shows recorded mappings separately from unresolved candidates and the pinned
+resolver references present in applied runs. Catalog references are not incident
+evidence; the current resolver has limited ATT&CK coverage and no ATLAS catalog.
+
 Potential consequences and disputed behavior remain inference in the research
 annotation projection, with the original classification in context notes.
 Node-specific technique candidates may cite only claims supporting that node.

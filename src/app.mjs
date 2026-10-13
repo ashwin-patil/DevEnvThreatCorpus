@@ -1,7 +1,7 @@
 import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
-import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, explorationRecords } from './explore.mjs';
+import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, explorationRecords } from './explore.mjs';
 
 export async function fetchCorpus(fetcher, endpoint) {
   const response = await fetcher(endpoint, { cache: 'no-store' });
@@ -203,6 +203,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       return;
     }
     const selected = records.find(r => r.id === route.id) ?? records[0];
+    if (route.view === 'sources' && !route.id) {
+      $('content').append(renderResearchLibrary(doc, model, records, navigate, filters)); return;
+    }
     const workspace = element(doc, 'div', null, 'workspace'), list = element(doc, 'aside', null, 'record-list');
     list.setAttribute('aria-label', `Matching ${route.view}`);
     for (const record of records) {
@@ -239,7 +242,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
           win.setTimeout(() => win.URL.revokeObjectURL(url), 1000);
         }
       }));
-    if (route.view === 'sources') detail.append(renderSource(doc, model, selected, route.revisionId, navigate,
+    if (route.view === 'sources') detail.append(action(doc, 'Back to research library cards', () => navigate('sources', '')), renderSource(doc, model, selected, route.revisionId, navigate,
       id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
       ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
     if (route.view === 'claims') {

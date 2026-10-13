@@ -9,7 +9,7 @@ import {
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
-import { renderExploration, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
+import { renderExploration, renderResearchLibrary, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
 import {
   DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
   CAMPAIGN_FILE_LIMIT, campaignCandidate, createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal,
@@ -26,6 +26,51 @@ const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.j
 const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
+
+test('research library cards link directly supported behaviors without needing a path or mapping', async () => {
+  const corpus = fresh();
+  corpus.behaviors = [{ id: 'direct-behavior', name: 'Direct source behavior', claimIds: ['synthetic-claim-a'],
+    namespace: 'synthetic', boundary: 'Synthetic only', description: 'Direct claim support',
+    signalIds: [], detectionIds: [], otelIds: [], origin: 'LLM normalized behavior', disposition: 'Pending' }];
+  const m = createModel(corpus), calls = [];
+  const cards = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], (...args) => calls.push(args));
+  assert.match(cards.textContent, /Research library/);
+  assert.match(cards.textContent, /Direct source behavior/);
+  assert.match(cards.textContent, /No supported path recorded/);
+  await button(cards, 'Direct source behavior').trigger('click');
+  assert.deepEqual(calls, [['behaviors', 'direct-behavior']]);
+  const scoped = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], () => {}, { cases: ['synthetic-case-a'] });
+  assert.ok(!scoped.textContent.includes(corpus.cases[1].name), 'shared articles must not bypass the selected case filter');
+  const otherSource = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[1]], () => {});
+  assert.ok(!otherSource.textContent.includes('Direct source behavior'), 'source filtering must not leak another article behavior');
+  const detail = renderExploration(new FakeDocument(), m, 'behaviors', { cases: ['synthetic-case-a'] }, () => {});
+  assert.match(detail.textContent, /Distinct related cases: 1/);
+  assert.ok(detail.textContent.includes(corpus.claims[0].description));
+});
+
+test('research cards preserve independent sources and escape imported titles', () => {
+  const corpus = fresh(), source = structuredClone(corpus.sources[0]);
+  source.id = 'independent-source'; source.title = '<script>untrusted-title</script>';
+  source.revisionIds = []; corpus.sources.push(source);
+  const cards = renderResearchLibrary(new FakeDocument(), createModel(corpus), [source], () => {});
+  assert.match(cards.textContent, /Independent source/);
+  assert.ok(cards.textContent.includes(source.title));
+  assert.equal(descendants(cards).filter(n => n.tagName === 'SCRIPT').length, 0);
+});
+
+test('TTP view separates pinned resolver references and unresolved candidates from recorded mappings', () => {
+  const corpus = fresh();
+  corpus.governance.campaignExtraction = { runs: [{ caseId: 'synthetic-case-a',
+    catalogSnapshot: { catalogs: [{ framework: 'ATT&CK', version: 'synthetic-version', materialDigest: 'synthetic-digest',
+      immutableRevision: 'synthetic-revision', techniques: [{ id: 'T1059', name: 'Synthetic catalog reference', url: 'https://example.invalid/technique' }] }] },
+    unresolvedMappings: [{ framework: 'ATLAS', version: 'unknown', techniqueLiteral: 'unverified candidate',
+      rationale: 'No catalog match', supportingClaimIds: ['synthetic-claim-a'] }] }] };
+  const content = renderExploration(new FakeDocument(), createModel(corpus), 'frameworks', {}, () => {});
+  assert.match(content.textContent, /0 recorded mappings · 1 unresolved candidates · 1 pinned resolver catalogs/);
+  assert.match(content.textContent, /reference only/);
+  assert.match(content.textContent, /No ATLAS resolver catalog/);
+  assert.match(content.textContent, /unverified candidate · unresolved/);
+});
 
 test('research views retain optional core-only empty states and synthetic graph support without mutating evidence', async () => {
   assertValid(researchFixture);
