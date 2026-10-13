@@ -228,9 +228,32 @@ export function currentReview(corpus, entityType, entity) {
   const event = corpus.reviews.find(item => item.id === entity.history.at(-1));
   if (!event || event.entityType !== entityType || event.entityId !== entity.id ||
       event.revision !== entity.revision || event.disposition !== entity.disposition ||
-      event.reviewerKind !== 'human' || !timestamp(event.timestamp) ||
+      event.reviewerKind !== 'human' || !event.reviewer.trim() || !event.rationale.trim() || !timestamp(event.timestamp) ||
       event.contentHash !== entityContentHash(entity) || event.baseDigest !== reviewBaseDigest(corpus)) return false;
   return canonicalSerialize(event.dependencyHashes) === canonicalSerialize(dependencyHashes(corpus, entityType, entity.id));
+}
+
+export function reviewEligibleCorpus(corpus) {
+  const errors = validateShape(corpus);
+  if (errors.length) throw new Error(errors.join('\n'));
+  const copy = structuredClone(corpus);
+  let changed;
+  do {
+    changed = false;
+    for (const type of ['claims', 'cases', 'categorizations', 'timelines']) {
+      for (const entity of copy[type]) {
+        if (entity.disposition !== 'Accepted') continue;
+        const supports = type === 'claims' ? entity.inference?.supportingClaimIds ?? []
+          : entity.supportingClaimIds ?? entity.summaryClaimIds ?? [];
+        if (!currentReview(copy, type, entity)
+          || supports.some(id => copy.claims.find(claim => claim.id === id)?.disposition !== 'Accepted')) {
+          entity.disposition = 'Pending';
+          changed = true;
+        }
+      }
+    }
+  } while (changed);
+  return copy;
 }
 
 export function validateCorpus(corpus) {
@@ -501,6 +524,7 @@ export function assertAppendOnlyReviews(previous, next) {
     'ACCESS_DENIED', 'HTTP_STATUS', 'ROBOTS_DENIED', 'ROBOTS_UNSUPPORTED', 'REDIRECT_LIMIT',
     'UNSUPPORTED_TYPE', 'UNSUPPORTED_ENCODING', 'MALFORMED_TEXT', 'MALFORMED_HTML', 'EMPTY_CONTENT',
     'UNSAFE_PATH', 'STORE_BUSY', 'INVALID_CORPUS', 'IDENTITY_COLLISION', 'INVALID_EXTRACTION', 'PERSISTENCE',
+    'INVALID_REVIEW', 'UNKNOWN_CLAIM', 'STALE_BASE',
   ]);
   class IntakeError extends Error {
     constructor(code) { super(code); this.code = code; }
@@ -868,29 +892,36 @@ export function assertAppendOnlyReviews(previous, next) {
     }
   }
 
-  export async function validatePrivateCorpus(file) {
+  export async function validatePrivateCorpus(file, { reviewAware = false } = {}) {
     const bytes = await readPrivate(file, { corpus: true });
-    try { return assertValid(JSON.parse(strictText(bytes))); } catch { rejectIntake('INVALID_CORPUS'); }
+    try {
+      const corpus = JSON.parse(strictText(bytes));
+      assertValid(reviewAware ? reviewEligibleCorpus(corpus) : corpus);
+      return corpus;
+    } catch { rejectIntake('INVALID_CORPUS'); }
   }
 
   export async function readPrivateTemplate(file) {
     return strictText(await readPrivate(file, { privateOnly: true }));
   }
 
-  export async function updatePrivateCorpus(directory, update) {
+  export async function updatePrivateCorpus(directory, update, { reviewAware = false } = {}) {
     let store, result, failure;
     try {
       if (typeof update !== 'function') rejectIntake('INVALID_INPUT');
       store = await openStore(directory);
+      store.reviewAware = reviewAware;
       try {
         await fs.lstat(store.file);
-        store.baseline = digest(await validatePrivateCorpus(store.file));
+        store.baseline = digest(await validatePrivateCorpus(store.file, { reviewAware }));
       } catch (error) {
         if (error.code === 'ENOENT') rejectIntake('INVALID_CORPUS');
         throw error;
       }
-      const corpus = await validatePrivateCorpus(store.file);
+      const corpus = await validatePrivateCorpus(store.file, { reviewAware });
+      const previousReviews = structuredClone(corpus.reviews);
       result = await update(corpus);
+      assertAppendOnlyReviews(previousReviews, corpus.reviews);
       await persist(store, corpus);
     } catch (error) {
       failure = { status: 'failed', code: safeCode(error), ...(error?.errors ? { errors: error.errors } : {}) };
@@ -940,7 +971,7 @@ export function assertAppendOnlyReviews(previous, next) {
       try {
         const stat = await fs.lstat(store.file);
         if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || (stat.mode & 0o077)) rejectIntake('UNSAFE_PATH');
-        if (store.baseline === null || digest(await validatePrivateCorpus(store.file)) !== store.baseline) rejectIntake('PERSISTENCE');
+        if (store.baseline === null || digest(await validatePrivateCorpus(store.file, { reviewAware: store.reviewAware })) !== store.baseline) rejectIntake('PERSISTENCE');
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
         if (store.baseline !== null) rejectIntake('PERSISTENCE');

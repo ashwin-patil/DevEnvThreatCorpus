@@ -6,6 +6,29 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #21 manual claim review and acceptance eligibility
+
+Originating requirements: [Issue #21](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/21),
+scoped FND-17/FND-18 and the shared review/reproducibility contract.
+[Implementation PR #23](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/23)
+holds exact executed commands, results, tested full revision, and manual CLI
+evidence; [its checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/23/checks)
+are the durable hosted execution location. Refresh evidence after every commit.
+
+| ID | Implementation and executable evidence | Remaining independent evidence |
+|---|---|---|
+| AC-01 | `scripts/review.mjs` `applyReview`/`runReview` and CLI; `tests/review.test.mjs` accept/correct/exclude and invalid-input/no-mutation tests; `tests/fixtures/review/accept.json` with synthetic `benign/core-only.json` | Human local workflow inspection on originating PR |
+| AC-02 | Existing 0.3.0 `ReviewEvent`; review event construction and private updater's `assertAppendOnlyReviews`; focused event-field, correction/reacceptance history, and rewritten-event rejection tests | Human identity/justification and private audit/backup semantics review; no authentication or tamper-proof claim |
+| AC-03 | `scripts/contract.mjs` `currentReview`/`reviewEligibleCorpus`; review-aware private read/update and status/validation; tests for unchanged/multiple decisions, changed claim/revision/source/passage/case/base, inference support, invalid evidence, correction invalidation and explicit re-review; existing intake/extraction pending-only tests | Human review of conservative whole-base invalidation; no export eligibility claim |
+| AC-04 | Claim-only decision updates, correction-field allowlist, preserved origin and unchanged source/case records; focused LLM-origin/evidence/lifecycle assertions including `Reviewed` case with pending disposition | Human research/provenance interpretation review |
+| AC-05 | README commands, architecture event/status/failure rules, setup guidance, root CHANGELOG, this mapping; configured `node --test tests/review.test.mjs` plus all existing commands through `python scripts/verify.py` | Full tested SHA/exact results on PR; executed hosted Verify/PR Policy; independent human documentation relevance/accuracy, README applicability, and approval before merge |
+
+Automated tests use synthetic data and temporary private stores, no runtime model
+or network, and do not assess research truth or authenticate a reviewer.
+No lint/build command is configured. Overall acceptance is
+`needs-human-review` until independent workflow/documentation decisions and
+final-revision hosted checks are recorded. Agent self-audit is supplemental only.
+
 ## Issue #16 Phase 1 read-only Research Workbench
 
 Originating requirements: [Issue #16](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/16).

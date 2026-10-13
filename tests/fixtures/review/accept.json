@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "manual-review/1",
+  "claimId": "synthetic-claim-a",
+  "action": "accept",
+  "baseDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "rationale": "Synthetic local review exercise; not incident evidence or authenticated approval."
+}
