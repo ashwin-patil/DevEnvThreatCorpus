@@ -36,6 +36,15 @@ test('AI product aliases preserve literals and ambiguous executables do not beco
   for (const value of ['q', 'claude-sonnet-4', 'claude --flag', 'claude code evil']) assert.equal(toolIdentity(value).id, null);
 });
 
+test('research cards distinguish failed URL metadata from a retained article', () => {
+  const m = model(), source = { ...m.corpus.sources[0], id: 'failed-url', revisionIds: [], collectionState: 'Collected' };
+  m.corpus.collectionManifests.push({ inputSourceIds: [source.id], outcome: 'Failed' });
+  const card = renderResearchLibrary(new FakeDocument(), m, [source], () => {});
+  assert.match(card.textContent, /No retained article revision/);
+  assert.match(card.textContent, /Failed intake attempt/);
+  assert.doesNotMatch(card.textContent, /Collected · extraction/);
+});
+
 test('AI libraries retain exact prompt variants, scope, provenance, navigation and export', async () => {
   const m = model();
   const base = { type: 'commands-ai-artifacts', caseId: 'synthetic-case-a', sourceId: 'synthetic-source-a',

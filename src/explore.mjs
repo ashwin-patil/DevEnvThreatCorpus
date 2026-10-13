@@ -77,9 +77,13 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
   for (const source of sources.filter(s => !associated.has(s.id))) {
     const card = element(doc, 'article', null, 'panel research-card');
     card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'),
-      element(doc, 'p', `${source.collectionState} · extraction: ${source.extractionStatus}`, 'subtle'),
+      element(doc, 'p', source.revisionIds.length ? `${source.collectionState} · extraction: ${source.extractionStatus}`
+        : 'No retained article revision · source metadata only', 'subtle'),
       element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', publisherDisplay(source).name),
       action(doc, 'Open research source', () => navigate('sources', source.id)));
+    if (!source.revisionIds.length && model.corpus.collectionManifests.some(m => m.outcome === 'Failed' && m.inputSourceIds.includes(source.id))) {
+      card.append(element(doc, 'p', 'Failed intake attempt · article unavailable for extraction.', 'limits'));
+    }
     grid.append(card);
   }
   panel.append(grid); return panel;
