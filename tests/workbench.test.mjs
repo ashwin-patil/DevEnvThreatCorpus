@@ -9,7 +9,7 @@ import {
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
-import { renderExploration, renderResearchLibrary, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
+import { renderExploration, renderResearchLibrary, renderCaseLibrary, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
 import {
   DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
   CAMPAIGN_FILE_LIMIT, campaignCandidate, createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal,
@@ -33,7 +33,9 @@ test('AI product aliases preserve literals and ambiguous executables do not beco
   assert.equal(toolIdentity(' Claude Code ').name, 'Claude Code');
   assert.equal(toolIdentity('codex').id, toolIdentity('OpenAI Codex').id);
   assert.equal(toolIdentity('Amazon Q Developer CLI').name, 'Amazon Q');
-  for (const value of ['q', 'claude-sonnet-4', 'claude --flag', 'claude code evil']) assert.equal(toolIdentity(value).id, null);
+  assert.equal(toolIdentity('q').id, toolIdentity('Amazon Q').id);
+  assert.match(toolIdentity('q').basis, /original q literal retained/);
+  for (const value of ['claude-sonnet-4', 'claude --flag', 'claude code evil']) assert.equal(toolIdentity(value).id, null);
 });
 
 test('research cards distinguish failed URL metadata from a retained article', () => {
@@ -69,7 +71,10 @@ test('AI libraries retain exact prompt variants, scope, provenance, navigation a
   const sourceButton = descendants(root).find(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Source:'));
   await sourceButton.trigger('click'); assert.deepEqual(calls[0], ['sources', 'synthetic-source-a', 'synthetic-revision-a']);
   const card = renderResearchLibrary(new FakeDocument(), m, m.corpus.sources, (...args) => calls.push(args));
-  await descendants(card).find(n => n.tagName === 'BUTTON' && n.textContent === 'Claude Code · attempted-abuse').trigger('click');
+  const toolChip = descendants(card).find(n => n.tagName === 'BUTTON' && n.textContent === '◐ Claude Code');
+  assert.match(toolChip.className, /usage-attempted-abuse/);
+  assert.equal(toolChip.getAttribute('aria-label'), 'Claude Code: Attempted abuse');
+  await toolChip.trigger('click');
   assert.deepEqual(calls.at(-1), ['tools', 'ai-tool-claude-code']);
   assert.equal(talkBundle(m, 'synthetic-case-a').annotations.find(a => a.id === 'prompt-a').value, m.annotations[1].value);
   assert.equal(JSON.stringify(m.annotations), before);
@@ -90,7 +95,7 @@ test('publisher labels normalize known hosts, retain metadata and reject lookali
 test('compact research chips retain full accessible titles and disambiguate repeated publishers', () => {
   const corpus = fresh();
   for (const s of corpus.sources) { s.publisher = 'StepSecurity'; s.originalUrl = null; s.canonicalUrl = null; }
-  const root = renderResearchLibrary(new FakeDocument(), createModel(corpus), corpus.sources, () => {});
+  const root = renderCaseLibrary(new FakeDocument(), createModel(corpus), corpus.cases, () => {});
   const chips = descendants(root).filter(n => n.tagName === 'BUTTON' && n.title?.includes('reported publisher'));
   assert.ok(chips.some(n => n.textContent === 'StepSecurity · 1 ↗'));
   assert.ok(chips.some(n => n.textContent === 'StepSecurity · 2 ↗'));
@@ -129,7 +134,7 @@ test('research library cards link directly supported behaviors without needing a
   const cards = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], (...args) => calls.push(args));
   assert.match(cards.textContent, /Research library/);
   assert.match(cards.textContent, /Direct source behavior/);
-  assert.match(cards.textContent, /No supported path recorded/);
+  assert.match(cards.textContent, /Campaigns \/ cases/);
   await button(cards, 'Direct source behavior').trigger('click');
   assert.deepEqual(calls, [['behaviors', 'direct-behavior']]);
   const scoped = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], () => {}, { cases: ['synthetic-case-a'] });
@@ -149,6 +154,32 @@ test('research cards preserve independent sources and escape imported titles', (
   assert.match(cards.textContent, /Independent source/);
   assert.ok(cards.textContent.includes(source.title));
   assert.equal(descendants(cards).filter(n => n.tagName === 'SCRIPT').length, 0);
+});
+
+test('case cards expand per campaign while blog cards retain many-to-many tags', async () => {
+  const m = model(), calls = [], before = JSON.stringify(m.corpus);
+  const cases = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
+  const campaignCards = descendants(cases).filter(n => n.tagName === 'DETAILS' && n.className.includes('case-card'));
+  assert.equal(campaignCards.length, m.corpus.cases.length);
+  assert.ok(campaignCards.every(n => !n.open));
+  assert.match(campaignCards[0].textContent, /Expand campaign/);
+  await button(campaignCards[0], 'Open campaign workspace').trigger('click');
+  assert.deepEqual(calls[0], ['cases', m.corpus.cases[0].id]);
+  const blogs = renderResearchLibrary(new FakeDocument(), m, m.corpus.sources, (...args) => calls.push(args));
+  const blogCards = descendants(blogs).filter(n => (n.className ?? '').includes('blog-card'));
+  assert.equal(blogCards.length, m.corpus.sources.length);
+  const shared = blogCards.find(n => n.textContent.includes(m.corpus.sources[0].title));
+  const linkedCases = m.corpus.cases.filter(c => caseSourceIds(m, c.id).includes(m.corpus.sources[0].id));
+  assert.equal(descendants(shared).filter(n => (n.className ?? '').includes('campaign-tag')).length, linkedCases.length);
+  assert.equal(JSON.stringify(m.corpus), before);
+});
+
+test('behavior category labels stay outside normalized behavior titles', () => {
+  const m = createModel(structuredClone(researchFixture));
+  const content = renderExploration(new FakeDocument(), m, 'behaviors', {}, () => {});
+  const categoryTitles = descendants(content).filter(n => n.tagName === 'H3').map(n => n.textContent);
+  assert.ok(categoryTitles.includes('Actions'));
+  assert.ok(descendants(content).filter(n => n.tagName === 'H4').every(n => !/Atomic behavior|Activity pattern/.test(n.textContent)));
 });
 
 test('TTP view separates pinned resolver references and unresolved candidates from recorded mappings', () => {

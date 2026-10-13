@@ -23,70 +23,112 @@ function behaviorSupport(model, behavior) {
         .flatMap(s => s.supportingClaimIds ?? []))])];
 }
 
+const USAGE = {
+  targeted: ['Targeted', '◇'], 'attempted-abuse': ['Attempted abuse', '◐'],
+  'reported-abuse': ['Reported abuse', '●'], 'vendor-example': ['Vendor example', '□'],
+  'general-mention': ['General mention', '·'], unclear: ['Unclear', '?'], mixed: ['Mixed source classifications', '◈'],
+};
+function usageOf(annotations) {
+  const values = [...new Set(annotations.map(a => Object.hasOwn(USAGE, a.context?.artifactUsage) ? a.context.artifactUsage : 'unclear'))];
+  return values.length === 1 ? values[0] : 'mixed';
+}
+function usageLegend(doc) {
+  const legend = element(doc, 'aside', null, 'usage-legend');
+  legend.setAttribute('aria-label', 'AI tool and prompt usage legend');
+  legend.append(element(doc, 'strong', 'Usage legend'));
+  for (const [key, [label, symbol]] of Object.entries(USAGE)) legend.append(element(doc, 'span', `${symbol} ${label}`, `usage-key usage-${key}`));
+  return legend;
+}
+function behaviorLinks(doc, parent, model, claimIds, paths, navigate) {
+  const pathIds = new Set(paths.flatMap(p => p.nodes.filter(n => n.claimIds.some(id => claimIds.has(id))).flatMap(n => n.behaviorIds)));
+  const behaviors = list(model, 'behaviors').filter(b => pathIds.has(b.id) || behaviorSupport(model, b).some(id => claimIds.has(id)));
+  const groups = behaviorInventory(behaviors);
+  parent.append(element(doc, 'h3', 'Behaviors'));
+  for (const [kind, label] of [['atomic-behavior', 'Actions'], ['activity-pattern', 'Activity patterns']]) {
+    const items = groups.filter(g => g.kind === kind); if (!items.length) continue;
+    const section = element(doc, 'section', null, `behavior-category ${kind}`);
+    section.append(element(doc, 'h4', label));
+    for (const group of items) {
+      const chip = action(doc, group.name, () => navigate('behaviors', group.members[0].id));
+      chip.title = group.basis; section.append(chip);
+    }
+    parent.append(section);
+  }
+  if (!behaviors.length) parent.append(element(doc, 'p', 'No linked behaviors recorded. Collection alone does not extract behavior.', 'subtle'));
+}
+export function renderCaseLibrary(doc, model, records, navigate, filters = {}) {
+  const panel = element(doc, 'section', null, 'case-library');
+  panel.append(element(doc, 'h2', 'Case library'), element(doc, 'p',
+    'One card per campaign or explicitly selected research group. Expand a card to explore its blogs, behaviors, AI tools and prompts. Shared research does not merge campaigns.', 'subtle'), usageLegend(doc));
+  const grid = element(doc, 'div', null, 'research-grid');
+  for (const record of records) {
+    const card = element(doc, 'details', null, 'panel research-card case-card');
+    const summary = element(doc, 'summary');
+    const claims = model.corpus.claims.filter(c => c.caseId === record.id);
+    const sourceIds = caseSourceIds(model, record.id), claimIds = new Set(claims.map(c => c.id));
+    summary.append(element(doc, 'h2', record.name), element(doc, 'p', `${sourceIds.length} research sources · ${claims.length} claims · ${record.disposition}`, 'subtle'),
+      element(doc, 'span', 'Expand campaign', 'card-expand'));
+    card.append(summary);
+    const body = element(doc, 'div', null, 'case-card-body');
+    body.append(element(doc, 'p', record.summary ?? 'No cited campaign summary recorded.'), element(doc, 'p', record.limits, 'limits'),
+      action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
+    body.append(element(doc, 'h3', 'Research blogs'));
+    const totals = new Map(), index = new Map();
+    for (const id of sourceIds) { const source = model.sources.get(id); if (source) {const name = publisherDisplay(source).name; totals.set(name, (totals.get(name) ?? 0) + 1);} }
+    for (const id of sourceIds) {
+      const source = model.sources.get(id); if (!source) continue;
+      const display = publisherDisplay(source); index.set(display.name, (index.get(display.name) ?? 0) + 1);
+      const chip = action(doc, `${display.name}${totals.get(display.name) > 1 ? ` · ${index.get(display.name)}` : ''} ↗`, () => navigate('sources', id));
+      chip.title = `${metadata(source, 'title')} · ${display.basis}`; chip.setAttribute('aria-label', `${display.name}: ${metadata(source, 'title')}`); body.append(chip);
+    }
+    const paths = list(model, 'paths').filter(p => p.caseId === record.id);
+    behaviorLinks(doc, body, model, claimIds, paths, navigate);
+    body.append(element(doc, 'h3', 'Attack paths'));
+    for (const path of paths) body.append(action(doc, path.name ?? `${record.name} attack path`, () => navigate('paths', path.id)));
+    if (!paths.length) body.append(element(doc, 'p', 'No supported path recorded.', 'subtle'));
+    appendAiLinks(doc, body, model, record.id, navigate);
+    card.append(body); grid.append(card);
+  }
+  panel.append(grid); return panel;
+}
 export function renderResearchLibrary(doc, model, sources, navigate, filters = {}) {
   const panel = element(doc, 'section', null, 'research-library');
   panel.append(element(doc, 'h2', 'Research library'), element(doc, 'p',
-    'Browse research records, their articles and linked behaviors. Case associations are researcher-selected; they do not establish common attribution. Open an article for exact revision text or a claim for its evidence.', 'subtle'));
-  const visible = new Set(sources.map(s => s.id)), associated = new Set();
+    'One card per blog or research source. Campaign tags open the associated case; one blog can support several cases without combining their attribution. Open a blog to inspect exact revisions and claims.', 'subtle'), usageLegend(doc));
   const grid = element(doc, 'div', null, 'research-grid');
-  for (const record of model.corpus.cases) {
-    if (filters.cases?.length && !filters.cases.includes(record.id)) continue;
-    const ids = caseSourceIds(model, record.id).filter(id => visible.has(id));
-    if (!ids.length) continue;
-    ids.forEach(id => associated.add(id));
-    const card = element(doc, 'article', null, 'panel research-card');
-    card.append(element(doc, 'p', `${record.kind} · ${record.origin} · ${record.disposition}`, 'subtle'),
-      element(doc, 'h2', record.name), element(doc, 'p', record.summary ?? 'No case summary recorded.'),
-      element(doc, 'p', record.limits ?? 'Independent research review remains required.', 'limits'),
-      action(doc, 'Open case', () => navigate('cases', record.id)));
-    const claims = model.corpus.claims.filter(c => c.caseId === record.id && visible.has(c.sourceId));
+  for (const source of sources) {
+    const card = element(doc, 'article', null, 'panel research-card blog-card');
+    const cases = model.corpus.cases.filter(c => caseSourceIds(model, c.id).includes(source.id) && (!filters.cases?.length || filters.cases.includes(c.id)));
+    const caseIds = new Set(cases.map(c => c.id));
+    const claims = model.corpus.claims.filter(c => c.sourceId === source.id && caseIds.has(c.caseId));
     const claimIds = new Set(claims.map(c => c.id));
-    const paths = list(model, 'paths').filter(p => p.caseId === record.id
-      && p.nodes.some(n => n.claimIds.some(id => claimIds.has(id))));
-    card.append(element(doc, 'h3', 'Attack paths'));
-    for (const p of paths) card.append(action(doc, p.name ?? `${record.name} attack path`, () => navigate('paths', p.id)));
-    if (!paths.length) card.append(element(doc, 'p', 'No supported path recorded for these articles.', 'subtle'));
-    card.append(element(doc, 'h3', 'Research'));
-    const publisherTotals = new Map();
-    for (const id of ids) { const name = publisherDisplay(model.sources.get(id)).name; publisherTotals.set(name, (publisherTotals.get(name) ?? 0) + 1); }
-    const publisherIndex = new Map();
-    for (const id of ids) {
-      const s = model.sources.get(id);
-      const display = publisherDisplay(s);
-      publisherIndex.set(display.name, (publisherIndex.get(display.name) ?? 0) + 1);
-      const suffix = publisherTotals.get(display.name) > 1 ? ` · ${publisherIndex.get(display.name)}` : '';
-      const chip = action(doc, `${display.name}${suffix} ↗`, () => navigate('sources', id));
-      chip.title = `${metadata(s, 'title')} · ${display.basis}`;
-      chip.setAttribute('aria-label', `${display.name}: ${metadata(s, 'title')}`); card.append(chip);
-    }
-    const pathBehaviors = new Set(paths.flatMap(p => p.nodes.filter(n => n.claimIds.some(id => claimIds.has(id))).flatMap(n => n.behaviorIds)));
-    const behaviors = list(model, 'behaviors').filter(b => pathBehaviors.has(b.id)
-      || behaviorSupport(model, b).some(id => claimIds.has(id)));
-    card.append(element(doc, 'h3', 'Behaviors · suggested inventory groups'));
-    for (const group of behaviorInventory(behaviors)) {
-      const chip = action(doc, `${group.name}${group.kind === 'activity-pattern' ? ' · activity pattern' : ''}`, () => navigate('behaviors', group.members[0].id));
-      chip.title = `${group.basis} Source-specific records: ${group.members.map(b => b.name).join('; ')}`; card.append(chip);
-    }
-    if (!behaviors.length) card.append(element(doc, 'p', 'No linked behaviors recorded. Collection alone does not extract behavior.', 'subtle'));
-    const evidence = element(doc, 'details'); evidence.append(element(doc, 'summary', `Claims & evidence · ${claims.length}`));
-    for (const c of claims) evidence.append(action(doc, c.description, () => navigate('claims', c.id)));
-    card.append(evidence);
-    appendAiLinks(doc, card, model, record.id, navigate, visible);
-    grid.append(card);
-  }
-  for (const source of sources.filter(s => !associated.has(s.id))) {
-    const card = element(doc, 'article', null, 'panel research-card');
-    card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'),
-      element(doc, 'p', source.revisionIds.length ? `${source.collectionState} · extraction: ${source.extractionStatus}`
-        : 'No retained article revision · source metadata only', 'subtle'),
-      element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', publisherDisplay(source).name),
+    card.append(element(doc, 'span', publisherDisplay(source).name, 'publisher-badge'),
+      element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', source.revisionIds.length
+        ? `${source.collectionState} · ${source.revisionIds.length} retained revision(s)` : 'No retained article revision · source metadata only', 'subtle'),
       action(doc, 'Open research source', () => navigate('sources', source.id)));
-    if (!source.revisionIds.length && model.corpus.collectionManifests.some(m => m.outcome === 'Failed' && m.inputSourceIds.includes(source.id))) {
-      card.append(element(doc, 'p', 'Failed intake attempt · article unavailable for extraction.', 'limits'));
+    card.append(element(doc, 'h3', 'Campaigns / cases'));
+    for (const record of cases) card.append(action(doc, record.name, () => navigate('cases', record.id), 'chip campaign-tag'));
+    if (!cases.length) card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'));
+    if (!source.revisionIds.length && model.corpus.collectionManifests.some(m => m.outcome === 'Failed' && m.inputSourceIds.includes(source.id))) card.append(element(doc, 'p', 'Failed intake attempt · article unavailable for extraction.', 'limits'));
+    const paths = list(model, 'paths').filter(p => caseIds.has(p.caseId) && p.nodes.some(n => n.claimIds.some(id => claimIds.has(id))));
+    behaviorLinks(doc, card, model, claimIds, paths, navigate);
+    const evidence = element(doc, 'details'); evidence.append(element(doc, 'summary', `Claims & evidence · ${claims.length}`));
+    for (const claim of claims) evidence.append(action(doc, claim.description, () => navigate('claims', claim.id)));
+    card.append(evidence);
+    for (const [view, label] of [['tools', 'AI tools'], ['prompts', 'Prompts']]) {
+      const entries = aiLibrary(model, view, caseIds).filter(r => r.annotations.some(a => a.sourceId === source.id));
+      if (!entries.length) continue;
+      card.append(element(doc, 'h3', label));
+      for (const entry of entries) card.append(aiChip(doc, entry, navigate, view, entry.annotations.filter(a => a.sourceId === source.id)));
     }
     grid.append(card);
   }
   panel.append(grid); return panel;
+}
+function aiChip(doc, record, navigate, view, annotations = record.annotations) {
+  const usage = usageOf(annotations), [label, symbol] = USAGE[usage];
+  const chip = action(doc, `${symbol} ${record.name}`, () => navigate(view, record.id), `chip usage-${usage}`);
+  chip.title = `${label}. ${record.basis}`; chip.setAttribute('aria-label', `${record.name}: ${label}`); return chip;
 }
 
 function reference(doc, url, label = url) {
@@ -95,17 +137,14 @@ function reference(doc, url, label = url) {
   const link = element(doc, 'a', label); link.href = safe; link.target = '_blank'; link.rel = 'noopener noreferrer'; return link;
 }
 function appendAiLinks(doc, parent, model, caseId, navigate, sourceIds) {
-  for (const [view, label] of [['tools', 'AI tools · source-reported usage'], ['prompts', 'Prompts · exact source literals']]) {
+  for (const [view, label] of [['tools', 'AI tools'], ['prompts', 'Prompts']]) {
     const entries = aiLibrary(model, view, new Set([caseId])).filter(r => !sourceIds || r.annotations.some(a => sourceIds.has(a.sourceId)));
     parent.append(element(doc, 'h3', label));
-    for (const r of entries) {
-      const usages = [...new Set(r.annotations.filter(a => !sourceIds || sourceIds.has(a.sourceId)).map(a => a.context?.artifactUsage ?? 'unclear'))].join(', ');
-      const chip = action(doc, `${view === 'tools' ? r.name : r.annotations[0].normalizedValue ?? r.name} · ${usages}`, () => navigate(view, r.id));
-      chip.title = view === 'prompts' ? r.annotations[0].value : r.basis; parent.append(chip);
-    }
+    for (const r of entries) parent.append(aiChip(doc, r, navigate, view, r.annotations.filter(a => !sourceIds || sourceIds.has(a.sourceId))));
     if (!entries.length) parent.append(element(doc, 'p', 'No grounded entries recorded.', 'subtle'));
   }
 }
+
 function row(doc, parent, label, value) {
   if (value == null || (Array.isArray(value) && !value.length)) return;
   const p = element(doc, 'p'); p.append(element(doc, 'strong', `${label}: `),
@@ -151,6 +190,7 @@ export function renderEvidencePanel(doc, model, record, navigate, download) {
   if (model.annotationError) panel.append(element(doc, 'p', model.annotationError, 'enrichment-warning'));
   if (download) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
     () => download(format, format === 'md' ? talkMarkdown(talkBundle(model, record.id)) : talkBundle(model, record.id))));
+  panel.append(usageLegend(doc));
   const annotations = caseAnnotations(model, record.id);
   appendAiLinks(doc, panel, model, record.id, navigate);
   for (const [type, label] of Object.entries(ANNOTATION_LABELS)) {
@@ -317,15 +357,15 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     panel.append(element(doc, 'h2', EXPLORE_VIEWS[view]), element(doc, 'p', view === 'tools'
       ? 'Normalized products with source-local usage labels. Association does not prove successful abuse. Unresolved executable names remain separate.'
       : 'Exact vendor-reported prompts for research and detection development. Benign vendor examples remain labeled; these are not validated detection rules or independently confirmed IOCs. No prompt is executed.'));
+    panel.append(usageLegend(doc));
     const grid = element(doc, 'div', null, 'research-grid');
     for (const record of selected.records.filter(r => !selectedId || matchesTarget(r))) {
-      const card = element(doc, 'article', null, 'panel research-card');
+      const card = element(doc, 'article', null, `panel research-card usage-${usageOf(record.annotations)}`);
       card.append(element(doc, 'h2', record.name), element(doc, 'p', record.basis, 'subtle'));
       if (!selectedId) card.append(action(doc, 'Open library entry', () => navigate(view, record.id)));
       for (const a of record.annotations) {
         const item = annotationCard(doc, model, a, navigate);
-        item.append(element(doc, 'p', `Usage: ${a.context?.artifactUsage ?? 'unclear / not classified'}`),
-          action(doc, `Campaign: ${model.cases.get(a.caseId)?.name ?? a.caseId}`, () => navigate('cases', a.caseId)),
+        item.append(action(doc, `Campaign: ${model.cases.get(a.caseId)?.name ?? a.caseId}`, () => navigate('cases', a.caseId)),
           support(doc, model, a.claimIds, navigate));
         // Relationships require common source-local claims, not lexical similarity or article proximity.
         const other = view === 'tools' ? 'prompts' : 'tools';
@@ -344,12 +384,17 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     const inventory = element(doc, 'section', null, 'panel behavior-inventory');
     inventory.append(element(doc, 'h2', 'Normalized behavior inventory'), element(doc, 'p',
       'Suggested local concepts group similar labels for review. Atomic behaviors are actions; activity patterns describe transitions or chains. Labels with arrows are treated as pattern candidates, not proven chronology. No source record, evidence status or review decision is merged or replaced.'));
-    for (const group of behaviorInventory(selected.records)) {
+    for (const [kind, label] of [['atomic-behavior', 'Actions'], ['activity-pattern', 'Activity patterns']]) {
+      const category = element(doc, 'section', null, `behavior-category ${kind}`);
+      category.append(element(doc, 'h3', label));
+      for (const group of behaviorInventory(selected.records).filter(g => g.kind === kind)) {
       const item = element(doc, 'article', null, 'claim-card');
-      item.append(element(doc, 'h3', `${group.name} · ${group.kind === 'activity-pattern' ? 'Activity pattern' : 'Atomic behavior'}`),
+      item.append(element(doc, 'h4', group.name),
         element(doc, 'p', group.basis, 'subtle'), element(doc, 'p', `${group.members.length} source-specific record(s)${group.members.length > 1 ? ' · possible overlap; inspect evidence before consolidation' : ''}`));
       for (const member of group.members) item.append(action(doc, `${member.name} · ${member.disposition ?? 'Pending'}`, () => navigate('behaviors', member.id)));
-      inventory.append(item);
+      category.append(item);
+      }
+      if (category.children.length > 1) inventory.append(category);
     }
     inventory.append(element(doc, 'h3', 'Chained activities from recorded paths'), element(doc, 'p',
       'Each transition retains its recorded relationship and evidence basis. A chain is not an atomic behavior, and connecting two nodes does not prove execution or causality.', 'subtle'));

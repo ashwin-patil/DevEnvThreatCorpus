@@ -26,10 +26,20 @@ acceptance eligibility; local reviewer identity is self-attested, not authentica
 
 ## Current implementation
 
+Case library is the campaign-level overview: one expandable card per case, with
+links to its research blogs, behaviors, tools, prompts and full workspace. Research
+library is the source-level overview: one card per blog/article, with campaign
+tags and source-specific behavior and evidence links. Shared blogs can tag several
+cases without merging their attribution. Tool/prompt colors and symbols use a
+visible usage legend; behavior titles remain plain names under Actions or Activity
+patterns category sections. This changes presentation only, not corpus identities
+or pending/accepted review state.
+
 AI tools and Prompt library views project private, grounded `ide-cli` and
 `prompt-instruction` annotations. Campaign and Research library cards link to
 entries, exact revisions and supporting claims. Known product aliases share a
-display identity; ambiguous executables remain unresolved. Exact prompt variants
+display identity; the Amazon Q CLI alias `q` displays as Amazon Q while its
+source literal remains available. Unknown executables remain unresolved. Exact prompt variants
 retain case, whitespace and punctuation rather than being semantically merged.
 Prepare a fresh campaign request using extraction prompt version 3, then import
 its candidate to populate these views. Optional artifact `usage` classifies

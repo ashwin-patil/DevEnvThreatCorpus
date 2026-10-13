@@ -4,14 +4,15 @@ const TOOLS = [
   ['claude-code', 'Claude Code', ['claude code', 'claude']],
   ['gemini-cli', 'Gemini CLI', ['gemini cli', 'gemini']],
   ['openai-codex', 'OpenAI Codex', ['openai codex', 'codex cli', 'codex']],
-  ['amazon-q', 'Amazon Q', ['amazon q', 'amazon q developer', 'amazon q developer cli']],
+  ['amazon-q', 'Amazon Q', ['amazon q', 'amazon q developer', 'amazon q developer cli', 'q']],
   ['warp', 'Warp', ['warp']],
 ];
 export function toolIdentity(literal) {
   const key = literal.normalize('NFKC').toLowerCase().trim().replace(/\s+/gu, ' ');
   const match = TOOLS.find(t => t[2].includes(key));
-  // A lone q, model name or command line is not sufficient product identification.
-  return match ? { id: `ai-tool-${match[0]}`, name: match[1], basis: 'Known product alias' }
+  // Executable aliases apply only to extracted ide-cli artifacts, never arbitrary commands.
+  return match ? { id: `ai-tool-${match[0]}`, name: match[1], basis: key === 'q'
+    ? 'Amazon Q CLI executable alias; original q literal retained. Reference: https://aws.amazon.com/about-aws/whats-new/2025/06/amazon-q-developer-cli-claude-sonnet-4/' : 'Known product alias' }
     : { id: null, name: literal, basis: 'Unresolved source literal; product identity unconfirmed' };
 }
 export function aiLibrary(model, view, caseIds = new Set(model.corpus.cases.map(c => c.id))) {

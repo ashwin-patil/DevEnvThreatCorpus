@@ -1,7 +1,7 @@
 import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
-import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, explorationRecords } from './explore.mjs';
+import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
 
 export async function fetchCorpus(fetcher, endpoint) {
   const response = await fetcher(endpoint, { cache: 'no-store' });
@@ -207,6 +207,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       $('content').append(empty('Unknown target. No different research record has been substituted.'),
         action(doc, `Return to ${VIEWS[route.view]}`, () => navigate(route.view))); return;
     }
+    if (route.view === 'cases' && !route.id) {
+      $('content').append(renderCaseLibrary(doc, model, records, navigate, filters)); return;
+    }
     if (route.view === 'sources' && !route.id) {
       $('content').append(renderResearchLibrary(doc, model, records, navigate, filters)); return;
     }
@@ -227,7 +230,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     const detail = element(doc, 'div');
     if (route.id && selected.id !== route.id) detail.append(element(doc, 'p', 'The selected target is hidden by filters; showing the matching record named below. Reset filters to return to the selected target.', 'subtle'));
     if (route.id && !model[route.view].has(route.id)) detail.append(element(doc, 'p', 'Unknown target; showing a matching record instead.', 'subtle'));
-    if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate,
+    if (route.view === 'cases') detail.append(action(doc, 'Back to campaign cards', () => navigate('cases', '')), renderCase(doc, model, selected, navigate,
       value => downloadProposal(doc, win, value, 'campaign-citations.json')),
       renderEvidencePanel(doc, model, selected, navigate, async (format, value) => {
         let campaign = null;

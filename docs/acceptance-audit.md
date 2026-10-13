@@ -1,5 +1,13 @@
 # Acceptance audit
 
+### Campaign/source card alignment (PR #47)
+
+`tests/workbench.test.mjs` covers one expandable card per case, one card per blog,
+many-to-many campaign tags, no corpus mutations, usage-color accessible labels,
+Amazon Q executable alias normalization with raw literal retention, source-local
+behavior links and category headings separate from behavior titles. These are
+implementation regressions; independent UX/research review remains required.
+
 ### AI-tool and prompt library follow-up (PR #47)
 
 The user-requested follow-up adds private views and campaign-card links for

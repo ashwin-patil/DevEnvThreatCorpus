@@ -2,6 +2,14 @@
 
 ## 2026-10-13 — Passage-grounded campaign extraction
 
+- Align Case library with expandable campaign cards and Research library with
+  one card per blog plus many-to-many campaign tags. Preserve article-specific
+  behavior/evidence links and case identities. Replace usage suffixes on tool and
+  prompt chips with colored backgrounds, distinct symbols and an accessible
+  legend. Move behavior categories out of titles into Actions/Activity patterns
+  sections. Normalize the Amazon Q CLI alias q using the AWS product reference
+  while retaining literal source evidence.
+
 - Add campaign-linked AI product and exact prompt libraries with known-alias
   normalization, unresolved executable labels, searchable usage classifications,
   source/revision/claim navigation and private export retention. Keep prompt

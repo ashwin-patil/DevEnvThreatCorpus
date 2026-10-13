@@ -5,8 +5,8 @@
 `src/ai-library.mjs` provides read-only product and exact-prompt projections over
 grounded private annotations, without adding incident assertions to the core
 corpus. Product normalization uses exact known aliases, ignores model-generated
-normalized replacements, and leaves `q` unresolved without explicit product
-evidence. Campaign/research cards navigate to tool and prompt entries with source
+normalized replacements, and maps the Amazon Q CLI executable alias `q` to
+Amazon Q using the AWS product reference while preserving the source literal. Campaign/research cards navigate to tool and prompt entries with source
 revision and claim support. Relationships require shared source-local claims;
 article proximity alone cannot link a prompt to a product. Exact prompt equality
 groups copies while preserving every source/case occurrence; member annotation
@@ -23,12 +23,13 @@ retain their displayed basis; reported fields, null reasons and source hashes
 remain distinct. Behavior inventory groups preserve member IDs/classifications
 and suggest concepts for human review; activity patterns and supported path
 transitions are distinct from atomic actions. The extraction prompt is versioned
-as `passage-grounded-campaign/2` to discourage duplicate definitions while
+as `passage-grounded-campaign/3` to discourage duplicate definitions while
 retaining distinct supported occurrences. No semantic auto-merge is performed.
 
-The source-library overview uses read-only case-grouped research cards with
-independent unassociated source cards. Behavior links derive from actual
-case/source claim support, occurrences and supported path nodes; a missing path
+The Case library overview uses expandable campaign cards. The Research library
+overview uses one card per blog/source, with many-to-many campaign tags and
+independent unassociated sources. Behavior links derive from actual
+source-local claim support, occurrences and supported path nodes; a missing path
 or mapping does not hide direct claim-backed behavior. Existing source-ID routes
 still open exact revision text with a return action to the card overview. TTP
 presentation separates immutable resolver references and unresolved candidates
@@ -845,3 +846,11 @@ permissions; the platform limitation is not an application-test pass.
 
 Acceptance remains `needs-human-review` for independent review of output
 usability, documentation relevance, and the exported evidence boundary.
+
+Usage colors and distinct symbols replace classification suffixes on tool/prompt
+chips. A visible legend, accessible names and hover titles retain the status for
+color-blind and keyboard users. Behavior category sections separate Actions from
+Activity patterns with text labels and backgrounds; titles remain plain concept
+names. Case summaries expand through native keyboard-accessible details controls
+and link to the full workspace. These are read-only views; shared article tags
+do not deduplicate or merge case IDs, claims, provenance or review decisions.
