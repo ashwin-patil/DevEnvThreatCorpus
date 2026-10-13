@@ -256,6 +256,438 @@ export function reviewEligibleCorpus(corpus) {
   return copy;
 }
 
+const profileEntityTypes = [
+  'cases', 'sources', 'sourceRevisions', 'passages', 'claims', 'categorizations', 'timelines',
+  'paths', 'behaviors', 'frameworks', 'mappings', 'telemetry', 'detections', 'otel',
+];
+const optionalEntityTypes = ['paths', 'behaviors', 'frameworks', 'mappings', 'telemetry', 'detections', 'otel'];
+const reviewableEntityTypes = ['cases', 'claims', 'categorizations', 'timelines'];
+
+function currentAccepted(corpus, type, entity) {
+  return entity.disposition === 'Accepted' && currentReview(corpus, type, entity);
+}
+
+export function profileRecords(input, profile = 'reviewed') {
+  if (!['reviewed', 'draft'].includes(profile)) throw new Error('profile must be reviewed or draft');
+  if (input?.schemaVersion !== CONTRACT_VERSION) throw new Error(`unsupported schema version ${JSON.stringify(input?.schemaVersion)}; expected ${CONTRACT_VERSION}`);
+
+  const corpus = reviewEligibleCorpus(input);
+  assertValid(corpus);
+  const stale = new Set();
+  for (const type of reviewableEntityTypes) {
+    for (const entity of input[type] ?? []) {
+      const current = corpus[type].find(item => item.id === entity.id);
+      if (entity.disposition === 'Accepted' && current?.disposition !== 'Accepted') stale.add(`${type}:${entity.id}`);
+    }
+  }
+
+  let selectedClaims = new Set(corpus.claims.filter(claim => profile === 'draft' || currentAccepted(corpus, 'claims', claim)).map(claim => claim.id));
+  if (profile === 'reviewed') {
+    let changed;
+    do {
+      changed = false;
+      for (const claim of corpus.claims) {
+        if (!selectedClaims.has(claim.id)) continue;
+        const dependencies = [...(claim.inference?.supportingClaimIds ?? []), ...claim.conflictsWith];
+        if (dependencies.some(id => !selectedClaims.has(id))) {
+          selectedClaims.delete(claim.id);
+          changed = true;
+        }
+      }
+    } while (changed);
+  }
+
+  const selectedCases = new Set(corpus.cases.filter(item => profile === 'draft'
+    || corpus.claims.some(claim => selectedClaims.has(claim.id) && claim.caseId === item.id)).map(item => item.id));
+  const selectedCategories = new Set(corpus.categorizations
+    .filter(item => selectedCases.has(item.caseId) && (profile === 'draft' || currentAccepted(corpus, 'categorizations', item)
+      && item.supportingClaimIds.every(id => selectedClaims.has(id))))
+    .map(item => item.id));
+  const selectedTimelines = new Set(corpus.timelines
+    .filter(item => selectedCases.has(item.caseId) && (profile === 'draft' || currentAccepted(corpus, 'timelines', item)
+      && item.supportingClaimIds.every(id => selectedClaims.has(id))))
+    .map(item => item.id));
+  const selectedSourceIds = new Set([
+    ...corpus.claims.filter(item => selectedClaims.has(item.id)).map(item => item.sourceId),
+    ...corpus.cases.filter(item => selectedCases.has(item.id)).flatMap(item => item.sourceIds),
+    ...corpus.categorizations.filter(item => selectedCategories.has(item.id)).flatMap(item => item.sourceIds),
+  ]);
+  const selectedRevisionIds = new Set([
+    ...corpus.claims.filter(item => selectedClaims.has(item.id)).map(item => item.sourceRevisionId),
+    ...corpus.timelines.filter(item => selectedTimelines.has(item.id)).flatMap(item => item.sourceRevisionIds),
+  ]);
+  const selectedPassageIds = new Set(corpus.claims.filter(item => selectedClaims.has(item.id)).flatMap(item => item.passageIds));
+  const selectedPaths = new Set((corpus.paths ?? [])
+    .filter(item => selectedCases.has(item.caseId) && (profile === 'draft'
+      || [...item.nodes.flatMap(node => node.claimIds), ...item.edges.flatMap(edge => edge.claimIds)].every(id => selectedClaims.has(id))))
+    .map(item => item.id));
+  const selectedMappings = new Set((corpus.mappings ?? [])
+    .filter(item => selectedCases.has(item.caseId) && (profile === 'draft' || item.mappingStatus !== 'Rejected'
+      && item.claimIds.every(id => selectedClaims.has(id))
+      && (!item.pathId || selectedPaths.has(item.pathId))))
+    .map(item => item.id));
+  const selectedBehaviorIds = new Set([
+    ...(corpus.paths ?? []).filter(item => selectedPaths.has(item.id)).flatMap(item => item.nodes.flatMap(node => node.behaviorIds)),
+    ...(corpus.mappings ?? []).filter(item => selectedMappings.has(item.id)).map(item => item.behaviorId),
+  ]);
+  const selectedBehaviors = new Set((corpus.behaviors ?? [])
+    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviorIds.has(item.id))
+    .map(item => item.id));
+  const selectedPathIds = new Set((corpus.paths ?? [])
+    .filter(item => selectedPaths.has(item.id) && item.nodes.every(node => node.behaviorIds.every(id => selectedBehaviors.has(id))))
+    .map(item => item.id));
+  const selectedMappingIds = new Set((corpus.mappings ?? [])
+    .filter(item => selectedMappings.has(item.id) && selectedBehaviors.has(item.behaviorId)
+      && (!item.pathId || selectedPathIds.has(item.pathId)))
+    .map(item => item.id));
+  const selectedDetectionIds = new Set((corpus.detections ?? [])
+    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviors.has(item.behaviorId))
+    .map(item => item.id));
+  const selectedOtelIds = new Set((corpus.otel ?? [])
+    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviors.has(item.behaviorId))
+    .map(item => item.id));
+  const selectedTelemetryIds = new Set((corpus.telemetry ?? [])
+    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviors.has(item.behaviorId))
+    .map(item => item.id));
+  const selectedFrameworkIds = new Set(profile === 'draft' ? (corpus.frameworks ?? []).map(item => item.id)
+    : (corpus.mappings ?? []).filter(item => selectedMappingIds.has(item.id)).map(item => item.techniqueId));
+  let parentFramework;
+  do {
+    parentFramework = false;
+    for (const technique of corpus.frameworks ?? []) {
+      if (selectedFrameworkIds.has(technique.id) && technique.parentId && !selectedFrameworkIds.has(technique.parentId)) {
+        selectedFrameworkIds.add(technique.parentId);
+        parentFramework = true;
+      }
+    }
+  } while (parentFramework);
+  for (const technique of corpus.frameworks ?? []) {
+    if (profile === 'draft' || selectedFrameworkIds.has(technique.id)) selectedSourceIds.add(technique.sourceId);
+  }
+  for (const action of corpus.otel ?? []) {
+    if (profile === 'draft' || selectedOtelIds.has(action.id)) action.standardSourceIds.forEach(id => selectedSourceIds.add(id));
+  }
+  for (const revision of corpus.sourceRevisions) {
+    if (selectedRevisionIds.has(revision.id)) selectedSourceIds.add(revision.sourceId);
+  }
+
+  const idsByType = {
+    cases: selectedCases,
+    sources: selectedSourceIds,
+    sourceRevisions: selectedRevisionIds,
+    passages: selectedPassageIds,
+    claims: selectedClaims,
+    categorizations: selectedCategories,
+    timelines: selectedTimelines,
+    paths: selectedPathIds,
+    behaviors: selectedBehaviors,
+    frameworks: selectedFrameworkIds,
+    mappings: selectedMappingIds,
+    telemetry: selectedTelemetryIds,
+    detections: selectedDetectionIds,
+    otel: selectedOtelIds,
+  };
+  const records = [];
+  for (const type of profileEntityTypes) {
+    for (const original of (corpus[type] ?? []).filter(item => idsByType[type].has(item.id)).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) {
+      const entity = structuredClone(original);
+      if (type === 'sourceRevisions') {
+        entity.rawContent = null;
+        entity.normalizedContent = null;
+        entity.nullReasons = { ...entity.nullReasons, rawContent: 'not_applicable', normalizedContent: 'not_applicable' };
+      }
+      if (type === 'sources') entity.revisionIds = entity.revisionIds.filter(id => selectedRevisionIds.has(id));
+      if (type === 'cases') {
+        entity.sourceIds = entity.sourceIds.filter(id => selectedSourceIds.has(id));
+        entity.summaryClaimIds = entity.summaryClaimIds.filter(id => selectedClaims.has(id));
+        if (entity.pathIds) entity.pathIds = entity.pathIds.filter(id => selectedPathIds.has(id));
+      }
+      if (type === 'claims') {
+        entity.conflictsWith = entity.conflictsWith.filter(id => selectedClaims.has(id));
+        if (entity.inference) entity.inference.supportingClaimIds = entity.inference.supportingClaimIds.filter(id => selectedClaims.has(id));
+      }
+      if (type === 'categorizations') {
+        entity.sourceIds = entity.sourceIds.filter(id => selectedSourceIds.has(id));
+        entity.supportingClaimIds = entity.supportingClaimIds.filter(id => selectedClaims.has(id));
+      }
+      if (type === 'timelines') {
+        entity.sourceRevisionIds = entity.sourceRevisionIds.filter(id => selectedRevisionIds.has(id));
+        entity.supportingClaimIds = entity.supportingClaimIds.filter(id => selectedClaims.has(id));
+      }
+      if (type === 'paths') {
+        for (const node of entity.nodes) {
+          node.claimIds = node.claimIds.filter(id => selectedClaims.has(id));
+          node.behaviorIds = node.behaviorIds.filter(id => selectedBehaviors.has(id));
+        }
+        for (const edge of entity.edges) edge.claimIds = edge.claimIds.filter(id => selectedClaims.has(id));
+      }
+      if (type === 'behaviors') {
+        entity.signalIds = entity.signalIds.filter(id => selectedTelemetryIds.has(id));
+        entity.detectionIds = entity.detectionIds.filter(id => selectedDetectionIds.has(id));
+        entity.otelIds = entity.otelIds.filter(id => selectedOtelIds.has(id));
+      }
+      if (type === 'frameworks' && entity.parentId && !selectedFrameworkIds.has(entity.parentId)) entity.parentId = null;
+      if (type === 'mappings') {
+        entity.claimIds = entity.claimIds.filter(id => selectedClaims.has(id));
+        if (entity.pathId && !selectedPathIds.has(entity.pathId)) delete entity.pathId;
+      }
+      if (type === 'detections') {
+        entity.signalIds = entity.signalIds.filter(id => selectedTelemetryIds.has(id));
+        entity.otelIds = entity.otelIds.filter(id => selectedOtelIds.has(id));
+      }
+      if (type === 'otel') entity.standardSourceIds = entity.standardSourceIds.filter(id => selectedSourceIds.has(id));
+      const accepted = reviewableEntityTypes.includes(type) && currentAccepted(corpus, type, original);
+      const projected = reviewableEntityTypes.includes(type) && entityContentHash(entity) !== entityContentHash(original);
+      if (projected) entity.disposition = 'Pending';
+      if (reviewableEntityTypes.includes(type)) entity.history = [];
+      const warnings = [];
+      if (profile === 'draft') warnings.push('Draft profile; records are not represented as an eligible reviewed release.');
+      if (optionalEntityTypes.includes(type)) warnings.push('Optional enrichment; this record is outside the current claim acceptance workflow.');
+      if (projected) warnings.push('Export projection changed entity references; canonical acceptance does not apply to this view.');
+      records.push({
+        schemaVersion: CONTRACT_VERSION,
+        entityType: type,
+        entity,
+        reviewStatus: reviewableEntityTypes.includes(type) ? {
+          recordedDisposition: input[type].find(item => item.id === original.id).disposition,
+          effectiveDisposition: projected ? 'Pending' : original.disposition,
+          currentAcceptance: accepted && !projected,
+          stale: stale.has(`${type}:${original.id}`),
+          projected,
+        } : null,
+        warnings,
+      });
+    }
+  }
+
+  const counts = Object.fromEntries(['cases', 'sources', 'claims'].map(type => [type, records.filter(record => record.entityType === type).length]));
+  const optionalEnrichment = Object.fromEntries(optionalEntityTypes.map(type => [type, records.filter(record => record.entityType === type).length]));
+  const reviewCoverage = Object.fromEntries(reviewableEntityTypes.map(type => {
+    const all = corpus[type];
+    return [type, {
+      unit: type === 'claims' ? 'claim' : type === 'cases' ? 'case' : type === 'timelines' ? 'timeline' : 'categorization',
+      currentAccepted: all.filter(item => currentAccepted(corpus, type, item)).length,
+      included: idsByType[type].size,
+      pending: all.filter(item => item.disposition === 'Pending').length,
+      excluded: all.filter(item => item.disposition === 'Excluded').length,
+      staleAcceptance: all.filter(item => stale.has(`${type}:${item.id}`)).length,
+    }];
+  }));
+  const snapshot = records.map(({ schemaVersion, entityType, entity, reviewStatus, warnings }) => ({ schemaVersion, entityType, entity, reviewStatus, warnings }));
+  const snapshotDigest = digest(snapshot);
+  return {
+    schemaVersion: CONTRACT_VERSION,
+    profile,
+    snapshotDigest,
+    records,
+    coverage: {
+      units: counts,
+      profile,
+      filters: {},
+      reviewCoverage,
+      optionalEnrichment,
+      snapshotDigest,
+    },
+  };
+}
+
+const csvColumns = {
+  cases: ['profile', 'warnings', 'id', 'name', 'kind', 'summary', 'aliases', 'summaryClaimIds', 'sourceIds', 'disposition', 'origin', 'revision', 'limits', 'nullReasons'],
+  sources: ['profile', 'warnings', 'id', 'originalUrl', 'canonicalUrl', 'title', 'publisher', 'author', 'publicationDate', 'updateDate', 'retrievalDate', 'inputKind', 'provenance', 'revisionIds', 'extractionStatus', 'collectionState', 'nullReasons'],
+  timelines: ['profile', 'warnings', 'id', 'caseId', 'description', 'date', 'dateType', 'supportingClaimIds', 'sourceRevisionIds', 'basis', 'uncertainty', 'origin', 'disposition', 'revision', 'nullReasons'],
+};
+
+function csvValue(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function spreadsheetSafe(value) {
+  if (value.startsWith("'")) return `'${value}`;
+  return /^\s*[=+\-@]/u.test(value) ? `'${value}` : value;
+}
+
+function csvCell(value) {
+  const safe = spreadsheetSafe(csvValue(value));
+  return `"${safe.replaceAll('"', '""')}"`;
+}
+
+function csvFile(type, records, profile) {
+  const columns = csvColumns[type];
+  const rows = [columns, ...records.filter(record => record.entityType === type).map(record => columns.map(column => ({
+    profile,
+    warnings: record.warnings,
+  }[column] ?? record.entity[column])))];
+  return `${rows.map(row => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
+}
+
+function profileSchema() {
+  const reviewStatusSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['recordedDisposition', 'effectiveDisposition', 'currentAcceptance', 'stale', 'projected'],
+    properties: {
+      recordedDisposition: { enum: schema.$defs.disposition.enum },
+      effectiveDisposition: { enum: schema.$defs.disposition.enum },
+      currentAcceptance: { type: 'boolean' },
+      stale: { type: 'boolean' },
+      projected: { type: 'boolean' },
+    },
+  };
+  return {
+    $schema: schema.$schema,
+    title: 'DevEnvThreatCorpus profile JSONL record',
+    description: 'One allowlisted typed entity from a reviewed or draft profile export.',
+    oneOf: profileEntityTypes.map(type => ({
+      type: 'object',
+      additionalProperties: false,
+      required: ['schemaVersion', 'entityType', 'entity', 'reviewStatus', 'warnings'],
+      properties: {
+        schemaVersion: { const: CONTRACT_VERSION },
+        entityType: { const: type },
+        entity: schema.properties[type].items,
+        reviewStatus: reviewableEntityTypes.includes(type) ? reviewStatusSchema : { type: 'null' },
+        warnings: { type: 'array', items: { type: 'string' } },
+      },
+    })),
+    $defs: schema.$defs,
+  };
+}
+
+export function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (quoted) {
+      if (char === '"' && text[index + 1] === '"') { cell += '"'; index++; }
+      else if (char === '"') quoted = false;
+      else cell += char;
+    } else if (char === '"' && cell === '') quoted = true;
+    else if (char === ',') { row.push(decodeSpreadsheet(cell)); cell = ''; }
+    else if (char === '\r' && text[index + 1] === '\n') {
+      row.push(decodeSpreadsheet(cell));
+      rows.push(row);
+      row = [];
+      cell = '';
+      index++;
+    } else if (char === '\n') {
+      row.push(decodeSpreadsheet(cell));
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else cell += char;
+  }
+  if (quoted) throw new Error('invalid CSV: unterminated quoted field');
+  if (cell || row.length) { row.push(decodeSpreadsheet(cell)); rows.push(row); }
+  return rows;
+}
+
+function decodeSpreadsheet(value) {
+  if (value.startsWith("''")) return value.slice(1);
+  return /^'\s*[=+\-@]/u.test(value) ? value.slice(1) : value;
+}
+
+export function profileFiles(profile) {
+  const files = {
+    'schema.json': canonicalSerialize(profileSchema()),
+    'records.jsonl': profile.records.map(record => JSON.stringify(record)).join('\n') + (profile.records.length ? '\n' : ''),
+    'cases.csv': csvFile('cases', profile.records, profile.profile),
+    'sources.csv': csvFile('sources', profile.records, profile.profile),
+    'timelines.csv': csvFile('timelines', profile.records, profile.profile),
+  };
+  const fileHashes = Object.fromEntries(Object.keys(files).sort().map(name => [name, sha256(files[name])]));
+  const manifest = {
+    schemaVersion: CONTRACT_VERSION,
+    profile: profile.profile,
+    snapshotDigest: profile.snapshotDigest,
+    files: fileHashes,
+    coverage: profile.coverage,
+  };
+  files['manifest.json'] = canonicalSerialize(manifest);
+  return files;
+}
+
+export function queryProfile(profile, operation, options = {}) {
+  const allowedEntities = new Set(['cases', 'sources', 'claims']);
+  if (!['list', 'get', 'bundle'].includes(operation)) throw new Error('operation must be list, get, or bundle');
+  const entries = profile.records;
+  if (operation === 'bundle') {
+    const caseRecord = entries.find(item => item.entityType === 'cases' && item.entity.id === options.caseId);
+    if (!caseRecord) throw new Error(`unknown case ID ${JSON.stringify(options.caseId)}`);
+    const caseIds = new Set([options.caseId]);
+    const claimIds = new Set(entries.filter(item => item.entityType === 'claims' && item.entity.caseId === options.caseId).map(item => item.entity.id));
+    let changed;
+    do {
+      changed = false;
+      for (const record of entries.filter(item => item.entityType === 'claims' && claimIds.has(item.entity.id))) {
+        const linked = [...record.entity.conflictsWith, ...(record.entity.inference?.supportingClaimIds ?? [])];
+        for (const id of linked) {
+          const linkedClaim = entries.find(item => item.entityType === 'claims' && item.entity.id === id);
+          if (linkedClaim && !claimIds.has(id)) { claimIds.add(id); caseIds.add(linkedClaim.entity.caseId); changed = true; }
+        }
+      }
+    } while (changed);
+    const claims = entries.filter(item => item.entityType === 'claims' && claimIds.has(item.entity.id));
+    const cases = entries.filter(item => item.entityType === 'cases' && caseIds.has(item.entity.id));
+    const paths = entries.filter(item => item.entityType === 'paths' && caseIds.has(item.entity.caseId));
+    const mappings = entries.filter(item => item.entityType === 'mappings'
+      && (caseIds.has(item.entity.caseId) || item.entity.claimIds.some(id => claimIds.has(id))));
+    const behaviorIds = new Set([
+      ...paths.flatMap(item => item.entity.nodes.flatMap(node => node.behaviorIds)),
+      ...mappings.map(item => item.entity.behaviorId),
+    ]);
+    const techniqueIds = new Set(mappings.map(item => item.entity.techniqueId));
+    const techniques = entries.filter(item => item.entityType === 'frameworks' && techniqueIds.has(item.entity.id));
+    const caseSources = cases.flatMap(item => item.entity.sourceIds);
+    const sources = new Set([
+      ...caseSources,
+      ...claims.map(item => item.entity.sourceId),
+      ...techniques.map(item => item.entity.sourceId),
+      ...entries.filter(item => item.entityType === 'otel' && behaviorIds.has(item.entity.behaviorId)).flatMap(item => item.entity.standardSourceIds),
+    ]);
+    const revisions = new Set([
+      ...claims.map(item => item.entity.sourceRevisionId),
+      ...entries.filter(item => item.entityType === 'timelines' && caseIds.has(item.entity.caseId)).flatMap(item => item.entity.sourceRevisionIds),
+    ]);
+    const passages = new Set(claims.flatMap(item => item.entity.passageIds));
+    const bundleRecords = entries.filter(item => item.entityType === 'cases' && caseIds.has(item.entity.id)
+      || item.entityType === 'claims' && claimIds.has(item.entity.id)
+      || item.entityType === 'sources' && sources.has(item.entity.id)
+      || item.entityType === 'sourceRevisions' && revisions.has(item.entity.id)
+      || item.entityType === 'passages' && passages.has(item.entity.id)
+      || ['categorizations', 'timelines', 'paths'].includes(item.entityType) && caseIds.has(item.entity.caseId)
+      || item.entityType === 'mappings' && (caseIds.has(item.entity.caseId) || item.entity.claimIds.some(id => claimIds.has(id)))
+      || item.entityType === 'behaviors' && behaviorIds.has(item.entity.id)
+      || item.entityType === 'frameworks' && techniqueIds.has(item.entity.id)
+      || ['telemetry', 'detections', 'otel'].includes(item.entityType) && behaviorIds.has(item.entity.behaviorId));
+    return {
+      status: 'succeeded', operation, profile: profile.profile, digest: profile.snapshotDigest,
+      unit: 'case bundle', caseId: options.caseId, coverage: profile.coverage, records: bundleRecords,
+    };
+  }
+  if (!allowedEntities.has(options.entity)) throw new Error('entity must be cases, sources, or claims');
+  if (operation === 'get') {
+    const record = entries.find(item => item.entityType === options.entity && item.entity.id === options.id);
+    if (!record) throw new Error(`unknown ${options.entity} ID ${JSON.stringify(options.id)}`);
+    return { status: 'succeeded', operation, profile: profile.profile, digest: profile.snapshotDigest, unit: options.entity.slice(0, -1), coverage: profile.coverage, record };
+  }
+  const limit = options.limit ?? 100;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('limit must be an integer from 1 through 1000');
+  const caseRecord = options.caseId && entries.find(item => item.entityType === 'cases' && item.entity.id === options.caseId);
+  const caseSourceIds = new Set(caseRecord?.entity.sourceIds ?? []);
+  const records = entries.filter(item => item.entityType === options.entity && (!options.caseId
+    || item.entityType === 'cases' && item.entity.id === options.caseId
+    || item.entity.caseId === options.caseId
+    || item.entityType === 'sources' && caseSourceIds.has(item.entity.id))).slice(0, limit);
+  return {
+    status: 'succeeded', operation, profile: profile.profile, digest: profile.snapshotDigest,
+    unit: options.entity.slice(0, -1), filters: { ...(options.caseId ? { caseId: options.caseId } : {}) },
+    coverage: profile.coverage, records,
+  };
+}
+
 export function validateCorpus(corpus) {
   const errors = validateShape(corpus);
   if (errors.length) return errors;
@@ -524,13 +956,23 @@ export function assertAppendOnlyReviews(previous, next) {
     'ACCESS_DENIED', 'HTTP_STATUS', 'ROBOTS_DENIED', 'ROBOTS_UNSUPPORTED', 'REDIRECT_LIMIT',
     'UNSUPPORTED_TYPE', 'UNSUPPORTED_ENCODING', 'MALFORMED_TEXT', 'MALFORMED_HTML', 'EMPTY_CONTENT',
     'UNSAFE_PATH', 'STORE_BUSY', 'INVALID_CORPUS', 'IDENTITY_COLLISION', 'INVALID_EXTRACTION', 'PERSISTENCE',
-    'INVALID_REVIEW', 'UNKNOWN_CLAIM', 'STALE_BASE',
+    'INVALID_REVIEW', 'UNKNOWN_CLAIM', 'STALE_BASE', 'UNSUPPORTED_SCHEMA_VERSION', 'INVALID_PROFILE',
+    'OUTPUT_EXISTS', 'NOT_FOUND',
   ]);
   class IntakeError extends Error {
     constructor(code) { super(code); this.code = code; }
   }
   const rejectIntake = code => { throw new IntakeError(code); };
-  const safeCode = error => safeCodes.has(error?.code) ? error.code : 'PERSISTENCE';
+  const safeCode = error => {
+    if (safeCodes.has(error?.code)) return error.code;
+    const message = String(error?.message ?? '');
+    if (message.startsWith('unsupported schema version')) return 'UNSUPPORTED_SCHEMA_VERSION';
+    if (message.startsWith('profile must')) return 'INVALID_PROFILE';
+    if (message.startsWith('unknown ')) return 'NOT_FOUND';
+    if (message.includes('already exists')) return 'OUTPUT_EXISTS';
+    if (message.startsWith('operation must') || message.startsWith('entity must') || message.startsWith('limit must')) return 'INVALID_INPUT';
+    return 'PERSISTENCE';
+  };
 
   export function intakeUrl(input) {
     try {
@@ -901,6 +1343,28 @@ export function assertAppendOnlyReviews(previous, next) {
     } catch { rejectIntake('INVALID_CORPUS'); }
   }
 
+  async function loadProfileCorpus(file) {
+    const bytes = await readPrivate(file, { corpus: true });
+    let corpus;
+    try { corpus = JSON.parse(strictText(bytes)); }
+    catch { rejectIntake('INVALID_CORPUS'); }
+    if (corpus?.schemaVersion !== CONTRACT_VERSION) rejectIntake('UNSUPPORTED_SCHEMA_VERSION');
+    let effective;
+    try { effective = reviewEligibleCorpus(corpus); }
+    catch (error) {
+      const failure = new IntakeError('INVALID_CORPUS');
+      failure.errors = String(error.message).split('\n');
+      throw failure;
+    }
+    const errors = validateCorpus(effective);
+    if (errors.length) {
+      const failure = new IntakeError('INVALID_CORPUS');
+      failure.errors = errors;
+      throw failure;
+    }
+    return corpus;
+  }
+
   export async function readPrivateTemplate(file) {
     return strictText(await readPrivate(file, { privateOnly: true }));
   }
@@ -1102,7 +1566,7 @@ export function assertAppendOnlyReviews(previous, next) {
 
   async function intakeCli(args) {
     try {
-      const [command, kind, ...rest] = args;
+      const [command, kind] = args;
       const parse = values => {
         const result = {};
         if (values.length % 2) rejectIntake('INVALID_INPUT');
@@ -1118,11 +1582,59 @@ export function assertAppendOnlyReviews(previous, next) {
         await validatePrivateCorpus(options['--file']);
         return { status: 'succeeded', code: 'VALID' };
       }
-      const options = parse(rest), allowed = new Set([`--${kind}`, '--supplied-by', '--store', ...(kind !== 'url' ? ['--source-url'] : [])]);
-      if (command !== 'intake' || !['text', 'file', 'url'].includes(kind) || Object.keys(options).some(key => !allowed.has(key))
-        || !Object.hasOwn(options, `--${kind}`) || !options['--supplied-by'] || !options['--store']) rejectIntake('INVALID_INPUT');
-      return await intakeSource({ kind, [kind]: options[`--${kind}`], suppliedBy: options['--supplied-by'], store: options['--store'], ...(options['--source-url'] !== undefined ? { sourceUrl: options['--source-url'] } : {}) });
-    } catch (error) { return { status: 'failed', code: safeCode(error) }; }
+      if (command === 'intake') {
+        const rest = args.slice(2);
+        const options = parse(rest), allowed = new Set([`--${kind}`, '--supplied-by', '--store', ...(kind !== 'url' ? ['--source-url'] : [])]);
+        if (!['text', 'file', 'url'].includes(kind) || Object.keys(options).some(key => !allowed.has(key))
+          || !Object.hasOwn(options, `--${kind}`) || !options['--supplied-by'] || !options['--store']) rejectIntake('INVALID_INPUT');
+        return await intakeSource({ kind, [kind]: options[`--${kind}`], suppliedBy: options['--supplied-by'], store: options['--store'], ...(options['--source-url'] !== undefined ? { sourceUrl: options['--source-url'] } : {}) });
+      }
+      if (command === 'export' || command === 'list' || command === 'get' || command === 'bundle') {
+        const options = parse(args.slice(1));
+        const common = new Set(['--file', '--profile']);
+        const allowed = command === 'export' ? new Set([...common, '--out'])
+          : command === 'list' ? new Set([...common, '--entity', '--case-id', '--limit'])
+          : command === 'get' ? new Set([...common, '--entity', '--id'])
+          : new Set([...common, '--case']);
+        if (Object.keys(options).some(key => !allowed.has(key)) || !options['--file']) rejectIntake('INVALID_INPUT');
+        const profile = options['--profile'] ?? 'reviewed';
+        const corpus = await loadProfileCorpus(options['--file']);
+        const snapshot = profileRecords(corpus, profile);
+        if (command === 'export') {
+          if (!options['--out']) rejectIntake('INVALID_INPUT');
+          const files = profileFiles(snapshot);
+          const target = absoluteSafe(options['--out']);
+          const parent = path.dirname(target);
+          await safeComponents(parent);
+          try { await fs.lstat(target); throw new Error('output directory already exists'); }
+          catch (error) { if (error.code !== 'ENOENT') throw error; }
+          const temporary = path.join(parent, `.corpus-export-${randomUUID()}`);
+          try {
+            await fs.mkdir(temporary, { mode: 0o755 });
+            for (const [name, content] of Object.entries(files)) {
+              await fs.writeFile(path.join(temporary, name), content, { flag: 'wx', mode: 0o644 });
+            }
+            await fs.rename(temporary, target);
+          } catch (error) {
+            await fs.rm(temporary, { recursive: true, force: true }).catch(() => {});
+            throw error;
+          }
+          return {
+            status: 'succeeded', profile, snapshotDigest: snapshot.snapshotDigest,
+            coverage: snapshot.coverage, files: Object.keys(files).sort(),
+          };
+        }
+        if (command === 'list') {
+          return queryProfile(snapshot, 'list', {
+            entity: options['--entity'], caseId: options['--case-id'],
+            limit: options['--limit'] === undefined ? undefined : Number(options['--limit']),
+          });
+        }
+        if (command === 'get') return queryProfile(snapshot, 'get', { entity: options['--entity'], id: options['--id'] });
+        return queryProfile(snapshot, 'bundle', { caseId: options['--case'] });
+      }
+      rejectIntake('INVALID_INPUT');
+    } catch (error) { return { status: 'failed', code: safeCode(error), ...(error?.errors ? { errors: error.errors } : {}) }; }
   }
 
   if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

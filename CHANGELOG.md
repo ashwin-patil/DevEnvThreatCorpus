@@ -2,6 +2,14 @@
 
 ## 2026-10-13
 
+- Issue #24: add deterministic reviewed/draft corpus profiles, allowlisted JSONL
+  and CSV exports, manifest digests and unit-aware coverage, and read-only
+  list/get/bundle queries in the already authorized contract CLI. Bind reviewed
+  output to current acceptance and dependency closure; redact full revision text
+  and private review history; document CSV null/date/multi-label and
+  spreadsheet-safety semantics. Add synthetic-only regression fixtures and
+  preserve the zero-eligible reviewed profile behavior. No article ingestion,
+  network retrieval, new runtime entrypoint, or research policy change.
 - Issue #31: add an offline curator studio for literal article paste with source
   metadata, exact Unicode code-point passage selection, grounded pending claim
   and behavior drafting, multi-label categories, text-only artifacts and

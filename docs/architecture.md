@@ -434,7 +434,7 @@ Re-read status and explicitly re-review after changes; never transplant old hash
 Strict `contract.mjs validate`, intake/extraction, and the unchanged read-only
 workbench remain fail-closed on stale accepted records. Review-aware commands
 allow valid stale records to be inspected and explicitly re-reviewed without
-discarding events. No existing export path is claimed review-eligible.
+discarding events.
 
 Collection lifecycle is not updated by claim decisions: `Reviewed` never means
 all claims are `Accepted`. Claim disposition, evidence status, and origin remain
@@ -464,3 +464,63 @@ Authenticated review and release controls remain future work. The
 the supported local workflow. `tests/review.test.mjs` executes focused positive
 and negative checks; independent human workflow and documentation review on
 the originating PR is required before merge.
+
+## Reproducible exports and read-only queries
+
+Issue #24 adds `export`, `list`, `get`, and `bundle` to the already authorized
+`scripts/contract.mjs` entrypoint. They read an explicitly supplied, locally
+stored 0.3.0 corpus and perform no network retrieval, ingestion, write-back, or
+model calls. Only schema 0.3.0 is currently supported; other versions fail with
+`UNSUPPORTED_SCHEMA_VERSION`.
+
+`export --file <private-corpus> --profile reviewed|draft --out <new-directory>`
+creates exactly `schema.json`, `records.jsonl`, `cases.csv`, `sources.csv`,
+`timelines.csv`, and `manifest.json`. It refuses an existing destination, writes
+to a temporary sibling, and renames the completed allowlisted artifact. The
+manifest contains the selected-profile digest, file hashes (excluding its own
+hash), profile, and unit-aware review coverage. It does not contain source text,
+review events/rationales, staging, internal scripts, or credentials.
+
+The reviewed profile accepts only claims with a current human acceptance and
+dependency closure; conflicting or inference-support claims must also be
+currently accepted. Cases and sources are included only as context/dependency
+records for selected material. Applicable optional enrichments may accompany
+that evidence as separate, explicitly unreviewed context; they never make a
+claim eligible or block a core-only export. If projection removes a reviewable
+entity dependency, the exported view shows it as pending and warns that the
+canonical acceptance does not apply to the projected entity. Supporting passage
+excerpts and revision metadata remain available, while full `rawContent` and
+`normalizedContent` are removed. A zero-eligible corpus yields an empty reviewed
+profile. Draft output is visibly marked on every typed record and in the
+manifest; it is not an eligible reviewed release. Review coverage and exported
+counts state their units (cases, sources, claims, categorizations, timelines),
+profile, optional-enrichment counts, and snapshot; they do not imply prevalence,
+attribution, or detection coverage.
+
+JSONL rows identify `schemaVersion`, `entityType`, `entity`, review status, and
+draft warnings. CSV columns are stable, and each row repeats the profile and
+draft warning so an individual table cannot silently lose draft status. Null
+values produce empty cells and their field-specific reason is retained in the
+`nullReasons` JSON column.
+Arrays and structured dates are JSON-valued cells, preserving multi-label
+values and day/month/year/range/unknown precision. Cells beginning with a
+spreadsheet formula marker receive a reversible leading apostrophe; `parseCsv`
+supports the corresponding round trip. The contract and fixture tests cover
+unknown/null values, multi-labels, approximate dates, and formula-like text.
+
+`list --file <private-corpus> --entity cases|sources|claims` returns bounded,
+typed results (default limit 100; maximum 1,000); `get` requires an entity and
+ID; `bundle --case <case-id>` resolves selected claims, supporting/conflicting
+claims, citations, passages, source revisions, categories, timelines, and
+non-private review status without revealing decision events. Unknown IDs and
+invalid entity kinds return structured nonzero failures. All query operations
+are read-only; corpus values remain untrusted data, never executable input.
+The [README exercise](../README.md#corpus-exports-and-read-only-queries-offline-exercise)
+uses only synthetic fixtures. `tests/exports.test.mjs` covers deterministic
+profiles, current/stale/excluded acceptance, dependency closure, CSV round trips,
+private snapshot exclusion, and query behavior. Its end-to-end CLI test is
+skipped on Windows because the existing private-file checks require POSIX mode
+permissions; the platform limitation is not an application-test pass.
+
+Acceptance remains `needs-human-review` for independent review of output
+usability, documentation relevance, and the exported evidence boundary.
