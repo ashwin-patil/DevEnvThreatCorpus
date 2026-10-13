@@ -383,6 +383,7 @@ test('AC-09 configured project command executes offline contract tests within tr
     ['node', '--test', 'tests/contract.test.mjs'],
     ['node', '--test', 'tests/intake.test.mjs'],
     ['node', '--test', 'tests/extract.test.mjs'],
+    ['node', '--test', 'tests/review.test.mjs'],
     ['node', '--test', 'tests/workbench.test.mjs'],
     ['node', '--test', 'tests/server.test.mjs'],
   ]);
@@ -390,7 +391,7 @@ test('AC-09 configured project command executes offline contract tests within tr
   const mapped = (path, patterns) => patterns.some(pattern => pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern);
   for (const path of ['scripts/package.json', 'scripts/package-lock.json', 'scripts/.nvmrc', 'scripts/.node-version']) assert.ok(mapped(path, governance), path);
   assert.ok(config.paths.tests.includes('tests/**'));
-  for (const path of ['scripts/contract.mjs', 'scripts/extract.mjs', 'schemas/corpus.schema.json', 'schemas/contract.d.ts']) {
+  for (const path of ['scripts/contract.mjs', 'scripts/extract.mjs', 'scripts/review.mjs', 'schemas/corpus.schema.json', 'schemas/contract.d.ts']) {
     assert.ok(mapped(path, config.paths.application), path);
     assert.ok(!mapped(path, governance), `application is not governance: ${path}`);
   }

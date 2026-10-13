@@ -8,6 +8,7 @@
     ["node", "--test", "tests/contract.test.mjs"],
     ["node", "--test", "tests/intake.test.mjs"],
     ["node", "--test", "tests/extract.test.mjs"],
+    ["node", "--test", "tests/review.test.mjs"],
     ["node", "--test", "tests/workbench.test.mjs"],
     ["node", "--test", "tests/server.test.mjs"]
   ],

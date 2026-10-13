@@ -61,23 +61,23 @@ The operator-driven pipeline separates collection from later research:
 5. Add supported categorizations and timelines, preserving uncertainty,
    conflicts, date precision, and the distinction between publication and
    activity.
-6. Submit proposed records for a future review workflow; acceptance requires
+6. Review proposed claims through the local file/CLI workflow; acceptance requires
    current human review and matching content/dependency hashes.
 
-Steps 1–4 have operator-triggered implementations. Steps 5–6 remain subsequent
-work.
+Steps 1–4 and claim review in step 6 have operator-triggered implementations.
+Creating categorizations/timelines and reviewing non-claim entities remain subsequent work.
 
 ## Current implementation
 
 The repository supplies the 0.3.0 JSON Schema, corresponding TypeScript declarations,
 offline structural and relationship validation, deterministic identity and
 serialization utilities, manual source intake and template-based claim
-extraction, and visibly synthetic positive/negative fixtures. Tests exercise
+extraction, manual claim review, and visibly synthetic positive/negative fixtures. Tests exercise
 these contracts and offline behaviors; they are not processed blog records.
 
-Collection and extraction do not persist authenticated reviewer identity,
-provide review operations or UI, generate exports, or deploy the pipeline.
-Those are follow-up implementation work. No legacy migration command,
+Collection and extraction do not approve claims. Local review records
+self-attested reviewer identity, not authenticated identity. Hosted review/UI,
+exports, and deployment remain follow-up work. No legacy migration command,
 migration fixture, or migration-only schema field is part of this design.
 
 ## Manual intake contract
@@ -287,10 +287,109 @@ semantics, and case identity independently.
 The extraction contract and AC-01–AC-07 evidence mapping for Issue #12 are in
 [Acceptance audit](acceptance-audit.md#issue-12-manual-claim-extraction-and-case-linking).
 
-## Review and trust boundary
+## Manual claim review contract
+
+`scripts/review.mjs` supports three local commands:
+
+- `status --file <absolute-private-corpus>` reports the normalized `baseDigest`
+  and each claim's recorded/effective disposition, acceptance eligibility,
+  staleness, origin, evidence status, and ordered event history.
+- `validate --file <absolute-private-corpus>` validates the full 0.3.0 contract
+  using effective dispositions and lists eligible accepted and stale claim IDs.
+  Success does not mean all claims are accepted, nor that their assertions are true.
+- `decide --template <absolute-private-file> --store <absolute-private-dir>
+  --reviewer <human-id>` applies one explicit human decision atomically.
+
+The decision is a private UTF-8 JSON object with exactly `schemaVersion:
+"manual-review/1"`, `claimId`, `action`, `baseDigest`, `rationale`, and, only for
+`correct`, a nonempty `correction` object. Actions map to `Accepted`,
+`Needs correction`, and `Excluded`. The reviewer identifier follows the intake
+supplier's ASCII 1–64-character format; rationale must contain nonblank text.
+The researcher must supply their actual identity and justification: no default,
+agent-generated attribution, authenticated identity provider, or automatic approval
+exists. Review text is data, not instructions or executable content.
+
+### Correction and append-only audit
+
+Corrections may patch `description`, `passageIds`, `inference`, `evidenceStatus`,
+`uncertainty`, `observationContext`, and `nullReasons`. They must change content
+and satisfy the existing complete 0.3.0 contract, including grounded passages,
+inference classification/support, and field-specific null reasons. Passage IDs
+must refer to already recorded passages of the original revision. Corrections
+cannot change claim/case/source/revision attribution, origin, reciprocal conflict
+links, disposition, or history. No evidence, case, source, or conflict is
+automatically created or resolved. A corrected claim receives a new revision,
+`Needs correction`, and requires a separate explicit acceptance of its new base.
+
+Every event records a unique ID, actual supplied reviewer, human reviewer kind,
+UTC timestamp, rationale, claim ID/revision/content hash, the input base digest,
+and dependency hashes keyed by source, exact revision, passage, supporting or
+conflicting claim, and case scope. Hashes include dependency revisions and
+normalization/parser metadata through the existing contract helpers. A correction
+event hashes the corrected content/dependencies against its *input* base;
+subsequent acceptance binds the resulting base. Earlier event objects and ordered
+history IDs survive subsequent corrections, exclusions, and re-review. Events
+retain prior decisions/hashes, not complete historical claim snapshots; protect
+private backups if full prior wording must be reconstructed.
+
+Review writes reuse the private-store writer lock, mode-0700 directory,
+mode-0600 single-link files, symlink/traversal restrictions, validated atomic
+replacement, and optimistic persistence check. Within the clone use only
+`.private-intake/`; external stores must be absolute private paths. Decision
+files share the existing 2 MiB strict UTF-8 input limit. Successful repeated
+decisions append distinct events; they are not silently deduplicated.
+The updater rejects modifications/deletions of existing events. This is a local
+application invariant, not tamper-proof storage: a filesystem owner can edit the
+file directly. No repository-write credential or network operation is involved.
+
+### Current eligibility and status axes
+
+`reviewEligibleCorpus` produces a copy: an accepted record is effectively pending
+unless its latest event matches the entity, human reviewer, revision, disposition,
+content, dependencies, and normalized base. Accepted inference/summary/category/
+timeline records also require currently accepted supporting claims, transitively.
+Malformed evidence, missing references, invalid timestamps, and agent acceptance
+still fail validation; eligibility does not repair invalid corpus content.
+Status/validation do not write or erase recorded dispositions/events.
+A successful decision persists these pending dispositions alongside its new event
+so the result also passes strict validation.
+
+The existing `reviewBaseDigest` removes review events and normalizes reviewable
+dispositions/history and case collection lifecycle. Thus decisions alone do not
+invalidate other decisions, but **any non-review base change**, even unrelated
+content or a newly linked source revision, conservatively invalidates acceptance.
+The source dependency binds all linked revisions, not just one latest revision.
+Re-read status and explicitly re-review after changes; never transplant old hashes.
+Strict `contract.mjs validate`, intake/extraction, and the unchanged read-only
+workbench remain fail-closed on stale accepted records. Review-aware commands
+allow valid stale records to be inspected and explicitly re-reviewed without
+discarding events. No existing export path is claimed review-eligible.
+
+Collection lifecycle is not updated by claim decisions: `Reviewed` never means
+all claims are `Accepted`. Claim disposition, evidence status, and origin remain
+independent. Human acceptance/correction/exclusion never rewrites LLM/authorship
+origin. Intake/extraction remain pending-only and cannot create review acceptance.
+
+### Failures and trust boundary
+
+All commands emit JSON and exit zero only on success. `INVALID_INPUT` denotes
+invalid command/flag combinations; `INVALID_REVIEW` covers malformed decisions,
+invalid reviewer/rationale, no-op/forbidden corrections, contract violations,
+and acceptance without eligible inference support. `UNKNOWN_CLAIM` names an
+unknown proposal; `STALE_BASE` rejects a mismatched expected digest.
+`INVALID_CORPUS`, `UNSAFE_PATH`, `STORE_BUSY`, `TOO_LARGE`, `MALFORMED_TEXT`,
+and `PERSISTENCE` retain the existing private-file/storage meanings.
+Invalid decisions and unknown claims leave canonical corpus bytes unchanged.
+Diagnostics may contain contract errors; keep them private.
+As with intake, a post-rename filesystem durability/lock-release failure can
+report `PERSISTENCE` even after replacement; inspect the event history before
+retrying rather than assuming no event was written. Never delete an active lock.
 
 The validator can establish that records have the required shape and that
 references and supplied hashes are internally consistent. A reviewer name and
 hash in a record do not authenticate a person or prove research truth.
-Authenticated review, append-only persistence, and release controls belong to
-the future application/storage workflow.
+Authenticated review and release controls remain future work. The
+[README exercise](../README.md#manual-claim-review-offline-exercise) demonstrates
+the supported local workflow. `tests/review.test.mjs` executes focused positive
+and negative checks; independent human workflow and documentation review on
+the originating PR is required before merge.
