@@ -6,6 +6,48 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #45 passage-grounded campaign extraction
+
+The originating requirements are [Issue #45](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/45).
+Implementation and corrections remain on draft [PR #47](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/47),
+which closes that one issue. Exact command output, the final full commit SHA and
+safe aggregate private-evaluation results belong in revision-bound PR comments;
+hosted evidence belongs under [PR #47 checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/47/checks).
+The currently visible hosted runs require approval and report
+`action_required`; they are **not** passing evidence. No merge or publication is
+authorized, and a person must approve before merge.
+
+The configured Codex chat handoff is the only model/provider integration.
+`GPT-6.1 Sol High` is requested advisory metadata for the implementation; the
+effective main-chat setting is not exposed and remains unknown. This is distinct
+from any implementation agent's model. Synthetic automated checks cannot
+establish factual extraction quality. All semantic, research, mapping-rationale,
+UX, accessibility, visual and documentation judgments below remain
+`needs-human-review`, regardless of later automated results.
+
+| ID | Observable implementation and synthetic automated evidence | Current result / durable evidence still required |
+|---|---|---|
+| AC-01 | `src/campaign.mjs` `prepareCampaign` and `scripts/extract.mjs` campaign CLI; `scripts/server.mjs` prepare route; `tests/campaign.test.mjs` and server cases cover existing-case selection, source/revision deduplication, last-retained policy, explicit revisions, bounded code-point segments, unavailable text and unchanged associations | `needs-human-review` — execute configured final-revision checks; protected real-set coverage and human mixed-grouping review remain required |
+| AC-02 | `CAMPAIGN_PROMPT`, request/provider metadata, exported `candidateGuide`, strict request hash/reconstruction and 2 MiB bounds in `src/campaign.mjs`; `tests/campaign.test.mjs` uses hostile synthetic text/no adapter, while `tests/workbench.test.mjs` exercises the two-step handoff and unknown model disclosure | `needs-human-review` — no executed final-revision evidence yet; human prompt/provider disclosure review required |
+| AC-03 | `resolveQuote` locally derives half-open code-point offsets from exact supplied segment quotes/occurrences; request and revision hashes fail closed. `tests/campaign.test.mjs` covers long Unicode segmentation, repetition/occurrence, tampering and staleness | `needs-human-review` — execute checks and programmatically validate every protected-set quotation; independent semantic review required |
+| AC-04 | `normalizeCandidate` and `src/campaign-records.mjs` preserve atomic source-local claims, overlapping roles, literal/normalized artifacts, inference support, null reasons and reciprocal conflicts; `tests/campaign.test.mjs` and `tests/campaign-records.test.mjs` use strict benign fixtures | `needs-human-review` — synthetic structure is not factual completeness; private frozen-gold comparison and human review of every factual claim required |
+| AC-05 | `normalizeCampaignRecords` requires claim support for behavior occurrences and every path node/edge, labels inferred edges and allows an unordered-only behavior set; `tests/campaign-records.test.mjs` contains supported/inferred/unordered graph cases | `needs-human-review` — execute final checks; independently review relationships, chronology and cross-source semantics |
+| AC-06 | `src/framework-catalog.mjs` freezes resolver version/digest/full pin and membership into each request; `src/campaign-records.mjs` requires exact built-in membership, deterministically separates the official catalog source, rejects collisions and emits invalid/source-literal IDs as unresolved. `tests/campaign-records.test.mjs` covers the narrow snapshot and resolution boundary | `needs-human-review` — a reported focused run occurred before a committed final revision and is not accepted evidence; independently review catalog provenance, rationale and applicability. Initial projection is only ATT&CK 19.2 T1059 |
+| AC-07 | Candidate normalization separates article-mentioned/proposed telemetry and published references/hypotheses, disables unaudited templates, and restricts OTEL to inert allowlisted synthetic values. `tests/campaign-records.test.mjs` covers pending labels, empty template allowlist and unsafe samples | `needs-human-review` — execute checks; human gold, labeling and proposal/deployment-boundary review required |
+| AC-08 | `applyCampaign` plus review-aware `updatePrivateCorpus` publishes core records and the versioned `governance.campaignExtraction` run in one locked atomic `corpus.json`; `tests/campaign.test.mjs` covers replay, staleness, collision/tampering, lock/interrupted-file behavior, private paths and prior manual/history preservation | `needs-human-review` — final POSIX execution and review-staleness inspection required |
+| AC-09 | `campaignStatus`, `campaignAnnotations` and dependency-closing `campaignExport`; same-origin bounded server routes and workbench integration in `scripts/server.mjs`, `src/app.mjs`, `src/studio.mjs`; `tests/campaign.test.mjs`, `tests/exports.test.mjs`, server and workbench suites cover closure, escaped Markdown, route/file bounds, pending status and JSON/Markdown paths | `needs-human-review` — reported pre-final focused results are not final evidence; execute checks, then independently inspect exact passages/literals and browser behavior at 1440×900, 1024×768 and 390×844 in light/dark themes with keyboard traversal |
+| AC-10 | Protected evaluation procedure and safe reporting boundary are documented in `README.md`; private artifacts must contain three original retained revisions, a pre-evaluation baseline/hash set, frozen human gold, candidate/export checks and quote equality results | **fail** — the protected revisions and frozen gold are unavailable here, so no real extraction, coverage measurement or independent human research review occurred |
+| AC-11 | Usage, architecture, this matrix and substantive `CHANGELOG.md` map the implemented boundary; existing and focused campaign suites are configured through `python scripts/verify.py` | `needs-human-review` — record exact commands/results and final full SHA only after the final commit; hosted checks are currently unapproved/`action_required`; independent documentation relevance/accuracy review required |
+
+No row is an automated `pass` yet. Fresh execution must include
+`python scripts/verify.py` and every configured application command on the final
+full SHA; a later commit invalidates that evidence. The private POSIX exercise
+must copy and protect the pre-evaluation store, retain baseline and gold hashes,
+and never refetch replacement data. Its terminal/PR record may contain only safe
+counts, hashes and discrepancy summaries, never retained text. Browser evidence
+must include desktop 1440×900, tablet 1024×768, mobile 390×844, light/dark and
+keyboard results. Agent self-audit cannot satisfy any independent review.
+
 ## Issue #39 batch article intake and private campaign corpus
 
 ### Researcher-requested local presentation follow-up

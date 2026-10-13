@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-13 — Passage-grounded campaign extraction
+
+- Issue #45 adds a researcher-mediated, offline
+  `prepare -> Codex chat handoff -> validate -> apply -> status/export` workflow
+  for existing cases under `scripts/extract.mjs campaign`. Requests freeze
+  deduplicated retained revision inputs, hashes, bounded Unicode passages,
+  provider/prompt metadata, limitations and a strict candidate guide. Local
+  validation derives exact quote offsets and rejects incomplete coverage,
+  tampering, stale input, ambiguity and unsupported dependencies; the repository
+  adds no model endpoint, credential, network adapter or automatic acceptance.
+- Atomically publish pending claims/passages and grounded behavior, path,
+  framework mapping, telemetry, detection and inert OTEL proposals together with
+  versioned `governance.campaignExtraction` run snapshots. Preserve manual
+  records, review history and old enrichment sidecars; expose only a derived
+  compatibility projection. Exact replay is idempotent, changed runs retain
+  supersession history, invalid/concurrent operations preserve the prior corpus,
+  and private JSON/Markdown exports retain dependency closure, coverage,
+  limitations and run/catalog provenance.
+- Add same-origin store-mode **Enrich campaign** prepare/download and bounded
+  candidate import, pending coverage/status displays, and case-scoped private
+  JSON/Markdown downloads. The two-step UI does not present preparation as
+  extraction or expose storage/model credentials. Synthetic checks cover the
+  shared CLI/server/record/UI boundaries; the unavailable protected
+  three-revision gold evaluation remains unmet, and independent semantic,
+  mapping, UX/accessibility and documentation review is still required.
+
 ## 2026-10-13 — HTML intake compatibility
 
 - Move failed source-intake attempts that precede a successful collection into

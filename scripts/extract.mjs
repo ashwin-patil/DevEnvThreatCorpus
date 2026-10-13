@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { runEnrichment } from '../src/enrichment.mjs';
+import { runCampaign } from '../src/campaign.mjs';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
 } from './contract.mjs';
@@ -144,6 +145,7 @@ export async function runExtraction({ templateFile, store, suppliedBy }) {
 }
 
 async function cli(args) {
+  if (args[0] === 'campaign') return campaignCli(args.slice(1));
   if (args[0] === 'enrichment') return enrichmentCli(args.slice(1));
   const values = {};
   if (args.length % 2) return { status: 'failed', code: 'INVALID_INPUT' };
@@ -155,6 +157,46 @@ async function cli(args) {
   }
   if (Object.keys(values).length !== 3) return { status: 'failed', code: 'INVALID_INPUT' };
   return runExtraction({ templateFile: values['--template'], store: values['--store'], suppliedBy: values['--supplied-by'] });
+}
+
+async function campaignCli([command, ...args]) {
+  const required = {
+    prepare: ['--store', '--case', '--output'],
+    validate: ['--store', '--request', '--input'],
+    apply: ['--store', '--request', '--input'],
+    status: ['--store'],
+    export: ['--store', '--case', '--output'],
+  }[command];
+  if (!required || args.length % 2) return { status: 'failed', code: 'INVALID_INPUT' };
+  const allowed = [...new Set([...required, ...(command === 'prepare' ? ['--revisions', '--requested-model'] : []),
+    ...(command === 'export' ? ['--format'] : []), ...(command === 'status' ? ['--case'] : [])])];
+  const values = {};
+  for (let index = 0; index < args.length; index += 2) {
+    if (!allowed.includes(args[index]) || Object.hasOwn(values, args[index]) || !args[index + 1]) {
+      return { status: 'failed', code: 'INVALID_INPUT' };
+    }
+    values[args[index]] = args[index + 1];
+  }
+  if (required.some(key => !Object.hasOwn(values, key))) return { status: 'failed', code: 'INVALID_INPUT' };
+  const result = await runCampaign({
+    command, store: values['--store'], caseId: values['--case'], outputFile: values['--output'],
+    requestFile: values['--request'], inputFile: values['--input'],
+    revisionIds: values['--revisions']?.split(','), requestedModel: values['--requested-model'],
+    format: values['--format'],
+  });
+  // The private file is the payload; terminal/CI output contains only safe aggregate metadata.
+  if (result.status !== 'succeeded') return result;
+  return {
+    status: result.status, command, ...(result.runId ? { runId: result.runId, replay: result.replay ?? false } : {}),
+    ...(result.request ? { requestHash: result.request.requestHash, inputSnapshotDigest: result.request.inputSnapshotDigest,
+      sources: result.request.inputs.length, segments: result.request.inputs.reduce((n, i) => n + i.segments.length, 0),
+      unavailable: result.request.inputs.filter(i => i.availability === 'unavailable').length } : {}),
+    ...(result.summary?.runs ? { pending: true, runs: result.summary.runs.map(run => ({
+      id: run.id, claims: run.claimIds.length, coverage: run.coverage.map(({ sourceId, sourceRevisionId, reason, ...safe }) => safe),
+      limitations: run.limitations.length, recordCounts: run.recordCounts,
+    })) } : {}),
+    ...(result.bundle ? { private: true, format: values['--format'] ?? 'json' } : {}),
+  };
 }
 
 async function enrichmentCli([command, ...args]) {

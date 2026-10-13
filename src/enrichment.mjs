@@ -248,7 +248,7 @@ async function components(file) {
   }
 }
 
-async function privateDirectory(directory, { create = false } = {}) {
+export async function privateDirectory(directory, { create = false } = {}) {
   absoluteSafe(directory, true);
   if (create) {
     await components(path.dirname(directory));
@@ -287,8 +287,9 @@ async function syncDirectory(directory) {
   try { await handle.sync(); } finally { await handle.close(); }
 }
 
-async function privateOutput(file, document) {
-  const output = serialize(document);
+export async function privateOutput(file, document, { raw = false } = {}) {
+  const output = raw ? document : serialize(document);
+  if (typeof output !== 'string' || Buffer.byteLength(output) > ENRICHMENT_LIMITS.bytes) throw failure('TOO_LARGE');
   absoluteSafe(file, true);
   const verify = await privateDirectory(path.dirname(file));
   await verify();

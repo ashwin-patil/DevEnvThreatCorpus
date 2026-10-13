@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createPreviewServer, emptyCorpus, parseArguments, WEB_INTAKE_LIMITS } from '../scripts/server.mjs';
+import { CAMPAIGN_LIMITS, createPreviewServer, emptyCorpus, parseArguments, WEB_INTAKE_LIMITS } from '../scripts/server.mjs';
 import { canonicalSerialize, validateCorpus } from '../scripts/contract.mjs';
 import { createEnrichmentTemplate } from '../src/enrichment.mjs';
 
@@ -289,4 +289,53 @@ test('synthetic research demo is schema-valid, visibly synthetic, and never enab
   assert.equal(result.status, 200); const corpus = JSON.parse(result.body);
   assert.deepEqual(validateCorpus(corpus), []); assert.ok(corpus.governance.synthetic);
   assert.equal(corpus.paths.length, 1); assert.equal(result.headers['x-collection-enabled'], undefined);
+});
+
+test('Issue #45 campaign routes use the shared prepare/apply/status/export API with bounded same-origin JSON only', async t => {
+  const store = path.join(await workspace(t), 'store');
+  await mkdir(store, { mode: 0o700 });
+  const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
+  await writeFile(path.join(store, 'corpus.json'), canonicalSerialize(corpus), { mode: 0o600 });
+  const port = await start(t, { store });
+  const preparedResponse = await request(port, '/api/campaign/prepare', sameOrigin(port), 'POST',
+    JSON.stringify({ caseId: 'synthetic-case-a' }));
+  assert.equal(preparedResponse.status, 200, preparedResponse.body);
+  const prepared = JSON.parse(preparedResponse.body);
+  assert.equal(prepared.status, 'succeeded');
+  assert.equal(prepared.request.schemaVersion, 'campaign-request/1');
+  assert.equal(prepared.request.provider.requestedModel, null);
+  const candidate = {
+    schemaVersion: 'campaign-candidate/1', requestHash: prepared.request.requestHash,
+    model: { effectiveModel: null, version: null, nullReasons: { effectiveModel: 'unknown', version: 'unknown' } },
+    coverage: prepared.request.inputs.flatMap(input => input.segments.map(segment => ({
+      segmentId: segment.id, status: 'completed', reason: null,
+    }))),
+    claims: [], absences: [], limitations: ['Synthetic route exercise; no semantic enrichment.'],
+  };
+  const imported = await request(port, '/api/campaign/import', sameOrigin(port), 'POST',
+    JSON.stringify({ request: prepared.request, candidate }));
+  assert.equal(imported.status, 200, imported.body);
+  assert.equal(JSON.parse(imported.body).status, 'succeeded');
+  const status = JSON.parse((await request(port, '/api/campaign/status?case=synthetic-case-a')).body);
+  assert.equal(status.pending, true); assert.equal(status.runs.length, 1);
+  assert.equal(status.runs[0].provider.effectiveModel, null);
+  const exported = await request(port, '/api/campaign/export', sameOrigin(port), 'POST',
+    JSON.stringify({ caseId: 'synthetic-case-a', format: 'json' }));
+  assert.equal(exported.status, 200); assert.equal(JSON.parse(exported.body).schemaVersion, 'campaign-talk-bundle/1');
+  assert.equal(JSON.parse(exported.body).runs.length, 1);
+  const markdown = await request(port, '/api/campaign/export', sameOrigin(port), 'POST',
+    JSON.stringify({ caseId: 'synthetic-case-a', format: 'md' }));
+  assert.equal(markdown.status, 200); assert.match(markdown.headers['content-type'], /^text\/markdown/);
+  assert.match(markdown.body, /## runs/);
+  const annotations = JSON.parse((await request(port, '/api/enrichment')).body);
+  assert.ok(['talk-enrichment/1', 'campaign-projection/1'].includes(annotations.schemaVersion));
+  assert.ok(Array.isArray(annotations.annotations));
+
+  assert.equal((await request(port, '/api/campaign/prepare', { 'Content-Type': 'application/json' }, 'POST',
+    JSON.stringify({ caseId: 'synthetic-case-a' }))).status, 403);
+  assert.equal((await request(port, '/api/campaign/prepare', sameOrigin(port), 'POST',
+    JSON.stringify({ caseId: 'synthetic-case-a', command: 'export', outputFile: '/arbitrary' }))).status, 400);
+  assert.equal((await request(port, '/api/campaign/status?case=synthetic-case-a&path=/arbitrary')).status, 400);
+  assert.equal((await request(port, '/api/campaign/import',
+    { ...sameOrigin(port), 'Content-Length': CAMPAIGN_LIMITS.bodyBytes + 1 }, 'POST')).status, 413);
 });

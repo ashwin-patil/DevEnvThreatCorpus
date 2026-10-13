@@ -17,7 +17,7 @@ const run = args => {
   return { exit: child.status, ...JSON.parse(child.stdout) };
 };
 
-async function setup(t, { accepted = false, optional = false } = {}) {
+async function setup(t, { accepted = false, optional = false, standalone = false } = {}) {
   const privateRoot = path.join(root, '.private-intake');
   await mkdir(privateRoot, { recursive: true, mode: 0o700 });
   const directory = await mkdtemp(path.join(privateRoot, 'exports-'));
@@ -40,6 +40,87 @@ async function setup(t, { accepted = false, optional = false } = {}) {
       edges: [], scope: 'representative', origin: 'Human authored', disposition: 'Pending',
     }];
     corpus.cases.find(item => item.id === 'synthetic-case-a').pathIds = ['synthetic-path-a'];
+  }
+  if (standalone) {
+    corpus.behaviors = [
+      {
+        id: 'standalone-behavior-a', namespace: 'synthetic', name: 'Standalone behavior A',
+        boundary: 'Synthetic standalone behavior.', description: 'Claim-linked without a path or mapping.',
+        caseId: 'synthetic-case-a', claimIds: ['synthetic-claim-a'],
+        occurrences: [{ caseId: 'synthetic-case-a', claimIds: ['synthetic-claim-a'] }],
+        signalIds: ['standalone-signal-a'], detectionIds: ['standalone-detection-a'], otelIds: [],
+        origin: 'Human authored', disposition: 'Pending',
+      },
+      {
+        id: 'framework-behavior-a', namespace: 'synthetic', name: 'Mapped behavior A',
+        boundary: 'Synthetic mapped behavior.', description: 'Exercises framework parent closure.',
+        caseId: 'synthetic-case-a', claimIds: ['synthetic-claim-a'],
+        signalIds: [], detectionIds: [], otelIds: [], origin: 'Human authored', disposition: 'Pending',
+      },
+      {
+        id: 'standalone-behavior-c', namespace: 'synthetic', name: 'Standalone behavior C',
+        boundary: 'Synthetic other-case behavior.', description: 'Must remain isolated from case A.',
+        caseId: 'synthetic-case-b', claimIds: ['synthetic-claim-c'],
+        signalIds: ['standalone-signal-c'], detectionIds: [], otelIds: [],
+        origin: 'Human authored', disposition: 'Pending',
+      },
+    ];
+    corpus.telemetry = [
+      {
+        id: 'standalone-signal-a', behaviorId: 'standalone-behavior-a', category: 'synthetic',
+        eventType: 'synthetic-a', logicalFields: [], joinKeys: [], availability: 'fixture',
+        schema: 'synthetic/1', limitations: 'Synthetic fixture only.', origin: 'Human authored', disposition: 'Pending',
+      },
+      {
+        id: 'standalone-signal-a-reverse', behaviorId: 'standalone-behavior-a', category: 'synthetic',
+        eventType: 'synthetic-a-reverse', logicalFields: [], joinKeys: [], availability: 'fixture',
+        schema: 'synthetic/1', limitations: 'Synthetic fixture only.', origin: 'Human authored', disposition: 'Pending',
+      },
+      {
+        id: 'standalone-signal-c', behaviorId: 'standalone-behavior-c', category: 'synthetic',
+        eventType: 'synthetic-c', logicalFields: [], joinKeys: [], availability: 'fixture',
+        schema: 'synthetic/1', limitations: 'Synthetic fixture only.', origin: 'Human authored', disposition: 'Pending',
+      },
+    ];
+    corpus.otel = [{
+      id: 'standalone-otel-a', behaviorId: 'standalone-behavior-a', action: 'synthetic action',
+      standardSourceIds: ['synthetic-source-a'], customFields: [], sample: {}, sampleFormat: 'synthetic',
+      sampleOrigin: 'Synthetic inert fixture', stability: 'fixture', limitations: 'Synthetic fixture only.',
+      origin: 'Human authored', disposition: 'Pending',
+    }];
+    corpus.detections = [{
+      id: 'standalone-detection-a', behaviorId: 'standalone-behavior-a',
+      hypothesis: 'Synthetic hypothesis.', signalIds: ['standalone-signal-a-reverse'], otelIds: ['standalone-otel-a'],
+      windowSeconds: 60, windowBasis: 'Synthetic fixture.', tuning: 'None.', testPlan: 'Fixture assertion.',
+      validation: 'Not validated.', origin: 'Human authored', disposition: 'Pending',
+    }];
+    const catalogSource = structuredClone(corpus.sources.find(source => source.id === 'synthetic-source-b'));
+    Object.assign(catalogSource, {
+      id: 'synthetic-catalog-source',
+      originalUrl: 'https://example.invalid/catalog',
+      canonicalUrl: 'https://example.invalid/catalog',
+      title: 'Synthetic official framework catalog',
+      revisionIds: [],
+      extractionStatus: 'Not started',
+      collectionState: 'Collected',
+    });
+    corpus.sources.push(catalogSource);
+    corpus.frameworks = [
+      {
+        id: 'synthetic-parent-technique', name: 'Synthetic parent', framework: 'ATT&CK', version: 'test',
+        sourceId: 'synthetic-catalog-source', url: 'https://example.invalid/parent',
+      },
+      {
+        id: 'synthetic-child-technique', name: 'Synthetic child', framework: 'ATT&CK', version: 'test',
+        sourceId: 'synthetic-catalog-source', url: 'https://example.invalid/child', parentId: 'synthetic-parent-technique',
+      },
+    ];
+    corpus.mappings = [{
+      id: 'synthetic-framework-mapping-a', caseId: 'synthetic-case-a', behaviorId: 'framework-behavior-a',
+      framework: 'ATT&CK', version: 'test', techniqueId: 'synthetic-child-technique',
+      claimIds: ['synthetic-claim-a'], rationale: 'Synthetic mapping.', applicability: 'Fixture only.',
+      origin: 'Human authored', mappingStatus: 'Proposed', disposition: 'Pending',
+    }];
   }
   if (accepted) {
     for (const claimId of ['synthetic-claim-a', 'synthetic-claim-b']) {
@@ -101,6 +182,94 @@ test('Issue #24 AC-01/03/04 reviewed profile and bundle retain accepted closure 
   assert.ok(jsonLines.some(record => record.entityType === 'sourceRevisions' && record.entity.rawContent === null
     && record.entity.normalizedContent === null));
   assert.doesNotMatch(files['records.jsonl'], /A tool was used in a benign exercise\./);
+});
+
+test('Issue #45 standalone behaviors retain exact support and complete case-scoped enrichment closure', async t => {
+  const { corpus } = await setup(t, { accepted: true, standalone: true });
+  const reviewed = profileRecords(corpus);
+  const draft = profileRecords(corpus, 'draft');
+  const reviewedIds = new Set(reviewed.records.map(record => `${record.entityType}:${record.entity.id}`));
+
+  assert.ok(reviewedIds.has('behaviors:standalone-behavior-a'));
+  assert.ok(reviewedIds.has('behaviors:framework-behavior-a'));
+  assert.ok(!reviewedIds.has('behaviors:standalone-behavior-c'));
+  assert.ok(!reviewedIds.has('telemetry:standalone-signal-c'));
+  assert.deepEqual(
+    reviewed.records.find(record => record.entityType === 'behaviors'
+      && record.entity.id === 'standalone-behavior-a').entity.claimIds,
+    ['synthetic-claim-a'],
+  );
+  for (const key of [
+    'telemetry:standalone-signal-a',
+    'telemetry:standalone-signal-a-reverse',
+    'detections:standalone-detection-a',
+    'otel:standalone-otel-a',
+    'frameworks:synthetic-child-technique',
+    'frameworks:synthetic-parent-technique',
+    'sources:synthetic-catalog-source',
+  ]) assert.ok(reviewedIds.has(key), `${key} missing from reviewed closure`);
+  assert.ok(draft.records.some(record => record.entityType === 'behaviors'
+    && record.entity.id === 'standalone-behavior-c'));
+
+  for (const profile of [reviewed, draft]) {
+    const bundle = queryProfile(profile, 'bundle', { caseId: 'synthetic-case-a' });
+    const ids = new Set(bundle.records.map(record => `${record.entityType}:${record.entity.id}`));
+    for (const key of [
+      'behaviors:standalone-behavior-a',
+      'telemetry:standalone-signal-a',
+      'telemetry:standalone-signal-a-reverse',
+      'detections:standalone-detection-a',
+      'otel:standalone-otel-a',
+      'frameworks:synthetic-child-technique',
+      'frameworks:synthetic-parent-technique',
+      'sources:synthetic-catalog-source',
+    ]) assert.ok(ids.has(key), `${key} missing from ${profile.profile} bundle`);
+    assert.ok(!ids.has('behaviors:standalone-behavior-c'));
+    assert.ok(!ids.has('telemetry:standalone-signal-c'));
+    assert.equal(bundle.records.filter(record => record.entityType === 'paths').length, 0);
+    assert.equal(bundle.records.filter(record => record.entityType === 'mappings'
+      && record.entity.behaviorId === 'standalone-behavior-a').length, 0);
+  }
+
+  const otherCase = queryProfile(draft, 'bundle', { caseId: 'synthetic-case-b' });
+  const otherIds = new Set(otherCase.records.map(record => `${record.entityType}:${record.entity.id}`));
+  assert.ok(otherIds.has('behaviors:standalone-behavior-c'));
+  assert.ok(otherIds.has('telemetry:standalone-signal-c'));
+  assert.ok(!otherIds.has('behaviors:standalone-behavior-a'));
+});
+
+test('Issue #45 case bundles close every selected source revision reference', async t => {
+  const { corpus } = await setup(t);
+  const latestRevision = structuredClone(
+    corpus.sourceRevisions.find(revision => revision.id === 'synthetic-revision-a'),
+  );
+  latestRevision.id = 'synthetic-revision-a-latest';
+  corpus.sourceRevisions.push(latestRevision);
+  corpus.sources.find(source => source.id === 'synthetic-source-a').revisionIds.push(latestRevision.id);
+  const latestPassage = structuredClone(
+    corpus.passages.find(passage => passage.id === 'synthetic-passage-a'),
+  );
+  latestPassage.id = 'synthetic-passage-a-latest';
+  latestPassage.sourceRevisionId = latestRevision.id;
+  corpus.passages.push(latestPassage);
+  const latestClaim = corpus.claims.find(claim => claim.id === 'synthetic-claim-c');
+  latestClaim.sourceRevisionId = latestRevision.id;
+  latestClaim.passageIds = [latestPassage.id];
+
+  const draft = profileRecords(corpus, 'draft');
+  for (const caseId of ['synthetic-case-a', 'synthetic-case-b']) {
+    const bundle = queryProfile(draft, 'bundle', { caseId });
+    const revisionIds = new Set(bundle.records
+      .filter(record => record.entityType === 'sourceRevisions')
+      .map(record => record.entity.id));
+    for (const source of bundle.records.filter(record => record.entityType === 'sources')) {
+      for (const revisionId of source.entity.revisionIds) {
+        assert.ok(revisionIds.has(revisionId), `${caseId} missing source revision ${revisionId}`);
+      }
+    }
+    assert.ok(revisionIds.has('synthetic-revision-a'));
+    assert.ok(revisionIds.has('synthetic-revision-a-latest'));
+  }
 });
 
 test('Issue #24 AC-02 CSV preserves null reasons, labels, date precision, and safe formula-like values', async t => {

@@ -14,17 +14,22 @@ never imply shared attribution. Graph positions are ephemeral UI state.
 `GET /api/enrichment` exists only in private store mode and shares the loopback
 Host/Origin/Fetch-Metadata gate. It reads the bounded private sidecar with the
 existing schema, case/source/revision, evidence, and filesystem validation,
-then rechecks directory identity. It cannot import, accept, or write anything.
-The browser loads it separately from `/api/corpus`; errors leave core data
-usable and display a warning. Snapshot and synthetic modes do not load private
-sidecars. Original HTML remains download-only under the existing CSP.
+then combines it with the derived campaign-run annotation projection. It cannot
+import, accept, or write anything. The browser loads it separately from
+`/api/corpus`; errors leave core data usable and display a warning. Snapshot and
+synthetic modes do not load private annotations. Original HTML remains
+download-only under the existing CSP.
 
 Campaign talk bundles are private, explicitly draft-oriented presentation
 exports, not reviewed releases. They include cited claims/passages and pending
 annotations, categories, dates, optional paths/mappings, and the loaded core
-snapshot digest; they exclude full raw/normalized article archives. Annotation
-model/prompt provenance and exact source revisions survive JSON/Markdown export.
-Markdown escapes imported markup. No current approval eligibility is asserted.
+snapshot digest; applied campaign runs additionally contribute dependency-closed
+records, coverage, limitations and catalog/run provenance. Bundles exclude full
+original-response/image archive files; campaign bundles include retained
+normalized revision content needed for exact dependency closure and therefore
+must remain private. Annotation model/prompt provenance and exact source
+revisions survive JSON/Markdown export. Markdown escapes imported markup. No
+current approval eligibility is asserted.
 
 `/api/demo-research` serves a distinct schema-valid benign synthetic fixture
 for all optional views. Loading it changes display only and disables collection;
@@ -49,7 +54,8 @@ There is no directory listing or arbitrary file path API. `--corpus` responses
 are validated read-only startup snapshots; restart after external changes.
 Issue #39's explicit `--store` mode adds bounded same-origin collection writes
 and dynamic corpus reload. Network requests run in the Node backend, not the
-browser. Collection never accepts annotations or canonical claims.
+browser. Intake collection never accepts annotations or canonical claims;
+Issue #45's separate explicit candidate import is described below.
 Local users can inspect the data, so do
 not expose the port through tunnels or deploy this server.
 
@@ -630,6 +636,116 @@ cannot accept annotations, mutate canonical claims/reviews, run a model,
 infer case attribution, or establish maliciousness. Collection itself changes
 the canonical review base, so earlier acceptance may become stale under the
 existing review contract; independent human review is still required.
+
+## Campaign extraction contract
+
+Issue #45 adds `campaign prepare|validate|apply|status|export` beneath the
+existing `scripts/extract.mjs` entrypoint. The provider boundary is deliberately
+manual: preparation writes `campaign-request/1`, a researcher gives that file
+to their configured Codex chat, and local code treats the returned
+`campaign-candidate/1` file as untrusted input. There is no model adapter,
+credential, endpoint, background service, runtime network call, or fallback
+provider. A requested model is advisory metadata. The effective model and
+version remain null with explicit `unknown` reasons when the chat entrypoint
+does not expose them.
+
+Preparation requires an existing case and does not alter it. It deduplicates
+the case source IDs and defaults to the last retained normalized revision in
+each source's ordered revision list; explicit `--revisions` selections must
+belong to those sources. Missing retained text becomes an unavailable input
+with a reason and no segments—never a refetch or silent omission. Normalized
+hashes are rechecked. Deterministic segments use zero-based half-open Unicode
+code-point positions, at most 2,400 points each and 1,000 in one request.
+Request and candidate envelopes are each bounded to 2 MiB. The request freezes
+the case scope, associations, base/review digests, citations, revision/parser/
+normalization identities, selection/deduplication metadata, prompt text/version/
+hash, input snapshot digest, limitations, and the exported candidate-record
+guide. Existing associations are input scope, not proof of one campaign.
+
+Validation recomputes the request from the current corpus and rejects tampering
+or a stale base. Every supplied segment must be exactly once `completed`,
+`skipped`, or `failed`; aggregate revision status is complete, partial, or
+failed. Source-backed claims require exact quotes in completed supplied
+segments. Local code selects the requested repeated-quote occurrence and derives
+the final offsets; model-provided offsets are not accepted. Inferences instead
+require local claim support and rationale and cannot carry fabricated passages.
+Claims remain source-local and Pending; reciprocal conflicts, explicit
+uncertainty, null/absence reasons, and model metadata fail closed when malformed.
+
+`src/campaign-records.mjs` normalizes candidate records only after their
+supporting local claim IDs resolve to same-case claims. It supports overlapping
+role and literal-artifact annotations, behavior definitions/occurrences,
+unordered behavior sets or explicitly supported paths, telemetry, published
+references, detection hypotheses, mappings, and OTEL proposals. Literal values
+remain separate from normalized values. Every derived annotation carries exact
+claim support and Pending disposition. Path edges distinguish source-supported
+from inferred relationships; no path is required when chronology is absent.
+Article-mentioned data sources/references remain distinct from proposed
+collection/detections. OTEL samples accept only allowlisted fields and inert
+`synthetic.*` or reserved `example.invalid` values with the exact
+`LLM synthetic fixture; not incident evidence` label. No legacy templates are
+enabled: the template allowlist is empty until a template is individually
+audited and pinned.
+
+Framework resolution is intentionally narrow. `src/framework-catalog.mjs`
+contains a reviewed immutable catalog projection with upstream revision,
+material digest, framework version, retrieval provenance and license. A
+request embeds the resolver version, digest, full pin and membership snapshot,
+so a catalog change alters request and run identity. A candidate becomes a
+Proposed core mapping only if its exact framework/version/technique exists in
+that projection. Resolution deterministically adds the separately identified
+official catalog source from the built-in pin when absent and rejects a changed
+record at that generated ID; arbitrary or candidate-supplied catalogs are never
+trusted and no runtime fetch occurs. The initial projection contains ATT&CK
+19.2 technique `T1059`; it does not claim broad ATT&CK or ATLAS coverage.
+Unsupported IDs and unverified source literals survive as explicit pending
+unresolved mappings rather than official framework records.
+
+Application validates the complete projected corpus, then uses the existing
+private-store lock and atomic replacement to publish one `corpus.json`. The
+same boundary adds exact passages and claims plus behaviors, paths, framework
+records, mappings, telemetry, detections and OTEL to their core arrays, and adds
+the immutable versioned run snapshot under
+`governance.campaignExtraction` (`campaign-snapshot/1` / `campaign-run/1`).
+The snapshot binds request/response/input hashes, provider/prompt/catalog
+provenance, coverage, absences, limitations, unresolved mappings, annotations
+and frozen claim/passage/record snapshots under a digest-checked run envelope.
+An identical request/response replay is idempotent; changed input produces a new
+superseding run, while collisions, stale input, snapshot tampering, invalid
+dependency closure, crashes, or concurrent writers preserve the prior file.
+Existing manual records, append-only review history and `talk-enrichment/1`
+sidecars are not rewritten.
+
+`campaignAnnotations` derives a read-only `campaign-projection/1` compatibility
+view and combines it with a valid old manual sidecar for `/api/enrichment`.
+This projection is not another source of truth. `status` reports safe pending
+run coverage/record counts globally or for one case. JSON/Markdown
+`campaign-talk-bundle/1` exports close claim inference/conflict, case/source/
+revision/passage, path/behavior/mapping/framework, telemetry/detection/OTEL,
+run/catalog and effective-review dependencies. They carry conspicuous
+private/pending/synthetic warnings, include private normalized revision content
+but not original HTML/image archive files, refuse existing output files, and do
+not confer review eligibility.
+
+Store-mode web endpoints expose the same helpers: exact same-origin bounded JSON
+POSTs prepare and import, a case-scoped status GET supplies coverage, and
+case-scoped JSON/Markdown downloads use the same export closure. Candidate files
+are size-checked before browser reading. One write is active at a time, and
+`--corpus` remains read-only. The UI calls this a two-step researcher handoff,
+not completed extraction; it displays pending state, coverage, limitations and
+requested/effective model disclosure. Independent desktop (1440×900), tablet
+(1024×768), mobile (390×844), light/dark, keyboard, visual and accessibility
+review remains required.
+
+The protected three-revision evaluation is a separate POSIX exercise. First
+copy the original store, preserve a permission-restricted baseline and hashes,
+and freeze a private human-authored gold checklist before exposing the request
+to the model. Never replace an unavailable retained revision by refetching it.
+Gold coverage is measured against the human checklist, not the candidate answer.
+Only aggregate counts, hashes and discrepancies may leave the private store.
+The executable preparation and evaluation steps are in the
+[README](../README.md#campaign-extraction-through-a-configured-codex-chat);
+their current absence is an unmet acceptance condition, not fixture evidence.
 
 ## Reproducible exports and read-only queries
 

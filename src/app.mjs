@@ -9,15 +9,29 @@ export async function fetchCorpus(fetcher, endpoint) {
   const corpus = await response.json(), model = createModel(corpus);
   model.snapshot = await hashText(JSON.stringify(corpus));
   model.collectionEnabled = endpoint === '/api/corpus' && response.headers?.get?.('x-collection-enabled') === 'true';
+  const stale = response.headers?.get?.('x-stale-reviews');
+  model.staleReviewCount = /^\d+$/.test(stale ?? '') ? Number(stale) : 0;
   model.annotations = [];
+  model.campaignStatus = {};
   if (model.collectionEnabled) {
     try {
       const annotations = await fetcher('/api/enrichment', { cache: 'no-store' });
       if (!annotations.ok) throw new Error('Unavailable enrichment');
       const document = await annotations.json();
-      if (document.schemaVersion !== 'talk-enrichment/1' || !Array.isArray(document.annotations)) throw new Error('Invalid enrichment response');
+      if (!['talk-enrichment/1', 'campaign-projection/1'].includes(document.schemaVersion) || !Array.isArray(document.annotations)) throw new Error('Invalid enrichment response');
       model.annotations = document.annotations;
     } catch { model.annotationError = 'Private annotations could not be loaded or validated. Core records remain available; check the sidecar and reload.'; }
+    if (corpus.governance?.campaignExtraction) {
+      const statuses = await Promise.all(corpus.cases.map(async record => {
+        try {
+          const result = await fetcher(`/api/campaign/status?case=${encodeURIComponent(record.id)}`, { cache: 'no-store' });
+          if (!result.ok) throw new Error('Unavailable campaign status');
+          return [record.id, await result.json()];
+        } catch { return [record.id, null]; }
+      }));
+      model.campaignStatus = Object.fromEntries(statuses.filter(([, value]) => value));
+      if (statuses.some(([, value]) => !value)) model.campaignStatusError = 'Some campaign run status could not be loaded. Reload before relying on displayed coverage.';
+    }
   }
   return model;
 }
@@ -49,7 +63,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   function trustLabel() {
     return model?.corpus.governance?.synthetic ?
       'SYNTHETIC DEMO — generated benign fixture, not incident evidence.' :
-      `Local corpus · ${model?.collectionEnabled ? 'private collection enabled; intake stays pending' : 'read-only snapshot'} · supplied dispositions are not independent approval.`;
+      `Local corpus · ${model?.collectionEnabled ? 'private collection enabled; intake stays pending' : 'read-only snapshot'} · ` +
+      `${model?.staleReviewCount ? `${model.staleReviewCount} stale recorded review${model.staleReviewCount === 1 ? '' : 's'} retained; ` : ''}supplied dispositions are not independent approval.`;
   }
   function buildFacets() {
     $('facets').replaceChildren();
@@ -138,7 +153,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         studio.sourceId = route.id; studio.revisionId = route.revisionId; studio.selection = null;
       }
       $('content').append(renderStudio(doc, win, studio, { enabled: model.collectionEnabled,
-        collect: collectArticles, refresh: render, navigate })); return;
+        collect: collectArticles, refresh: render, navigate, campaignStatus: model.campaignStatus,
+        campaignStatusError: model.campaignStatusError, prepareCampaign, importCampaign })); return;
     }
     if (route.view === 'method') {
       $('result').textContent = 'Trust & method · collection is not acceptance';
@@ -205,10 +221,19 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (route.id && !model[route.view].has(route.id)) detail.append(element(doc, 'p', 'Unknown target; showing a matching record instead.', 'subtle'));
     if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate,
       value => downloadProposal(doc, win, value, 'campaign-citations.json')),
-      renderEvidencePanel(doc, model, selected, navigate, (format, value) => {
-        if (format === 'json') downloadProposal(doc, win, value, 'campaign-talk-bundle.json');
+      renderEvidencePanel(doc, model, selected, navigate, async (format, value) => {
+        let campaign = null;
+        if (model.collectionEnabled && model.corpus.governance?.campaignExtraction) {
+          const response = await fetcher('/api/campaign/export', { method: 'POST', cache: 'no-store',
+            headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseId: selected.id, format }) });
+          if (!response.ok) throw new Error(`Campaign export failed (${response.status}).`);
+          campaign = format === 'json' ? await response.json() : await response.text();
+        }
+        if (format === 'json') downloadProposal(doc, win,
+          campaign == null ? value : { ...value, campaignExtraction: campaign }, 'campaign-talk-bundle.json');
         else {
-          const url = win.URL.createObjectURL(new win.Blob([value], { type: 'text/markdown;charset=utf-8' }));
+          const markdown = campaign == null ? value : `${value}\n## Campaign extraction run and catalog provenance\n\n${campaign}`;
+          const url = win.URL.createObjectURL(new win.Blob([markdown], { type: 'text/markdown;charset=utf-8' }));
           const link = element(doc, 'a'); link.href = url; link.download = 'campaign-talk-bundle.md'; doc.body.append(link);
           try { link.click(); } finally { link.remove(); }
           win.setTimeout(() => win.URL.revokeObjectURL(url), 1000);
@@ -271,6 +296,28 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       batch.waiting = false; $('demo').disabled = false; $('reload-corpus').disabled = false; render();
     }
   }
+  async function campaignRequest(routeName, input) {
+    const response = await fetcher(`/api/campaign/${routeName}`, { method: 'POST', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    let result;
+    try { result = await response.json(); }
+    catch { throw new Error(`Campaign ${routeName} failed (${response.status}).`); }
+    if (!response.ok || result.status === 'failed') {
+      throw new Error(result.message ?? `Campaign ${routeName} failed (${result.code ?? response.status}).`);
+    }
+    return result;
+  }
+  async function prepareCampaign(input) {
+    return campaignRequest('prepare', input);
+  }
+  async function importCampaign(input) {
+    const result = await campaignRequest('import', input);
+    const loaded = await fetchCorpus(fetcher, '/api/corpus');
+    model = loaded; studio.base = loaded.corpus;
+    reset(); renderStats();
+    status(`${trustLabel()} Campaign candidate imported as pending research; inspect coverage and limitations.`);
+    return result;
+  }
   async function load(endpoint) {
     if (studio?.webIntake.waiting) return;
     if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length) &&
@@ -318,7 +365,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   win.addEventListener('hashchange', restoreRoute);
   win.addEventListener('popstate', restoreRoute);
   win.addEventListener('beforeunload', event => {
-    if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length || studio.webIntake.waiting)) {
+    if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length || studio.webIntake.waiting ||
+        studio.campaign.waiting || studio.campaign.candidate)) {
       event.preventDefault(); event.returnValue = '';
     }
   });

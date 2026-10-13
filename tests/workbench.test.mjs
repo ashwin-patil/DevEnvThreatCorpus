@@ -12,7 +12,8 @@ import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
 import { renderExploration, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
 import {
   DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
-  createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal, corpusProposal, renderStudio, downloadProposal, webIntakeInput,
+  CAMPAIGN_FILE_LIMIT, campaignCandidate, createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal,
+  corpusProposal, renderCampaignEnrichment, renderStudio, downloadProposal, webIntakeInput,
 } from '../src/studio.mjs';
 import { assertValid, validateShape, categories, schema, normalizeText, digest, sha256, canonicalSerialize, intakeSource, reviewBaseDigest } from '../scripts/contract.mjs';
 import { applyExtraction } from '../scripts/extract.mjs';
@@ -115,6 +116,46 @@ test('private annotation reads fail visibly while preserving the loaded corpus a
   const demoRequests = [];
   await fetchCorpus(async endpoint => { demoRequests.push(endpoint); return response(researchFixture); }, '/api/demo-research');
   assert.deepEqual(demoRequests, ['/api/demo-research']);
+});
+
+test('Issue #45 campaign handoff is two-step, size-checks before reading and preserves unknown model disclosure', async () => {
+  let read = false;
+  await assert.rejects(campaignCandidate({
+    size: CAMPAIGN_FILE_LIMIT + 1,
+    async text() { read = true; return '{}'; },
+  }), /at most 2 MiB/);
+  assert.equal(read, false);
+  assert.deepEqual(await campaignCandidate({ size: 2, async text() { return '{}'; } }), {});
+  await assert.rejects(campaignCandidate({ size: 2, async text() { return '[]'; } }), /must be an object/);
+
+  const state = createStudio(fresh());
+  state.campaign.caseId = 'synthetic-case-a';
+  state.campaign.preparedCaseId = 'synthetic-case-a';
+  state.campaign.preparedRequest = { schemaVersion: 'campaign-request/1', requestHash: 'synthetic' };
+  state.campaign.candidate = { schemaVersion: 'campaign-candidate/1', requestHash: 'synthetic' };
+  let imported;
+  const status = { 'synthetic-case-a': { pending: true, limitations: ['Independent review is pending.'], runs: [{
+    disposition: 'Pending', provider: { id: 'codex-chat-handoff', requestedModel: null, effectiveModel: null, version: null },
+    promptVersion: 'synthetic-prompt/1', coverage: [{ completed: 2, skipped: 1, failed: 0 }],
+  }] } };
+  const host = new FakeElement('div');
+  host.append(renderCampaignEnrichment(new FakeDocument(), fakeWindow(), state, {
+    enabled: true, campaignStatus: status,
+    prepareCampaign: async () => { throw new Error('not used'); },
+    importCampaign: async input => { imported = input; return { status: 'succeeded', summary: status['synthetic-case-a'] }; },
+  }));
+  assert.match(host.textContent, /Step 1.*prepare request/);
+  assert.match(host.textContent, /Step 2.*choose returned JSON/);
+  assert.match(host.textContent, /Completed: 2 · Skipped: 1 · Failed: 0/);
+  assert.match(host.textContent, /Provider: codex-chat-handoff.*Effective model: not recorded/);
+  assert.match(host.textContent, /Pending: yes/);
+  await button(host, 'Import candidate against prepared request').trigger('click');
+  assert.equal(imported.request, state.campaign.preparedRequest);
+  assert.equal(imported.candidate.requestHash, 'synthetic');
+
+  const readOnly = renderCampaignEnrichment(new FakeDocument(), fakeWindow(), createStudio(fresh()));
+  assert.match(readOnly.textContent, /Campaign enrichment is disabled/);
+  assert.equal(button(readOnly, 'Prepare & download').disabled, true);
 });
 
 test('Issue #25 AC-01 all category dimensions support OR / AND within and AND across facets', () => {
