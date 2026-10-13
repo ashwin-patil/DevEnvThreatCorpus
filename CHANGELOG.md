@@ -2,6 +2,7 @@
 
 ## 2026-10-13
 
+- Issue #30: safely ignore informational `Host:`, `Content-Signal:`, and `Clean-param:` robots declarations alongside `Sitemap:` during manual URL intake. Preserve literal-path access enforcement and fail-closed rejection of unsupported policies and cross-origin robots redirects; add offline regression coverage and document the supported directives without introducing crawling or URL rewriting.
 - Issue #21: implement private local claim acceptance, correction, and exclusion
   with explicit self-attested reviewer identity, rationale, append-only UTC
   events, input-base/content/dependency hashes, and preserved provenance.

@@ -154,7 +154,9 @@ The fetcher checks `robots.txt` using `DevEnvThreatCorpusIntake/1` and fails clo
 when access policy cannot be safely established. A missing policy (404/410)
 allows retrieval; a policy redirect to another origin is rejected. The
 conservative parser supports user-agent groups, literal path-prefix
-Allow/Disallow rules, comments, and ignored Sitemap declarations. Both matching
+Allow/Disallow rules, comments, and ignored informational Sitemap, Host,
+Content-Signal, and Clean-param declarations (case-insensitive). These declarations
+do not redirect retrieval, rewrite query parameters, or override access rules. Both matching
 named and wildcard groups must allow the path; unsupported directives,
 wildcards, encoded paths, or ambiguous syntax fail closed rather than ignore
 possible restrictions. Authentication/access denials are not retried as
@@ -163,6 +165,15 @@ operators must confirm their authorization, article-storage rights, and any
 additional site restrictions before supplying a URL. When retrieval is denied,
 do not circumvent restrictions; supplied-text fallback is appropriate only for
 material the operator is authorized to supply and retain.
+
+Issue [#30](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/30) evidence:
+AC-01 maps to the informational-directive intake regression in
+[`tests/intake.test.mjs`](../tests/intake.test.mjs); AC-02 maps to its fail-closed
+robots tests (denials, wildcard/anchored paths, unsupported crawl delays,
+malformed user-agent records, authentication, and cross-origin policy redirects).
+AC-03 maps to this guidance, README, CHANGELOG, and final-commit
+`python scripts/verify.py` results recorded on the originating PR.
+Documentation relevance and accuracy still require independent human review.
 
 ### Deterministic readable text
 
