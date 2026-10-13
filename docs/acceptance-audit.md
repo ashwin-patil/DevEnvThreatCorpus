@@ -6,6 +6,28 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #16 Phase 1 read-only Research Workbench
+
+Originating requirements: [Issue #16](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/16).
+[Implementation PR #17](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/17)
+contains revision-bound command results and human review decisions;
+[its checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/17/checks)
+provide durable hosted execution evidence. This mapping describes
+executable checks, not an assertion of independent visual acceptance.
+
+| ID | Implementation and executable evidence | Remaining independent evidence |
+|---|---|---|
+| AC-01 | `src/` passage model/rendering; `tests/workbench.test.mjs` Unicode, overlap, exact-revision and linked-claim assertions; benign `tests/fixtures/benign/core-only.json` | Human inspection of highlighted normalized text; attach rendered passage screenshot and decision to originating PR |
+| AC-02 | `src/` case/source/claim exploration; workbench tests for associations, inference/support and safe DOM rendering | Human case click-through and DOM snapshot/research-state review on originating PR |
+| AC-03 | `src/` conflict comparison; reciprocal conflicting-claim fixture and workbench assertions | Human side-by-side warning/uncertainty inspection on originating PR |
+| AC-04 | `src/style.css`, `src/index.html`, official `docs/assets/logo.svg` and favicon; workbench styling checks and browser exercise at 1440×900, 1024×768 and 390×844 | Independent human screenshot, responsiveness and keyboard audit; agent exercise is supplemental, not independent proof |
+| AC-05 | README offline commands, architecture/setup/privacy guidance, substantive CHANGELOG; `tests/server.test.mjs`; configured `python scripts/verify.py` executes all five application suites | Final tested SHA and exact command results/check links recorded on PR; human documentation relevance/accuracy and README applicability approval |
+
+Acceptance remains `needs-human-review` until the independent decisions above
+are recorded. Refresh all executed evidence after any new commit. No live source
+or model calls, research truth assessment, authenticated curation, or writes are
+part of this slice. A person must approve before merge.
+
 ## Issue #10 project branding, logo assets, community health files, and repository logistics
 
 Originating requirements: [Issue #10](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/10), directly in that issue. PR is the durable location for final command output, tested SHA, and independent human approval.

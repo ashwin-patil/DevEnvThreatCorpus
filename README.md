@@ -35,6 +35,10 @@ offline manual extraction CLI adds pending, passage-grounded claims and case
 associations from a researcher-completed template; it does not accept or review
 claims.
 
+The read-only Research Workbench displays fresh 0.3.0 cases, sources, exact
+revision passages, and claims locally, with search, facets, and explicit conflict
+comparison. It does not accept, edit, or adjudicate research.
+
 The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
 under `handoff/` is retained as historical and design reference only.
@@ -127,6 +131,36 @@ corpus unchanged. A successful extraction records a manifest and leaves claims
 acceptance, or conflict resolution. See [manual extraction rules and
 limitations](docs/architecture.md#manual-extraction-contract).
 
+## Research Workbench: offline preview
+
+With the pinned Node runtime, start the loopback-only preview from the repository
+root; no installation, build, CDN, model, or internet connection is required:
+
+```sh
+node scripts/server.mjs
+```
+
+Open `http://127.0.0.1:4173/`. The initial corpus is empty. Select **Load synthetic
+demo** to exercise benign 0.3.0 fixtures, including emoji passages, inference,
+and conflicting claims. Demo records are not incident evidence and are never
+written to your corpus. Browse cases and sources independently; click passage
+highlights or claim links to inspect their exact retained revision.
+
+To inspect fresh intake/extraction output instead, supply its absolute private
+corpus path (file mode `0600`, as produced by intake):
+
+```sh
+node scripts/server.mjs --corpus /absolute/private/store/corpus.json --port 4173
+```
+
+This validates the whole corpus before serving a read-only startup snapshot.
+Restart the server to reload changed records; stop it with Ctrl+C. Retained
+article content is exposed only to the local browser. Do not deploy, tunnel,
+share screenshots containing private material, or relax file permissions to use
+this preview. Missing retained text is reported, not reconstructed. For further
+privacy, filtering, and acceptance limits see [Architecture](docs/architecture.md)
+and [Acceptance audit](docs/acceptance-audit.md).
+
 ## Validate locally
 
 Requirements: Python with the pinned dependency from
@@ -139,13 +173,16 @@ python scripts/verify.py
 ```
 
 `python scripts/verify.py` runs the repository governance checks and configured
-project commands, including the offline contract, intake, and extraction suites.
+project commands, including the offline contract, intake, extraction, workbench,
+and preview-server suites.
 To run the focused suites directly with the pinned Node runtime:
 
 ```powershell
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/contract.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/intake.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/extract.test.mjs
+node --test tests/workbench.test.mjs
+node --test tests/server.test.mjs
 ```
 
 The tests check valid and invalid synthetic records: source and passage
@@ -168,8 +205,9 @@ Implemented now:
 - Offline manual extraction from researcher-completed templates, exact
   revision-grounded passages, explicit case/source links, inference and conflict
   records, and pending-only outcomes.
-- Governance and trusted-base path mappings authorizing upcoming client-side
-  research workbench UI (`src/**`) and local preview dev server (`scripts/server.mjs`).
+- Read-only client-side research workbench (`src/**`) with Unicode passage
+  inspection, case/claim exploration, conflicts, facets, local branding, and a
+  loopback-only offline preview server (`scripts/server.mjs`).
 - Synthetic positive and negative contract fixtures with acceptance-focused
   tests.
 - Project documentation describing the clean-start decision and evidence

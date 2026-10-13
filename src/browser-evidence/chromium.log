@@ -1,0 +1,22 @@
+[6615:6631:1013/000149.546757:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6631:1013/000151.586562:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6631:1013/000156.016769:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/bb6850f8-2f93-472f-8b6e-8ca0f710c754
+[6615:6615:1013/000157.279570:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6631:1013/000157.279833:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6615:1013/000157.280077:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6631:1013/000157.280161:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6615:1013/000157.470926:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6631:1013/000157.471422:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6615:1013/000200.367984:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6615:1013/000200.368146:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6631:1013/000200.368639:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6615:1013/000200.369895:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6615:1013/000200.428451:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6631:1013/000200.428634:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6615:1013/000200.429241:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+[6615:6615:1013/000200.539432:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6631:1013/000200.539566:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/user/0/bus: Permission denied
+[6615:6615:1013/000200.545581:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[6615:6615:1013/000200.597844:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.NetworkManager.GetDevices: object_path= /org/freedesktop/NetworkManager: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.NetworkManager was not provided by any .service files
