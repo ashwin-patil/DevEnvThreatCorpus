@@ -147,6 +147,9 @@ Check connectivity for network errors, respect access denials, use authorized
 supplied-text fallback for unsupported articles, and check private permissions
 or wait for an active writer for storage errors. A failed result is not a
 collected source revision.
+After a later successful collection, earlier failed attempts are collapsed
+under **Previous intake history** on the source page. Their audit records are
+retained; unresolved failures and failures after the latest success stay visible.
 
 This runnable example uses public article URLs already referenced in the
 research handoff, but imports **no legacy records or claims**. Confirm permission
