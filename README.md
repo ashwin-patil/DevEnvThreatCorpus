@@ -86,6 +86,12 @@ node "$R/scripts/contract.mjs" intake url --url https://example.org/article --su
 ```
 
 That command uses the network; it is not part of the offline exercise.
+The robots parser ignores informational `Sitemap:`, `Host:`, `Content-Signal:`,
+and `Clean-param:` declarations without changing the requested URL or access
+rules. Denials, wildcard (`*`, `$`) Allow/Disallow paths, unsupported crawl
+delays, malformed user-agent records, and cross-origin robots redirects still
+fail closed. Robots permission does not replace operator authorization or
+article-storage rights.
 See [intake rules and limitations](docs/architecture.md#manual-intake-contract)
 for access policy, supported encodings/HTML, identity, bounds, safe retention,
 and failure handling. Do not pass credentials or confidential text on a shared
