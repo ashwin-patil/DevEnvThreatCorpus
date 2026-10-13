@@ -28,6 +28,22 @@ are recorded. Refresh all executed evidence after any new commit. No live source
 or model calls, research truth assessment, authenticated curation, or writes are
 part of this slice. A person must approve before merge.
 
+The AC-02 navigation regressions are covered by the executable tests
+`source facet fallback clears passage selection so the newly visible source keeps its claims`,
+`tag mode changes clear selected passages instead of retaining a hidden subset of claims`,
+and `revision selection on a filtered fallback source updates the complete route and survives reset`
+in `tests/workbench.test.mjs`. Facet changes clear the previous passage selection;
+choosing a displayed source revision updates both the internal source route and
+the URL, including when filters initially hid the routed source.
+
+Final-revision command results and browser smoke evidence are recorded on
+[PR #17](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/17), not inferred
+from earlier commits. An `action_required` hosted run with no jobs is not a
+passing check; a repository maintainer must resolve the required GitHub action
+and obtain executed Verify/PR Policy results before merge. Local synthetic
+screenshots and agent click-throughs are supplemental, not independent human
+visual or documentation approval.
+
 ## Issue #10 project branding, logo assets, community health files, and repository logistics
 
 Originating requirements: [Issue #10](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/10), directly in that issue. PR is the durable location for final command output, tested SHA, and independent human approval.
