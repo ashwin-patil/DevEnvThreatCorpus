@@ -54,11 +54,23 @@ The local Research Workbench needs only the pinned Node runtime:
 `node scripts/server.mjs` serves the vanilla `src/` assets on
 `http://127.0.0.1:4173/`. An optional `--corpus` takes an absolute private
 mode-0600 corpus file and validates it before serving; `--port` changes the local
-port. There is no install/build step or network dependency. Restart to refresh
-the read-only snapshot and never expose private retained text through a public
-host or tunnel. The configured workbench and server Node tests join the existing
+port. There is no install/build step. Restart to refresh the read-only
+`--corpus` snapshot. Issue #39 adds `--store /absolute/private/store` for
+explicit public HTTPS collection and dynamic corpus reload; it requires working
+public DNS, TLS, and network access. Keep the store under `.private-intake/`
+inside the clone, with directory mode `0700` and file mode `0600`. Never expose
+private retained text through a public host or tunnel.
+The configured workbench and server Node tests join the existing
 application commands in `python scripts/verify.py`; independent human UX and
 documentation relevance review is still necessary.
+
+The batch endpoint is enabled only in explicit store mode. Browser collection
+uses a bounded same-origin JSON POST, never arbitrary client-selected storage
+paths. Original HTML downloads are attachments rather than application-origin
+previews. No runtime LLM, cloud service, database, queue, or automatic approval
+is configured. Public-source DNS/access failures must be reported separately
+from offline fixture success; live CLI and browser smoke evidence remains
+required on the final committed revision.
 
 The Comparison & timelines tab uses the same offline server and bundled modules,
 with no additional install/build step. Open `#comparison` after loading the local

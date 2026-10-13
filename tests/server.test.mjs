@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createPreviewServer, emptyCorpus, parseArguments } from '../scripts/server.mjs';
+import { createPreviewServer, emptyCorpus, parseArguments, WEB_INTAKE_LIMITS } from '../scripts/server.mjs';
 import { canonicalSerialize, validateCorpus } from '../scripts/contract.mjs';
 
 async function start(t, options) {
@@ -14,7 +13,7 @@ async function start(t, options) {
   return server.address().port;
 }
 
-function request(port, url, headers = {}, method = 'GET') {
+function request(port, url, headers = {}, method = 'GET', body) {
   return new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port, path: url, headers, method }, res => {
       const chunks = [];
@@ -22,8 +21,34 @@ function request(port, url, headers = {}, method = 'GET') {
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString() }));
     });
     req.on('error', reject);
-    req.end();
+    req.end(body);
   });
+}
+
+async function workspace(t) {
+  const root = new URL('../.private-intake/', import.meta.url);
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  const directory = await mkdtemp(path.join(root.pathname, 'web-server-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  return directory;
+}
+
+const sameOrigin = port => ({ Origin: `http://127.0.0.1:${port}`, 'Sec-Fetch-Site': 'same-origin', 'Content-Type': 'application/json' });
+const articleUrls = ['https://www.stepsecurity.io/blog/one', 'https://socket.dev/blog/two', 'https://redcanary.com/blog/three'];
+function transport(article) {
+  const respond = (raw, status = 200) => ({ status, peerAddress: '93.184.216.34',
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+    body: (async function* () { yield Buffer.from(raw); })(), close() {} });
+  return {
+    resolve: async () => [{ address: '93.184.216.34', family: 4 }],
+    request: async input => {
+      const url = new URL(input.url);
+      if (url.pathname === '/robots.txt') return respond('', 404);
+      if (article) return article(input, respond);
+      if (url.pathname === '/failed') return respond('', 403);
+      return respond(`<html><head><title>Article ${url.pathname}</title></head><body><article><h1>Article ${url.pathname}</h1><p>Retained synthetic source text.</p><script>window.untrusted = true</script></article></body></html>`);
+    },
+  };
 }
 
 test('AC-05 preview starts with a valid empty corpus and offers explicitly synthetic fresh-contract demo', async t => {
@@ -44,8 +69,7 @@ test('AC-05 preview starts with a valid empty corpus and offers explicitly synth
 });
 
 test('AC-05 private source records are validated and held as a read-only startup snapshot', async t => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'workbench-server-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await workspace(t);
   const corpusFile = path.join(directory, 'corpus.json');
   const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
   await writeFile(corpusFile, canonicalSerialize(corpus), { mode: 0o600 });
@@ -72,25 +96,126 @@ test('AC-05 server rejects writes, path traversal, repository/private files, for
   for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS']) {
     assert.equal((await request(port, '/api/corpus', {}, method)).status, 405);
   }
+  assert.equal((await request(port, '/api/intake', sameOrigin(port), 'POST', JSON.stringify({ urls: articleUrls, operator: 'operator', caseName: 'Not writable' }))).status, 405);
   assert.equal((await request(port, '/api/corpus', { Host: `attacker.example:${port}` })).status, 403);
   assert.equal((await request(port, '/api/corpus', { Origin: 'https://attacker.example' })).status, 403);
   assert.equal((await request(port, '/api/corpus', { 'Sec-Fetch-Site': 'cross-site' })).status, 403);
   assert.equal((await request(port, '/api/corpus', { 'Sec-Fetch-Site': 'same-site' })).status, 403);
   assert.equal((await request(port, '/api/corpus', { Host: `localhost:${port}`, Origin: `http://localhost:${port}` })).status, 200);
+  assert.equal((await request(port, '/api/corpus', { Origin: `http://localhost:${port}` })).status, 403);
   const head = await request(port, '/api/corpus', {}, 'HEAD');
   assert.equal(head.status, 200);
   assert.equal(head.body, '');
 });
 
-test('AC-05 CLI accepts only explicit port and absolute corpus options', () => {
+test('AC-05 CLI accepts only explicit port and absolute mutually exclusive private options', () => {
   assert.deepEqual(parseArguments([]), { port: 4173 });
   assert.deepEqual(parseArguments(['--port', '1234', '--corpus', '/tmp/private/corpus.json']), {
     port: 1234, corpusFile: '/tmp/private/corpus.json',
   });
+  assert.deepEqual(parseArguments(['--store', '/private/store']), { port: 4173, store: '/private/store' });
   for (const args of [['--port'], ['--port', '0'], ['--port', '65536'], ['--port', '1.5'],
-    ['--port', '1234', '--port', '1235'], ['--host', '0.0.0.0'], ['--corpus', 'relative.json']]) {
+    ['--port', '1234', '--port', '1235'], ['--host', '0.0.0.0'], ['--corpus', 'relative.json'],
+    ['--store', 'relative'], ['--store', '/private/../store'], ['--corpus', '/private/corpus.json', '--store', '/private/store']]) {
     assert.throws(() => parseArguments(args));
   }
+});
+
+test('Issue #39 AC-01/02/05 web collects three articles with partial failure, pending links, idempotency and reload persistence', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'store');
+  const port = await start(t, { store, intakeDeps: transport() });
+  const empty = await request(port, '/api/corpus');
+  assert.equal(empty.status, 200); assert.deepEqual(JSON.parse(empty.body), emptyCorpus());
+  assert.equal(empty.headers['x-collection-enabled'], 'true');
+  const input = { urls: [...articleUrls, 'https://socket.dev/failed'], caseName: 'Synthetic web campaign', operator: 'web-operator' };
+  const result = await request(port, '/api/intake', sameOrigin(port), 'POST', JSON.stringify(input));
+  assert.equal(result.status, 200);
+  const batch = JSON.parse(result.body);
+  assert.equal(batch.results.length, 4);
+  assert.deepEqual(batch.results.map(item => item.status), ['collected', 'collected', 'collected', 'failed']);
+  assert.equal(batch.results[3].code, 'ACCESS_DENIED');
+  const loaded = JSON.parse((await request(port, '/api/corpus')).body);
+  const campaign = loaded.cases.find(item => item.id === batch.caseId);
+  assert.equal(campaign.disposition, 'Pending'); assert.equal(campaign.sourceIds.length, 3);
+  assert.equal(loaded.sourceRevisions.length, 3); assert.equal(loaded.reviews.length, 0);
+  assert.deepEqual(validateCorpus(loaded), []);
+  const repeated = JSON.parse((await request(port, '/api/intake', sameOrigin(port), 'POST',
+    JSON.stringify({ urls: [...articleUrls, articleUrls[0]], caseId: batch.caseId, operator: 'web-operator' }))).body);
+  assert.equal(repeated.results.length, 3);
+  assert.ok(repeated.results.every(item => item.status === 'already present'));
+  const secondPort = await start(t, { store, intakeDeps: transport() });
+  const reloaded = JSON.parse((await request(secondPort, '/api/corpus')).body);
+  assert.equal(reloaded.sourceRevisions.length, 3);
+  assert.deepEqual(reloaded.cases.find(item => item.id === batch.caseId).sourceIds, campaign.sourceIds);
+  const snapshot = await start(t, { corpusFile: path.join(store, 'corpus.json') });
+  assert.equal((await request(snapshot, '/api/intake', sameOrigin(snapshot), 'POST', JSON.stringify(input))).status, 405);
+  assert.equal((await request(snapshot, '/api/corpus')).headers['x-collection-enabled'], undefined);
+});
+
+test('Issue #39 AC-05 intake enforces exact host/origin, fetch metadata, JSON fields, body bounds and no concurrent writes', async t => {
+  const store = path.join(await workspace(t), 'store');
+  let entered, release;
+  const started = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const port = await start(t, { store, intakeDeps: transport(async (_input, respond) => {
+    entered(); await gate; return respond('<article><h1>Bounded synthetic article</h1><p>Text.</p></article>');
+  }) });
+  const input = { urls: [articleUrls[0]], caseName: 'Boundary fixture', operator: 'operator' }, body = JSON.stringify(input);
+  for (const headers of [
+    { 'Content-Type': 'application/json' },
+    { ...sameOrigin(port), Origin: `http://localhost:${port}` },
+    { ...sameOrigin(port), Host: `attacker.example:${port}` },
+    { ...sameOrigin(port), Origin: 'null' },
+    { ...sameOrigin(port), 'Sec-Fetch-Site': 'none' },
+    { ...sameOrigin(port), 'Sec-Fetch-Site': 'same-site' },
+    { ...sameOrigin(port), 'Sec-Fetch-Site': 'cross-site' },
+  ]) assert.equal((await request(port, '/api/intake', headers, 'POST', body)).status, 403);
+  for (const headers of [
+    { ...sameOrigin(port), 'Content-Type': 'text/plain' },
+    { ...sameOrigin(port), 'Content-Encoding': 'gzip' },
+  ]) assert.equal((await request(port, '/api/intake', headers, 'POST', body)).status, 415);
+  for (const value of [
+    { ...input, store: '/arbitrary/path' }, { ...input, unknown: true }, { ...input, caseId: 'also-selected' },
+    { ...input, urls: [] }, { ...input, urls: Array(21).fill(articleUrls[0]) },
+    { ...input, operator: 'invalid operator' }, { ...input, caseName: null }, [], null,
+  ]) assert.equal((await request(port, '/api/intake', sameOrigin(port), 'POST', JSON.stringify(value))).status, 400);
+  assert.equal((await request(port, '/api/intake', sameOrigin(port), 'POST', '{invalid')).status, 400);
+  assert.equal((await request(port, '/api/intake', { ...sameOrigin(port), 'Content-Length': WEB_INTAKE_LIMITS.bodyBytes + 1 }, 'POST')).status, 413);
+  assert.equal((await request(port, '/api/intake', { ...sameOrigin(port), 'Transfer-Encoding': 'chunked' }, 'POST', 'x'.repeat(WEB_INTAKE_LIMITS.bodyBytes + 1))).status, 413);
+  const pending = request(port, '/api/intake', sameOrigin(port), 'POST', body);
+  await started;
+  try { assert.equal((await request(port, '/api/intake', sameOrigin(port), 'POST', body)).status, 409); }
+  finally { release(); }
+  assert.equal((await pending).status, 200);
+  const server = await createPreviewServer({ store });
+  assert.equal(server.headersTimeout, 10_000); assert.equal(server.requestTimeout, 15_000);
+  assert.equal(server.keepAliveTimeout, 5_000);
+});
+
+test('Issue #39 AC-03/05 archive artifacts are allowlisted attachments, never executable HTML or arbitrary files', async t => {
+  const store = path.join(await workspace(t), 'store');
+  const port = await start(t, { store, intakeDeps: transport() });
+  const batch = JSON.parse((await request(port, '/api/intake', sameOrigin(port), 'POST',
+    JSON.stringify({ urls: [articleUrls[0]], caseName: 'Archive fixture', operator: 'operator' }))).body);
+  const { sourceId, revisionId } = batch.results[0], prefix = `/api/archive/${sourceId}/${revisionId}/`;
+  for (const artifact of ['original.html', 'article.txt', 'metadata.json', 'assets.json']) {
+    const response = await request(port, prefix + artifact);
+    assert.equal(response.status, 200, artifact);
+    assert.equal(response.headers['content-type'], 'application/octet-stream');
+    assert.equal(response.headers['content-disposition'], `attachment; filename="${artifact}"`);
+    assert.match(response.headers['content-security-policy'], /^sandbox; default-src 'none'/);
+    assert.equal(response.headers['x-content-type-options'], 'nosniff');
+    assert.equal(response.headers['access-control-allow-origin'], undefined);
+    if (artifact === 'original.html') assert.match(response.body, /<script>/);
+    if (artifact === 'article.txt') assert.match(response.body, /Retained synthetic source text/);
+    const head = await request(port, prefix + artifact, {}, 'HEAD');
+    assert.equal(head.status, 200); assert.equal(head.body, '');
+  }
+  for (const suffix of ['../corpus.json', '%2e%2e/corpus.json', 'snapshot.html', 'images/one.png', 'original.html?inline=true', 'corpus.json']) {
+    assert.equal((await request(port, prefix + suffix)).status, 404);
+  }
+  assert.equal((await request(port, `/api/archive/${sourceId}/source-revision-${'0'.repeat(64)}/original.html`)).status, 404);
+  assert.equal((await request(port, prefix + 'original.html', { Origin: 'https://attacker.example' })).status, 403);
 });
 
 test('AC-04/05 preview serves every required offline entrypoint, module and brand asset with correct MIME types', async t => {

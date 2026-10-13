@@ -6,6 +6,33 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #39 batch article intake and private campaign corpus
+
+Originating implementation requirements are [Issue #39](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/39),
+including its authoritative clarification that the 2–4 hour estimate does not
+reduce scope. Corrections and execution evidence stay on [PR #40](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/40).
+No collected article, image, annotation, or private corpus is attached to this
+audit. Exact commands, full tested commit, per-suite results, live smoke
+outcomes, automated review, and limitations belong in that PR's revision-bound
+comments and [checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/40/checks).
+
+| ID | Required outcome and implementation / check evidence | Acceptance boundary |
+|---|---|---|
+| AC-01 | `scripts/contract.mjs` shared batch/CLI and campaign persistence; `scripts/server.mjs` same-origin intake; `src/app.mjs` collection controls. Focused intake/server tests exercise at least three URLs and explicit pending case links | Executed fixture checks required; successful live CLI and web collection must be recorded separately |
+| AC-02 | Intake/server fixtures exercise per-URL failure, unchanged resubmission, new revision on changed content, and unique explicit source links | A failure remains an intake result, never successful evidence; no campaign merge |
+| AC-03 | Intake fixtures exercise tolerant static HTML, compression, private HTML/text/metadata/image retention, lazy/relative URLs, asset limits, and warning outcomes | Fixture success does not establish real publisher compatibility; access-denied/JavaScript sources remain unsupported |
+| AC-04 | Collection metadata and workbench case/source rendering preserve every linked citation, normalized publisher, original URL, and available date; workbench tests inspect safe DOM/citation output | `needs-human-review`: independently inspect citation completeness and missing-data handling |
+| AC-05 | Dynamic store-mode corpus reload and allowlisted attachment downloads in `scripts/server.mjs`; server/workbench tests cover persistence, hostile origins, and archived-content isolation | `needs-human-review`: independent browser UX and archived-content isolation review; agent browser exercises are supplemental |
+| AC-06 | `src/enrichment.mjs`, `scripts/extract.mjs`, and focused extraction fixtures cover versioned sidecars, all annotation types, exact revision-linked evidence, repeated quotes, inference/unresolved support, import/export, and pending-only/no-review-mutation invariants | Imported agent or manual assertions are unreviewed, not confirmation of maliciousness |
+| AC-07 | Existing configured Node commands plus `python scripts/verify.py`; `git check-ignore` for nested archive/enrichment paths; secret scan and automated PR review | Final committed revision execution and live-network evidence required; independent human approval before merge |
+
+All seven IDs retain their originating meaning. No subjective criterion is
+certified by agent self-audit, metadata policy, or a fixture test. DNS, TLS,
+robots, publisher access, browser-tool, or runner limitations must be reported
+concretely rather than converted to a pass. Subsequent commits invalidate
+earlier verification. Documentation relevance, README applicability, research
+semantics, and release approval remain independent human responsibilities.
+
 ## Issue #25 comparison and timelines
 
 Originating requirements: [Issue #25](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/25).

@@ -4,19 +4,22 @@
 
 `src/index.html`, `src/style.css`, and vanilla ES modules implement the
 read-only libraries and client-side curator studio. `node scripts/server.mjs` serves these local assets
-and the official SVG logo/favicon with no external CDN or live retrieval.
-Without `--corpus` it starts empty; the explicitly selected synthetic demo reads
+and the official SVG logo/favicon with no external CDN.
+Without `--corpus` or `--store` it starts empty; the explicitly selected synthetic demo reads
 only the benign 0.3.0 test fixture, not the frozen 0.2.0 reference corpus.
 `--corpus /absolute/private/store/corpus.json` uses the existing private-file and
 full contract validator before opening the listener. This includes retained
 normalized article text; it is a private preview, not a public distribution.
 
 The server binds only `127.0.0.1`, rejects foreign Host/Origin and cross-site
-requests, exposes only exact allowlisted assets and read-only corpus endpoints,
+requests, exposes only exact allowlisted assets and corpus endpoints,
 and sends no-store, same-origin, and restrictive content-security headers.
-There is no directory listing, arbitrary file path API, write endpoint, remote
-fetch, or browser storage. Corpus responses are validated startup snapshots;
-restart after intake/extraction changes. Local users can inspect the data, so do
+There is no directory listing or arbitrary file path API. `--corpus` responses
+are validated read-only startup snapshots; restart after external changes.
+Issue #39's explicit `--store` mode adds bounded same-origin collection writes
+and dynamic corpus reload. Network requests run in the Node backend, not the
+browser. Collection never accepts annotations or canonical claims.
+Local users can inspect the data, so do
 not expose the port through tunnels or deploy this server.
 
 Passage positions are half-open Unicode code-point offsets into the *exact*
@@ -263,13 +266,13 @@ The same 2 MiB byte limit applies to pasted UTF-8 text and text files.
 The fetcher checks `robots.txt` using `DevEnvThreatCorpusIntake/1` and fails closed
 when access policy cannot be safely established. A missing policy (404/410)
 allows retrieval; a policy redirect to another origin is rejected. The
-conservative parser supports user-agent groups, literal path-prefix
+parser supports user-agent groups, wildcard and end-anchored
 Allow/Disallow rules, comments, and ignored informational Sitemap, Host,
 Content-Signal, and Clean-param declarations (case-insensitive). These declarations
-do not redirect retrieval, rewrite query parameters, or override access rules. Both matching
-named and wildcard groups must allow the path; unsupported directives,
-wildcards, encoded paths, or ambiguous syntax fail closed rather than ignore
-possible restrictions. Authentication/access denials are not retried as
+do not redirect retrieval, rewrite query parameters, or override access rules.
+Issue #39 replaces the earlier restrictive wildcard subset with compatible
+path matching; explicit access denials remain authoritative.
+Authentication/access denials are not retried as
 successful content. Robots permission is not a license:
 operators must confirm their authorization, article-storage rights, and any
 additional site restrictions before supplying a URL. When retrieval is denied,
@@ -279,7 +282,7 @@ material the operator is authorized to supply and retain.
 Issue [#30](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/30) evidence:
 AC-01 maps to the informational-directive intake regression in
 [`tests/intake.test.mjs`](../tests/intake.test.mjs); AC-02 maps to its fail-closed
-robots tests (denials, wildcard/anchored paths, unsupported crawl delays,
+robots tests (denials, wildcard/anchored paths,
 malformed user-agent records, authentication, and cross-origin policy redirects).
 AC-03 maps to this guidance, README, CHANGELOG, and final-commit
 `python scripts/verify.py` results recorded on the originating PR.
@@ -288,25 +291,25 @@ Documentation relevance and accuracy still require independent human review.
 ### Deterministic readable text
 
 Files and pasted text are strictly decoded UTF-8, preserving an input BOM in
-the raw record/hash. Retrieval requires `text/plain; charset=utf-8`,
-`text/plain; charset=us-ascii`, or `text/html; charset=utf-8` (case-insensitive).
-Missing charset, other media types/encodings, non-ASCII bytes declared ASCII,
-compressed content, NUL, malformed UTF-8, and empty readable text fail
-explicitly. Supplied files/text are always plain text, not auto-detected HTML.
+the raw record/hash. Public article retrieval supports HTML/plain text with
+optional charset declarations and bounded common compression; absent charset
+uses UTF-8. Unsupported encodings, NUL, malformed text, and empty readable
+content fail explicitly. Limits apply after decompression as well as to the
+network response. HTTP charset takes precedence over an early HTML meta charset;
+otherwise UTF-8 is used. Explicit UTF-8 and US-ASCII use fatal decoding;
+Windows-1252, ISO-8859-1, and Latin-1 declarations use Windows-1252 decoding,
+with returned bytes retained separately from decoded text/hash provenance.
+Supplied files/text remain plain text, not auto-detected HTML.
 
-The conservative `readable-html/1` parser accepts properly nested common
-document, paragraph, heading, list, table, and inline tags, optional HTML
-doctype, quoted/unquoted attributes, and comments. It discards the head,
-script, style, and template bodies and all attributes; nothing is executed.
-Unknown tags, mismatched/unclosed tags, malformed comments, or unsupported
-entities fail rather than fabricate content. Supported named entities are
-`amp`, `lt`, `gt`, `quot`, `apos`, `nbsp`, `ndash`, `mdash`, `hellip`, `copy`, and
-`reg`, plus valid decimal/hex Unicode numeric entities. Semicolons are required.
-Block boundaries become LF, horizontal whitespace collapses, excess blank
-lines collapse, and surrounding whitespace is trimmed before LF/NFC
-normalization. This strict subset intentionally rejects some browser-valid
-HTML (such as implicitly closed tags); it is neither a browser rendering engine
-nor semantic claim extraction. Authorized plain-text fallback is available.
+Issue #39 replaces the strict `readable-html/1` subset with a small tolerant
+article parser. It tolerates ordinary optional/mismatched closing tags,
+extracts body/article text without executing markup, and preserves headings,
+list boundaries, preformatted code, and command text. Script, style, template,
+and non-article chrome are not research content. Metadata and body image
+references are separate from extracted text. This is not a browser renderer,
+pixel-perfect capture, or semantic claim extractor. Sources requiring
+JavaScript, authentication, paywall, or anti-bot bypass remain unsupported;
+authorized supplied-text fallback remains available.
 
 The retained normalized string uses `unicode-lf-nfc/1`: CRLF/CR become LF and
 Unicode is NFC-normalized. A separately versioned parser identifies HTML
@@ -503,6 +506,96 @@ Authenticated review and release controls remain future work. The
 the supported local workflow. `tests/review.test.mjs` executes focused positive
 and negative checks; independent human workflow and documentation review on
 the originating PR is required before merge.
+
+## Batch collection and private archives
+
+Issue #39 wraps source intake in one shared sequential batch helper, used by
+the `intake batch` CLI and explicit store-mode web POST. Each batch supplies
+1–20 public HTTPS URLs, an operator identifier, and exactly one existing case
+ID or new pending campaign name. Only successfully collected revisions enter
+the explicitly selected case's `sourceIds`. Input deduplication and existing
+source/revision identities prevent duplicate links; changed content remains
+a new revision. A failed URL does not roll back another source, and a shared
+source does not merge campaigns or establish attribution.
+
+Network work retains public-address checks, DNS pinning, TLS verification,
+peer-address verification, redirect checks, robots policy, and request budgets.
+Article body images use the same boundary; relative and supported lazy URLs
+are resolved against the final article URL. Initial image limits are 20
+images, 5 MiB per image, and 50 MiB total per article; callers may configure
+lower bounds. There is no recursive link crawl or download of arbitrary page
+assets. Failed/denied/oversized assets remain manifest warnings without
+discarding extracted text.
+
+Private artifacts live in `<store>/articles/<source-id>/<revision-id>/`.
+`original.html` retains the returned article, `article.txt` its normalized text,
+`metadata.json` original/final URL, canonical identity, extracted and normalized
+publisher metadata, reported dates, retrieval time, parser/hash provenance
+(`readable-html/2`, `unicode-lf-nfc/1`), original response-byte hash,
+and artifact paths. `assets.json` records image URL, local path, hash, and
+success/failure/skip reason. The editable hostname map starts with confirmed
+StepSecurity, Socket, and Red Canary domains; unrecognized publisher identity
+is never guessed from an abbreviation. Extra archive metadata stays outside
+the canonical 0.3.0 schema.
+
+Original HTML is untrusted and is not placed in a DOM, iframe, or application
+markup sink. Archive APIs accept allowlisted artifact names and source/revision
+identifiers, not filesystem paths; downloads are octet-stream attachments with
+sandbox/no-resource CSP. Extracted text remains the default source view.
+Private-store locking, restrictive permissions, path checks, and atomic
+canonical persistence remain in force. The entire nested store is Git-ignored.
+Article commands, prompts, configurations, and images are evidence, not
+instructions to execute.
+
+Store-mode web collection requires exact same-origin Host/Origin matching,
+JSON content, bounded request bytes and body time, and one active write at a
+time. It refreshes corpus data without a restart. Read-only `--corpus` mode is
+unchanged. Case citation rendering/downloads include every linked source and
+preserve missing metadata rather than fabricating it.
+
+## Private talk enrichment contract
+
+`src/enrichment.mjs` exports the versioned `talk-enrichment/1` JSON schema and
+validator; `scripts/extract.mjs enrichment template|validate|import|export`
+provides the private CLI. Sidecars remain outside the core 0.3.0 schema and
+are stored in `<store>/enrichment/annotations.json`, with mode-0700 directories
+and mode-0600 files. Documents are bounded to 2 MiB and 20 annotations.
+Import is idempotent by annotation ID; a changed value under the same ID is
+a collision rather than silent replacement. Exports refuse existing outputs.
+
+Each item requires `id`, `caseId`, `sourceId`, `sourceRevisionId`, `type`,
+`value`, `evidenceStatus`, `origin` (`manual` or `agent`), and `status: "pending"`.
+Optional `normalizedValue` supplements, never replaces, the literal `value`.
+Agent items also require `modelVersion` and `promptVersion`. An optional
+`externalReferenceUrl` is a credential-free HTTP(S) reference, never a request
+to fetch or execute its contents.
+
+| Type | Context fields and research distinction |
+|---|---|
+| `role-context` | Required overlapping `roles`: victim-side environment/agent abuse, attacker-controlled component/infrastructure, attacker-side AI use, AI review targeting, other/unclear |
+| `observed-behavior` | Required `behavior`: observed, attempted, demonstrated, or inferred; optional `trustSurface` and `objective` |
+| `data-sources` | Required `collection`: article-mentioned or proposed; optional `dataSources` covers endpoint, process, network, DNS, identity, repository, package, agent/IDE, GitHub Actions, CI/CD, cloud |
+| `commands-ai-artifacts` | Optional `artifactKind` distinguishes command, executable, flag/argument, prompt/instruction, agent configuration, IDE/CLI, extension, Skill, MCP tool/server; preserve exact text |
+| `traditional-indicators` | Optional `indicatorKind` distinguishes domain, IP, URL, hash, file path, package/repository, user agent, workflow/action ref, runner, configuration |
+| `ttp-references` | Required `mapping`: source-mentioned or researcher-proposed; optional `framework` and `frameworkVersion`; no forced mapping |
+| `detection-references` | Required `detection`: published-reference or untested-suggestion; preserve original link and literal rule/query/tool/advisory/guideline text |
+| `talk-tags` | Researcher-defined themes in `value` and optional `context.notes` |
+
+`evidenceStatus` is `evidence-backed`, `inference`, or `unresolved`. Evidence
+support is `{ "quote": "exact retained text", "locator": { "start": 0, "end": 19 } }`,
+where offsets are half-open Unicode code points in the named retained revision,
+not bytes or UTF-16 positions. A unique exact quote can resolve without offsets;
+a repeated quote needs an exact locator or remains explicitly unresolved.
+Unretained, missing, ambiguous, or unsupported assertions cannot be imported
+as evidence-backed. Inferred behavior and researcher-proposed collection,
+mappings, or detections remain inference/unresolved even when an article is
+cited. Case/source/revision links must exist and agree.
+
+Template placeholders are explicitly inference, not source facts. Imports
+cannot accept annotations, mutate canonical claims/reviews, run a model,
+infer case attribution, or establish maliciousness. Collection itself changes
+the canonical review base, so earlier acceptance may become stale under the
+existing review contract; independent human review is still required.
 
 ## Reproducible exports and read-only queries
 

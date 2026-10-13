@@ -59,7 +59,8 @@ export function selectedPassage(root, selection, revision) {
 }
 
 export function createStudio(base) {
-  return { base, intakes: [], cases: [], drafts: [], selection: null, sourceId: '', revisionId: '' };
+  return { base, intakes: [], cases: [], drafts: [], selection: null, sourceId: '', revisionId: '',
+    webIntake: { urls: '', operator: '', caseId: '', caseName: '', waiting: false, results: [], error: '', resultCaseId: '' } };
 }
 export function studioSources(state) { return [...state.base.sources, ...state.intakes.map(i => i.source)]; }
 export function studioRevisions(state) { return [...state.base.sourceRevisions, ...state.intakes.map(i => i.revision)]; }
@@ -211,13 +212,97 @@ export function downloadProposal(doc, win, value, filename) {
   try { link.click(); } finally { link.remove(); win.setTimeout(() => win.URL.revokeObjectURL(url), 1000); }
 }
 
-export function renderStudio(doc, win, state) {
+export function webIntakeInput(state) {
+  const urls = state.urls.split(/\r?\n/).map(url => url.trim()).filter(Boolean);
+  if (!urls.length || urls.length > 20) throw new Error('Supply 1–20 HTTPS URLs, one per line.');
+  for (const value of urls) {
+    let url;
+    try { url = new URL(value); } catch { throw new Error('Every line must be a valid HTTPS URL.'); }
+    if (url.protocol !== 'https:' || url.username || url.password || value.length > 8192) throw new Error('Use credential-free HTTPS URLs, up to 8192 characters per line.');
+  }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(state.operator)) throw new Error('Operator must be a 1–64 character ASCII identifier.');
+  if (Boolean(state.caseId) === Boolean(state.caseName.trim())) throw new Error('Choose an existing campaign OR enter a new pending campaign name.');
+  return { urls: [...new Set(urls)], operator: state.operator,
+    ...(state.caseId ? { caseId: state.caseId } : { caseName: state.caseName.trim() }) };
+}
+
+export function renderWebIntake(doc, state, { enabled = false, collect, refresh, navigate } = {}) {
+  const section = element(doc, 'section', null, 'web-intake');
+  section.append(element(doc, 'h3', 'Fetch articles into a private campaign'),
+    element(doc, 'p', 'Maximum 20 public HTTPS URLs per batch, one per line. Collection persists locally; new campaigns remain Pending. It does not accept evidence or perform review.'));
+  if (!enabled) {
+    section.append(element(doc, 'p', state.base.governance?.synthetic ?
+      'Synthetic demo is read-only. Reload the local corpus to collect into your private store.' :
+      'Collection is disabled. Start the local backend with --store /absolute/private/store; --corpus and no-store modes remain read-only.'));
+    return section;
+  }
+  const batch = state.webIntake, form = element(doc, 'form', null, 'studio-fields');
+  form.addEventListener('submit', event => event.preventDefault());
+  function control(label, key, tag = 'input') {
+    const wrapper = element(doc, 'label', label), input = element(doc, tag);
+    input.setAttribute('aria-label', label); input.disabled = batch.waiting;
+    wrapper.append(input); form.append(wrapper);
+    input.addEventListener(tag === 'select' ? 'change' : 'input', () => { batch[key] = input.value; });
+    return input;
+  }
+  const campaign = control('Existing campaign (or leave blank to create)', 'caseId', 'select');
+  const blank = element(doc, 'option', 'Create a new pending campaign'); blank.value = ''; campaign.append(blank);
+  for (const record of state.base.cases) {
+    const option = element(doc, 'option', `${record.name} · ${record.kind} · ${record.disposition}`);
+    option.value = record.id; campaign.append(option);
+  }
+  campaign.value = batch.caseId;
+  const name = control('New pending campaign name (only when no existing campaign selected)', 'caseName');
+  name.value = batch.caseName; name.maxLength = 512;
+  const operator = control('Operator identifier', 'operator');
+  operator.value = batch.operator; operator.maxLength = 64;
+  const urls = control('Article URLs (one per line; maximum 20)', 'urls', 'textarea');
+  urls.value = batch.urls; urls.rows = 6; urls.maxLength = 20 * 8193;
+  const fetchButton = action(doc, batch.waiting ? 'Fetching articles…' : 'Fetch articles', async () => {
+    if (!batch.waiting) await collect();
+  });
+  fetchButton.disabled = batch.waiting;
+  const clear = action(doc, 'Clear URLs', () => { batch.urls = ''; refresh(); });
+  clear.disabled = batch.waiting;
+  form.append(fetchButton, clear); section.append(form);
+  const message = element(doc, 'p', batch.waiting ? 'Fetching sequentially. Wait for per-URL outcomes; do not resubmit. No automatic batch retries.' : batch.error, 'studio-message');
+  message.setAttribute('role', 'status'); section.append(message);
+  if (batch.results.length) {
+    section.append(element(doc, 'h4', 'Per-URL collection outcomes'));
+    for (const result of batch.results) {
+      const item = element(doc, 'div', null, 'intake-outcome');
+      item.append(element(doc, 'p', `${result.url} · ${result.status} · ${result.code ?? ''}`));
+      for (const warning of result.warnings ?? []) item.append(element(doc, 'p', `Image warning: ${typeof warning === 'string' ? warning : JSON.stringify(warning)}`));
+      if (result.status === 'failed') {
+        const label = element(doc, 'label', 'Select failed URL for manual retry'), selected = element(doc, 'input');
+        selected.type = 'checkbox'; selected.checked = Boolean(result.selected); selected.disabled = batch.waiting;
+        selected.addEventListener('change', () => { result.selected = selected.checked; });
+        label.append(selected); item.append(label);
+      } else if (result.sourceId && navigate) item.append(action(doc, 'Open retained source', () => navigate('sources', result.sourceId, result.revisionId)));
+      section.append(item);
+    }
+    if (batch.results.some(result => result.status === 'failed')) {
+      const retry = action(doc, 'Use selected failed URLs (does not fetch)', () => {
+        const selected = batch.results.filter(result => result.status === 'failed' && result.selected);
+        batch.error = selected.length ? 'Selected failed URLs are in the input. Click Fetch articles to retry explicitly.' : 'Select at least one failed URL.';
+        if (selected.length) batch.urls = selected.map(result => result.url).join('\n');
+        refresh();
+      });
+      retry.disabled = batch.waiting; section.append(retry);
+    }
+    if (batch.resultCaseId && navigate) section.append(action(doc, 'Open campaign and all citations', () => navigate('cases', batch.resultCaseId)));
+  }
+  return section;
+}
+
+export function renderStudio(doc, win, state, collection = {}) {
   const panel = element(doc, 'section', null, 'panel studio');
   panel.append(element(doc, 'h2', 'Ingestion & curator studio'),
-    element(doc, 'p', 'PRIVATE · pending drafts only. No server writes, model calls or source fetches. Drafts survive tab navigation, but not reload or corpus switching. Download before leaving.'),
+    element(doc, 'p', 'PRIVATE · collection remains pending, never automatic acceptance. A configured --store enables explicit backend article fetching and collection writes. Curator annotations and pasted text remain in-memory private drafts; no model calls. Drafts survive tab navigation, but not reload or corpus switching. Download before leaving.'),
     element(doc, 'p', 'Supply only material you are authorized to retain. Downloads contain private source text; protect them like your corpus.'));
   const message = element(doc, 'p', '', 'studio-message'); message.setAttribute('role', 'status');
   panel.append(message);
+  panel.append(renderWebIntake(doc, state, collection));
   function run(fn) {
     return async () => {
       try { await fn(); } catch (error) { message.textContent = error.message; }

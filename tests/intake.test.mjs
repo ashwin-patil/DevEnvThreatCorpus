@@ -5,10 +5,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { gzipSync, deflateSync, brotliCompressSync } from 'node:zlib';
 import {
   intakeSource, validatePrivateCorpus, intakeUrl, isPublicAddress, readableHtml, INTAKE_LIMITS,
   HTML_PARSER_VERSION, TEXT_PARSER_VERSION, NORMALIZATION_VERSION, URL_NORMALIZATION_VERSION,
   sha256, normalizeText, canonicalSerialize, stableId, validateCorpus,
+  collectBatch, readArchiveArtifact, IMAGE_LIMITS, BATCH_LIMIT,
 } from '../scripts/contract.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -329,19 +331,14 @@ test('Issue #30 AC-01 robots informational directives allow otherwise permitted 
   }
 });
 
-test('AC-05 robots fail closed without override, including access restrictions and unsupported policies', async t => {
+test('AC-05 robots honor explicit denials and reject unparseable agents and access restrictions', async t => {
   const directory = await workspace(t);
   for (const [name, robots, expected] of [
     ['deny', response('User-agent: *\nDisallow: /synthetic'), 'ROBOTS_DENIED'],
     ['agent', response('User-agent: DevEnvThreatCorpusIntake\nDisallow: /'), 'ROBOTS_DENIED'],
-    ['unsupported', response('User-agent: *\nDisallow: /*secret'), 'ROBOTS_UNSUPPORTED'],
-    ['allow-wildcard', response('Host: articles.example\nUser-agent: *\nAllow: /synthetic*'), 'ROBOTS_UNSUPPORTED'],
-    ['end-anchor', response('Content-Signal: search=yes\nUser-agent: *\nDisallow: /synthetic$'), 'ROBOTS_UNSUPPORTED'],
+    ['wildcard-deny', response('User-agent: *\nDisallow: /*?id=*'), 'ROBOTS_DENIED'],
+    ['end-anchor', response('Content-Signal: search=yes\nUser-agent: *\nDisallow: /synthetic?id=7$'), 'ROBOTS_DENIED'],
     ['unparsed-agent', response('Host: articles.example\nUser-agent: Bad Agent\nAllow: /'), 'ROBOTS_UNSUPPORTED'],
-    ['metadata-deny', response('User-agent: *\nDisallow: /synthetic\nHost: other.example\nContent-Signal: search=yes\nClean-param: id /synthetic\nUser-agent: DevEnvThreatCorpusIntake\nAllow: /'), 'ROBOTS_DENIED'],
-    ['metadata-delay', response('Host: articles.example\nUser-agent: *\nCrawl-delay: 2'), 'ROBOTS_UNSUPPORTED'],
-    ['unknown-directive', response('Host: articles.example\nUser-agent: *\nUnknown: value'), 'ROBOTS_UNSUPPORTED'],
-    ['delay', response('User-agent: *\nCrawl-delay: 2'), 'ROBOTS_UNSUPPORTED'],
     ['auth', response('', { status: 401 }), 'ACCESS_DENIED'],
     ['cross-origin', response('', { status: 302, headers: { location: 'https://other.example/robots.txt' } }), 'ROBOTS_UNSUPPORTED'],
   ]) {
@@ -353,6 +350,16 @@ test('AC-05 robots fail closed without override, including access restrictions a
   assert.equal((await intakeSource(urlInput(allowedStore), fake(undefined, { robots: () => response('User-agent: *\nDisallow: /\nAllow: /synthetic') }))).status, 'succeeded');
   const absentStore = path.join(directory, 'gone');
   assert.equal((await intakeSource(urlInput(absentStore), fake(undefined, { robots: () => response('', { status: 410 }) }))).status, 'succeeded');
+  for (const [name, policy] of [
+    ['wildcard', 'User-agent: *\nDisallow: /*secret\nAllow: /synthetic*'],
+    ['named', 'User-agent: *\nDisallow: /\nUser-agent: DevEnvThreatCorpusIntake\nAllow: /'],
+    ['tie', 'User-agent: *\nDisallow: /synthetic\nAllow: /synthetic'],
+    ['extension', 'User-agent: *\nCrawl-delay: 2\nUnknown: value'],
+    ['percent', 'User-agent: *\nDisallow: /%73ynthetic-secret'],
+  ]) {
+    const store = path.join(directory, name);
+    assert.equal((await intakeSource(urlInput(store), fake(undefined, { robots: () => response(policy) }))).status, 'succeeded');
+  }
 });
 
 test('AC-06 text/HTML Unicode normalization and raw hashes are deterministic, with no script execution', async t => {
@@ -389,11 +396,10 @@ test('AC-06 malformed UTF-8/text/HTML and unsupported encodings/types fail expli
     ['nul', () => response('A\0B'), 'MALFORMED_TEXT'],
     ['empty', () => response(' \n'), 'EMPTY_CONTENT'],
     ['json', () => response('{}', { headers: { 'content-type': 'application/json' } }), 'UNSUPPORTED_TYPE'],
-    ['no-charset', () => response('abc', { headers: { 'content-type': 'text/plain' } }), 'UNSUPPORTED_TYPE'],
-    ['latin', () => response('abc', { headers: { 'content-type': 'text/plain; charset=iso-8859-1' } }), 'UNSUPPORTED_ENCODING'],
+    ['unknown-charset', () => response('abc', { headers: { 'content-type': 'text/plain; charset=unsupported' } }), 'UNSUPPORTED_ENCODING'],
     ['ascii', () => response('café', { headers: { 'content-type': 'text/plain; charset=us-ascii' } }), 'UNSUPPORTED_ENCODING'],
     ['gzip', () => response('abc', { headers: { 'content-type': 'text/plain; charset=utf-8', 'content-encoding': 'gzip' } }), 'UNSUPPORTED_ENCODING'],
-    ...['<p>missing', '<p>bad &unknown;</p>', '<p>bad &amp</p>', '<p>&#0;</p>', '<p>&#xD800;</p>', '<p><b>x</p></b>', '<p title="&unknown;">x</p>', '<img src="x">', '<script>unclosed', '<span>'.repeat(129) + 'x' + '</span>'.repeat(129)].map((raw, i) => [`html-${i}`, () => response(raw, { headers: { 'content-type': 'text/html; charset=utf-8' } }), 'MALFORMED_HTML']),
+    ...['<img src="x">', '<script>unclosed'].map((raw, i) => [`html-${i}`, () => response(raw, { headers: { 'content-type': 'text/html; charset=utf-8' } }), 'EMPTY_CONTENT']),
   ]) {
     const store = path.join(directory, name);
     await checkFailure(store, urlInput(store), fake(article), expected);
@@ -404,6 +410,9 @@ test('AC-06 malformed UTF-8/text/HTML and unsupported encodings/types fail expli
   assert.equal(result.status, 1);
   assert.equal(result.result.code, 'MALFORMED_TEXT');
   assert.equal((await intakeSource(supplied(path.join(directory, 'surrogate'), '\ud800'))).code, 'MALFORMED_TEXT');
+  for (const html of ['<p>missing', '<p>bad &unknown;</p>', '<p>bad &amp</p>', '<p>&#0;</p>', '<p>&#xD800;</p>', '<p><b>x</p></b>', '<p title="&unknown;">x</p>', '<span>'.repeat(129) + 'x' + '</span>'.repeat(129)]) {
+    assert.ok(readableHtml(html).trim(), 'Issue #39 explicitly authorizes tolerant HTML recovery');
+  }
 });
 
 test('AC-07 each failed attempt remains inspectable; CLI supplied-text fallback links URL without network', async t => {

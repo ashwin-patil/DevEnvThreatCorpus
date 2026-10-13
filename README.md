@@ -43,8 +43,9 @@ The local Research Workbench displays fresh 0.3.0 cases, sources, exact
 revision passages, and claims locally, with search, facets, explicit conflict
 comparison, and a **Comparison & timelines** view of selected corpus observations.
 Its curator studio adds in-memory article intake, passage selection,
-and pending claim/behavior proposal downloads. It never writes to the loaded
-corpus, accepts claims, or adjudicates research.
+and pending claim/behavior proposal downloads. Explicit batch URL collection
+also persists private sources and campaign links through the local backend.
+Neither path accepts claims or adjudicates research.
 
 The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
@@ -92,16 +93,89 @@ node "$R/scripts/contract.mjs" intake url --url https://example.org/article --su
 ```
 
 That command uses the network; it is not part of the offline exercise.
-The robots parser ignores informational `Sitemap:`, `Host:`, `Content-Signal:`,
-and `Clean-param:` declarations without changing the requested URL or access
-rules. Denials, wildcard (`*`, `$`) Allow/Disallow paths, unsupported crawl
-delays, malformed user-agent records, and cross-origin robots redirects still
-fail closed. Robots permission does not replace operator authorization or
-article-storage rights.
+The robots parser supports wildcard and end-anchored Allow/Disallow rules and
+ignores informational declarations without overriding access rules. Explicit
+denials and cross-origin policy redirects still fail closed. Robots permission
+does not replace operator authorization or article-storage rights.
 See [intake rules and limitations](docs/architecture.md#manual-intake-contract)
 for access policy, supported encodings/HTML, identity, bounds, safe retention,
 and failure handling. Do not pass credentials or confidential text on a shared
 command line; use a permission-restricted UTF-8 file instead.
+
+## Batch campaign collection: CLI and local web
+
+Collection accepts at most **20 explicit public HTTPS URLs** per batch, one per
+line. Choose an existing case ID or explicitly name a new pending campaign.
+Identical inputs and unchanged source revisions are deduplicated; a changed
+article creates a new revision. Sources may belong to several explicitly
+selected cases. Failures do not discard other results. Retry only the failed
+URLs; collection is not research acceptance or automatic attribution.
+
+This runnable example uses public article URLs already referenced in the
+research handoff, but imports **no legacy records or claims**. Confirm permission
+to retrieve and retain these articles before running it:
+
+```bash
+R=/home/runner/work/DevEnvThreatCorpus/DevEnvThreatCorpus
+S="$R/.private-intake/campaign"
+umask 077
+mkdir -p "$S"
+printf '%s\n' \
+  'https://nx.dev/blog/s1ngularity-postmortem' \
+  'https://www.stepsecurity.io/blog/supply-chain-security-alert-popular-nx-build-system-package-compromised-with-data-stealing-malware' \
+  'https://www.stepsecurity.io/blog/ctrl-tinycolor-and-40-npm-packages-compromised' \
+  > "$S/urls.txt"
+node "$R/scripts/contract.mjs" intake batch --urls-file "$S/urls.txt" --case-name 'Supply-chain research' --supplied-by operator --store "$S"
+# Subsequent batches can use --case-id <returned-case-id> instead of --case-name.
+node "$R/scripts/server.mjs" --store "$S" --port 4173
+```
+
+Open `http://127.0.0.1:4173/` and use **Fetch articles** with the campaign,
+operator, and multiline URL controls. Wait for per-URL outcomes, then inspect
+the updated cases and sources. Reloading the browser or local corpus retains
+collection and links; no server restart is needed in `--store` mode. The
+existing `--corpus` mode remains a read-only startup snapshot. Never expose
+this loopback server through a public host or tunnel.
+
+Archives live beneath `$S/articles/<source-id>/<revision-id>/`: returned HTML,
+extracted article text, citation metadata, and the image asset manifest.
+Defaults bound article images to 20, 5 MiB each, and 50 MiB total. Image failures
+are warnings, not grounds to discard usable text. Only body images, including
+supported lazy URLs, are requested; there is no link crawl, arbitrary asset
+download, JavaScript rendering, or access-restriction bypass. Unknown publisher,
+author, or date information remains unknown. The hostname publisher map is
+editable in the collection implementation; page publisher text is retained
+separately from its normalized citation name.
+
+Extracted text is the default view. Original HTML is untrusted and download-only,
+never rendered in the workbench origin. Do not open it in a privileged browser
+context. All article and enrichment files remain private and Git-ignored.
+Case references show every linked source, with title, publisher, URL, and
+available date. Citation downloads are private research aids, not a public
+article-publishing mechanism.
+
+### Private talk enrichment
+
+After successful collection, create a versioned `talk-enrichment/1` template
+for an existing campaign/source/revision. The template includes all eight types
+as explicitly unverified placeholders; edit it before importing:
+
+```bash
+CASE_ID=$(node -e 'const c=JSON.parse(require("fs").readFileSync(process.argv[1]));console.log(c.cases[0].id)' "$S/corpus.json")
+SOURCE_ID=$(node -e 'const c=JSON.parse(require("fs").readFileSync(process.argv[1]));console.log(c.cases[0].sourceIds[0])' "$S/corpus.json")
+REVISION_ID=$(node -e 'const c=JSON.parse(require("fs").readFileSync(process.argv[1]));console.log(c.sources.find(s=>s.id===process.argv[2]).revisionIds.at(-1))' "$S/corpus.json" "$SOURCE_ID")
+node "$R/scripts/extract.mjs" enrichment template --store "$S" --case "$CASE_ID" --source "$SOURCE_ID" --revision "$REVISION_ID" --output "$S/enrichment-template.json"
+# Edit the private template, retaining exact quoted artifacts and pending status.
+node "$R/scripts/extract.mjs" enrichment validate --store "$S" --input "$S/enrichment-template.json"
+node "$R/scripts/extract.mjs" enrichment import --store "$S" --input "$S/enrichment-template.json"
+node "$R/scripts/extract.mjs" enrichment export --store "$S" --case "$CASE_ID" --output "$S/enrichment-export.json"
+```
+
+Imports are private, pending, and revision-linked. They neither change core
+claims/review decisions nor imply confirmed maliciousness. Outputs refuse
+existing files; use a fresh output name. See the [enrichment contract](docs/architecture.md#private-talk-enrichment-contract)
+for required fields, evidence locators, overlapping role dimensions,
+agent/model provenance, and observed-versus-proposed distinctions.
 
 ## Manual extraction: offline exercise
 

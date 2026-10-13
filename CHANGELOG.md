@@ -2,6 +2,14 @@
 
 ## 2026-10-13
 
+- Issue #39: add shared, bounded CLI/local-web batch URL collection with explicit
+  pending campaign links, partial-failure outcomes, revision idempotency,
+  tolerant public HTML/compression/robots handling, normalized citations, and
+  private HTML/text/image archives. Add opt-in same-origin persistent web intake,
+  reloadable corpus data, download-only untrusted HTML, and versioned private
+  evidence-linked enrichment import/export that cannot accept canonical claims.
+  Focused fixtures and usage/architecture/audit guidance distinguish offline
+  checks from required live-network and independent human acceptance evidence.
 - Issue #25: add the offline Comparison & timelines tab with explicit multi-label
   AND/OR facets, claim-level evidence/reviewer-disposition filters, inclusive
   precision-preserving typed date overlap, and unordered unknown dates. Preserve
