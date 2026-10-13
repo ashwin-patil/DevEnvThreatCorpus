@@ -384,6 +384,7 @@ test('AC-09 configured project command executes offline contract tests within tr
     ['node', '--test', 'tests/intake.test.mjs'],
     ['node', '--test', 'tests/extract.test.mjs'],
     ['node', '--test', 'tests/review.test.mjs'],
+    ['node', '--test', 'tests/exports.test.mjs'],
     ['node', '--test', 'tests/workbench.test.mjs'],
     ['node', '--test', 'tests/server.test.mjs'],
   ]);

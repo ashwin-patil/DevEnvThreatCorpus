@@ -6,6 +6,31 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #24 reproducible exports and read-only queries
+
+Originating requirements: [Issue #24](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/24).
+The implementation reuses the previously authorized `scripts/contract.mjs`
+entrypoint. Fixtures are synthetic and no source is fetched or ingested.
+Automated results are revision-bound and must be refreshed after every commit;
+independent human review remains required before merge.
+
+| ID | Implementation and executable evidence | Remaining independent evidence |
+|---|---|---|
+| AC-01 | `profileRecords`/`profileFiles` in `scripts/contract.mjs`; `Issue #24 AC-01/05` and unsupported-version tests in `tests/exports.test.mjs` cover deterministic bytes, empty reviewed profiles, explicit file allowlist, and unknown schema rejection | Execute the final configured export CLI test on a POSIX runner; inspect reproducibility and actionable failures |
+| AC-02 | `csvFile`, `parseCsv`, and `spreadsheetSafe`; `Issue #24 AC-02` in `tests/exports.test.mjs` round-trips null reasons, arrays, month precision, and formula-like cells | Human review of spreadsheet behavior and format usability |
+| AC-03 | `queryProfile` and CLI branches in `scripts/contract.mjs`; `Issue #24 AC-01/03/04` tests cover list/get/bundle, cited source/revision/passage closure, optional enrichment context, and unknown IDs/entities | Human inspection that query/bundle output is sufficient for read-only research |
+| AC-04 | `profileRecords` current-review, dependency-closure, and coverage logic; tests cover accepted/conflicting, pending/zero-eligible, stale acceptance, excluded dependencies, and optional enrichment without acceptance | Human review that eligibility/coverage language makes no prevalence, attribution, or detection claim |
+| AC-05 | Explicit six-file allowlist in `profileFiles`; profile strips revision text, omits review events and collection manifests; synthetic snapshot-exclusion assertions in `tests/exports.test.mjs` | Review the complete generated artifact inventory; no credentials or real article inputs used |
+| AC-06 | README export exercise, architecture and setup guidance, root changelog; configured `node --test tests/exports.test.mjs` plus `python scripts/verify.py` | Record final full SHA and exact command results on the originating PR; independent documentation relevance/accuracy review and hosted checks |
+
+The Windows worktree cannot run the private-corpus CLI path because the
+pre-existing private-file policy tests POSIX permission mode bits, which
+Windows does not enforce through Node's `mode` option. Pure profile/query tests
+remain executable locally; the end-to-end CLI test runs on POSIX. This
+environment limitation is not evidence of CLI acceptance. Overall status is
+`needs-human-review` until final-revision hosted execution and independent
+human review are recorded.
+
 ## Issue #21 manual claim review and acceptance eligibility
 
 Originating requirements: [Issue #21](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/21),

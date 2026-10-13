@@ -18,8 +18,9 @@
 
 DevEnvThreatCorpus is building a human-reviewed corpus for research on
 developer-environment threats. The current work provides the data contract,
-offline validation, operator-triggered source intake, and researcher-triggered
-manual claim extraction, and local human claim review for a new corpus.
+offline validation, operator-triggered source intake, researcher-triggered
+manual claim extraction, local human claim review, and reproducible
+reviewed/draft exports with read-only queries for a new corpus.
 The private review CLI records append-only decisions and checks current
 acceptance eligibility; local reviewer identity is self-attested, not authenticated.
 
@@ -182,11 +183,44 @@ an event, including repeated decisions, rather than deduplicating human actions.
 Review-aware `status` and `validate` are read-only and report only current
 acceptance: stale recorded acceptance is effectively `Pending`. Strict
 `contract.mjs validate` and the unchanged workbench reject stale acceptance.
-No export path is provided or certified review-eligible.
 Unknown claims, stale bases, invalid corrections, blank rationale, malformed
 templates, unsafe paths, and concurrent writers exit nonzero without modifying
 the corpus. See [review semantics and failure codes](docs/architecture.md#manual-claim-review-contract)
 for audit, correction-field, identity, and storage limitations.
+
+## Corpus exports and read-only queries: offline exercise
+
+Exports use a private local corpus file and never fetch or ingest a source.
+Reviewed output contains only currently accepted claims and their accepted
+claim-dependency closure; with no eligible claims it produces a valid empty
+reviewed profile. Draft output is separately labeled and warns that its records
+are not an eligible reviewed release. Both omit full article snapshots and
+review-event history. Output directories must not already exist.
+
+```bash
+R=/home/runner/work/DevEnvThreatCorpus/DevEnvThreatCorpus
+S="$R/.private-intake/export-exercise"
+umask 077
+mkdir -p "$S"
+cp "$R/tests/fixtures/benign/core-only.json" "$S/corpus.json"
+chmod 600 "$S/corpus.json"
+node "$R/scripts/contract.mjs" export --file "$S/corpus.json" --profile reviewed --out "$S/reviewed"
+node "$R/scripts/contract.mjs" export --file "$S/corpus.json" --profile draft --out "$S/draft"
+node "$R/scripts/contract.mjs" list --file "$S/corpus.json" --profile draft --entity claims
+node "$R/scripts/contract.mjs" get --file "$S/corpus.json" --profile draft --entity claims --id synthetic-claim-a
+node "$R/scripts/contract.mjs" bundle --file "$S/corpus.json" --profile draft --case synthetic-case-a
+```
+
+Each export contains an allowlisted schema, typed JSONL, case/source/timeline
+CSV, and manifest with file hashes, snapshot digest, profile, unit counts, and
+review coverage. CSV null values are empty cells accompanied by `nullReasons`;
+multi-label fields and typed dates use JSON cells so labels, precision, ranges,
+and unknown values round-trip. Formula-like cells are prefixed with an
+apostrophe, with the repository parser reversing that prefix for round trips.
+Counts identify cases, sources, or claims and do not imply prevalence or
+detection coverage. List/get/bundle accept only cases, sources, and claims;
+unknown IDs and unsupported schema versions fail explicitly. See
+[export/query rules and limitations](docs/architecture.md#reproducible-exports-and-read-only-queries).
 
 ## Research Workbench: offline preview
 
@@ -287,7 +321,7 @@ python scripts/verify.py
 
 `python scripts/verify.py` runs the repository governance checks and configured
 project commands, including the offline contract, intake, extraction, review, workbench,
-and preview-server suites.
+export/query, workbench, and preview-server suites.
 To run the focused suites directly with the pinned Node runtime:
 
 ```powershell
@@ -295,6 +329,7 @@ npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tes
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/intake.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/extract.test.mjs
 node --test tests/review.test.mjs
+node --test tests/exports.test.mjs
 node --test tests/workbench.test.mjs
 node --test tests/server.test.mjs
 ```
@@ -308,6 +343,9 @@ tests use synthetic corpus/templates and temporary private stores. Neither suite
 contacts websites or assesses whether a research claim is factually true.
 Review tests exercise private decisions, append-only history, stale acceptance,
 negative inputs, and separate provenance/status axes without authenticating a human.
+Export/query tests use only visibly synthetic corpus fixtures and check reproducible
+profiles, eligibility/dependency closure, CSV round trips, safe cell handling,
+and private snapshot exclusion.
 
 ## Project status and next work
 
@@ -323,6 +361,8 @@ Implemented now:
   records, and pending-only outcomes.
 - Private local claim acceptance, correction, and exclusion with append-only
   digest-bound events, explicit reviewer attribution, and current-eligibility checks.
+- Deterministic reviewed/draft export profiles, typed JSONL, case/source/timeline
+  CSV, digests and coverage metadata, plus read-only case/source/claim queries.
 - Read-only client-side research workbench (`src/**`) with Unicode passage
   inspection, case/claim exploration, conflicts, facets, local branding, and a
   loopback-only offline preview server (`scripts/server.mjs`).
@@ -335,7 +375,7 @@ Not implemented yet:
 
 - Semantic article interpretation or assisted research workflows.
 - Authenticated reviewer identity, hosted review, or an in-browser curator interface.
-- Public exports, deployment, or an operational corpus-processing pipeline.
+- Deployment or an operational corpus-processing pipeline.
 
 See [Architecture](docs/architecture.md) for the intended fresh-input flow,
 [Acceptance audit](docs/acceptance-audit.md) for criterion-to-test and evidence

@@ -10,7 +10,10 @@ The `paths` mappings classify application, documentation, tests, changelog, lear
 
 The `scripts/review.mjs` mapping was authorized by Issue #20 before Issue #21's
 manual claim review implementation. No new application surface or trusted-base
-policy change is needed for the local review CLI.
+policy change is needed for the local review CLI. Issue #24 likewise keeps
+profile export and read-only query commands within the already mapped
+`scripts/contract.mjs` entrypoint; it adds no runtime path or trusted-base
+authorization.
 
 ## Requirements intake
 
