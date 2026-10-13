@@ -168,6 +168,7 @@ function renderGraph(doc, model, path, navigate) {
           `M${sx} ${sy} C${sx} ${(sy + ty) / 2} ${tx} ${(sy + ty) / 2} ${tx} ${ty}`;
       const group = svgNode(doc, 'g', { class: `research-edge ${edge.relation}`, role: 'button', tabindex: 0, 'aria-label': `Inspect ${edge.relation}: ${edge.basis}` });
       group.append(svgNode(doc, 'path', { d, class: 'edge-hit' }), svgNode(doc, 'path', { d, class: 'edge-line', 'marker-end': 'url(#research-arrow)' }));
+      group.append(svgNode(doc, 'text', { x: (sx + tx) / 2, y: (sy + ty) / 2 - 9, 'text-anchor': 'middle', class: 'edge-label' }, edge.relation));
       group.addEventListener('click', () => showEdge(edge)); group.addEventListener('keydown', e => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); showEdge(edge); } }); svg.append(group);
     }
     for (const node of path.nodes) {
