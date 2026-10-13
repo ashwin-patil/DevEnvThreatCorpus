@@ -129,6 +129,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   async function load(endpoint) {
     const token = ++request;
     $('demo').disabled = true;
+    $('reload-corpus').disabled = true;
     status('Loading local corpus…');
     try {
       const loaded = await fetchCorpus(fetcher, endpoint);
@@ -145,7 +146,10 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     } catch (error) {
       if (token === request) status(`${error.message} ${model ? 'Previously loaded corpus remains displayed.' : 'No corpus loaded; the synthetic demo can be tried explicitly.'}`, 'error');
     } finally {
-      if (token === request) $('demo').disabled = false;
+      if (token === request) {
+        $('demo').disabled = false;
+        $('reload-corpus').disabled = false;
+      }
     }
   }
   for (const [view, label] of Object.entries(VIEWS)) {
@@ -157,6 +161,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   $('tag-mode').addEventListener('change', () => { filters.tagMode = $('tag-mode').value; activePassages = []; render(); });
   $('reset').addEventListener('click', () => { reset(); render(); });
   $('demo').addEventListener('click', () => load('/api/demo'));
+  $('reload-corpus').addEventListener('click', () => load('/api/corpus'));
   $('skip-content')?.addEventListener('click', event => {
     event.preventDefault(); $('content').focus();
   });

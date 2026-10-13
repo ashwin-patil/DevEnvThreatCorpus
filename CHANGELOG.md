@@ -2,6 +2,8 @@
 
 ## 2026-10-12
 
+- Issue #16: add a Reload local corpus button to leave the synthetic demo without refreshing the browser, restoring the configured startup snapshot and clearing filters; cover empty and configured corpus restoration with regression tests.
+
 - Issue #16 follow-up: prevent passage selections from carrying across facet changes and keep source/revision routes synchronized after filtered fallback navigation. Three focused regression tests cover the corrected state transitions; acceptance guidance distinguishes final-revision execution from stale results and pending hosted/human review.
 - Issue #16: implement the offline, read-only 0.3.0 Research Workbench with case/source browsing, exact Unicode revision-passage highlights, linked assertions and inferences, uncertainty and reciprocal conflict comparison, search/facets, and responsive local logo/favicon branding. Add a loopback-only, same-origin preview server that validates private corpus snapshots and allowlists assets, configured focused UI/server checks, usage/privacy guidance, and stable acceptance evidence mapping. No curator writes, claim acceptance, legacy seed data, graph editor, model service, or public deployment is introduced; independent human UX and documentation approval remain required.
 - Issue #18: map the client-side workbench UI tree (`src/**`) and preview dev server (`scripts/server.mjs`) in `project.config.json` under `paths.application` and `paths.readme_triggers` to authorize upcoming research workbench surfaces before implementation, satisfying trusted-base PR Policy bootstrapping requirements for Issue #16. Update setup documentation and root README accordingly.

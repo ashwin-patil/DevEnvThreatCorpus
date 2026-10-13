@@ -146,6 +146,10 @@ and conflicting claims. Demo records are not incident evidence and are never
 written to your corpus. Browse cases and sources independently; click passage
 highlights or claim links to inspect their exact retained revision.
 
+Select **Reload local corpus** to leave the demo and restore the configured
+startup snapshot (or the empty corpus if none was supplied), clearing search
+and filters. This does not reread changed files; restart the server for that.
+
 To inspect fresh intake/extraction output instead, supply its absolute private
 corpus path (file mode `0600`, as produced by intake):
 

@@ -34,7 +34,7 @@ class FakeElement {
 }
 class FakeDocument {
   constructor() {
-    this.nodes = new Map(['status', 'stats', 'views', 'toolbar', 'search', 'tag-mode', 'reset', 'facets', 'result', 'content', 'demo', 'skip-content']
+    this.nodes = new Map(['status', 'stats', 'views', 'toolbar', 'search', 'tag-mode', 'reset', 'facets', 'result', 'content', 'demo', 'reload-corpus', 'skip-content']
       .map(id => [id, new FakeElement(id === 'search' ? 'input' : 'div')]));
   }
   createElement(tag) { return new FakeElement(tag); }
@@ -302,6 +302,27 @@ test('initial empty valid corpus stays empty until explicit synthetic demo activ
   await doc.getElementById('demo').trigger('click');
   assert.deepEqual(requests, ['/api/corpus', '/api/demo']);
   assert.match(doc.getElementById('status').textContent, /SYNTHETIC DEMO/);
+  await doc.getElementById('reload-corpus').trigger('click');
+  assert.deepEqual(requests, ['/api/corpus', '/api/demo', '/api/corpus']);
+  assert.equal(app.getModel().cases.size, 0);
+  assert.match(doc.getElementById('content').textContent, /No records configured/);
+  assert.ok(!doc.getElementById('status').textContent.includes('SYNTHETIC'));
+  assert.equal(doc.getElementById('reload-corpus').disabled, false);
+});
+test('reload local corpus restores configured records and clears demo filters', async () => {
+  const local = fresh();
+  local.name = 'Configured local snapshot'; local.governance = {};
+  const doc = new FakeDocument(), win = fakeWindow();
+  const app = mountWorkbench(doc, win, async endpoint => response(endpoint === '/api/demo' ? fresh() : local));
+  await app.ready;
+  await doc.getElementById('demo').trigger('click');
+  doc.getElementById('search').value = 'no matching records';
+  await doc.getElementById('search').trigger('input');
+  await doc.getElementById('reload-corpus').trigger('click');
+  assert.equal(app.getModel().corpus.name, local.name);
+  assert.equal(doc.getElementById('search').value, '');
+  assert.match(doc.getElementById('result').textContent, /2 matching cases/);
+  assert.ok(!doc.getElementById('status').textContent.includes('SYNTHETIC'));
 });
 test('all four core views render with visible active navigation and matching record counts', async () => {
   const { doc, app, content } = await mounted();
