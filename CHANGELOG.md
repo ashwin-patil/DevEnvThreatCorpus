@@ -2,6 +2,15 @@
 
 ## 2026-10-13
 
+- Issue #21: implement private local claim acceptance, correction, and exclusion
+  with explicit self-attested reviewer identity, rationale, append-only UTC
+  events, input-base/content/dependency hashes, and preserved provenance.
+  Add read-only review-aware status/validation, conservative stale-acceptance
+  invalidation and explicit re-review, schema-valid corrections requiring
+  separate acceptance, configured regression tests, and workflow/audit guidance.
+  No browser writes, authenticated hosted review, model, export eligibility,
+  conflict resolution, or source/case attribution changes are introduced.
+
 - Issue #20: authorize the planned `scripts/review.mjs` manual review CLI in the trusted-base application and README-trigger mappings before implementation. Update setup guidance and README to clarify that this mapping is a prerequisite only; review behavior remains unimplemented.
 
 ## 2026-10-12
