@@ -13,6 +13,8 @@
   Continuation fixes exclude hidden article roots, consistently bound expanded
   UTF-8 archives, retain download controls for previously supplied-text sources,
   and accept valid core identifiers in enrichment references.
+  Version the corrected HTML parser while preserving validation of previously
+  retained revisions and their immutable evidence.
 - Issue #25: add the offline Comparison & timelines tab with explicit multi-label
   AND/OR facets, claim-level evidence/reviewer-disposition filters, inclusive
   precision-preserving typed date overlap, and unordered unknown dates. Preserve

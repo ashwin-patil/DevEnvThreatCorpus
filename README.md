@@ -164,6 +164,8 @@ text and metadata allow up to 6 MiB for supported charset expansion, with the
 same limits enforced when writing and downloading. Hidden/template article
 roots and their images are excluded from extraction. Archive links are tied
 to the selected revision even when the source was initially supplied as text.
+New HTML revisions use `readable-html/3`; existing `/1` and `/2` revisions
+validate against their original transformations without rewriting evidence.
 
 Extracted text is the default view. Original HTML is untrusted and download-only,
 never rendered in the workbench origin. Do not open it in a privileged browser

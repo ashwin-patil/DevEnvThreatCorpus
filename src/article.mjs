@@ -1,4 +1,4 @@
-export const ARTICLE_PARSER_VERSION = 'readable-html/2';
+export const ARTICLE_PARSER_VERSION = 'readable-html/3';
 export const PUBLISHERS = Object.freeze({
   'stepsecurity.io': 'StepSecurity',
   'socket.dev': 'Socket',
@@ -110,11 +110,11 @@ function textOf(root) {
 }
 const clean = value => typeof value === 'string' && value.trim() ? value.trim() : null;
 
-export function parseArticle(raw, url) {
+export function parseArticle(raw, url, { legacyRoots = false } = {}) {
   const root = tree(raw);
-  const article = nodes(root, node => node.name === 'article', true)[0]
-    ?? nodes(root, node => node.name === 'main' || node.attrs.role === 'main', true)[0]
-    ?? nodes(root, node => node.name === 'body', true)[0] ?? root;
+  const article = nodes(root, node => node.name === 'article', !legacyRoots)[0]
+    ?? nodes(root, node => node.name === 'main' || node.attrs.role === 'main', !legacyRoots)[0]
+    ?? nodes(root, node => node.name === 'body', !legacyRoots)[0] ?? root;
   const meta = {};
   for (const node of nodes(root, node => node.name === 'meta')) {
     const key = (node.attrs.property ?? node.attrs.name ?? node.attrs.itemprop ?? '').toLowerCase();

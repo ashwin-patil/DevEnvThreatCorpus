@@ -531,7 +531,7 @@ Private artifacts live in `<store>/articles/<source-id>/<revision-id>/`.
 `original.html` retains the returned article, `article.txt` its normalized text,
 `metadata.json` original/final URL, canonical identity, extracted and normalized
 publisher metadata, reported dates, retrieval time, parser/hash provenance
-(`readable-html/2`, `unicode-lf-nfc/1`), original response-byte hash,
+(`readable-html/3`, `unicode-lf-nfc/1`), original response-byte hash,
 and artifact paths. `assets.json` records image URL, local path, hash, and
 success/failure/skip reason. The editable hostname map starts with confirmed
 StepSecurity, Socket, and Red Canary domains; unrecognized publisher identity

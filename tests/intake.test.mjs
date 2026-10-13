@@ -551,6 +551,24 @@ test('Issue #39 AC-03 extraction ignores hidden article roots and their images',
   }
 });
 
+test('Issue #39 AC-03 parser versions preserve previously retained hidden-root evidence', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'parser-versions');
+  const raw = '<template><article>Placeholder</article></template><main>Actual report</main>';
+  await intakeSource(supplied(store, raw));
+  const corpus = await corpusAt(store), revision = corpus.sourceRevisions[0];
+  revision.parserVersion = 'readable-html/2';
+  revision.normalizedContent = 'Placeholder';
+  revision.normalizedHash = sha256(revision.normalizedContent);
+  corpus.collectionManifests = [];
+  assert.deepEqual(validateCorpus(corpus), []);
+  revision.parserVersion = HTML_PARSER_VERSION;
+  assert.equal(HTML_PARSER_VERSION, 'readable-html/3');
+  assert.ok(validateCorpus(corpus).some(error => error.includes('transformation mismatch')));
+  revision.normalizedContent = 'Actual report';
+  revision.normalizedHash = sha256(revision.normalizedContent);
+  assert.deepEqual(validateCorpus(corpus), []);
+});
+
 test('Issue #39 AC-02/03 expanded legacy text archives remain readable and idempotent', async t => {
   const directory = await workspace(t), store = path.join(directory, 'expanded');
   const text = 'é'.repeat(1_200_000), bytes = Buffer.from(`<article>${text}</article>`, 'latin1');

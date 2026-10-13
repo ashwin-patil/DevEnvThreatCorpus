@@ -739,7 +739,8 @@ export function validateCorpus(corpus) {
     if (revision.rawContent !== null && revision.normalizedContent !== null) {
       try {
         const normalized = revision.parserVersion === HTML_PARSER_VERSION
-          ? normalizeText(readableHtml(revision.rawContent)) : revision.parserVersion === 'readable-html/1'
+          ? normalizeText(readableHtml(revision.rawContent)) : revision.parserVersion === 'readable-html/2'
+            ? normalizeText(parseArticle(revision.rawContent, undefined, { legacyRoots: true }).text) : revision.parserVersion === 'readable-html/1'
             ? normalizeText(legacyReadableHtml(revision.rawContent)) : normalizeText(revision.rawContent);
         if (normalized !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch');
       } catch { fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch'); }
