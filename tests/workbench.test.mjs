@@ -7,6 +7,16 @@ import {
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
+import {
+  DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
+  createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal, corpusProposal, renderStudio, downloadProposal,
+} from '../src/studio.mjs';
+import { assertValid, validateShape, categories, schema, normalizeText, digest, sha256, canonicalSerialize, intakeSource } from '../scripts/contract.mjs';
+import { applyExtraction } from '../scripts/extract.mjs';
+import { emptyCorpus } from '../scripts/server.mjs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const fresh = () => structuredClone(fixture);
@@ -21,8 +31,14 @@ class FakeElement {
   set textContent(value) { this._text = String(value); this.children = []; }
   get textContent() { return this._text + this.children.map(c => c.textContent).join(''); }
   set innerHTML(_) { throw new Error('Unsafe HTML rendering is forbidden'); }
-  append(...nodes) { this.children.push(...nodes); }
-  replaceChildren(...nodes) { this._text = ''; this.children = [...nodes]; }
+  append(...nodes) { for (const node of nodes) { node.parentNode = this; this.children.push(node); } }
+  replaceChildren(...nodes) { this._text = ''; this.children = []; this.append(...nodes); }
+  replaceWith(node) {
+    if (!this.parentNode) return;
+    const index = this.parentNode.children.indexOf(this);
+    this.parentNode.children[index] = node; node.parentNode = this.parentNode;
+  }
+  remove() { this.parentNode.children = this.parentNode.children.filter(n => n !== this); }
   setAttribute(key, value) { this.attributes[key] = String(value); }
   getAttribute(key) { return this.attributes[key]; }
   addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); }
@@ -34,6 +50,7 @@ class FakeElement {
 }
 class FakeDocument {
   constructor() {
+    this.body = new FakeElement('body');
     this.nodes = new Map(['status', 'stats', 'views', 'toolbar', 'search', 'tag-mode', 'reset', 'facets', 'result', 'content', 'demo', 'reload-corpus', 'skip-content']
       .map(id => [id, new FakeElement(id === 'search' ? 'input' : 'div')]));
   }
@@ -324,16 +341,16 @@ test('reload local corpus restores configured records and clears demo filters', 
   assert.match(doc.getElementById('result').textContent, /2 matching cases/);
   assert.ok(!doc.getElementById('status').textContent.includes('SYNTHETIC'));
 });
-test('all four core views render with visible active navigation and matching record counts', async () => {
+test('all core views and curator studio render with visible active navigation', async () => {
   const { doc, app, content } = await mounted();
-  for (const view of ['cases', 'sources', 'claims', 'method']) {
+  for (const view of ['cases', 'sources', 'claims', 'studio', 'method']) {
     app.navigate(view);
     const selected = doc.getElementById('views').children.filter(b => b.attributes['aria-current'] === 'page');
     assert.equal(selected.length, 1); assert.equal(selected[0].dataset.view, view);
     assert.ok(content.textContent.length > 100);
   }
   assert.equal(doc.getElementById('toolbar').hidden, true);
-  assert.match(content.textContent, /There is no live source fetching, file upload, export/);
+  assert.match(content.textContent, /There is no live source fetching, server write, automatic acceptance/);
 });
 test('deep-link claim reload resolves its older snapshot, not the newest revision', async () => {
   const corpus = fresh();
@@ -464,7 +481,7 @@ test('bundled entrypoint uses only permitted local assets and no external reques
   const html = await readFile(new URL('../src/index.html', import.meta.url), 'utf8');
   for (const path of ['/src/app.mjs', '/src/style.css', '/docs/assets/logo.svg', '/docs/assets/favicon.svg']) assert.ok(html.includes(path));
   assert.ok(!/https?:\/\/|cdn|<iframe/i.test(html));
-  for (const file of ['app.mjs', 'render.mjs', 'model.mjs']) {
+  for (const file of ['app.mjs', 'render.mjs', 'model.mjs', 'studio.mjs']) {
     const text = await readFile(new URL(`../src/${file}`, import.meta.url), 'utf8');
     assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|eval\(|localStorage|sessionStorage/.test(text), file);
   }
@@ -472,6 +489,240 @@ test('bundled entrypoint uses only permitted local assets and no external reques
   for (const color of ['#f6f3eb', '#fffdf7', '#25352f', '#68746b', '#dcded2', '#cb572d', '#2c5e50']) assert.ok(css.includes(color));
   assert.ok(css.includes(':focus-visible'));
   assert.ok(css.includes('@media(max-width:700px)'));
+});
+
+function textNode(text) { return { nodeType: 3, textContent: text, childNodes: [] }; }
+function tree(...children) {
+  return { nodeType: 1, childNodes: children, get textContent() { return children.map(c => c.textContent).join(''); } };
+}
+function selection(startContainer, startOffset, endContainer, endOffset, extra = {}) {
+  return { rangeCount: 1, isCollapsed: false, getRangeAt: () => ({ startContainer, startOffset, endContainer, endOffset }), ...extra };
+}
+function draftState() {
+  const state = createStudio(fresh());
+  state.sourceId = 'synthetic-source-a'; state.revisionId = 'synthetic-revision-a';
+  return state;
+}
+function choosePassage(state, start = 0, end = 3) {
+  const revision = [...state.base.sourceRevisions, ...state.intakes.map(i => i.revision)].find(r => r.id === state.revisionId);
+  const points = [...revision.normalizedContent];
+  state.selection = { sourceRevisionId: revision.id, revisionHash: revision.normalizedHash,
+    start, end, text: points.slice(start, end).join(''), locator: `code-points:${start}-${end}` };
+}
+const claimInput = () => ({ caseId: 'synthetic-case-a', description: 'Synthetic curator claim; not incident evidence.',
+  evidenceStatus: 'Source-reported observation' });
+function inputNamed(node, label) {
+  return descendants(node).find(n => n.attributes['aria-label'] === label);
+}
+
+test('Issue #31 AC-01 browser normalization, enums and hashes match the foundation contract', async () => {
+  const samples = ['😀 cafe\u0301\r\n🧑‍💻\rend', '\uFEFF A\r\nB', '<p>&amp; literal HTML</p>', '日本語 repeated 😀 repeated'];
+  for (const raw of samples) {
+    assert.equal(normalizeSuppliedText(raw), normalizeText(raw));
+    assert.equal(await hashText(raw), sha256(raw));
+  }
+  for (const [dimension, values] of Object.entries(DIMENSIONS)) assert.deepEqual(values, categories[dimension]);
+  assert.deepEqual(EVIDENCE, schema.$defs.evidenceStatus.enum);
+  assert.equal(serializeProposal(fixture), canonicalSerialize(fixture));
+  assert.equal(await hashText(serializeProposal(fixture)), digest(fixture));
+});
+
+test('Issue #31 AC-01 DOM Range resolves UTF-16 boundaries across nested highlights and repeated text', () => {
+  const first = textNode('😀 '), middle = textNode('café'), end = textNode('\n🧑‍💻 😀 café');
+  const root = tree(tree(first), tree(tree(middle)), end);
+  const revision = { id: 'rev', normalizedContent: root.textContent, normalizedHash: sha256(root.textContent) };
+  const picked = selectedPassage(root, selection(first, 3, end, 6), revision);
+  assert.deepEqual(picked, { sourceRevisionId: 'rev', revisionHash: revision.normalizedHash,
+    start: 2, end: 10, text: 'café\n🧑‍💻', locator: 'code-points:2-10' });
+  // Browser ranges are document-ordered even for backward pointer selections.
+  assert.deepEqual(selectedPassage(root, selection(first, 3, end, 6, { anchorNode: end, focusNode: first }), revision), picked);
+  const repeated = selectedPassage(root, selection(end, 10, end, 14), revision);
+  assert.equal(repeated.text, 'café'); assert.equal(repeated.start, 13);
+  assert.equal(selectedPassage(root, selection(root, 1, root, 2), revision).text, 'café');
+  assert.equal(selectedPassage(root, selection(root, 0, root, 3), revision).text, root.textContent);
+});
+
+test('Issue #31 AC-01 invalid, collapsed, outside, stale and surrogate-splitting DOM ranges are rejected', () => {
+  const node = textNode('😀a'), root = tree(node), revision = { id: 'rev', normalizedContent: root.textContent };
+  for (const selected of [
+    null, selection(node, 0, node, 0, { isCollapsed: true }),
+    selection(node, 0, node, 2, { rangeCount: 2 }),
+    selection(textNode('outside'), 0, node, 2), selection(node, 0, textNode('outside'), 2),
+    selection(node, 1, node, 2), selection(node, 0, node, 1), selection(root, -1, root, 1),
+  ]) assert.equal(selectedPassage(root, selected, revision), null);
+  assert.equal(selectedPassage(root, selection(node, 0, node, 2), { ...revision, normalizedContent: 'new' }), null);
+  assert.equal(selectedPassage(root, selection(node, 0, node, 2), { ...revision, normalizedContent: null }), null);
+});
+
+test('Issue #31 AC-02 generated extraction JSON applies to the existing CLI contract without changing the base', () => {
+  const state = draftState(), before = canonicalSerialize(state.base);
+  choosePassage(state);
+  const first = saveDraft(state, { ...claimInput(), behavior: 'Synthetic behavior', artifacts: 'example.invalid\nartifact.txt',
+    dimensions: { trust_surface: [DIMENSIONS.trust_surface[0]], execution_location: ['CLI', 'endpoint'] }, techniques: ['T1059', 'AML.T0051'] });
+  assert.equal(state.selection, null);
+  const inference = saveDraft(state, { ...claimInput(), description: 'Synthetic inference', evidenceStatus: 'Researcher inference',
+    rationale: 'Explicit synthetic reasoning', supportingClaimIds: [first.id] });
+  const exported = JSON.parse(serializeProposal(extractionProposal(state))), target = fresh();
+  applyExtraction(target, exported, 'operator', serializeProposal(exported));
+  assert.deepEqual(validateShape(target), []); assertValid(target);
+  const applied = target.claims.find(c => c.id === inference.id);
+  assert.equal(applied.disposition, 'Pending');
+  assert.equal(applied.origin, 'Human inference');
+  assert.equal(applied.inference.supportingClaimIds[0], first.id);
+  assert.equal(canonicalSerialize(state.base), before);
+  assert.ok(!JSON.stringify(exported).includes('candidateTechniques'));
+});
+
+test('Issue #31 AC-02 pasted fixture generates a standalone schema-valid private proposal and CLI-compatible identities', async t => {
+  const input = JSON.parse(await readFile(new URL('./fixtures/extraction/studio-input.json', import.meta.url), 'utf8'));
+  const state = createStudio(emptyCorpus()), before = canonicalSerialize(state.base);
+  const revision = await pasteArticle(state, input);
+  assert.equal(revision.normalizedContent, normalizeText(input.text));
+  const record = addStudioCase(state, 'Synthetic studio exercise; not incident evidence', 'Research exercise');
+  choosePassage(state, 0, [...revision.normalizedContent].length);
+  saveDraft(state, { ...claimInput(), caseId: record.id, ...input.annotation });
+  const proposal = JSON.parse(serializeProposal(await corpusProposal(state)));
+  assert.deepEqual(validateShape(proposal), []); assertValid(proposal);
+  assert.equal(proposal.governance.studio.baseDigest, digest(state.base));
+  assert.equal(proposal.behaviors[0].candidateTechniques[1].framework, 'ATLAS');
+  assert.deepEqual(proposal.behaviors[0].artifacts, ['example.invalid', 'synthetic-artifact.txt']);
+  assert.equal(proposal.categorizations.length, 6);
+  assert.ok(proposal.categorizations.every(c => c.disposition === 'Pending'));
+  assert.equal(proposal.sources[0].publisher, input.publisher);
+  assert.equal(proposal.sources[0].publicationDate.precision, 'unknown');
+  assert.throws(() => extractionProposal(state), /New intake\/cases/);
+  assert.equal(canonicalSerialize(state.base), before);
+  const store = await mkdtemp(path.join(os.tmpdir(), 'studio-intake-'));
+  t.after(() => rm(store, { recursive: true, force: true }));
+  const result = await intakeSource({ kind: 'text', text: input.text, sourceUrl: input.url, suppliedBy: input.suppliedBy, store });
+  assert.equal(result.status, 'succeeded');
+  const cli = JSON.parse(await readFile(path.join(store, 'corpus.json'), 'utf8'));
+  assert.equal(cli.sources[0].id, proposal.sources[0].id);
+  assert.equal(cli.sourceRevisions[0].id, revision.id);
+  assert.equal(cli.sourceRevisions[0].normalizedHash, revision.normalizedHash);
+});
+
+test('Issue #31 AC-02 existing cases are explicit context, not rewritten review decisions', async () => {
+  const state = draftState(), before = canonicalSerialize(state.base);
+  choosePassage(state); saveDraft(state, claimInput());
+  const proposal = await corpusProposal(state);
+  assertValid(proposal);
+  assert.deepEqual(proposal.governance.studio.contextCaseIds, ['synthetic-case-a']);
+  assert.deepEqual(proposal.governance.studio.contextSourceIds, ['synthetic-source-a']);
+  assert.equal(proposal.cases[0].summary, null);
+  assert.equal(proposal.cases[0].disposition, 'Pending');
+  assert.deepEqual(proposal.reviews, []);
+  assert.equal(canonicalSerialize(state.base), before);
+});
+
+test('Issue #31 AC-02 grounding fails closed for missing, altered, out-of-range and wrong-revision passages', () => {
+  const state = draftState();
+  assert.throws(() => saveDraft(state, claimInput()), /Select an exact passage/);
+  for (const change of [{ start: -1 }, { end: 999 }, { end: 1.5 }, { text: 'invented' },
+    { sourceRevisionId: 'wrong' }, { revisionHash: 'wrong' }]) {
+    choosePassage(state); Object.assign(state.selection, change);
+    assert.throws(() => saveDraft(state, claimInput()), /Select an exact passage/);
+  }
+  choosePassage(state);
+  assert.throws(() => saveDraft(state, { ...claimInput(), description: ' ' }), /description/);
+  assert.throws(() => saveDraft(state, { ...claimInput(), caseId: 'missing' }), /case/);
+  assert.throws(() => saveDraft(state, { ...claimInput(), dimensions: { delivery: ['other'] } }), /Other delivery/);
+  assert.throws(() => saveDraft(state, { ...claimInput(), techniques: ['Tbad'] }), /Technique IDs/);
+  assert.throws(() => saveDraft(state, { ...claimInput(), techniques: ['T1059'] }), /behavior description/);
+  assert.equal(state.drafts.length, 0);
+  assert.throws(() => extractionProposal(state), /at least one/);
+});
+
+test('Issue #31 AC-02 inferences need nonblank rationale and earlier same-case support, never fake quotations', () => {
+  const state = draftState(), input = { ...claimInput(), evidenceStatus: 'Researcher inference' };
+  assert.throws(() => saveDraft(state, input), /rationale/);
+  assert.throws(() => saveDraft(state, { ...input, rationale: 'reason' }), /same-case/);
+  choosePassage(state); const support = saveDraft(state, claimInput());
+  assert.throws(() => saveDraft(state, { ...input, caseId: 'synthetic-case-b', rationale: 'reason', supportingClaimIds: [support.id] }), /same-case/);
+  choosePassage(state);
+  const inference = saveDraft(state, { ...input, rationale: 'reason', supportingClaimIds: [support.id] });
+  assert.deepEqual(inference.passages, []); assert.equal(inference.origin, 'Human inference');
+});
+
+test('Issue #31 AC-03 intake refuses unsafe text/credentials, bounds input and never overwrites an existing source', async () => {
+  const input = { url: 'https://example.org/studio', text: 'Synthetic text', suppliedBy: 'operator' };
+  for (const update of [{ text: '' }, { text: '\uD800' }, { text: 'a\0b' }, { text: '😀'.repeat(524289) },
+    { url: 'javascript:alert(1)' }, { url: '******example.org' }, { suppliedBy: 'invalid supplier' }]) {
+    const state = createStudio(emptyCorpus());
+    await assert.rejects(pasteArticle(state, { ...input, ...update }));
+    assert.deepEqual(state.intakes, []);
+  }
+  const state = createStudio(emptyCorpus());
+  await pasteArticle(state, input);
+  await assert.rejects(pasteArticle(state, { ...input, text: 'changed', url: input.url + '?utm_source=ignored#fragment' }), /already has a source/);
+  assert.equal(state.intakes.length, 1);
+});
+
+test('Issue #31 AC-02/03 DOM studio composes, saves, preserves and removes a pending claim without network writes', async () => {
+  const { doc, win, app, content, requests } = await mounted();
+  app.navigate('studio');
+  await button(content, 'Save pending claim').trigger('click');
+  assert.match(content.textContent, /Select or explicitly create a case/);
+  const source = inputNamed(content, 'Selectable normalized source text');
+  // Feed browser-shaped text nodes to the real selection handler.
+  const child = textNode(source.textContent); source.childNodes = [child]; source.nodeType = 1;
+  win.getSelection = () => selection(child, 0, child, 4);
+  await source.trigger('pointerup');
+  assert.match(content.textContent, /code-points:0-3/);
+  inputNamed(content, 'Case').value = 'synthetic-case-a';
+  inputNamed(content, 'Claim description').value = '<script>synthetic literal claim</script>';
+  await button(content, 'Save pending claim').trigger('click');
+  assert.match(content.textContent, /Saved pending claims · 1/);
+  assert.match(content.textContent, /No active passage selection/);
+  assert.equal(descendants(content).filter(n => n.tagName === 'SCRIPT').length, 0);
+  app.navigate('cases'); app.navigate('studio');
+  assert.match(content.textContent, /synthetic literal claim/);
+  assert.equal(app.getModel().corpus.claims.length, fixture.claims.length);
+  assert.deepEqual(requests.map(r => r[0]), ['/api/corpus']);
+  win.confirm = () => false;
+  await app.load('/api/demo');
+  assert.equal(requests.length, 1);
+  await button(content, 'Remove draft claim').trigger('click');
+  assert.match(content.textContent, /Saved pending claims · 0/);
+  assert.ok(doc.getElementById('toolbar').hidden);
+});
+
+test('Issue #31 AC-01 revision changes clear active selections and source view opens the exact revision', async () => {
+  const state = draftState(), doc = new FakeDocument(), win = fakeWindow();
+  choosePassage(state);
+  const host = new FakeElement('div'); host.append(renderStudio(doc, win, state));
+  inputNamed(host, 'Source').value = 'synthetic-source-b';
+  await inputNamed(host, 'Source').trigger('change');
+  assert.equal(state.selection, null); assert.equal(state.revisionId, 'synthetic-revision-b');
+  await button(host, 'Select entire revision').trigger('click');
+  assert.equal(state.selection.text, state.base.sourceRevisions[1].normalizedContent);
+  assert.equal(state.selection.start, 0);
+  assert.equal(state.selection.end, [...state.selection.text].length);
+  const mountedApp = await mounted(fresh(), '#sources/synthetic-source-b/synthetic-revision-b');
+  await button(mountedApp.content, 'Draft from this revision').trigger('click');
+  assert.equal(mountedApp.win.location.hash, '#studio/synthetic-source-b/synthetic-revision-b');
+  assert.equal(inputNamed(mountedApp.content, 'Exact source revision').value, 'synthetic-revision-b');
+});
+
+test('Issue #31 AC-03 pasted HTML stays literal in DOM and JSON downloads use only revocable local blobs', async () => {
+  const state = createStudio(emptyCorpus()), doc = new FakeDocument();
+  const payload = '<script>alert(1)</script><img src="https://example.invalid/pixel" onerror="alert(1)">';
+  await pasteArticle(state, { text: payload, url: 'https://example.org/studio', suppliedBy: 'operator', title: payload });
+  const view = renderStudio(doc, fakeWindow(), state);
+  assert.equal(inputNamed(view, 'Selectable normalized source text').textContent, payload);
+  assert.equal(descendants(view).filter(n => ['SCRIPT', 'IMG', 'IFRAME'].includes(n.tagName)).length, 0);
+  let blob, downloaded, revoked;
+  const create = doc.createElement.bind(doc);
+  doc.createElement = tag => {
+    const node = create(tag); node.click = () => { downloaded = { href: node.href, filename: node.download }; }; return node;
+  };
+  const win = { Blob, URL: { createObjectURL(value) { blob = value; return 'blob:local-only'; },
+    revokeObjectURL(url) { revoked = url; } }, setTimeout(fn) { fn(); } };
+  downloadProposal(doc, win, await corpusProposal(state), 'curator-proposal.json');
+  assert.deepEqual(downloaded, { href: 'blob:local-only', filename: 'curator-proposal.json' });
+  assert.equal(revoked, 'blob:local-only'); assert.equal(doc.body.children.length, 0);
+  assert.equal(blob.type, 'application/json');
+  assertValid(JSON.parse(await blob.text()));
 });
 test('official wide wordmark has its native aspect ratio, accessible brand name and no duplicate text', async () => {
   const html = await readFile(new URL('../src/index.html', import.meta.url), 'utf8');

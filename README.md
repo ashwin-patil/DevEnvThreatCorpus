@@ -38,9 +38,11 @@ claims.
 The separate manual review CLI accepts, corrects, or excludes explicit claims;
 its status/validation commands distinguish recorded acceptance from current eligibility.
 
-The read-only Research Workbench displays fresh 0.3.0 cases, sources, exact
+The local Research Workbench displays fresh 0.3.0 cases, sources, exact
 revision passages, and claims locally, with search, facets, and explicit conflict
-comparison. It does not accept, edit, or adjudicate research.
+comparison. Its curator studio adds in-memory article intake, passage selection,
+and pending claim/behavior proposal downloads. It never writes to the loaded
+corpus, accepts claims, or adjudicates research.
 
 The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
@@ -219,6 +221,58 @@ share screenshots containing private material, or relax file permissions to use
 this preview. Missing retained text is reported, not reconstructed. For further
 privacy, filtering, and acceptance limits see [Architecture](docs/architecture.md)
 and [Acceptance audit](docs/acceptance-audit.md).
+
+### Curator studio: paste, select, draft, download
+
+1. Open **Curator studio → Direct article intake / paste**. Supply an authorized
+   article, its credential-free HTTPS URL, supplier identifier, and optional
+   title/publisher/author. Nothing is fetched. Text is retained privately in
+   memory, with CRLF/CR converted to LF and Unicode NFC normalization. Pasted
+   HTML is **literal text**, not rendered or converted to readable HTML; paste
+   the article's readable text instead if you do not want tags in your evidence.
+   The 2 MiB limit matches CLI supplied-text intake. An already-loaded URL is
+   not overwritten: select its retained revision instead.
+2. Select a source and exact revision, then drag over the normalized text.
+   Alternatively extend a text selection with Shift+arrow keys, or activate
+   **Select entire revision** with the keyboard. The captured quote,
+   revision hash, locator, and zero-based half-open **code-point** interval
+   appear beside the composer. Selecting text in the Research library also
+   opens this drawer; **Draft from this revision** opens it without a selection.
+3. Choose an existing case, or explicitly create a named draft case with a kind.
+   Enter a claim, evidence status, and uncertainty. A source assertion needs an
+   active passage; **Researcher inference** instead needs a rationale and at
+   least one earlier same-case saved draft claim. Saving consumes the selection.
+   Choose a new passage for another assertion. Inferences do not fabricate quotes.
+4. Optionally describe a behavior, choose multiple categorization values, enter
+   IOCs/artifacts one per line, and pick techniques from a loaded local catalog
+   or enter candidate ATT&CK/ATLAS IDs. Candidate IDs are unverified annotations,
+   not official catalog entries or reviewed mappings. No remote catalog is used.
+   Remove a mistaken draft and compose it again; remove dependent inferences first.
+5. **Download manual-extraction/1** exports claims/passages only when all referenced
+   cases and revisions already exist in the loaded corpus. Apply this JSON using
+   the existing extraction command below. Behavior, categories, IOCs, and technique
+   candidates are **not** part of that CLI format.
+6. **Download private corpus proposal** includes intake metadata, normalized/raw
+   text, claims, categories, and behavior annotations as standalone schema-valid
+   0.3.0 JSON. It identifies the original corpus by digest and marks existing
+   case/source identities as context, not updates. **Do not overwrite an existing
+   corpus with it.** There is no automatic merge/promotion command for this richer
+   proposal; a human must inspect it and arrange a scoped local application.
+
+Protect downloaded files (mode `0600`) in a private directory (mode `0700`).
+Do not commit or upload them. To apply an existing-record extraction download:
+
+```sh
+R=/home/runner/work/DevEnvThreatCorpus/DevEnvThreatCorpus
+node "$R/scripts/extract.mjs" --template /absolute/private/manual-extraction.json --store /absolute/private/store --supplied-by operator
+# Validate a standalone richer proposal without applying it:
+node "$R/scripts/contract.mjs" validate --file /absolute/private/curator-proposal.json
+```
+
+Saved drafts survive Workbench tab navigation only. Reloading the page, closing
+it, or confirming a corpus switch discards them; unsaved composer fields are
+discarded when the panel is rebuilt. Download first. All authored records remain
+pending, and independent human research review and merge approval are required.
 
 ## Validate locally
 

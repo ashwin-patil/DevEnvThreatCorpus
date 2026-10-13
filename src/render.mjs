@@ -78,7 +78,9 @@ export function renderSourceText(doc, revision, passages, onPassages) {
   }
   for (const segment of passageSegments(revision.normalizedContent, passages)) {
     if (segment.passageIds.length) {
-      const button = action(doc, segment.text, () => onPassages(segment.passageIds), 'passage-highlight');
+      const button = action(doc, segment.text, () => {
+        if (!doc.getSelection?.()?.toString()) onPassages(segment.passageIds);
+      }, 'passage-highlight');
       button.setAttribute('aria-label', `${segment.text} · passages ${segment.passageIds.join(', ')} · code points ${segment.start}–${segment.end}; show linked claims`);
       button.title = `Overlapping passages: ${segment.passageIds.join(', ')}`;
       text.append(button);
@@ -87,7 +89,7 @@ export function renderSourceText(doc, revision, passages, onPassages) {
   return text;
 }
 
-export function renderSource(doc, model, source, revisionId, navigate, onRevision, onPassages, activePassages = []) {
+export function renderSource(doc, model, source, revisionId, navigate, onRevision, onPassages, activePassages = [], onDraft) {
   const section = element(doc, 'section', null, 'panel');
   section.append(element(doc, 'h2', metadata(source, 'title')));
   for (const key of ['publisher', 'author', 'originalUrl', 'canonicalUrl', 'inputKind', 'extractionStatus', 'collectionState']) {
@@ -119,9 +121,18 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   const split = element(doc, 'div', null, 'evidence-split');
   const left = element(doc, 'section'), right = element(doc, 'section');
   const passages = model.corpus.passages.filter(p => p.sourceRevisionId === revision.id);
+  const sourceText = renderSourceText(doc, revision, passages, onPassages);
+  if (onDraft && revision.normalizedContent !== null) {
+    const capture = () => { if (doc.getSelection?.()?.toString()) onDraft(revision, sourceText); };
+    sourceText.addEventListener('pointerup', capture);
+    sourceText.addEventListener('keyup', capture);
+    sourceText.tabIndex = 0;
+    left.append(action(doc, 'Draft from this revision', () => onDraft(revision)),
+      element(doc, 'p', 'Select text to open the curator studio with exact passage offsets; the loaded corpus remains unchanged.', 'subtle'));
+  }
   left.append(element(doc, 'h3', 'Normalized source text'),
     element(doc, 'p', 'Highlight intervals use Unicode code points, not bytes or UTF-16. Click a highlight to reveal every overlapping passage’s claims.', 'subtle'),
-    renderSourceText(doc, revision, passages, onPassages));
+    sourceText);
   for (const passage of passages) left.append(action(doc,
     `${passage.locator} · [${passage.start}, ${passage.end}) · ${passage.id}`, () => onPassages([passage.id])));
   right.append(element(doc, 'h3', 'Linked claims · exact selected revision'));

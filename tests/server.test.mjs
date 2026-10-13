@@ -98,7 +98,7 @@ test('AC-04/05 preview serves every required offline entrypoint, module and bran
   for (const [url, mime] of [
     ['/', 'text/html'], ['/src/index.html', 'text/html'], ['/src/style.css', 'text/css'],
     ['/src/app.mjs', 'text/javascript'], ['/src/model.mjs', 'text/javascript'],
-    ['/src/render.mjs', 'text/javascript'], ['/docs/assets/logo.svg', 'image/svg+xml'],
+    ['/src/render.mjs', 'text/javascript'], ['/src/studio.mjs', 'text/javascript'], ['/docs/assets/logo.svg', 'image/svg+xml'],
     ['/docs/assets/favicon.svg', 'image/svg+xml'],
   ]) {
     const response = await request(port, url);
@@ -106,5 +106,8 @@ test('AC-04/05 preview serves every required offline entrypoint, module and bran
     assert.equal(response.headers['content-type'], `${mime}; charset=utf-8`, url);
     assert.ok(response.body.length > 0, url);
     assert.equal(response.headers['x-content-type-options'], 'nosniff');
+    assert.match(response.headers['content-security-policy'], /script-src 'self'/);
+    assert.match(response.headers['content-security-policy'], /connect-src 'self'/);
+    assert.match(response.headers['content-security-policy'], /object-src 'none'/);
   }
 });

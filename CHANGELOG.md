@@ -2,6 +2,14 @@
 
 ## 2026-10-13
 
+- Issue #31: add an offline curator studio for literal article paste with source
+  metadata, exact Unicode code-point passage selection, grounded pending claim
+  and behavior drafting, multi-label categories, text-only artifacts and
+  unverified ATT&CK/ATLAS candidates. Download CLI-compatible extraction templates
+  or standalone private 0.3.0 proposals with base digest/context boundaries.
+  Add normalization/schema/CLI/DOM/CSP regression evidence and document privacy,
+  volatile drafts, manual reconciliation, and independent approval requirements.
+  No canonical writes, automatic acceptance, remote scraping, or LLM calls.
 - Issue #30: safely ignore informational `Host:`, `Content-Signal:`, and `Clean-param:` robots declarations alongside `Sitemap:` during manual URL intake. Preserve literal-path access enforcement and fail-closed rejection of unsupported policies and cross-origin robots redirects; add offline regression coverage and document the supported directives without introducing crawling or URL rewriting.
 - Issue #21: implement private local claim acceptance, correction, and exclusion
   with explicit self-attested reviewer identity, rationale, append-only UTC

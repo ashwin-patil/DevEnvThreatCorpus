@@ -1,4 +1,4 @@
-export const VIEWS = { cases: 'Case library', sources: 'Research library', claims: 'Claims & evidence', method: 'Trust & method' };
+export const VIEWS = { cases: 'Case library', sources: 'Research library', claims: 'Claims & evidence', studio: 'Curator studio', method: 'Trust & method' };
 export const FACETS = ['cases', 'sources', 'publishers', 'tags', 'disposition'];
 
 export function createModel(corpus) {
