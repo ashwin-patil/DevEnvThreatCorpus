@@ -2,6 +2,17 @@
 
 ## 2026-10-13 — Passage-grounded campaign extraction
 
+- Normalize compact publisher display names across research cards, facets,
+  citations and source inspection, including Nx; preserve raw metadata and label
+  unverified host fallbacks. Number repeated publisher chips and retain full
+  article titles in accessible labels/tooltips. Add a suggested behavior inventory
+  with separate atomic/activity-pattern kinds and explainable overlap candidates,
+  preserving original evidence records. Display supported path transitions as
+  chained activities and version extraction guidance for shared definitions and
+  distinct occurrences. Unknown targets no longer substitute another record;
+  filtered source fallback is explicitly explained. Record the bounded researcher
+  walkthrough and remaining semantic/theme/deployment limitations.
+
 - Research library now opens as case-grouped research cards with explicit links
   to articles, claims, supported paths and behaviors; independent sources remain
   visible and exact source/revision detail stays available on selection. Direct

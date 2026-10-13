@@ -21,11 +21,57 @@ import { applyReview } from '../scripts/review.mjs';
 import { emptyCorpus } from '../scripts/server.mjs';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { publisherDisplay, behaviorInventory } from '../src/research-inventory.mjs';
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
+
+test('publisher labels normalize known hosts, retain metadata and reject lookalike hosts', () => {
+  const source = { publisher: null, originalUrl: 'https://nx.dev/blog/report', canonicalUrl: null };
+  const before = JSON.stringify(source);
+  assert.equal(publisherDisplay(source).name, 'Nx');
+  assert.equal(publisherDisplay({ ...source, originalUrl: 'https://www.stepsecurity.io/blog/report' }).name, 'StepSecurity');
+  assert.notEqual(publisherDisplay({ ...source, originalUrl: 'https://nx.dev.evil.invalid/report' }).name, 'Nx');
+  assert.equal(publisherDisplay({ publisher: 'Independent research', originalUrl: null }).name, 'Independent research');
+  assert.equal(publisherDisplay({ publisher: 'The MITRE Corporation', originalUrl: 'https://github.com/mitre-attack/catalog' }).name, 'The MITRE Corporation');
+  assert.match(publisherDisplay({ originalUrl: 'https://unknown.example/report' }).basis, /unverified/);
+  assert.equal(JSON.stringify(source), before);
+});
+
+test('compact research chips retain full accessible titles and disambiguate repeated publishers', () => {
+  const corpus = fresh();
+  for (const s of corpus.sources) { s.publisher = 'StepSecurity'; s.originalUrl = null; s.canonicalUrl = null; }
+  const root = renderResearchLibrary(new FakeDocument(), createModel(corpus), corpus.sources, () => {});
+  const chips = descendants(root).filter(n => n.tagName === 'BUTTON' && n.title?.includes('reported publisher'));
+  assert.ok(chips.some(n => n.textContent === 'StepSecurity · 1 ↗'));
+  assert.ok(chips.some(n => n.textContent === 'StepSecurity · 2 ↗'));
+  assert.ok(chips.every(n => n.getAttribute('aria-label').includes('Synthetic')));
+});
+
+test('suggested inventory groups similar CLI labels but keeps transitions and evidence records separate', () => {
+  const records = [
+    { id: 'a', name: 'Attempted local AI CLI invocation', disposition: 'Pending' },
+    { id: 'b', name: 'Attempted local AI CLI invocation with permissive flag', disposition: 'Pending' },
+    { id: 'c', name: 'Malware → local coding agent', disposition: 'Pending' },
+  ];
+  const before = JSON.stringify(records), groups = behaviorInventory(records);
+  assert.equal(groups.length, 2);
+  assert.equal(groups.find(g => g.kind === 'atomic-behavior').members.length, 2);
+  assert.equal(groups.find(g => g.kind === 'activity-pattern').members.length, 1);
+  assert.ok(groups.every(g => /confirmation required/.test(g.basis)));
+  assert.equal(JSON.stringify(records), before);
+});
+
+test('missing exploration targets never substitute a different behavior or attack path', () => {
+  const m = createModel(structuredClone(researchFixture));
+  for (const view of ['paths', 'behaviors']) {
+    const content = renderExploration(new FakeDocument(), m, view, {}, () => {}, 'missing-target');
+    assert.match(content.textContent, /No different research record has been substituted/);
+    assert.equal(descendants(content).filter(n => n.className.includes('research-card')).length, 0);
+  }
+});
 
 test('research library cards link directly supported behaviors without needing a path or mapping', async () => {
   const corpus = fresh();

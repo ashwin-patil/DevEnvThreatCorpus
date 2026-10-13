@@ -1,5 +1,14 @@
 # Fresh-start corpus architecture
 
+`src/research-inventory.mjs` is browser-safe presentation normalization shared
+with article publisher normalization. Compact host-derived publisher labels
+retain their displayed basis; reported fields, null reasons and source hashes
+remain distinct. Behavior inventory groups preserve member IDs/classifications
+and suggest concepts for human review; activity patterns and supported path
+transitions are distinct from atomic actions. The extraction prompt is versioned
+as `passage-grounded-campaign/2` to discourage duplicate definitions while
+retaining distinct supported occurrences. No semantic auto-merge is performed.
+
 The source-library overview uses read-only case-grouped research cards with
 independent unassociated source cards. Behavior links derive from actual
 case/source claim support, occurrences and supported path nodes; a missing path

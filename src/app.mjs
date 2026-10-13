@@ -203,6 +203,10 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       return;
     }
     const selected = records.find(r => r.id === route.id) ?? records[0];
+    if (route.id && !model[route.view].has(route.id)) {
+      $('content').append(empty('Unknown target. No different research record has been substituted.'),
+        action(doc, `Return to ${VIEWS[route.view]}`, () => navigate(route.view))); return;
+    }
     if (route.view === 'sources' && !route.id) {
       $('content').append(renderResearchLibrary(doc, model, records, navigate, filters)); return;
     }
@@ -221,6 +225,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       list.append(button);
     }
     const detail = element(doc, 'div');
+    if (route.id && selected.id !== route.id) detail.append(element(doc, 'p', 'The selected target is hidden by filters; showing the matching record named below. Reset filters to return to the selected target.', 'subtle'));
     if (route.id && !model[route.view].has(route.id)) detail.append(element(doc, 'p', 'Unknown target; showing a matching record instead.', 'subtle'));
     if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate,
       value => downloadProposal(doc, win, value, 'campaign-citations.json')),

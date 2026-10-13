@@ -1,5 +1,6 @@
 import { element, action, safeExternalUrl, caseCitations, renderClaim } from './render.mjs';
 import { filterRecords, metadata, caseSourceIds } from './model.mjs';
+import { publisherDisplay, behaviorInventory } from './research-inventory.mjs';
 
 export const EXPLORE_VIEWS = { paths: 'Attack paths', behaviors: 'Behaviors', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry' };
 export const ANNOTATION_LABELS = {
@@ -45,15 +46,26 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
     for (const p of paths) card.append(action(doc, p.name ?? `${record.name} attack path`, () => navigate('paths', p.id)));
     if (!paths.length) card.append(element(doc, 'p', 'No supported path recorded for these articles.', 'subtle'));
     card.append(element(doc, 'h3', 'Research'));
+    const publisherTotals = new Map();
+    for (const id of ids) { const name = publisherDisplay(model.sources.get(id)).name; publisherTotals.set(name, (publisherTotals.get(name) ?? 0) + 1); }
+    const publisherIndex = new Map();
     for (const id of ids) {
       const s = model.sources.get(id);
-      card.append(action(doc, `${s.publisher ?? 'Unknown publisher'} · ${metadata(s, 'title')}`, () => navigate('sources', id)));
+      const display = publisherDisplay(s);
+      publisherIndex.set(display.name, (publisherIndex.get(display.name) ?? 0) + 1);
+      const suffix = publisherTotals.get(display.name) > 1 ? ` · ${publisherIndex.get(display.name)}` : '';
+      const chip = action(doc, `${display.name}${suffix} ↗`, () => navigate('sources', id));
+      chip.title = `${metadata(s, 'title')} · ${display.basis}`;
+      chip.setAttribute('aria-label', `${display.name}: ${metadata(s, 'title')}`); card.append(chip);
     }
     const pathBehaviors = new Set(paths.flatMap(p => p.nodes.filter(n => n.claimIds.some(id => claimIds.has(id))).flatMap(n => n.behaviorIds)));
     const behaviors = list(model, 'behaviors').filter(b => pathBehaviors.has(b.id)
       || behaviorSupport(model, b).some(id => claimIds.has(id)));
-    card.append(element(doc, 'h3', 'Behaviors'));
-    for (const b of behaviors) card.append(action(doc, b.name, () => navigate('behaviors', b.id)));
+    card.append(element(doc, 'h3', 'Behaviors · suggested inventory groups'));
+    for (const group of behaviorInventory(behaviors)) {
+      const chip = action(doc, `${group.name}${group.kind === 'activity-pattern' ? ' · activity pattern' : ''}`, () => navigate('behaviors', group.members[0].id));
+      chip.title = `${group.basis} Source-specific records: ${group.members.map(b => b.name).join('; ')}`; card.append(chip);
+    }
     if (!behaviors.length) card.append(element(doc, 'p', 'No linked behaviors recorded. Collection alone does not extract behavior.', 'subtle'));
     const evidence = element(doc, 'details'); evidence.append(element(doc, 'summary', `Claims & evidence · ${claims.length}`));
     for (const c of claims) evidence.append(action(doc, c.description, () => navigate('claims', c.id)));
@@ -63,7 +75,7 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
   for (const source of sources.filter(s => !associated.has(s.id))) {
     const card = element(doc, 'article', null, 'panel research-card');
     card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'),
-      element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', metadata(source, 'publisher')),
+      element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', publisherDisplay(source).name),
       action(doc, 'Open research source', () => navigate('sources', source.id)));
     grid.append(card);
   }
@@ -271,6 +283,35 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   panel.append(element(doc, 'p', 'Source-supported observations and pending research proposals. Missing enrichment is not evidence that a behavior did not occur; shared behaviors do not establish shared attribution.', 'subtle'));
   if (loadDemo) panel.append(action(doc, 'Load synthetic research demo (replaces displayed corpus only)', loadDemo));
   const selected = explorationRecords(model, view, filters);
+  if (selectedId && !selected.records.some(r => r.id === selectedId)
+    && !(view === 'telemetry' && list(model, 'detections').some(d => d.id === selectedId
+      && selected.records.some(t => t.behaviorId === d.behaviorId)))) {
+    panel.append(element(doc, 'p', 'Unknown target or target outside the active filters. No different research record has been substituted.', 'empty'),
+      action(doc, `Return to ${EXPLORE_VIEWS[view]}`, () => navigate(view))); return panel;
+  }
+  if (view === 'behaviors') {
+    const inventory = element(doc, 'section', null, 'panel behavior-inventory');
+    inventory.append(element(doc, 'h2', 'Normalized behavior inventory'), element(doc, 'p',
+      'Suggested local concepts group similar labels for review. Atomic behaviors are actions; activity patterns describe transitions or chains. Labels with arrows are treated as pattern candidates, not proven chronology. No source record, evidence status or review decision is merged or replaced.'));
+    for (const group of behaviorInventory(selected.records)) {
+      const item = element(doc, 'article', null, 'claim-card');
+      item.append(element(doc, 'h3', `${group.name} · ${group.kind === 'activity-pattern' ? 'Activity pattern' : 'Atomic behavior'}`),
+        element(doc, 'p', group.basis, 'subtle'), element(doc, 'p', `${group.members.length} source-specific record(s)${group.members.length > 1 ? ' · possible overlap; inspect evidence before consolidation' : ''}`));
+      for (const member of group.members) item.append(action(doc, `${member.name} · ${member.disposition ?? 'Pending'}`, () => navigate('behaviors', member.id)));
+      inventory.append(item);
+    }
+    inventory.append(element(doc, 'h3', 'Chained activities from recorded paths'), element(doc, 'p',
+      'Each transition retains its recorded relationship and evidence basis. A chain is not an atomic behavior, and connecting two nodes does not prove execution or causality.', 'subtle'));
+    const chains = selected.paths.flatMap(p => p.edges.map(edge => ({ p, edge })));
+    for (const { p, edge } of chains) {
+      const from = p.nodes.find(n => n.id === edge.from), to = p.nodes.find(n => n.id === edge.to);
+      const item = element(doc, 'details'); item.append(element(doc, 'summary', `${from?.title ?? edge.from} → ${to?.title ?? edge.to} · ${edge.relation}`),
+        element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate),
+        action(doc, 'Open recorded attack path', () => navigate('paths', p.id))); inventory.append(item);
+    }
+    if (!chains.length) inventory.append(element(doc, 'p', 'No chained activities recorded. Add evidence-supported path relationships through extraction; no chains are inferred from similar behavior names.'));
+    panel.append(inventory);
+  }
   if (view === 'paths') {
     if (selected.records.length) {
       const choose = element(doc, 'div', null, 'graph-toolbar');
@@ -393,5 +434,9 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     const referencePanel = element(doc, 'details', null, 'panel'); referencePanel.append(element(doc, 'summary', 'Pinned OpenTelemetry reference · recorded snapshot, not live validation'), element(doc, 'pre', JSON.stringify(model.corpus.otelReference, null, 2), 'artifact-value')); panel.append(referencePanel);
   }
   if (!grid.children.length) panel.append(element(doc, 'p', 'No records for this view / filter. Optional enrichment can be added without changing collection or review.', 'empty'));
-  panel.append(grid); return panel;
+  if (view === 'behaviors') {
+    const originals = element(doc, 'details'); originals.open = Boolean(selectedId);
+    originals.append(element(doc, 'summary', 'Source-specific behavior records · evidence and classifications'), grid); panel.append(originals);
+  } else panel.append(grid);
+  return panel;
 }

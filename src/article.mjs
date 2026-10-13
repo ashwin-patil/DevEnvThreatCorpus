@@ -1,9 +1,6 @@
 export const ARTICLE_PARSER_VERSION = 'readable-html/4';
-export const PUBLISHERS = Object.freeze({
-  'stepsecurity.io': 'StepSecurity',
-  'socket.dev': 'Socket',
-  'redcanary.com': 'Red Canary',
-});
+import { PUBLISHER_NAMES } from './research-inventory.mjs';
+export const PUBLISHERS = PUBLISHER_NAMES;
 
 const entities = {
   amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '–', mdash: '—',

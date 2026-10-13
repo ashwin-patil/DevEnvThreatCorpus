@@ -1,4 +1,5 @@
 export const VIEWS = { cases: 'Case library', sources: 'Research library', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
+import { publisherDisplay } from './research-inventory.mjs';
 export const FACETS = ['cases', 'sources', 'publishers', 'tags', 'disposition'];
 export const COMPARISON_DIMENSIONS = {
   trust_surface: 'Trust surface', ai_involvement: 'AI involvement', execution_location: 'Execution location',
@@ -84,7 +85,7 @@ export function recordContext(model, kind, record) {
     evidenceStatus: [...new Set(claims.map(c => c.evidenceStatus))],
     reviewerDisposition: kind === 'claims' ? [record.disposition] : [...new Set(claims.map(c => c.disposition))],
     cases: caseIds, sources: sourceIds,
-    publishers: sources.map(s => s.publisher ?? '(Unknown publisher)'),
+    publishers: sources.map(s => { const display = publisherDisplay(s); return ['URL host; publisher unverified', 'unavailable'].includes(display.basis) ? '(Unknown publisher)' : display.name; }),
     tags: categories.filter(c => c.dimension === 'tag').map(c => c.value ?? '(Unknown tag)'),
     disposition: [...new Set([record.disposition, record.collectionState, ...claims.map(c => c.disposition),
       ...categories.map(c => c.disposition)].filter(Boolean))],

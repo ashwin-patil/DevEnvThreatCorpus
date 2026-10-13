@@ -36,6 +36,15 @@ async function workspace(t) {
 }
 
 const sameOrigin = port => ({ Origin: `http://127.0.0.1:${port}`, 'Sec-Fetch-Site': 'same-origin', 'Content-Type': 'application/json' });
+
+test('browser normalization helper is explicitly served without exposing private implementation modules', async t => {
+  const port = await start(t);
+  const response = await request(port, '/src/research-inventory.mjs');
+  assert.equal(response.status, 200);
+  assert.match(response.headers['content-type'], /javascript/);
+  assert.match(response.body, /publisherDisplay/);
+  assert.equal((await request(port, '/src/campaign.mjs')).status, 404);
+});
 const articleUrls = ['https://www.stepsecurity.io/blog/one', 'https://socket.dev/blog/two', 'https://redcanary.com/blog/three'];
 function transport(article) {
   const respond = (raw, status = 200) => ({ status, peerAddress: '93.184.216.34',

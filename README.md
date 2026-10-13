@@ -256,6 +256,14 @@ shows recorded mappings separately from unresolved candidates and the pinned
 resolver references present in applied runs. Catalog references are not incident
 evidence; the current resolver has limited ATT&CK coverage and no ATLAS catalog.
 
+Research chips use compact normalized publisher names (including Nx); repeated
+publisher chips are numbered, with exact article titles in tooltips/accessibility
+labels. Reported metadata stays separate. Behaviors opens a suggested normalized
+inventory, separating atomic actions and activity-pattern candidates; original
+records and evidence remain inspectable. Chained activities come only from
+recorded path relationships. Grouping suggests review and never merges evidence.
+See the [researcher usability review](docs/usability-review.md) for limits.
+
 Potential consequences and disputed behavior remain inference in the research
 annotation projection, with the original classification in context notes.
 Node-specific technique candidates may cite only claims supporting that node.

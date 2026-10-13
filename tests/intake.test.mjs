@@ -18,6 +18,12 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const fixture = name => fileURLToPath(new URL(`./fixtures/intake/${name}`, import.meta.url));
 const storageRoot = path.join(root, '.private-intake');
 const operator = 'synthetic-operator';
+
+test('publisher normalization recognizes Nx without changing reported page publisher metadata', () => {
+  const article = parseArticle('<html><head><meta property="og:site_name" content="Nx Blog"></head><body><article><h1>Synthetic report</h1><p>Benign fixture.</p></article></body></html>', 'https://nx.dev/blog/report');
+  assert.equal(article.metadata.publisher, 'Nx');
+  assert.equal(article.metadata.pagePublisher, 'Nx Blog');
+});
 const url = 'https://articles.example/synthetic?id=7';
 const publicIP = '93.184.216.34';
 const cli = args => {

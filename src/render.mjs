@@ -1,4 +1,5 @@
 import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline } from './model.mjs';
+import { publisherDisplay } from './research-inventory.mjs';
 
 // Corpus values enter the DOM only through textContent; attributes and handlers are UI-owned.
 export function element(doc, tag, text, className = '') {
@@ -134,8 +135,10 @@ export function renderSourceText(doc, revision, passages, onPassages) {
 export function renderSource(doc, model, source, revisionId, navigate, onRevision, onPassages, activePassages = [], onDraft) {
   const section = element(doc, 'section', null, 'panel');
   section.append(element(doc, 'h2', metadata(source, 'title')));
+  field(doc, section, 'Display publisher', publisherDisplay(source).name);
+  field(doc, section, 'Publisher display basis', publisherDisplay(source).basis);
   for (const key of ['publisher', 'author', 'originalUrl', 'canonicalUrl', 'inputKind', 'extractionStatus', 'collectionState']) {
-    field(doc, section, key, metadata(source, key));
+    field(doc, section, key === 'publisher' ? 'Reported publisher' : key, metadata(source, key));
   }
   for (const key of ['publicationDate', 'updateDate', 'retrievalDate']) field(doc, section, key, dateLabel(source[key]));
   if (safeExternalUrl(source.originalUrl) || safeExternalUrl(source.canonicalUrl)) {
@@ -225,7 +228,9 @@ export function renderCase(doc, model, record, navigate, exportReferences) {
   for (const citation of references.citations) {
     const source = model.sources.get(citation.sourceId), reference = element(doc, 'section', null, 'citation');
     reference.append(action(doc, metadata(source, 'title'), () => navigate('sources', citation.sourceId)));
-    field(doc, reference, 'Normalized publisher', metadata(source, 'publisher'));
+    field(doc, reference, 'Normalized publisher', publisherDisplay(source).name);
+    field(doc, reference, 'Publisher display basis', publisherDisplay(source).basis);
+    field(doc, reference, 'Reported publisher', metadata(source, 'publisher'));
     const url = element(doc, 'p', 'Original URL: ');
     url.append(externalLink(doc, source?.originalUrl ?? source?.canonicalUrl)); reference.append(url);
     field(doc, reference, 'Publication date', dateLabel(citation.publicationDate));
