@@ -54,6 +54,25 @@ semantics, and release approval remain independent human responsibilities.
 
 ### Continuation environment findings
 
+#### Subsequent local verification and HTML fix
+
+Local Ubuntu WSL testing reproduced successful live collection of both
+StepSecurity articles through CLI and a real browser, with explicit image
+access warnings. The Nx postmortem initially failed because its returned HTML
+contained nine NUL bytes. `readable-html/4` now retains the original response
+privately and applies NUL replacement only to the HTML parsing projection;
+prior parser transformations and evidence remain reproducible.
+
+A live retry of `https://nx.dev/blog/s1ngularity-postmortem` succeeded, retained
+8,741 normalized characters and one 47,688-byte AVIF image with no image
+warnings, and linked the source to the explicitly selected existing campaign.
+A browser retry reported `already present · OK`, establishing unchanged-input
+idempotency. Earlier failed intake manifests remain history. No real article
+text, image, private sidecar, or private corpus was committed. The final tested
+commit, full-suite outcomes, and remaining hosted/human review boundaries are
+recorded in the PR summary comment; these local results supersede the earlier
+cloud DNS limitation for the locally tested sources, not for all publishers.
+
 The continuation from `39ea6305d770ec44383ebe82977086845f485edd` recovered
 the pushed implementation, not an unfinished local worktree. Hosted
 [Verify run 38354186934](https://github.com/ashwin-patil/DevEnvThreatCorpus/actions/runs/38354186934)
