@@ -4,15 +4,18 @@ import { readFile } from 'node:fs/promises';
 import {
   createModel, metadata, dateLabel, caseSourceIds, linkedClaims, claimTarget,
   passageSegments, conflictPairs, recordContext, filterRecords, facetOptions, parseRoute, routeHash,
+  COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
+  comparisonRecords, comparisonTimeline, comparisonCoverage,
 } from '../src/model.mjs';
-import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase } from '../src/render.mjs';
+import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
 import {
   DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
   createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal, corpusProposal, renderStudio, downloadProposal,
 } from '../src/studio.mjs';
-import { assertValid, validateShape, categories, schema, normalizeText, digest, sha256, canonicalSerialize, intakeSource } from '../scripts/contract.mjs';
+import { assertValid, validateShape, categories, schema, normalizeText, digest, sha256, canonicalSerialize, intakeSource, reviewBaseDigest } from '../scripts/contract.mjs';
 import { applyExtraction } from '../scripts/extract.mjs';
+import { applyReview } from '../scripts/review.mjs';
 import { emptyCorpus } from '../scripts/server.mjs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -21,6 +24,183 @@ import path from 'node:path';
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
+
+test('Issue #25 AC-01 all category dimensions support OR / AND within and AND across facets', () => {
+  for (const dimension of Object.keys(COMPARISON_DIMENSIONS)) {
+    const corpus = fresh();
+    corpus.categorizations = ['first', 'second'].map((value, i) => ({
+      ...corpus.categorizations[0], id: `category-${i}`, dimension, value,
+    }));
+    const m = createModel(corpus);
+    assert.deepEqual(facetOptions(m, COMPARISON_FACETS)[dimension], ['first', 'second']);
+    for (const mode of ['OR', 'AND']) {
+      assert.deepEqual(comparisonRecords(m, { [dimension]: ['first', 'second'], modes: { [dimension]: mode } }).cases.map(c => c.id),
+        ['synthetic-case-a']);
+    }
+    corpus.categorizations.pop();
+    assert.equal(comparisonRecords(m, { [dimension]: ['first', 'second'], modes: { [dimension]: 'AND' } }).cases.length, 0);
+    assert.equal(comparisonRecords(m, { [dimension]: ['first', 'second'] }).cases.length, 1);
+    assert.equal(comparisonRecords(m, { [dimension]: ['first'], cases: ['synthetic-case-b'] }).cases.length, 0);
+    assert.equal(comparisonRecords(m, {}).cases.length, 2);
+  }
+});
+
+test('Issue #25 AC-01 exact claim evidence and disposition filters cannot borrow another claim status', () => {
+  const corpus = fresh();
+  corpus.claims[0].disposition = 'Needs correction';
+  corpus.claims[1].disposition = 'Excluded';
+  const m = createModel(corpus);
+  assert.equal(comparisonRecords(m, {
+    evidenceStatus: ['Source-reported observation'], reviewerDisposition: ['Excluded'],
+  }).cases.length, 0);
+  assert.deepEqual(comparisonRecords(m, {
+    evidenceStatus: ['Source-reported observation', 'Unclear or disputed'], reviewerDisposition: ['Needs correction', 'Excluded'],
+  }).claims.map(c => c.id), ['synthetic-claim-a', 'synthetic-claim-b']);
+  assert.equal(comparisonRecords(m, {
+    evidenceStatus: ['Source-reported observation', 'Unclear or disputed'], modes: { evidenceStatus: 'AND' },
+  }).claims.length, 0);
+});
+
+test('Issue #25 AC-01/03 typed dates use inclusive overlap without mutating approximate or unknown precision', () => {
+  const corpus = fresh(), before = JSON.stringify(corpus);
+  const item = date => ({ dateType: 'discovery', date });
+  const year = corpus.timelines[3].date, month = corpus.timelines[2].date, range = corpus.timelines[4].date;
+  assert.deepEqual(dateBounds(year), ['2025-01-01', '2025-12-31']);
+  assert.deepEqual(dateBounds(month), ['2025-06-01', '2025-06-30']);
+  assert.deepEqual(dateBounds(range), ['2025-06-01', '2025-08-31']);
+  assert.deepEqual(dateBounds({ precision: 'month', value: '2024-02' }), ['2024-02-01', '2024-02-29']);
+  assert.deepEqual(dateBounds({ precision: 'month', value: '1900-02' }), ['1900-02-01', '1900-02-28']);
+  assert.deepEqual(dateBounds({ precision: 'range', start: '2024', end: '2025' }), ['2024-01-01', '2025-12-31']);
+  assert.deepEqual(dateBounds({ precision: 'range', start: '2025-06-10', end: '2025-06-12' }), ['2025-06-10', '2025-06-12']);
+  for (const date of [year, month, range]) {
+    assert.equal(matchesDate(item(date), { dateFrom: '2025-06-30', dateTo: '2025-06-30', dateType: 'discovery' }), true);
+    assert.equal(matchesDate(item(date), { dateType: 'incident_execution' }), false);
+  }
+  assert.equal(matchesDate(item(range), { dateFrom: '2025-08-31' }), true);
+  assert.equal(matchesDate(item(range), { dateFrom: '2025-09-01' }), false);
+  assert.equal(matchesDate(item(month), { dateTo: '2025-05-31' }), false);
+  const unknown = item(corpus.timelines[1].date);
+  assert.equal(matchesDate(unknown), true);
+  assert.equal(matchesDate(unknown, { dateFrom: '2025-01-01' }), false);
+  assert.equal(matchesDate(unknown, { dateUnknown: 'exclude' }), false);
+  assert.equal(matchesDate(unknown, { dateUnknown: 'only', dateFrom: '2025-01-01' }), true);
+  assert.equal(matchesDate(item(month), { dateUnknown: 'only' }), false);
+  assert.equal(matchesDate(item(range), { dateFrom: '2025-08-01', dateTo: '2025-06-01' }), false);
+  const m = createModel(corpus);
+  assert.equal(comparisonRecords(m, { dateType: 'incident_execution', dateFrom: '2025-01-01' }).cases.length, 0);
+  assert.equal(comparisonRecords(m, { dateType: 'incident_execution', dateUnknown: 'only' }).cases.length, 1);
+  assert.deepEqual(comparisonRecords(m, { dateType: 'first_reported_activity', dateFrom: '2025-06-30', dateTo: '2025-06-30' }).claims.map(c => c.id),
+    ['synthetic-claim-a']);
+  assert.equal(JSON.stringify(corpus), before);
+});
+
+test('Issue #25 AC-02/03 comparison preserves shared sources, contradictory claims, and unresolved support', () => {
+  const m = model(), selection = comparisonRecords(m);
+  assert.deepEqual(selection.supported.map(c => c.id), ['synthetic-claim-a', 'synthetic-claim-b', 'synthetic-claim-c']);
+  assert.deepEqual(selection.unresolved.map(c => c.id), ['synthetic-claim-inference']);
+  assert.deepEqual(comparisonCoverage(m, selection), {
+    cases: 2, sources: 2, claims: 4, supported: 3, humanEvents: 0, dispositions: { Pending: 4 },
+  });
+  const doc = new FakeDocument(), rendered = renderComparison(doc, m, selection, {}, () => {});
+  assert.match(rendered.textContent, /Observations within the collected dataset/);
+  for (const text of ['Shared source:', 'synthetic-claim-a', 'synthetic-claim-b', 'exact revision synthetic-revision-a',
+    'Source-reported observation', 'Human source paraphrase', 'Unclear or disputed', 'Disagreement retained, not merged.',
+    'Source publication', 'month precision', 'Unknown dates · unordered', 'excluded from source-supported comparison']) {
+    assert.ok(rendered.textContent.includes(text), text);
+  }
+  assert.equal(descendants(rendered).filter(n => n.className === 'conflict-pair').length, 1);
+  const filtered = comparisonRecords(m, { evidenceStatus: ['Source-reported observation'] });
+  assert.equal(filtered.claims.length, 1);
+  const contextual = renderComparison(doc, m, filtered, {}, () => {});
+  assert.match(contextual.textContent, /synthetic-claim-b/);
+  assert.match(contextual.textContent, /outside the active filters/);
+  assert.equal(comparisonCoverage(m, filtered).claims, 1);
+  const corpus = fresh();
+  corpus.passages[0].text = null;
+  assert.deepEqual(comparisonRecords(createModel(corpus)).supported.map(c => c.id), ['synthetic-claim-b']);
+  corpus.passages[0].text = fixture.passages[0].text;
+  corpus.passages[0].sourceRevisionId = 'wrong-revision';
+  assert.deepEqual(comparisonRecords(createModel(corpus)).supported.map(c => c.id), ['synthetic-claim-b']);
+});
+
+test('Issue #25 AC-03 duplicate reports keep case counts and source metadata distinct from event assertions', () => {
+  const corpus = fresh();
+  corpus.sources.push({ ...corpus.sources[0], id: 'duplicate-report', revisionIds: ['duplicate-revision'] });
+  corpus.sourceRevisions.push({ ...corpus.sourceRevisions[0], id: 'duplicate-revision', sourceId: 'duplicate-report' });
+  corpus.passages.push({ ...corpus.passages[0], id: 'duplicate-passage', sourceRevisionId: 'duplicate-revision' });
+  corpus.claims.push({ ...corpus.claims[2], id: 'duplicate-claim', sourceId: 'duplicate-report',
+    sourceRevisionId: 'duplicate-revision', passageIds: ['duplicate-passage'] });
+  corpus.cases[1].sourceIds.push('duplicate-report');
+  assertValid(corpus);
+  const m = createModel(corpus), selection = comparisonRecords(m), coverage = comparisonCoverage(m, selection);
+  assert.equal(coverage.cases, 2); assert.equal(coverage.sources, 3); assert.equal(coverage.claims, 5);
+  const timeline = comparisonTimeline(m, selection);
+  assert.equal(timeline.dated.filter(t => t.kind === 'source' && t.dateType === 'publication').length, 3);
+  assert.ok(timeline.unknown.every(t => t.date.precision === 'unknown'));
+  assert.ok(timeline.dated.every(t => t.date.precision !== 'unknown'));
+  for (const type of DATE_TYPES.filter(t => t !== 'source_update')) {
+    assert.ok([...timeline.dated, ...timeline.unknown].some(t => t.dateType === type));
+  }
+  const bounded = comparisonTimeline(m, selection, { dateType: 'disclosure', dateFrom: '2025-08-31' });
+  assert.deepEqual(bounded.dated.map(t => t.id), ['synthetic-range']);
+  assert.equal(bounded.unknown.length, 0);
+  assert.deepEqual(comparisonTimeline(m, selection, { dateUnknown: 'only' }).dated, []);
+});
+
+test('Issue #25 AC-03 recorded review coverage is not acceptance eligibility', () => {
+  const corpus = fresh();
+  for (const [claimId, action] of [['synthetic-claim-a', 'correct'], ['synthetic-claim-b', 'exclude']]) {
+    applyReview(corpus, {
+      schemaVersion: 'manual-review/1', claimId, action, baseDigest: reviewBaseDigest(corpus),
+      rationale: 'Synthetic comparison coverage fixture; not a research decision.',
+      ...(action === 'correct' ? { correction: { uncertainty: 'Synthetic correction needed.' } } : {}),
+    }, 'synthetic-reviewer');
+  }
+  assertValid(corpus);
+  const m = createModel(corpus), coverage = comparisonCoverage(m, comparisonRecords(m));
+  assert.equal(coverage.humanEvents, 2);
+  assert.deepEqual(coverage.dispositions, { 'Needs correction': 1, Excluded: 1, Pending: 2 });
+  corpus.reviews[0].revision = 'old';
+  assert.equal(comparisonCoverage(m, comparisonRecords(m)).humanEvents, 1);
+  corpus.reviews[1].reviewerKind = 'agent';
+  assert.equal(comparisonCoverage(m, comparisonRecords(m)).humanEvents, 0);
+});
+
+test('Issue #25 AC-01/04 comparison controls, reset, empty states, crosslinks and snapshot are read-only', async () => {
+  const corpus = fresh(), before = JSON.stringify(corpus);
+  const { doc, app, content, requests } = await mounted(corpus, '#comparison');
+  assert.match(content.textContent, /Observations within the collected dataset/);
+  assert.match(doc.getElementById('result').textContent, /2 distinct cases · 2 distinct linked sources.*4 matching claims/);
+  assert.match(doc.getElementById('result').textContent, /Review coverage: 0\/4.*not current eligibility.*Active filters: none.*SHA-256 [a-f0-9]{64}/);
+  const facets = doc.getElementById('facets');
+  const ai = facets.children.find(n => n.firstChild.textContent.startsWith('AI involvement'));
+  const checkboxes = descendants(ai).filter(n => n.tagName === 'INPUT');
+  for (const input of checkboxes.slice(0, 2)) { input.checked = true; await input.trigger('change'); }
+  const mode = descendants(ai).find(n => n.tagName === 'SELECT');
+  mode.value = 'AND'; await mode.trigger('change');
+  assert.match(doc.getElementById('result').textContent, /1 distinct cases/);
+  assert.match(doc.getElementById('result').textContent, /ai_involvement=.* AND .* \(AND\)/);
+  doc.getElementById('search').value = 'no-result-synthetic';
+  await doc.getElementById('search').trigger('input');
+  assert.match(content.textContent, /No cases match/);
+  await button(content, 'Reset search').trigger('click');
+  assert.match(doc.getElementById('result').textContent, /2 distinct cases/);
+  const dates = facets.children.find(n => n.className === 'date-filters');
+  const inputs = descendants(dates).filter(n => n.tagName === 'INPUT');
+  inputs[0].value = '2025-08-01'; await inputs[0].trigger('change');
+  inputs[1].value = '2025-06-01'; await inputs[1].trigger('change');
+  assert.match(content.textContent, /Invalid date range/);
+  await button(content, 'Reset search').trigger('click');
+  await button(content, 'Source:').trigger('click');
+  assert.equal(doc.getElementById('content').focused, true);
+  assert.equal(doc.getElementById('facets').children.length, 5);
+  app.navigate('comparison');
+  assert.equal(parseRoute('#comparison').view, 'comparison');
+  assert.equal(JSON.stringify(corpus), before);
+  assert.deepEqual(requests.map(r => r[0]), ['/api/corpus']);
+  const empty = await mounted(emptyCorpus(), '#comparison');
+  assert.match(empty.content.textContent, /No cases match/);
+});
 
 // Deliberately small test-only DOM: no browser dependencies and no HTML parser.
 class FakeElement {

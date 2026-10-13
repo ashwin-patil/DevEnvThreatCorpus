@@ -40,8 +40,9 @@ The separate manual review CLI accepts, corrects, or excludes explicit claims;
 its status/validation commands distinguish recorded acceptance from current eligibility.
 
 The local Research Workbench displays fresh 0.3.0 cases, sources, exact
-revision passages, and claims locally, with search, facets, and explicit conflict
-comparison. Its curator studio adds in-memory article intake, passage selection,
+revision passages, and claims locally, with search, facets, explicit conflict
+comparison, and a **Comparison & timelines** view of selected corpus observations.
+Its curator studio adds in-memory article intake, passage selection,
 and pending claim/behavior proposal downloads. It never writes to the loaded
 corpus, accepts claims, or adjudicates research.
 
@@ -255,6 +256,43 @@ share screenshots containing private material, or relax file permissions to use
 this preview. Missing retained text is reported, not reconstructed. For further
 privacy, filtering, and acceptance limits see [Architecture](docs/architecture.md)
 and [Acceptance audit](docs/acceptance-audit.md).
+
+### Comparison & timelines: filter collected observations
+
+Open **Comparison & timelines** (or `http://127.0.0.1:4173/#comparison`).
+Select cases or filter by trust surface, AI involvement, execution location,
+tool/platform, delivery, objective, evidence status, and claim reviewer
+disposition. Search ANDs every selected facet; each facet defaults to OR across
+values and offers AND (all values required); tags use **Tag matching**.
+Category labels are case-linked assertions, including pending/conflicting
+proposals, not established case facts. Evidence/disposition filters match each
+claim itself. Empty results offer reset, and evidence crosslinks reset filters
+to reveal the target.
+
+Choose a date type and optional inclusive **From / Through** boundaries.
+Month/year/range values match by interval overlap without changing their
+displayed precision. Unknown dates do not match bounded ranges; **only** shows
+unknown dates and ignores bounds. Publication/source update stay separate from
+first reported activity, incident/execution, discovery, and disclosure. Dated
+entries sort by earliest possible interval bound, not an invented event day;
+unknown dates are displayed separately and unordered.
+
+Separate case columns retain passage citations, exact revisions, origin,
+evidence status, uncertainty, and supplied disposition. Inferences or claims
+without retained passage support are available in a labeled section but excluded
+from source-supported comparison. Conflicting counterparts remain visible even
+outside active filters, without entering selected counts. Shared citations are
+observations within this dataset, never shared attribution or prevalence.
+
+Counts identify distinct selected cases, distinct linked sources in their full
+case context, matching claims, and source-supported claims. Timeline entries also
+show full selected case context, constrained by the typed date filter. Repeated
+reports do not increase case counts. Review coverage reports matching recorded
+human events and claim dispositions, **not current acceptance eligibility** or
+independent approval; use the review CLI for eligibility. Active filters and a
+SHA-256 identifier of the loaded JSON snapshot remain visible. Nothing is written
+or fetched remotely; independent human research, UX/accessibility, and
+documentation review is required before merge.
 
 ### Curator studio: paste, select, draft, download
 
