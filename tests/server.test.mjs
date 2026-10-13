@@ -5,6 +5,7 @@ import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs
 import path from 'node:path';
 import { createPreviewServer, emptyCorpus, parseArguments, WEB_INTAKE_LIMITS } from '../scripts/server.mjs';
 import { canonicalSerialize, validateCorpus } from '../scripts/contract.mjs';
+import { createEnrichmentTemplate } from '../src/enrichment.mjs';
 
 async function start(t, options) {
   const server = await createPreviewServer(options);
@@ -247,7 +248,7 @@ test('AC-04/05 preview serves every required offline entrypoint, module and bran
   for (const [url, mime] of [
     ['/', 'text/html'], ['/src/index.html', 'text/html'], ['/src/style.css', 'text/css'],
     ['/src/app.mjs', 'text/javascript'], ['/src/model.mjs', 'text/javascript'],
-    ['/src/render.mjs', 'text/javascript'], ['/src/studio.mjs', 'text/javascript'], ['/docs/assets/logo.svg', 'image/svg+xml'],
+    ['/src/render.mjs', 'text/javascript'], ['/src/studio.mjs', 'text/javascript'], ['/src/explore.mjs', 'text/javascript'], ['/docs/assets/logo.svg', 'image/svg+xml'],
     ['/docs/assets/favicon.svg', 'image/svg+xml'],
   ]) {
     const response = await request(port, url);
@@ -259,4 +260,33 @@ test('AC-04/05 preview serves every required offline entrypoint, module and bran
     assert.match(response.headers['content-security-policy'], /connect-src 'self'/);
     assert.match(response.headers['content-security-policy'], /object-src 'none'/);
   }
+});
+
+test('private enrichment endpoint validates pending sidecars, fails closed and never changes canonical records', async t => {
+  const store = await workspace(t);
+  const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
+  const corpusFile = path.join(store, 'corpus.json'), original = canonicalSerialize(corpus);
+  await writeFile(corpusFile, original, { mode: 0o600 });
+  const port = await start(t, { store });
+  assert.deepEqual(JSON.parse((await request(port, '/api/enrichment')).body), { schemaVersion: 'talk-enrichment/1', annotations: [] });
+  const document = createEnrichmentTemplate({ corpus, caseId: 'synthetic-case-a', sourceId: 'synthetic-source-a', sourceRevisionId: 'synthetic-revision-a' });
+  const directory = path.join(store, 'enrichment'), file = path.join(directory, 'annotations.json');
+  await mkdir(directory, { mode: 0o700 }); await writeFile(file, canonicalSerialize(document), { mode: 0o600 });
+  const loaded = await request(port, '/api/enrichment'); assert.equal(loaded.status, 200);
+  assert.equal(JSON.parse(loaded.body).annotations.length, 8);
+  assert.ok(JSON.parse(loaded.body).annotations.every(a => a.status === 'pending'));
+  assert.equal((await request(port, '/api/enrichment', { Origin: 'https://untrusted.example' })).status, 403);
+  assert.equal((await request(port, '/api/enrichment', sameOrigin(port), 'POST', '{}')).status, 405);
+  document.annotations[0].sourceRevisionId = 'missing';
+  await writeFile(file, canonicalSerialize(document), { mode: 0o600 });
+  assert.equal((await request(port, '/api/enrichment')).status, 500);
+  assert.equal((await request(port, '/api/corpus')).status, 200);
+  assert.equal(await readFile(corpusFile, 'utf8'), original);
+});
+
+test('synthetic research demo is schema-valid, visibly synthetic, and never enables collection', async t => {
+  const port = await start(t), result = await request(port, '/api/demo-research');
+  assert.equal(result.status, 200); const corpus = JSON.parse(result.body);
+  assert.deepEqual(validateCorpus(corpus), []); assert.ok(corpus.governance.synthetic);
+  assert.equal(corpus.paths.length, 1); assert.equal(result.headers['x-collection-enabled'], undefined);
 });

@@ -9,6 +9,7 @@ import {
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
+import { renderExploration, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
 import {
   DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
   createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal, corpusProposal, renderStudio, downloadProposal, webIntakeInput,
@@ -21,8 +22,100 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
+const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
+
+test('research views retain optional core-only empty states and synthetic graph support without mutating evidence', async () => {
+  assertValid(researchFixture);
+  const { app, content } = await mounted(researchFixture), before = canonicalSerialize(app.getModel().corpus);
+  for (const view of ['paths', 'behaviors', 'frameworks', 'telemetry', 'otel']) {
+    app.navigate(view);
+    assert.ok(content.textContent.length);
+    assert.ok(!content.textContent.includes('Unknown target'));
+    const empty = await mounted(emptyCorpus(), `#${view}`);
+    assert.match(empty.content.textContent, /No (authored attack paths|records)/);
+  }
+  app.navigate('paths');
+  await button(content, '→').trigger('click');
+  assert.match(content.textContent, /Synthetic conditional relationship/);
+  const svg = descendants(content).find(n => n.tagName === 'SVG');
+  const box = svg.getAttribute('viewBox');
+  await button(content, 'Zoom in').trigger('click'); assert.notEqual(svg.getAttribute('viewBox'), box);
+  await button(content, 'Reset layout').trigger('click'); assert.equal(svg.getAttribute('viewBox'), box);
+  await button(content, 'Benign tool response').trigger('click'); assert.match(content.textContent, /no real incident or attack/);
+  assert.equal(canonicalSerialize(app.getModel().corpus), before);
+});
+
+test('research case filters prevent cross-case paths and mapped enrichment contamination', () => {
+  const m = createModel(researchFixture), firstCase = researchFixture.cases[0].id, otherCase = researchFixture.cases[1].id;
+  assert.equal(explorationRecords(m, 'paths', { cases: [firstCase] }).records.length, 1);
+  for (const view of ['paths', 'behaviors', 'frameworks', 'telemetry', 'otel'])
+    assert.equal(explorationRecords(m, view, { cases: [otherCase] }).records.length, 0, view);
+  assert.equal(explorationRecords(m, 'frameworks', { query: 'not an official technique' }).records.length, 1);
+  assert.equal(Object.keys(graphLayout(researchFixture.paths[0])).length, 2);
+});
+
+test('research catalog controls and talk bundles retain scoped references, telemetry and hypotheses', async () => {
+  const m = createModel(structuredClone(researchFixture));
+  m.corpus.frameworks.push({ ...m.corpus.frameworks[0], id: 'unmapped-catalog-entry', framework: 'ATT&CK' });
+  const doc = new FakeDocument(), root = renderExploration(doc, m, 'frameworks', {}, () => {});
+  const controls = descendants(root).filter(n => n.tagName === 'SELECT');
+  const cards = descendants(root).filter(n => n.className === 'panel research-card');
+  controls[0].value = 'ATT&CK'; await controls[0].trigger('change');
+  assert.equal(cards[0].hidden, true); assert.equal(cards[1].hidden, false);
+  controls[1].value = 'Mapped to selected cases'; await controls[1].trigger('change'); assert.equal(cards[1].hidden, true);
+  const bundle = talkBundle(m, researchFixture.cases[0].id);
+  for (const key of ['paths', 'mappings', 'behaviors', 'frameworks', 'telemetry', 'detections', 'otel']) assert.equal(bundle[key].length, 1, key);
+  assert.match(talkMarkdown(bundle), /Candidate framework mappings/);
+  assert.match(talkMarkdown(bundle), /Untested hypothesis/);
+});
+
+test('pending TTP, data-source and detection annotations are visible without fabricated core enrichment', () => {
+  const m = model(), c = m.corpus.cases[0], r = m.corpus.sourceRevisions[0];
+  m.annotations = ['ttp-references', 'data-sources', 'detection-references'].map((type, index) => ({
+    id: `annotation-${index}`, caseId: c.id, sourceId: r.sourceId, sourceRevisionId: r.id, type,
+    value: `Pending reference ${index}`, origin: 'manual', evidenceStatus: 'inference', status: 'pending',
+  }));
+  assert.match(renderExploration(new FakeDocument(), m, 'frameworks', {}, () => {}).textContent, /Pending reference 0/);
+  const telemetry = renderExploration(new FakeDocument(), m, 'telemetry', {}, () => {});
+  assert.match(telemetry.textContent, /Pending reference 1/); assert.match(telemetry.textContent, /Pending reference 2/);
+  assert.ok(!m.corpus.mappings && !m.corpus.telemetry, 'display does not promote annotations into core records');
+});
+
+test('campaign enrichment preserves exact evidence, overlapping contexts and safe draft talk exports', async () => {
+  const m = model(), record = m.corpus.cases[0], revision = m.corpus.sourceRevisions[0], before = canonicalSerialize(m.corpus);
+  const quote = [...revision.normalizedContent].slice(0, 5).join('');
+  m.annotations = [{ id: 'test-pending', caseId: record.id, sourceId: revision.sourceId, sourceRevisionId: revision.id,
+    type: 'commands-ai-artifacts', value: '<script>untrusted</script> --flag', context: { artifactKind: 'command' },
+    origin: 'manual', evidenceStatus: 'evidence-backed', status: 'pending', support: { locator: { start: 0, end: 5 } },
+    externalReferenceUrl: 'javascript:untrusted()' }];
+  const calls = [], doc = new FakeDocument(), panel = renderEvidencePanel(doc, m, record, (...args) => calls.push(args));
+  assert.match(panel.textContent, /pending/); assert.ok(panel.textContent.includes(quote));
+  assert.equal(descendants(panel).filter(n => n.tagName === 'SCRIPT').length, 0);
+  assert.equal(descendants(panel).filter(n => n.tagName === 'A' && n.href?.startsWith('javascript:')).length, 0);
+  await button(panel, 'Source:').trigger('click'); assert.deepEqual(calls[0], ['sources', revision.sourceId, revision.id]);
+  const bundle = talkBundle(m, record.id);
+  assert.equal(bundle.annotations.length, 1); assert.equal(bundle.private, true);
+  assert.equal(bundle.citations.length, caseSourceIds(m, record.id).length);
+  assert.ok(bundle.claims.every(c => c.caseId === record.id));
+  assert.ok(!Object.hasOwn(bundle, 'sourceRevisions'), 'talk bundle does not silently include full article archives');
+  assert.match(talkMarkdown(bundle), /\\<script\\>/);
+  assert.equal(canonicalSerialize(m.corpus), before);
+});
+
+test('private annotation reads fail visibly while preserving the loaded corpus and read-only demos', async () => {
+  const requests = [];
+  const loaded = await fetchCorpus(async endpoint => {
+    requests.push(endpoint); return endpoint === '/api/enrichment' ? response(null, 500) : response(fresh(), 200, true);
+  }, '/api/corpus');
+  assert.deepEqual(requests, ['/api/corpus', '/api/enrichment']);
+  assert.equal(loaded.corpus.claims.length, fixture.claims.length); assert.deepEqual(loaded.annotations, []);
+  assert.match(loaded.annotationError, /could not be loaded/);
+  const demoRequests = [];
+  await fetchCorpus(async endpoint => { demoRequests.push(endpoint); return response(researchFixture); }, '/api/demo-research');
+  assert.deepEqual(demoRequests, ['/api/demo-research']);
+});
 
 test('Issue #25 AC-01 all category dimensions support OR / AND within and AND across facets', () => {
   for (const dimension of Object.keys(COMPARISON_DIMENSIONS)) {
@@ -949,6 +1042,7 @@ test('Issue #39 AC-01/02/05 studio fetch shows waiting and partial outcomes, ref
       corpus.cases[0].name = 'Refreshed private campaign'; corpus.governance = {};
       return response(structuredClone(outcomes));
     }
+    if (endpoint === '/api/enrichment') return response({ schemaVersion: 'talk-enrichment/1', annotations: [] });
     return response(structuredClone(corpus), 200, true);
   });
   await app.ready;
@@ -971,11 +1065,11 @@ test('Issue #39 AC-01/02/05 studio fetch shows waiting and partial outcomes, ref
   assert.equal(button(content, 'Fetching articles').disabled, true);
   assert.equal(doc.getElementById('reload-corpus').disabled, true);
   await app.load('/api/demo');
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   release(); await collection;
-  assert.deepEqual(calls.map(item => item[0]), ['/api/corpus', '/api/intake', '/api/corpus']);
-  assert.equal(calls[1][1].method, 'POST');
-  assert.deepEqual(JSON.parse(calls[1][1].body), { urls: outcomes.results.map(item => item.url), operator: 'operator', caseId: 'synthetic-case-a' });
+  assert.deepEqual(calls.map(item => item[0]), ['/api/corpus', '/api/enrichment', '/api/intake', '/api/corpus', '/api/enrichment']);
+  assert.equal(calls[2][1].method, 'POST');
+  assert.deepEqual(JSON.parse(calls[2][1].body), { urls: outcomes.results.map(item => item.url), operator: 'operator', caseId: 'synthetic-case-a' });
   assert.match(content.textContent, /collected with image warnings.*OK/);
   assert.match(content.textContent, /Image denied: ACCESS_DENIED/);
   assert.match(content.textContent, /failed.*ACCESS_DENIED/);

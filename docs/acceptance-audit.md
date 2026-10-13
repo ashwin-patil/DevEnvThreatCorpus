@@ -8,6 +8,25 @@ The PR policy reads GitHub's linked-issue and complete changed-file metadata: it
 
 ## Issue #39 batch article intake and private campaign corpus
 
+### Researcher-requested local presentation follow-up
+
+The researcher requested integration of the older presentation features while
+preserving existing functionality and layout. This extends presentation beyond
+the original intake issue; no legacy incidents are migrated or accepted.
+
+| Requirement | Evidence / verification | Human boundary |
+|---|---|---|
+| Preserve core collection, review, comparison, and studio | Existing configured suites plus updated workbench/server regression assertions | No review or acceptance contract changes |
+| Restore paths, behaviors, framework references, telemetry, OTEL | `src/explore.mjs`, safe DOM/SVG rendering, optional-core empty states, synthetic fixture, case-scope/graph/catalog tests | Authored relationships and pending/synthetic labels remain visible |
+| Display private evidence-linked annotations | Validated read-only `/api/enrichment`; grouped campaign panel; exact passage navigation; sidecar failure/isolation tests | Not independent confirmation or automatic acceptance |
+| Export private talk bundles | JSON/Markdown provenance, scoped citations/claims/passages/annotations and enrichment tests; imported Markdown escaped | Presentation exports are not reviewed releases or article publication |
+| Preserve layout / interactions | Real-browser node/edge, zoom/reset, reference navigation and export smoke checks; desktop/tablet/mobile width measurements | Independent visual review remains required |
+
+Local execution evidence and screenshots are retained privately by the
+researcher; final revision and exact outcomes must accompany any resulting PR.
+The original basic synthetic demo remains unchanged. The new research demo is
+separate, benign, and prominently marked synthetic.
+
 Originating implementation requirements are [Issue #39](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/39),
 including its authoritative clarification that the 2–4 hour estimate does not
 reduce scope. Corrections and execution evidence stay on [PR #40](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/40).

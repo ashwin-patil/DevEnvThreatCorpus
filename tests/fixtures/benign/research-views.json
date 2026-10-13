@@ -1,0 +1,798 @@
+{
+  "schemaVersion": "0.3.0",
+  "name": "SYNTHETIC research views — benign examples, not incidents",
+  "sources": [
+    {
+      "id": "synthetic-source-a",
+      "originalUrl": null,
+      "canonicalUrl": null,
+      "title": "Synthetic training account of a tool",
+      "publisher": null,
+      "author": null,
+      "publicationDate": {
+        "precision": "day",
+        "value": "2024-02-29",
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "updateDate": {
+        "precision": "unknown",
+        "value": null,
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "value": "not_reported",
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "retrievalDate": {
+        "precision": "day",
+        "value": "2026-10-12",
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "inputKind": "supplied-text",
+      "provenance": {
+        "kind": "supplied-text",
+        "suppliedBy": "synthetic-fixture-author",
+        "description": "Benign synthetic text; no real attack or attribution.",
+        "nullReasons": {}
+      },
+      "revisionIds": [
+        "synthetic-revision-a"
+      ],
+      "extractionStatus": "Extracted",
+      "collectionState": "Extracted — review pending",
+      "nullReasons": {
+        "originalUrl": "not_applicable",
+        "canonicalUrl": "not_applicable",
+        "publisher": "unknown",
+        "author": "not_reported"
+      }
+    },
+    {
+      "id": "synthetic-source-b",
+      "originalUrl": "https://example.invalid/benign-report",
+      "canonicalUrl": "https://example.invalid/benign-report",
+      "title": "Synthetic conflicting account",
+      "publisher": "Synthetic publisher",
+      "author": null,
+      "publicationDate": {
+        "precision": "month",
+        "value": "2025-06",
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "updateDate": {
+        "precision": "unknown",
+        "value": null,
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "value": "unknown",
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "retrievalDate": {
+        "precision": "day",
+        "value": "2026-10-12",
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "inputKind": "url",
+      "provenance": {
+        "kind": "supplied-url",
+        "suppliedBy": "synthetic-fixture-author",
+        "description": "Recorded benign fixture; never fetched.",
+        "nullReasons": {}
+      },
+      "revisionIds": [
+        "synthetic-revision-b"
+      ],
+      "extractionStatus": "Extracted",
+      "collectionState": "Extracted — review pending",
+      "nullReasons": {
+        "author": "not_reported"
+      }
+    }
+  ],
+  "sourceRevisions": [
+    {
+      "id": "synthetic-revision-a",
+      "sourceId": "synthetic-source-a",
+      "rawHash": "493ae1a1505f9d25e1bea114313390a32be0a0621b4596be3261037120355dc2",
+      "normalizedHash": "7792f6dd8e7fef93ac18cd44219b02376ca325dc1e53bd8e62daa46a711f9931",
+      "normalizationVersion": "unicode-lf-nfc/1",
+      "parserVersion": "supplied-text/1",
+      "provenance": {
+        "kind": "supplied-text",
+        "suppliedBy": "synthetic-fixture-author",
+        "description": "Synthetic private fixture content.",
+        "nullReasons": {}
+      },
+      "rawContent": "😀 Café\r\nA tool was used in a benign exercise.",
+      "normalizedContent": "😀 Café\nA tool was used in a benign exercise.",
+      "retention": "private",
+      "nullReasons": {}
+    },
+    {
+      "id": "synthetic-revision-b",
+      "sourceId": "synthetic-source-b",
+      "rawHash": "c7887854d7e4ce08d57b1e897164cb7095b04345a5894af6e619ff5f0cd4a59e",
+      "normalizedHash": "c7887854d7e4ce08d57b1e897164cb7095b04345a5894af6e619ff5f0cd4a59e",
+      "normalizationVersion": "unicode-lf-nfc/1",
+      "parserVersion": "supplied-text/1",
+      "provenance": {
+        "kind": "supplied-url",
+        "suppliedBy": "synthetic-fixture-author",
+        "description": "Synthetic conflicting fixture content.",
+        "nullReasons": {}
+      },
+      "rawContent": "The tool was not used.",
+      "normalizedContent": "The tool was not used.",
+      "retention": "permitted-public",
+      "nullReasons": {}
+    }
+  ],
+  "passages": [
+    {
+      "id": "synthetic-passage-a",
+      "sourceRevisionId": "synthetic-revision-a",
+      "text": "Café",
+      "locator": "line 1",
+      "start": 2,
+      "end": 6,
+      "attestation": null,
+      "nullReasons": {
+        "attestation": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-passage-b",
+      "sourceRevisionId": "synthetic-revision-b",
+      "text": "The tool was not used.",
+      "locator": "line 1",
+      "start": 0,
+      "end": 22,
+      "attestation": null,
+      "nullReasons": {
+        "attestation": "not_applicable"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "synthetic-case-a",
+      "name": "Synthetic exercise A",
+      "aliases": [
+        "Benign A"
+      ],
+      "kind": "Research exercise",
+      "summary": "Synthetic accounts disagree; no real incident or shared attribution.",
+      "summaryClaimIds": [
+        "synthetic-claim-a",
+        "synthetic-claim-b"
+      ],
+      "sourceIds": [
+        "synthetic-source-a",
+        "synthetic-source-b"
+      ],
+      "collectionState": "Extracted — review pending",
+      "disposition": "Pending",
+      "limits": "All content is synthetic; automated fixtures cannot establish research truth.",
+      "origin": "Human authored",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {},
+      "pathIds": [
+        "synthetic-path"
+      ]
+    },
+    {
+      "id": "synthetic-case-b",
+      "name": "Synthetic exercise B",
+      "aliases": [],
+      "kind": "Research exercise",
+      "summary": "A separate case cites the same source without claiming a shared actor.",
+      "summaryClaimIds": [
+        "synthetic-claim-c"
+      ],
+      "sourceIds": [
+        "synthetic-source-a"
+      ],
+      "collectionState": "Collected",
+      "disposition": "Pending",
+      "limits": "Shared source is not attribution.",
+      "origin": "Human authored",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {}
+    }
+  ],
+  "claims": [
+    {
+      "id": "synthetic-claim-a",
+      "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-a",
+      "sourceRevisionId": "synthetic-revision-a",
+      "description": "The synthetic source includes the word Café.",
+      "passageIds": [
+        "synthetic-passage-a"
+      ],
+      "inference": null,
+      "evidenceStatus": "Source-reported observation",
+      "origin": "Human source paraphrase",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "conflictsWith": [
+        "synthetic-claim-b"
+      ],
+      "uncertainty": "Synthetic contrast only.",
+      "observationContext": null,
+      "nullReasons": {
+        "inference": "not_applicable",
+        "observationContext": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-claim-b",
+      "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-b",
+      "sourceRevisionId": "synthetic-revision-b",
+      "description": "A second synthetic source denies tool use.",
+      "passageIds": [
+        "synthetic-passage-b"
+      ],
+      "inference": null,
+      "evidenceStatus": "Unclear or disputed",
+      "origin": "Human source paraphrase",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "conflictsWith": [
+        "synthetic-claim-a"
+      ],
+      "uncertainty": "Disagreement retained, not merged.",
+      "observationContext": null,
+      "nullReasons": {
+        "inference": "not_applicable",
+        "observationContext": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-claim-c",
+      "caseId": "synthetic-case-b",
+      "sourceId": "synthetic-source-a",
+      "sourceRevisionId": "synthetic-revision-a",
+      "description": "The same synthetic passage is scoped independently to case B.",
+      "passageIds": [
+        "synthetic-passage-a"
+      ],
+      "inference": null,
+      "evidenceStatus": "Demonstrated capability or proof of concept",
+      "origin": "Human source paraphrase",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "conflictsWith": [],
+      "uncertainty": null,
+      "observationContext": "Benign synthetic demonstration",
+      "nullReasons": {
+        "inference": "not_applicable",
+        "uncertainty": "unknown"
+      }
+    },
+    {
+      "id": "synthetic-claim-inference",
+      "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-a",
+      "sourceRevisionId": "synthetic-revision-a",
+      "description": "An analyst identifies disagreement in these synthetic accounts.",
+      "passageIds": [],
+      "inference": {
+        "rationale": "The two independently retained statements differ; do not infer common attribution.",
+        "supportingClaimIds": [
+          "synthetic-claim-a",
+          "synthetic-claim-b"
+        ]
+      },
+      "evidenceStatus": "Researcher inference",
+      "origin": "Human inference",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "conflictsWith": [],
+      "uncertainty": "Analyst interpretation, not established execution.",
+      "observationContext": null,
+      "nullReasons": {
+        "observationContext": "not_applicable"
+      }
+    }
+  ],
+  "categorizations": [
+    {
+      "id": "synthetic-category-victim",
+      "caseId": "synthetic-case-a",
+      "dimension": "ai_involvement",
+      "value": "Victim-side agent abuse",
+      "otherText": null,
+      "sourceIds": [
+        "synthetic-source-a"
+      ],
+      "supportingClaimIds": [
+        "synthetic-claim-a"
+      ],
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {
+        "otherText": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-category-attacker",
+      "caseId": "synthetic-case-a",
+      "dimension": "ai_involvement",
+      "value": "Attacker-side AI use",
+      "otherText": null,
+      "sourceIds": [
+        "synthetic-source-a"
+      ],
+      "supportingClaimIds": [
+        "synthetic-claim-a"
+      ],
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {
+        "otherText": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-category-review",
+      "caseId": "synthetic-case-a",
+      "dimension": "ai_involvement",
+      "value": "AI review targeting",
+      "otherText": null,
+      "sourceIds": [
+        "synthetic-source-a"
+      ],
+      "supportingClaimIds": [
+        "synthetic-claim-a"
+      ],
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {
+        "otherText": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-category-conventional",
+      "caseId": "synthetic-case-b",
+      "dimension": "trust_surface",
+      "value": "Package or registry compromise",
+      "otherText": null,
+      "sourceIds": [
+        "synthetic-source-a"
+      ],
+      "supportingClaimIds": [
+        "synthetic-claim-c"
+      ],
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {
+        "otherText": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-category-no-ai",
+      "caseId": "synthetic-case-a",
+      "dimension": "ai_involvement",
+      "value": "No AI involvement reported",
+      "otherText": null,
+      "sourceIds": [
+        "synthetic-source-b"
+      ],
+      "supportingClaimIds": [
+        "synthetic-claim-b"
+      ],
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {
+        "otherText": "not_applicable"
+      }
+    }
+  ],
+  "timelines": [
+    {
+      "id": "synthetic-publication",
+      "caseId": "synthetic-case-a",
+      "description": "Synthetic publication metadata",
+      "date": {
+        "precision": "day",
+        "value": "2024-02-29",
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "dateType": "publication",
+      "supportingClaimIds": [],
+      "sourceRevisionIds": [
+        "synthetic-revision-a"
+      ],
+      "basis": "Synthetic source publication metadata only.",
+      "uncertainty": null,
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {
+        "uncertainty": "not_applicable"
+      }
+    },
+    {
+      "id": "synthetic-execution",
+      "caseId": "synthetic-case-a",
+      "description": "Synthetic execution date remains unknown",
+      "date": {
+        "precision": "unknown",
+        "value": null,
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "value": "not_reported",
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "dateType": "incident_execution",
+      "supportingClaimIds": [
+        "synthetic-claim-a"
+      ],
+      "sourceRevisionIds": [],
+      "basis": "No execution date supplied; publication is not execution.",
+      "uncertainty": "Unknown activity date.",
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {}
+    },
+    {
+      "id": "synthetic-month",
+      "caseId": "synthetic-case-a",
+      "description": "Synthetic month precision",
+      "date": {
+        "precision": "month",
+        "value": "2025-06",
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "dateType": "first_reported_activity",
+      "supportingClaimIds": [
+        "synthetic-claim-a"
+      ],
+      "sourceRevisionIds": [],
+      "basis": "Synthetic month supplied explicitly.",
+      "uncertainty": "Day is unknown.",
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {}
+    },
+    {
+      "id": "synthetic-year",
+      "caseId": "synthetic-case-a",
+      "description": "Synthetic year precision",
+      "date": {
+        "precision": "year",
+        "value": "2025",
+        "start": null,
+        "end": null,
+        "nullReasons": {
+          "start": "not_applicable",
+          "end": "not_applicable"
+        }
+      },
+      "dateType": "discovery",
+      "supportingClaimIds": [
+        "synthetic-claim-a"
+      ],
+      "sourceRevisionIds": [],
+      "basis": "Synthetic year supplied explicitly.",
+      "uncertainty": "Month and day unknown.",
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {}
+    },
+    {
+      "id": "synthetic-range",
+      "caseId": "synthetic-case-a",
+      "description": "Synthetic disclosure range",
+      "date": {
+        "precision": "range",
+        "value": null,
+        "start": "2025-06",
+        "end": "2025-08",
+        "nullReasons": {
+          "value": "not_applicable"
+        }
+      },
+      "dateType": "disclosure",
+      "supportingClaimIds": [
+        "synthetic-claim-a"
+      ],
+      "sourceRevisionIds": [],
+      "basis": "Synthetic bounded range supplied explicitly.",
+      "uncertainty": "Months, not invented days.",
+      "origin": "Human authored",
+      "disposition": "Pending",
+      "revision": "r1",
+      "history": [],
+      "nullReasons": {}
+    }
+  ],
+  "reviews": [],
+  "collectionManifests": [
+    {
+      "id": "synthetic-manifest",
+      "kind": "manual-collection",
+      "inputSourceIds": [
+        "synthetic-source-a",
+        "synthetic-source-b"
+      ],
+      "inputRevisionIds": [
+        "synthetic-revision-a",
+        "synthetic-revision-b"
+      ],
+      "outcome": "Succeeded",
+      "provenance": {
+        "kind": "supplied-text",
+        "suppliedBy": "synthetic-fixture-author",
+        "description": "Recorded offline synthetic fixtures; no source fetching.",
+        "nullReasons": {}
+      },
+      "toolVersion": "synthetic-fixture/1",
+      "inputHash": null,
+      "outputHash": null,
+      "limitations": [
+        "Synthetic contract validation only; not empirical research."
+      ],
+      "nullReasons": {
+        "inputHash": "not_applicable",
+        "outputHash": "not_applicable"
+      }
+    }
+  ],
+  "governance": {
+    "synthetic": true,
+    "controlledAliases": {
+      "tool": [
+        "Claude Code",
+        "Gemini CLI",
+        "Amazon Q"
+      ],
+      "platform": [
+        "GitHub",
+        "npm"
+      ],
+      "tag": [
+        "synthetic"
+      ]
+    },
+    "identityPolicy": "Entity-scoped IDs; node IDs globally unique. Full SHA-256 deterministic new IDs; reject collisions, never silently merge."
+  },
+  "behaviors": [
+    {
+      "origin": "LLM synthetic fixture; not incident evidence",
+      "disposition": "Pending",
+      "id": "synthetic-behavior",
+      "namespace": "Synthetic local behavior",
+      "name": "Benign tool invocation",
+      "boundary": "Local CLI to test tool",
+      "description": "A benign fixture for presentation only.",
+      "signalIds": [
+        "synthetic-sensor"
+      ],
+      "detectionIds": [
+        "synthetic-detection"
+      ],
+      "otelIds": [
+        "synthetic-otel"
+      ]
+    }
+  ],
+  "paths": [
+    {
+      "origin": "LLM synthetic fixture; not incident evidence",
+      "disposition": "Pending",
+      "id": "synthetic-path",
+      "caseId": "synthetic-case-a",
+      "scope": "representative",
+      "nodes": [
+        {
+          "origin": "LLM synthetic fixture; not incident evidence",
+          "disposition": "Pending",
+          "id": "synthetic-node-start",
+          "title": "Benign test input",
+          "detail": "Synthetic source describes a test input.",
+          "claimIds": [
+            "synthetic-claim-a"
+          ],
+          "behaviorIds": [
+            "synthetic-behavior"
+          ],
+          "evidenceStatus": "Source-reported observation"
+        },
+        {
+          "origin": "LLM synthetic fixture; not incident evidence",
+          "disposition": "Pending",
+          "id": "synthetic-node-end",
+          "title": "Benign tool response",
+          "detail": "Synthetic response; no real incident or attack.",
+          "claimIds": [
+            "synthetic-claim-a"
+          ],
+          "behaviorIds": [
+            "synthetic-behavior"
+          ],
+          "evidenceStatus": "Demonstrated capability or proof of concept"
+        }
+      ],
+      "edges": [
+        {
+          "id": "synthetic-edge",
+          "from": "synthetic-node-start",
+          "to": "synthetic-node-end",
+          "claimIds": [
+            "synthetic-claim-a"
+          ],
+          "relation": "conditional",
+          "basis": "Synthetic conditional relationship, not established chronology.",
+          "origin": "LLM synthetic fixture; not incident evidence"
+        }
+      ]
+    }
+  ],
+  "frameworks": [
+    {
+      "id": "synthetic-technique",
+      "name": "Synthetic catalog entry — not an official technique",
+      "framework": "ATLAS",
+      "version": "synthetic-fixture",
+      "sourceId": "synthetic-source-a",
+      "url": "https://example.invalid/synthetic-framework"
+    }
+  ],
+  "mappings": [
+    {
+      "origin": "LLM synthetic fixture; not incident evidence",
+      "disposition": "Pending",
+      "id": "synthetic-mapping",
+      "caseId": "synthetic-case-a",
+      "behaviorId": "synthetic-behavior",
+      "framework": "ATLAS",
+      "version": "synthetic-fixture",
+      "techniqueId": "synthetic-technique",
+      "claimIds": [
+        "synthetic-claim-a"
+      ],
+      "rationale": "UI fixture only; no official mapping asserted.",
+      "applicability": "Synthetic",
+      "mappingStatus": "Proposed"
+    }
+  ],
+  "telemetry": [
+    {
+      "origin": "LLM synthetic fixture; not incident evidence",
+      "disposition": "Pending",
+      "id": "synthetic-sensor",
+      "behaviorId": "synthetic-behavior",
+      "category": "endpoint",
+      "eventType": "Benign process creation",
+      "logicalFields": [
+        "host.id",
+        "process.executable"
+      ],
+      "joinKeys": [
+        "host.id"
+      ],
+      "availability": "Proposed synthetic collection",
+      "schema": "Illustrative logical fields, no deployed sensor",
+      "limitations": "Not incident telemetry or validated detection."
+    }
+  ],
+  "detections": [
+    {
+      "origin": "LLM synthetic fixture; not incident evidence",
+      "disposition": "Pending",
+      "id": "synthetic-detection",
+      "behaviorId": "synthetic-behavior",
+      "hypothesis": "Illustrative test correlation",
+      "signalIds": [
+        "synthetic-sensor"
+      ],
+      "otelIds": [
+        "synthetic-otel"
+      ],
+      "windowSeconds": 60,
+      "windowBasis": "Synthetic test value",
+      "tuning": "Validate against benign controls",
+      "testPlan": "Synthetic fixture only",
+      "validation": "Untested hypothesis"
+    }
+  ],
+  "otel": [
+    {
+      "origin": "LLM synthetic fixture; not incident evidence",
+      "disposition": "Pending",
+      "id": "synthetic-otel",
+      "behaviorId": "synthetic-behavior",
+      "action": "Illustrative tool instrumentation",
+      "standardSourceIds": [
+        "synthetic-source-a"
+      ],
+      "customFields": [
+        "devthreat.synthetic"
+      ],
+      "sample": {
+        "Attributes": {
+          "devthreat.synthetic": true
+        }
+      },
+      "sampleFormat": "Logical example, not OTLP",
+      "sampleOrigin": "Synthetic, not incident evidence",
+      "stability": "Illustrative",
+      "limitations": "No collector or real trace."
+    }
+  ],
+  "otelReference": {
+    "sourceIds": [
+      "synthetic-source-a"
+    ],
+    "fields": [
+      [
+        "TraceId",
+        "Illustrative trace identifier"
+      ]
+    ],
+    "limitations": "Synthetic reference fixture, not live standard validation."
+  }
+}

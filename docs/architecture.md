@@ -1,5 +1,36 @@
 # Fresh-start corpus architecture
 
+## Optional research presentation and private annotations
+
+The researcher-authorized local presentation integration adapts the former
+prototype's views to 0.3.0 without migrating its incident assertions. Core
+ingestion, comparison, passage selection, reviews, and the original demo retain
+their contracts. `src/explore.mjs` renders optional paths, behaviors, framework
+catalogs/mappings, telemetry/detection proposals, and synthetic OTEL samples
+through safe DOM/SVG APIs. Empty optional collections are normal. Existing
+facets scope related cases and graph/mapping records; matching behavior labels
+never imply shared attribution. Graph positions are ephemeral UI state.
+
+`GET /api/enrichment` exists only in private store mode and shares the loopback
+Host/Origin/Fetch-Metadata gate. It reads the bounded private sidecar with the
+existing schema, case/source/revision, evidence, and filesystem validation,
+then rechecks directory identity. It cannot import, accept, or write anything.
+The browser loads it separately from `/api/corpus`; errors leave core data
+usable and display a warning. Snapshot and synthetic modes do not load private
+sidecars. Original HTML remains download-only under the existing CSP.
+
+Campaign talk bundles are private, explicitly draft-oriented presentation
+exports, not reviewed releases. They include cited claims/passages and pending
+annotations, categories, dates, optional paths/mappings, and the loaded core
+snapshot digest; they exclude full raw/normalized article archives. Annotation
+model/prompt provenance and exact source revisions survive JSON/Markdown export.
+Markdown escapes imported markup. No current approval eligibility is asserted.
+
+`/api/demo-research` serves a distinct schema-valid benign synthetic fixture
+for all optional views. Loading it changes display only and disables collection;
+reload restores the private corpus. Its fictional framework entry is explicitly
+marked synthetic, not an official technique or real mapping.
+
 ## Local Research Workbench and private curator studio
 
 `src/index.html`, `src/style.css`, and vanilla ES modules implement the

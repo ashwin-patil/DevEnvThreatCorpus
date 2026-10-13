@@ -104,6 +104,34 @@ command line; use a permission-restricted UTF-8 file instead.
 
 ## Batch campaign collection: CLI and local web
 
+### Research views and talk preparation
+
+The workbench also provides **Attack paths**, **Behaviors**, **ATLAS & TTPs**,
+**Security telemetry**, and **OpenTelemetry** views using optional 0.3.0 records.
+They preserve the existing layout and display recorded origins, pending states,
+claims, mapping rationale, and proposal limitations. Graphs support node/edge
+inspection, zoom, pan, node movement, reset, and keyboard/text alternatives.
+Collection alone creates no attack graph, framework mapping, or accepted fact.
+No legacy 0.2.0 incidents are imported automatically.
+
+In private `--store` mode, campaign pages display validated `talk-enrichment/1`
+annotations grouped by AI/attacker/victim context, behaviors, data sources,
+commands/prompts/tools, indicators/CI/CD artifacts, TTPs, detection references,
+and talk tags. Import annotations with the existing enrichment CLI below and
+click **Reload local corpus**. Invalid/stale sidecars display a warning while
+core sources and claims remain usable. The annotation endpoint is read-only;
+the browser does not receive filesystem access or model credentials.
+
+Campaign pages export private talk bundles as JSON or Markdown: citations,
+case claims and passages, annotations, categories, timelines, and optional
+paths/mappings retain their provenance and dispositions. These exports do not
+include full article archives or promote claims. Keep them private.
+
+For a benign visual example, open a research view and choose **Load synthetic
+research demo**. It replaces only the displayed corpus, disables collection,
+and is prominently labeled synthetic. **Reload local corpus** restores your
+private collection. The original basic synthetic demo is unchanged.
+
 Collection accepts at most **20 explicit public HTTPS URLs** per batch, one per
 line. Choose an existing case ID or explicitly name a new pending campaign.
 Identical inputs and unchanged source revisions are deduplicated; a changed

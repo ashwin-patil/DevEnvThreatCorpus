@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-12 — Local research presentation integration
+
+- Restore optional attack-path, behavior, framework, security telemetry, and
+  OpenTelemetry exploration on the 0.3.0 evidence model using existing layout
+  tokens. Add graph interactions with keyboard/text alternatives, scoped
+  candidate mappings, and explicit proposal/synthetic status.
+- Display validated private enrichment sidecars on campaign pages and provide
+  private Markdown/JSON talk bundles with citations and evidence. Annotation
+  reads fail closed without changing collection, claims, or review decisions.
+  Add separate benign research-view fixtures; do not import legacy incidents.
+
 ## 2026-10-13
 
 - Issue #39: add shared, bounded CLI/local-web batch URL collection with explicit

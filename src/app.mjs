@@ -1,6 +1,7 @@
 import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
+import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, explorationRecords } from './explore.mjs';
 
 export async function fetchCorpus(fetcher, endpoint) {
   const response = await fetcher(endpoint, { cache: 'no-store' });
@@ -8,6 +9,16 @@ export async function fetchCorpus(fetcher, endpoint) {
   const corpus = await response.json(), model = createModel(corpus);
   model.snapshot = await hashText(JSON.stringify(corpus));
   model.collectionEnabled = endpoint === '/api/corpus' && response.headers?.get?.('x-collection-enabled') === 'true';
+  model.annotations = [];
+  if (model.collectionEnabled) {
+    try {
+      const annotations = await fetcher('/api/enrichment', { cache: 'no-store' });
+      if (!annotations.ok) throw new Error('Unavailable enrichment');
+      const document = await annotations.json();
+      if (document.schemaVersion !== 'talk-enrichment/1' || !Array.isArray(document.annotations)) throw new Error('Invalid enrichment response');
+      model.annotations = document.annotations;
+    } catch { model.annotationError = 'Private annotations could not be loaded or validated. Core records remain available; check the sidecar and reload.'; }
+  }
   return model;
 }
 
@@ -140,7 +151,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         'Claims navigate to their exact source revision. Old snapshots and conflicting claims remain available. Unicode passages use half-open code-point intervals [start, end); overlapping claims are not merged.',
         'Null values keep their recorded reasons. Publication, discovery, disclosure and incident activity dates retain type and precision; missing content is not invented.',
         'Only same-origin local endpoints and bundled assets are requested by the browser. With --store, explicit Fetch articles sends public HTTPS URLs to the backend, which persists collection and campaign links; new campaigns remain Pending, never accepted. --corpus and no-store modes remain read-only snapshots. The curator studio retains pasted text and pending annotations in memory and downloads private proposals. There is no automatic acceptance, model call or curator review. Local browsing filters never change canonical records. Untrusted original HTML is download-only; extracted text is displayed by default.',
-        'Comparison and timelines describe observations within the collected dataset, not attribution or prevalence. Graph, framework and detection views are not implemented. Their absence does not mean no attack occurred. Human research review and merge approval remain independent.',
+        'Comparison, attack paths and behavior views describe recorded observations and research proposals, not attribution or prevalence. Framework membership does not establish occurrence. Security telemetry and detection hypotheses are distinct from synthetic OpenTelemetry examples. Optional enrichment is displayed with its recorded origin and disposition; human research review and merge approval remain independent.',
       ]) panel.append(element(doc, 'p', text));
       $('content').append(panel); return;
     }
@@ -160,6 +171,12 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       $('content').append(selection.cases.length ? renderComparison(doc, model, selection, filters, navigate) :
         empty('No cases match the current comparison filters. Unknown dates do not match bounded ranges.'));
       return;
+    }
+    if (Object.hasOwn(EXPLORE_VIEWS, route.view)) {
+      const selection = explorationRecords(model, route.view, filters);
+      const annotationCount = (model.annotations ?? []).filter(a => (VIEW_ANNOTATIONS[route.view] ?? []).includes(a.type) && selection.caseIds.has(a.caseId) && (!filters.query || JSON.stringify(a).toLowerCase().includes(filters.query.toLowerCase()))).length;
+      $('result').textContent = `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
+      $('content').append(renderExploration(doc, model, route.view, filters, navigate, route.id, () => load('/api/demo-research'))); return;
     }
     const records = filterRecords(model, route.view, filters);
     $('result').textContent = `${records.length} matching ${route.view} / ${model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;
@@ -187,7 +204,16 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     const detail = element(doc, 'div');
     if (route.id && !model[route.view].has(route.id)) detail.append(element(doc, 'p', 'Unknown target; showing a matching record instead.', 'subtle'));
     if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate,
-      value => downloadProposal(doc, win, value, 'campaign-citations.json')));
+      value => downloadProposal(doc, win, value, 'campaign-citations.json')),
+      renderEvidencePanel(doc, model, selected, navigate, (format, value) => {
+        if (format === 'json') downloadProposal(doc, win, value, 'campaign-talk-bundle.json');
+        else {
+          const url = win.URL.createObjectURL(new win.Blob([value], { type: 'text/markdown;charset=utf-8' }));
+          const link = element(doc, 'a'); link.href = url; link.download = 'campaign-talk-bundle.md'; doc.body.append(link);
+          try { link.click(); } finally { link.remove(); }
+          win.setTimeout(() => win.URL.revokeObjectURL(url), 1000);
+        }
+      }));
     if (route.view === 'sources') detail.append(renderSource(doc, model, selected, route.revisionId, navigate,
       id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
       ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));

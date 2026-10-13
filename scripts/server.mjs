@@ -3,6 +3,7 @@ import { readFile, lstat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { assertValid, canonicalSerialize, validatePrivateCorpus, collectBatch, readArchiveArtifact } from './contract.mjs';
+import { readEnrichmentSnapshot } from '../src/enrichment.mjs';
 
 export const WEB_INTAKE_LIMITS = Object.freeze({ bodyBytes: 192 * 1024, bodyTimeoutMs: 10_000, urls: 20 });
 const archiveIds = /^source-[a-f0-9]{64}\/source-revision-[a-f0-9]{64}$/;
@@ -60,6 +61,7 @@ const assets = new Map([
   ['/src/model.mjs', ['src/model.mjs', 'text/javascript']],
   ['/src/render.mjs', ['src/render.mjs', 'text/javascript']],
   ['/src/studio.mjs', ['src/studio.mjs', 'text/javascript']],
+  ['/src/explore.mjs', ['src/explore.mjs', 'text/javascript']],
   ['/docs/assets/logo.svg', ['docs/assets/logo.svg', 'image/svg+xml']],
   ['/docs/assets/favicon.svg', ['docs/assets/favicon.svg', 'image/svg+xml']],
 ]);
@@ -77,9 +79,11 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
   if (store && (!path.isAbsolute(store) || path.normalize(store) !== store || store.includes('\0'))) throw new Error('Store path must be absolute and normalized.');
   const corpus = corpusFile ? await validatePrivateCorpus(corpusFile) : assertValid(emptyCorpus());
   const demo = assertValid(JSON.parse(await readFile(new URL('tests/fixtures/benign/core-only.json', root), 'utf8')));
+  const researchDemo = assertValid(JSON.parse(await readFile(new URL('tests/fixtures/benign/research-views.json', root), 'utf8')));
   const responses = new Map([
     ['/api/corpus', canonicalSerialize(corpus)],
     ['/api/demo', canonicalSerialize(demo)],
+    ['/api/demo-research', canonicalSerialize(researchDemo)],
   ]);
   let writing = false;
   const server = http.createServer(async (request, response) => {
@@ -128,6 +132,14 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
       } finally { writing = false; }
     }
     if (!['GET', 'HEAD'].includes(request.method)) return send(405, 'Collection requires --store and POST /api/intake; all other routes are read-only.');
+    if (store && request.url === '/api/enrichment') {
+      try {
+        try { await lstat(path.join(store, 'corpus.json')); }
+        catch (error) { if (error.code === 'ENOENT') return send(200, JSON.stringify({ schemaVersion: 'talk-enrichment/1', annotations: [] }), 'application/json'); throw error; }
+        const current = await validatePrivateCorpus(path.join(store, 'corpus.json'));
+        return send(200, canonicalSerialize(await readEnrichmentSnapshot(store, current)), 'application/json');
+      } catch { return send(500, 'Private annotations could not be validated against the current corpus. Core collection is unchanged.'); }
+    }
     if (store && request.url === '/api/corpus') {
       try {
         let current;

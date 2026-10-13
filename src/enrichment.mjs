@@ -352,6 +352,18 @@ async function importDocument(directory, document, corpus) {
   }
 }
 
+// Read-only projection for the loopback workbench; never changes the canonical corpus or sidecars.
+export async function readEnrichmentSnapshot(store, corpus) {
+  const verifyStore = await privateDirectory(store);
+  const directory = path.join(store, 'enrichment');
+  try { await fs.lstat(directory); }
+  catch (error) { if (error.code === 'ENOENT') return { schemaVersion: ENRICHMENT_VERSION, annotations: [] }; throw error; }
+  const verifyDirectory = await privateDirectory(directory);
+  const document = await readDocument(path.join(directory, 'annotations.json'), corpus);
+  await verifyDirectory(); await verifyStore();
+  return document;
+}
+
 export async function runEnrichment({ command, store, inputFile, outputFile, caseId, sourceId, sourceRevisionId }) {
   let lock, verify, result;
   try {
