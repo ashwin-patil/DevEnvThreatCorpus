@@ -1,0 +1,20 @@
+{
+  "url": "https://example.org/synthetic-studio?utm_source=fixture#ignored",
+  "title": "Synthetic curator input; not incident evidence",
+  "publisher": "Synthetic publisher",
+  "author": "Synthetic author",
+  "suppliedBy": "test-operator",
+  "text": "Synthetic 🧑‍💻 café\r\n<p>Literal HTML &amp; Unicode 日本語.</p>",
+  "annotation": {
+    "behavior": "Synthetic behavior for contract testing only.",
+    "artifacts": "example.invalid\nsynthetic-artifact.txt",
+    "techniques": ["T1059", "AML.T0051"],
+    "dimensions": {
+      "trust_surface": ["IDE and local execution paths"],
+      "ai_involvement": ["Unclear"],
+      "execution_location": ["CLI", "endpoint"],
+      "delivery": ["repository content", "other"]
+    },
+    "otherDelivery": "Synthetic alternate delivery"
+  }
+}

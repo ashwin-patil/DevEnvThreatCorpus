@@ -1,9 +1,9 @@
 # Fresh-start corpus architecture
 
-## Read-only local Research Workbench
+## Local Research Workbench and private curator studio
 
-`src/index.html`, `src/style.css`, and vanilla ES modules implement the first
-operational Phase 1 workbench. `node scripts/server.mjs` serves these local assets
+`src/index.html`, `src/style.css`, and vanilla ES modules implement the
+read-only libraries and client-side curator studio. `node scripts/server.mjs` serves these local assets
 and the official SVG logo/favicon with no external CDN or live retrieval.
 Without `--corpus` it starts empty; the explicitly selected synthetic demo reads
 only the benign 0.3.0 test fixture, not the frozen 0.2.0 reference corpus.
@@ -33,6 +33,76 @@ Node unit/DOM and server checks are configured in `project.config.json`.
 Automated fixture assertions and agent browser exercises do not substitute for
 independent human visual inspection at desktop/mobile widths, keyboard review,
 research-semantics review, or documentation relevance approval before merge.
+
+### Studio boundary and proposal formats
+
+`src/studio.mjs` owns a separate in-memory state, not the loaded model. Direct
+paste records literal text/HTML as `supplied-text` with `utf8-text/1` parsing;
+it never uses an HTML parser or DOM markup sink. LF/NFC normalization, UTF-8
+SHA-256, canonical serialization, and source/revision identities match
+`scripts/contract.mjs`, with parity tests. Empty, malformed-surrogate, NUL, and
+over-2-MiB text and credential-bearing/non-HTTPS URLs are rejected. Optional
+metadata is operator-supplied; missing metadata/dates keep explicit null reasons.
+An existing canonical URL is rejected rather than overwriting a retained revision.
+
+Browser Range endpoints are UTF-16 node offsets. `selectedPassage` traverses
+the exact displayed text nodes (including nested highlights), resolves each
+endpoint within its root, rejects cross-root or surrogate-splitting selections,
+and counts Unicode code points in prefixes. It never searches for a quote, so
+repeated text and backward selections retain the correct occurrence. Text must
+equal the retained normalized revision. A captured selection is bound to its
+revision ID and normalized hash and is checked again on save; saving, clearing,
+or switching source/revision clears it. Keyboard selection uses the same handler.
+
+The composer creates new pending claims, never edits or accepts existing ones.
+Source assertions require exact selected passages; inferences require an explicit
+rationale and earlier same-case draft support. Support must be saved first,
+preventing self-reference/cycles, and cannot be removed while referenced.
+Multi-label categories cite the new claim and its exact source scope. Optional
+local behaviors hold `claimIds`, text-only `artifacts`, and `candidateTechniques`
+extensions. Candidates may come from the loaded catalog or manually entered IDs;
+syntactic ID validation is not verification of an official technique/version.
+No official framework records, mappings, or acceptance are invented.
+
+Two explicit downloads serve different purposes:
+
+- `manual-extraction/1` uses the existing exact extraction template contract,
+  with revision hashes, generated passage IDs/locators, and grounding. It is
+  available only for cases/revisions already in the loaded base; it excludes
+  categories and behavior annotations. The CLI remains the application gate,
+  including stale-base/review constraints and independent subsequent review.
+- The standalone **private corpus proposal** is schema `0.3.0`, with only new
+  claims/categories/behaviors and their source/revision/case context. Its
+  `governance.studio.baseDigest` is SHA-256 of the canonical loaded corpus,
+  not a review-eligibility digest. `contextCaseIds`/`contextSourceIds` identify
+  dependency snapshots, not replacement records. Existing cases are minimal
+  pending identity context, without summaries or review histories; the base's
+  decisions remain untouched. New authored records are pending and the proposal
+  has no review events. This download is not a release or an automatic change-set
+  applier; never replace a corpus with it. A human must reconcile scoped changes
+  against the base, preserving reviews and checking eligibility after edits.
+
+Downloads use local `application/json` Blob URLs, revoked after activation.
+No browser storage, uploads, external CDN, runtime model, or write endpoint is
+introduced; server CSP and the exact asset allowlist remain enforced. Downloads
+contain private retained content and require restricted local storage. Saved
+drafts persist across tabs only, with discard warnings on unload/corpus switch;
+unsaved form fields are not durable. The [README studio guide](../README.md#curator-studio-paste-select-draft-download)
+documents local use and application limitations.
+
+Issue [#31](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/31) evidence:
+
+| Criterion | Durable implementation / executed-check location | Independent review still required |
+|---|---|---|
+| AC-01 | `src/studio.mjs` `selectedPassage`; `src/render.mjs` source selection; `tests/workbench.test.mjs` tests prefixed `Issue #31 AC-01` cover nested/repeated/multibyte text, backward and invalid boundaries, normalization parity, revision clearing | Visual Unicode selection and keyboard walkthrough |
+| AC-02 | `saveDraft`, `extractionProposal`, `corpusProposal`; `Issue #31 AC-02` tests apply exported JSON through `applyExtraction`, `validateShape`, and `assertValid`; `tests/fixtures/extraction/studio-input.json` generates a standalone proposal and checks CLI identity parity | Grounding, context-only records, categories, and candidate semantics |
+| AC-03 | Literal HTML and Blob download tests in workbench suite; `tests/server.test.mjs` checks CSP, read-only methods, allowlisted assets, Host/Origin boundaries | Private retention and offline workflow inspection |
+| AC-04 | README usage, this architecture/evidence mapping, CHANGELOG; final-commit `python scripts/verify.py` results on the originating PR | Documentation relevance/accuracy and README applicability; human approval before merge |
+
+Exact commands, exit results, full tested SHA, and any browser limitations belong
+on the originating PR and must be refreshed after each commit. Automated checks
+are not independent subjective approval; overall acceptance remains
+`needs-human-review` until those decisions are recorded.
 
 ## Decision
 
@@ -65,7 +135,8 @@ The operator-driven pipeline separates collection from later research:
    current human review and matching content/dependency hashes.
 
 Steps 1–4 and claim review in step 6 have operator-triggered implementations.
-Creating categorizations/timelines and reviewing non-claim entities remain subsequent work.
+The studio can draft supported categorizations; applying richer proposals,
+creating timelines, and reviewing non-claim entities remain subsequent work.
 
 ## Current implementation
 
@@ -77,7 +148,7 @@ these contracts and offline behaviors; they are not processed blog records.
 
 Collection and extraction do not approve claims. Local review records
 self-attested reviewer identity, not authenticated identity. Hosted review/UI,
-exports, and deployment remain follow-up work. No legacy migration command,
+public release exports, and deployment remain follow-up work. No legacy migration command,
 migration fixture, or migration-only schema field is part of this design.
 
 ## Manual intake contract

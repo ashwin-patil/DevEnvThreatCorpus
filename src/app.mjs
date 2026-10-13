@@ -1,5 +1,6 @@
 import { VIEWS, FACETS, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata } from './model.mjs';
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts } from './render.mjs';
+import { createStudio, renderStudio, selectedPassage } from './studio.mjs';
 
 export async function fetchCorpus(fetcher, endpoint) {
   const response = await fetcher(endpoint, { cache: 'no-store' });
@@ -10,6 +11,7 @@ export async function fetchCorpus(fetcher, endpoint) {
 export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   const $ = id => doc.getElementById(id);
   let model = null, filters = {}, route = parseRoute(win.location.hash), activePassages = [], request = 0;
+  let studio = null;
   const status = (text, kind = '') => {
     $('status').textContent = text; $('status').setAttribute('data-kind', kind);
   };
@@ -72,7 +74,14 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     for (const button of $('views').children) button.setAttribute('aria-current',
       button.dataset.view === route.view ? 'page' : 'false');
     $('content').replaceChildren();
-    $('toolbar').hidden = route.view === 'method';
+    $('toolbar').hidden = ['method', 'studio'].includes(route.view);
+    if (route.view === 'studio') {
+      $('result').textContent = 'Private curator drafts · no canonical writes or approval';
+      if (route.id && (studio.sourceId !== route.id || studio.revisionId !== route.revisionId)) {
+        studio.sourceId = route.id; studio.revisionId = route.revisionId; studio.selection = null;
+      }
+      $('content').append(renderStudio(doc, win, studio)); return;
+    }
     if (route.view === 'method') {
       $('result').textContent = 'Trust & method · read-only scope';
       const panel = element(doc, 'section', null, 'panel');
@@ -83,7 +92,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         'LLM content stays labeled by its recorded origin. Pending, Needs correction and Excluded records remain visible; acceptance metadata is not proof of research truth.',
         'Claims navigate to their exact source revision. Old snapshots and conflicting claims remain available. Unicode passages use half-open code-point intervals [start, end); overlapping claims are not merged.',
         'Null values keep their recorded reasons. Publication, discovery, disclosure and incident activity dates retain type and precision; missing content is not invented.',
-        'This is offline and read-only. Only same-origin local corpus endpoints and bundled assets are requested. There is no live source fetching, file upload, export, correction or curator review. Local browsing filters never change canonical records.',
+        'The corpus stays read-only. Only same-origin local corpus endpoints and bundled assets are requested. The curator studio retains pasted text and pending annotations in memory and downloads private proposals. There is no live source fetching, server write, automatic acceptance or curator review. Local browsing filters never change canonical records.',
         'Graph, framework, comparison and detection views are not implemented in this core slice. Their absence does not mean no attack occurred. Human research review and merge approval remain independent.',
       ]) panel.append(element(doc, 'p', text));
       $('content').append(panel); return;
@@ -115,18 +124,25 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate));
     if (route.view === 'sources') detail.append(renderSource(doc, model, selected, route.revisionId, navigate,
       id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
-      ids => { activePassages = ids; render(); $('content').focus(); }, activePassages));
+      ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
     if (route.view === 'claims') {
       const target = claimTarget(model, selected.id), panel = element(doc, 'section', null, 'panel');
       panel.append(element(doc, 'h2', 'Claim & exact source evidence'),
         renderClaim(doc, model, selected, navigate),
         renderConflicts(doc, model, [selected.id], navigate));
       detail.append(panel, renderSource(doc, model, model.sources.get(target.sourceId), target.revisionId, navigate,
-        id => navigate('sources', target.sourceId, id), ids => { activePassages = ids; render(); $('content').focus(); }, activePassages));
+        id => navigate('sources', target.sourceId, id), ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
     }
     workspace.append(list, detail); $('content').append(workspace);
   }
+  function openDraft(revision, root) {
+    const selection = root ? selectedPassage(root, win.getSelection(), revision) : null;
+    studio.sourceId = revision.sourceId; studio.revisionId = revision.id; studio.selection = selection;
+    navigate('studio', revision.sourceId, revision.id);
+  }
   async function load(endpoint) {
+    if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length) &&
+        !win.confirm('Switching corpus discards private studio drafts. Download first. Discard drafts?')) return;
     const token = ++request;
     $('demo').disabled = true;
     $('reload-corpus').disabled = true;
@@ -134,7 +150,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     try {
       const loaded = await fetchCorpus(fetcher, endpoint);
       if (token !== request) return;
-      model = loaded; reset();
+      model = loaded; studio = createStudio(model.corpus); reset();
       $('stats').replaceChildren();
       for (const [label, count] of [['Cases', model.corpus.cases.length], ['Sources', model.corpus.sources.length],
         ['Claims', model.corpus.claims.length], ['Needs correction claims', model.corpus.claims.filter(c => c.disposition === 'Needs correction').length]]) {
@@ -174,6 +190,11 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   }
   win.addEventListener('hashchange', restoreRoute);
   win.addEventListener('popstate', restoreRoute);
+  win.addEventListener('beforeunload', event => {
+    if (studio && (studio.drafts.length || studio.intakes.length || studio.cases.length)) {
+      event.preventDefault(); event.returnValue = '';
+    }
+  });
   return { ready: load('/api/corpus'), navigate, load, getModel: () => model };
 }
 
