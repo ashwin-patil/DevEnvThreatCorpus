@@ -16,6 +16,7 @@
     "application": [
       "scripts/contract.mjs",
       "scripts/extract.mjs",
+      "scripts/review.mjs",
       "scripts/server.mjs",
       "src/**",
       "schemas/corpus.schema.json",
@@ -24,6 +25,7 @@
     "readme_triggers": [
       "scripts/contract.mjs",
       "scripts/extract.mjs",
+      "scripts/review.mjs",
       "scripts/server.mjs",
       "src/**",
       "schemas/corpus.schema.json",

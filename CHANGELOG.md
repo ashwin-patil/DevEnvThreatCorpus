@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-13
+
+- Issue #20: authorize the planned `scripts/review.mjs` manual review CLI in the trusted-base application and README-trigger mappings before implementation. Update setup guidance and README to clarify that this mapping is a prerequisite only; review behavior remains unimplemented.
+
 ## 2026-10-12
 
 - Issue #16: add a Reload local corpus button to leave the synthetic demo without refreshing the browser, restoring the configured startup snapshot and clearing filters; cover empty and configured corpus restoration with regression tests.

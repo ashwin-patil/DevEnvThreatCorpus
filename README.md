@@ -20,7 +20,8 @@ DevEnvThreatCorpus is building a human-reviewed corpus for research on
 developer-environment threats. The current work provides the data contract,
 offline validation, operator-triggered source intake, and researcher-triggered
 manual claim extraction for a new corpus. Claim acceptance and review operations
-are not implemented.
+are not implemented. The planned `scripts/review.mjs` path is authorized in
+trusted-base mappings as a prerequisite only; it does not implement a review CLI.
 
 ## Current implementation
 
