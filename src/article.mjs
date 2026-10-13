@@ -77,7 +77,7 @@ function nodes(root, predicate) {
     const node = pending.pop();
     if (typeof node === 'string') continue;
     if (predicate(node)) result.push(node);
-    pending.push(...node.children.toReversed());
+    for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
   }
   return result;
 }
@@ -124,14 +124,16 @@ export function parseArticle(raw, url) {
     try {
       const parsed = JSON.parse(node.children.join(''));
       const values = Array.isArray(parsed) ? parsed : parsed['@graph'] ?? [parsed];
-      const found = values.find(value => /^(?:Article|NewsArticle|BlogPosting|TechArticle)$/.test(value?.['@type']));
+      const found = values.find(value => (Array.isArray(value?.['@type']) ? value['@type'] : [value?.['@type']])
+        .some(type => /^(?:Article|NewsArticle|BlogPosting|TechArticle)$/.test(type)));
       if (found) { structured = found; break; }
     } catch { /* Invalid page-provided structured metadata is not evidence. */ }
   }
   const titleNode = nodes(root, node => node.name === 'title')[0];
   const heading = nodes(article, node => node.name === 'h1')[0];
   const author = structured.author;
-  const pagePublisher = meta['og:site_name'] ?? clean(structured.publisher?.name) ?? null;
+  const pagePublisher = meta['og:site_name'] ?? meta.publisher ?? meta['dc.publisher']
+    ?? clean(typeof structured.publisher === 'string' ? structured.publisher : structured.publisher?.name) ?? null;
   const hostname = url ? new URL(url).hostname.toLowerCase() : '';
   const publisher = Object.entries(PUBLISHERS).find(([host]) => hostname === host || hostname.endsWith(`.${host}`))?.[1] ?? pagePublisher;
   const metadata = {
@@ -139,9 +141,9 @@ export function parseArticle(raw, url) {
       ?? (titleNode ? clean(titleNode.children.filter(value => typeof value === 'string').join('')) : null)
       ?? (heading ? clean(textOf(heading)) : null),
     publisher, pagePublisher,
-    author: meta.author ?? clean(typeof author === 'string' ? author : Array.isArray(author)
+    author: meta.author ?? meta['dc.creator'] ?? clean(typeof author === 'string' ? author : Array.isArray(author)
       ? author.map(value => typeof value === 'string' ? value : value?.name).filter(Boolean).join(', ') : author?.name),
-    publicationDate: meta['article:published_time'] ?? meta.datepublished ?? clean(structured.datePublished),
+    publicationDate: meta['article:published_time'] ?? meta.datepublished ?? meta['dc.date'] ?? clean(structured.datePublished),
     updateDate: meta['article:modified_time'] ?? meta.datemodified ?? clean(structured.dateModified),
   };
   const images = [], imageNodes = [], pending = [article];
@@ -149,7 +151,7 @@ export function parseArticle(raw, url) {
     const node = pending.pop();
     if (typeof node === 'string' || hiddenTags.has(node.name) || Object.hasOwn(node.attrs, 'hidden') || node.attrs['aria-hidden'] === 'true') continue;
     if (node.name === 'img') imageNodes.push(node);
-    pending.push(...node.children.toReversed());
+    for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
   }
   for (const node of imageNodes) {
     const attrs = node.attrs;

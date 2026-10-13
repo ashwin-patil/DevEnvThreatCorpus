@@ -211,7 +211,7 @@ test('Issue #39 AC-05 incomplete JSON body times out and releases the write guar
     req.on('error', reject); req.write('{');
   });
   assert.equal(timed.status, 408); assert.match(timed.body, /timed out/);
-  const collected = await request(port, '/api/intake', sameOrigin(port), 'POST',
+  const collected = await request(port, '/api/intake', { Origin: `http://127.0.0.1:${port}`, 'Content-Type': 'application/json' }, 'POST',
     JSON.stringify({ urls: [articleUrls[0]], caseName: 'After timeout', operator: 'operator' }));
   assert.equal(collected.status, 200); assert.equal(JSON.parse(collected.body).results[0].status, 'collected');
 });

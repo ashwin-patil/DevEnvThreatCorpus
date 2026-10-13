@@ -27,11 +27,16 @@ async function intakeBody(request) {
       catch { reject(Object.assign(new Error('Expected UTF-8 JSON.'), { status: 400 })); }
     };
     const onError = () => fail(400, 'Incomplete intake body.');
+    const onAborted = () => {
+      // A disconnect can emit an error after the abort event removes the body listeners.
+      request.once('error', () => {});
+      fail(400, 'Incomplete intake body.');
+    };
     function cleanup() {
       clearTimeout(timer);
-      request.off('data', onData); request.off('end', onEnd); request.off('error', onError); request.off('aborted', onError);
+      request.off('data', onData); request.off('end', onEnd); request.off('error', onError); request.off('aborted', onAborted);
     }
-    request.on('data', onData); request.on('end', onEnd); request.on('error', onError); request.on('aborted', onError);
+    request.on('data', onData); request.on('end', onEnd); request.on('error', onError); request.on('aborted', onAborted);
   });
 }
 

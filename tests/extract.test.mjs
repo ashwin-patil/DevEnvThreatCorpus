@@ -198,8 +198,11 @@ test('issue39 AC-06 enrichment template, validation, import, and export retain a
   assert.equal(enrichmentInvoke('import', directory, ['--input', output]).status, 0);
   assert.equal(await readFile(corpusFile, 'utf8'), corpusBefore, 'enrichment must not mutate canonical claims or reviews');
   const repository = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
-  const ignored = spawnSync('git', ['-c', `safe.directory=${repository}`, 'check-ignore', sidecarFile, templateFile, output], {
-    encoding: 'utf8', cwd: repository, env: { ...process.env, GIT_CONFIG_COUNT: '0' },
+  // Verification removes KEY variables; discard incomplete inherited Git configuration.
+  const gitEnvironment = Object.fromEntries(Object.entries(process.env)
+    .filter(([key]) => !/^GIT_CONFIG_(?:COUNT|KEY_\d+|VALUE_\d+)$/.test(key)));
+  const ignored = spawnSync('git', ['check-ignore', sidecarFile, templateFile, output], {
+    encoding: 'utf8', cwd: repository, env: gitEnvironment,
   });
   assert.equal(ignored.status, 0, ignored.stderr);
   assert.equal(ignored.stdout.trim().split('\n').length, 3);

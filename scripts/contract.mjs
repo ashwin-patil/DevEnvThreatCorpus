@@ -1295,8 +1295,19 @@ export function assertAppendOnlyReviews(previous, next) {
     const rules = applicable.flatMap(g => g.rules).map(rule => {
       const value = normalized(rule.value);
       const anchor = value.endsWith('$');
-      const pattern = (anchor ? value.slice(0, -1) : value).split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
-      return { ...rule, length: value.replace(/[*$]/g, '').length, matches: new RegExp(`^${pattern}${anchor ? '$' : ''}`).test(pathname) };
+      const parts = (anchor ? value.slice(0, -1) : value).split('*');
+      let matches = pathname.startsWith(parts[0]), cursor = parts[0].length;
+      for (let index = 1; matches && index < parts.length - 1; index++) {
+        const offset = pathname.indexOf(parts[index], cursor);
+        matches = offset !== -1;
+        cursor = offset + parts[index].length;
+      }
+      if (parts.length === 1) matches &&= !anchor || pathname.length === cursor;
+      else if (matches) {
+        const tail = parts.at(-1);
+        matches = anchor ? pathname.endsWith(tail) && pathname.length - tail.length >= cursor : pathname.indexOf(tail, cursor) !== -1;
+      }
+      return { ...rule, length: value.replace(/[*$]/g, '').replace(/%[0-9A-F]{2}/g, 'x').length, matches };
     }).filter(rule => rule.matches).sort((a, b) => b.length - a.length || Number(b.allow) - Number(a.allow));
     return !rules.length || rules[0].allow;
   }

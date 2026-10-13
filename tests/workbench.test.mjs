@@ -925,7 +925,7 @@ test('Issue #39 AC-01 web batch controls validate explicit HTTPS inputs, campaig
   assert.deepEqual(webIntakeInput(valid), { urls: ['https://socket.dev/a', 'https://redcanary.com/b'], operator: 'operator', caseName: 'Pending campaign' });
   assert.deepEqual(webIntakeInput({ ...valid, caseId: 'existing', caseName: '' }).caseId, 'existing');
   for (const change of [{ urls: '' }, { urls: Array(21).fill('https://socket.dev/a').join('\n') },
-    { urls: 'javascript:alert(1)' }, { urls: '******socket.dev/a' },
+    { urls: 'javascript:alert(1)' }, { urls: 'https://operator@socket.dev/a' },
     { urls: 'not-a-url' }, { operator: '' }, { operator: 'bad operator' }, { caseName: '' }, { caseId: 'existing' },
     { caseName: 'a'.repeat(201) }, { caseName: 'control\ncharacter' }]) {
     assert.throws(() => webIntakeInput({ ...valid, ...change }));
@@ -1042,8 +1042,8 @@ test('Issue #39 AC-04 every case-linked citation renders metadata and safe exter
   assert.deepEqual(exported, caseCitations(m, record));
   assert.equal(exported.citations.length, 2);
   assert.equal(exported.citations[1].publisher, null);
-  for (const url of ['javascript:alert(1)', 'http://socket.dev/a', '******socket.dev/a', 'data:text/html,<script>']) assert.equal(safeExternalUrl(url), null);
-  corpus.sources[1].originalUrl = 'javascript:alert(1)'; corpus.sources[1].canonicalUrl = '******socket.dev/a';
+  for (const url of ['javascript:alert(1)', 'http://socket.dev/a', 'https://operator@socket.dev/a', 'data:text/html,<script>']) assert.equal(safeExternalUrl(url), null);
+  corpus.sources[1].originalUrl = 'javascript:alert(1)'; corpus.sources[1].canonicalUrl = 'https://operator@socket.dev/a';
   assert.equal(caseCitations(m, record).citations[1].url, null);
   const unsafe = renderCase(doc, m, record, () => {});
   assert.equal(descendants(unsafe).filter(node => node.tagName === 'A').length, 1);
