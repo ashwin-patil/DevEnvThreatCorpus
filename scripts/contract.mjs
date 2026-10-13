@@ -815,7 +815,7 @@ export function validateCorpus(corpus) {
     }
     if (revision.rawContent !== null && revision.normalizedContent !== null) {
       try {
-        const normalized = revision.parserVersion === HTML_PARSER_VERSION
+        const normalized = (revision.parserVersion === HTML_PARSER_VERSION || revision.parserVersion === 'readable-html/4')
           ? normalizeText(readableHtml(revision.rawContent)) : revision.parserVersion === 'readable-html/3'
             ? normalizeText(parseArticle(revision.rawContent, undefined, { replaceNulls: false }).text) : revision.parserVersion === 'readable-html/2'
             ? normalizeText(parseArticle(revision.rawContent, undefined, { legacyRoots: true, replaceNulls: false }).text) : revision.parserVersion === 'readable-html/1'

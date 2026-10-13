@@ -8,6 +8,8 @@
   metadata/domain normalization across intake, cards and filters, including
   migrated Zscaler pages and explicit HTML brand names. Retain raw publisher
   metadata and historical Red Canary identity; version new HTML intake as /5.
+  Preserve /4 HTML transformation validation, including NUL replacement, so
+  previously retained revisions remain readable and altered text is rejected.
 
 - Align Case library with expandable campaign cards and Research library with
   one card per blog plus many-to-many campaign tags. Preserve article-specific

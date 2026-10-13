@@ -590,6 +590,19 @@ test('Issue #39 AC-03 parser versions preserve previously retained hidden-root e
   assert.deepEqual(validateCorpus(corpus), [], 'previously retained /3 revisions keep their original transformation');
 });
 
+test('metadata parser /5 preserves /4 HTML transformations and rejects altered retained text', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'retained-parser-v4');
+  const collected = await collectBatch(batchInput(store, [url]), fake(() => htmlResponse('<article><h1>Benign retained report</h1><p>Before\0after</p></article>')));
+  assert.equal(collected.results[0].status, 'collected');
+  const corpus = await corpusAt(store), revision = corpus.sourceRevisions[0];
+  revision.parserVersion = 'readable-html/4';
+  const before = canonicalSerialize(revision);
+  assert.deepEqual(validateCorpus(corpus), []);
+  assert.equal(canonicalSerialize(revision), before);
+  revision.normalizedContent = 'Fabricated replacement'; revision.normalizedHash = sha256(revision.normalizedContent);
+  assert.ok(validateCorpus(corpus).some(error => error.includes('transformation mismatch')));
+});
+
 test('HTML NUL handling retains original bytes, creates readable text and leaves plain-text rejection intact', async t => {
   const directory = await workspace(t);
   const raw = '<html><head><script>bootstrap\0payload</script></head><body><article><h1>Synthetic report</h1><p>Before\0after</p><pre>tool --flag</pre></article></body></html>';
