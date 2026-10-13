@@ -2,6 +2,15 @@
 
 ## 2026-10-13
 
+- Issue #25: add the offline Comparison & timelines tab with explicit multi-label
+  AND/OR facets, claim-level evidence/reviewer-disposition filters, inclusive
+  precision-preserving typed date overlap, and unordered unknown dates. Preserve
+  separately cited source-supported claims, unresolved/inference support,
+  conflicting counterparts, category proposal status, and shared-citation limits.
+  Label distinct case/source/claim counts, selected case context, recorded review
+  coverage, active filters, and loaded snapshot identity. Add focused model/UI
+  regression coverage and usage/architecture/acceptance guidance without new
+  runtime dependencies, writes, inferred dates, attribution, or prevalence claims.
 - Issue #24: add deterministic reviewed/draft corpus profiles, allowlisted JSONL
   and CSV exports, manifest digests and unit-aware coverage, and read-only
   list/get/bundle queries in the already authorized contract CLI. Bind reviewed

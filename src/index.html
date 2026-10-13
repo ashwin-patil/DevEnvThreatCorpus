@@ -23,7 +23,7 @@
       <label class="search">Search <input id="search" type="search" placeholder="Cases, source text, claims, metadata…" aria-describedby="filter-help"></label>
       <label>Tag matching <select id="tag-mode"><option>OR</option><option>AND</option></select></label>
       <button id="reset" type="button">Reset search & filters</button>
-      <p id="filter-help">Search AND every selected facet; OR within each facet, except tags use the selected mode. Source tags/cases are linked associations, not attribution. Disposition includes linked claims / categories and collection state.</p>
+      <p id="filter-help">Search AND every selected facet. Values use OR unless the facet or tag mode selects AND (all labels required). Comparison categories are case-linked assertions; evidence status and reviewer disposition match individual claims. Library disposition includes linked claims / categories and collection state. Typed dates use inclusive interval overlap; approximate precision stays unchanged. Unknown dates never match bounded ranges unless “only” is selected, which ignores bounds. Source associations are not attribution.</p>
       <div id="facets" class="facets"></div>
     </form>
     <p id="result" role="status"></p>

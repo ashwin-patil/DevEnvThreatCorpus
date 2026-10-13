@@ -1,11 +1,13 @@
-import { VIEWS, FACETS, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata } from './model.mjs';
-import { element, action, renderCase, renderSource, renderClaim, renderConflicts } from './render.mjs';
-import { createStudio, renderStudio, selectedPassage } from './studio.mjs';
+import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
+import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
+import { createStudio, renderStudio, selectedPassage, hashText } from './studio.mjs';
 
 export async function fetchCorpus(fetcher, endpoint) {
   const response = await fetcher(endpoint, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Local corpus request failed (${response.status}).`);
-  return createModel(await response.json());
+  const corpus = await response.json(), model = createModel(corpus);
+  model.snapshot = await hashText(JSON.stringify(corpus));
+  return model;
 }
 
 export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
@@ -25,6 +27,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     status('Navigation revealed the target and reset search / facets. ' + trustLabel(),
       model?.corpus.governance?.synthetic ? 'synthetic' : '');
     route = { view, id, revisionId };
+    if (model) buildFacets();
     const hash = routeHash(view, id, revisionId);
     // replaceState avoids a second render, preserving focus on the revealed content.
     win.history.pushState(null, '', hash);
@@ -38,11 +41,24 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   }
   function buildFacets() {
     $('facets').replaceChildren();
-    const allOptions = facetOptions(model);
-    for (const key of FACETS) {
+    const comparing = route.view === 'comparison';
+    const keys = comparing ? COMPARISON_FACETS : FACETS;
+    const allOptions = facetOptions(model, keys);
+    const titleFor = key => COMPARISON_DIMENSIONS[key] ??
+      ({ evidenceStatus: 'Evidence status', reviewerDisposition: 'Claim reviewer disposition' }[key] ?? key[0].toUpperCase() + key.slice(1));
+    for (const key of keys) {
       const options = allOptions[key];
       const details = element(doc, 'details');
-      details.append(element(doc, 'summary', `${key[0].toUpperCase() + key.slice(1)} (${filters[key]?.length ?? 0} selected)`));
+      details.append(element(doc, 'summary', `${titleFor(key)} (${filters[key]?.length ?? 0} selected)`));
+      if (comparing && key !== 'tags') {
+        const label = element(doc, 'label', `${titleFor(key)} matching `), mode = element(doc, 'select');
+        for (const value of ['OR', 'AND']) mode.append(element(doc, 'option', value));
+        mode.value = filters.modes?.[key] ?? 'OR';
+        mode.addEventListener('change', () => {
+          filters.modes = { ...filters.modes, [key]: mode.value }; render();
+        });
+        label.append(mode); details.append(label);
+      }
       const group = element(doc, 'fieldset');
       group.append(element(doc, 'legend', `Filter ${key}`));
       if (!options.length) group.append(element(doc, 'p', 'No recorded values.'));
@@ -56,12 +72,41 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
           input.checked ? selected.add(value) : selected.delete(value);
           filters[key] = [...selected];
           activePassages = [];
-          details.firstChild.textContent = `${key[0].toUpperCase() + key.slice(1)} (${selected.size} selected)`;
+          details.firstChild.textContent = `${titleFor(key)} (${selected.size} selected)`;
           render();
         });
         label.append(input, element(doc, 'span', title)); group.append(label);
       }
       details.append(group); $('facets').append(details);
+    }
+    if (comparing) {
+      const dates = element(doc, 'fieldset');
+      const dateInputs = [];
+      dates.className = 'date-filters';
+      dates.append(element(doc, 'legend', 'Typed date overlap (inclusive)'));
+      for (const [key, title, options] of [
+        ['dateType', 'Date type', ['', ...DATE_TYPES]],
+        ['dateUnknown', 'Unknown dates', ['', 'exclude', 'only']],
+        ['dateFrom', 'From', null], ['dateTo', 'Through', null],
+      ]) {
+        const label = element(doc, 'label', `${title} `), input = element(doc, options ? 'select' : 'input');
+        if (options) for (const value of options) {
+          const option = element(doc, 'option', value || (key === 'dateType' ? 'All types' : 'Include unless bounded'));
+          option.value = value; input.append(option);
+        }
+        else input.type = 'date';
+        if (!options) dateInputs.push(input);
+        input.value = filters[key] ?? '';
+        input.addEventListener('change', () => {
+          filters[key] = input.value;
+          for (const control of dateInputs) control.setCustomValidity?.(
+            filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo ?
+              'From must not be after Through.' : '');
+          render();
+        });
+        label.append(input); dates.append(label);
+      }
+      $('facets').append(dates);
     }
   }
   function empty(text) {
@@ -93,9 +138,26 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         'Claims navigate to their exact source revision. Old snapshots and conflicting claims remain available. Unicode passages use half-open code-point intervals [start, end); overlapping claims are not merged.',
         'Null values keep their recorded reasons. Publication, discovery, disclosure and incident activity dates retain type and precision; missing content is not invented.',
         'The corpus stays read-only. Only same-origin local corpus endpoints and bundled assets are requested. The curator studio retains pasted text and pending annotations in memory and downloads private proposals. There is no live source fetching, server write, automatic acceptance or curator review. Local browsing filters never change canonical records.',
-        'Graph, framework, comparison and detection views are not implemented in this core slice. Their absence does not mean no attack occurred. Human research review and merge approval remain independent.',
+        'Comparison and timelines describe observations within the collected dataset, not attribution or prevalence. Graph, framework and detection views are not implemented. Their absence does not mean no attack occurred. Human research review and merge approval remain independent.',
       ]) panel.append(element(doc, 'p', text));
       $('content').append(panel); return;
+    }
+    if (route.view === 'comparison') {
+      const selection = comparisonRecords(model, filters), coverage = comparisonCoverage(model, selection);
+      const active = Object.entries(filters).filter(([, value]) => Array.isArray(value) ? value.length : typeof value === 'string' && value)
+        .map(([key, value]) => {
+          const mode = filters.modes?.[key] ?? (key === 'tags' ? filters.tagMode ?? 'OR' : 'OR');
+          return `${key}=${Array.isArray(value) ? value.join(` ${mode} `) + ` (${mode})` : value}`;
+        });
+      $('result').textContent = `${coverage.cases} distinct cases · ${coverage.sources} distinct linked sources (case context) · ${coverage.claims} matching claims · ${coverage.supported} source-supported claims. ` +
+        `Review coverage: ${coverage.humanEvents}/${coverage.claims} claims with matching recorded human events; ${Object.entries(coverage.dispositions).map(([d, n]) => `${n} ${d}`).join(', ') || 'no claims'}. ` +
+        `Recorded events are not current eligibility or independent approval. Active filters: ${active.join('; ') || 'none'}. Snapshot: ${model.corpus.name} · ${model.corpus.schemaVersion} · loaded JSON SHA-256 ${model.snapshot}`;
+      if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+        $('content').append(empty('Invalid date range: From must not be after Through.')); return;
+      }
+      $('content').append(selection.cases.length ? renderComparison(doc, model, selection, filters, navigate) :
+        empty('No cases match the current comparison filters. Unknown dates do not match bounded ranges.'));
+      return;
     }
     const records = filterRecords(model, route.view, filters);
     $('result').textContent = `${records.length} matching ${route.view} / ${model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;

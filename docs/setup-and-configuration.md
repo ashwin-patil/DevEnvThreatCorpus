@@ -60,6 +60,15 @@ host or tunnel. The configured workbench and server Node tests join the existing
 application commands in `python scripts/verify.py`; independent human UX and
 documentation relevance review is still necessary.
 
+The Comparison & timelines tab uses the same offline server and bundled modules,
+with no additional install/build step. Open `#comparison` after loading the local
+snapshot or explicit synthetic demo; see the README for multi-label/date modes
+and count/review semantics. No browser runner or lint/build command is configured.
+Use browser checks at 1440×900, 1024×768, and 390×844 plus a keyboard walkthrough;
+retain synthetic-only screenshots on the originating PR and record the tested
+revision. Agent browser exercises do not replace independent human visual,
+accessibility, research-semantics, or documentation relevance review.
+
 The governance checks use Python's standard library and `unittest` plus the pinned PyYAML parser. In `.github/workflows/copilot-setup-steps.yml`, GitHub Copilot cloud agent requires the exact job ID `copilot-setup-steps` (`jobs.copilot-setup-steps`); an unrecognized job ID such as `setup` triggers cloud agent configuration warnings. The setup workflow maintains least-privilege `contents: read` permissions, installs governance dependencies (`requirements-governance.txt` with Python 3.12), and explicitly provisions the repository's pinned Node runtime using `actions/setup-node` pinned to a full commit SHA with `node-version-file: "scripts/.node-version"`. Consuming projects can extend this workflow to install additional language runtimes or dependencies needed by configured commands. The setup job timeout limits that GitHub Actions job only; it does not set a total Copilot cloud-agent session timeout.
 
 ## Model preference

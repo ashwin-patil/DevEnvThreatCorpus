@@ -6,6 +6,49 @@ Evidence is revision-bound. Record the full tested commit and relevant CI/local 
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
 
+## Issue #25 comparison and timelines
+
+Originating requirements: [Issue #25](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/25).
+All implementation stays within the existing authorized workbench modules.
+The `Issue #25 AC-*` tests in `tests/workbench.test.mjs` reuse benign synthetic
+data for shared citations, contradictory claims, incomplete dates, repeated
+reports, and mixed recorded review status. Automated execution is
+revision-bound; exact commands, full tested SHA, results, and browser evidence
+must be recorded on the originating implementation PR after the final commit.
+
+| ID | Implementation and executable evidence | Result / remaining independent evidence |
+|---|---|---|
+| AC-01 | `src/model.mjs`: `comparisonRecords`, `dateBounds`, `matchesDate`; `src/app.mjs`: facet/date modes and reset; `Issue #25 AC-01` tests cover every category dimension, claim-status isolation, AND/OR, inclusive day/month/year/range/unknown, invalid/no-result/reset states | Final-revision executed workbench command required; human review of scope and semantics |
+| AC-02 | `src/render.mjs`: `renderComparison` reuses full claims and `renderConflicts`; `Issue #25 AC-02/03` asserts separate shared-source/contradictory claims, unresolved support, citations, origin, uncertainty, and disposition | `needs-human-review`: independent rendered research-semantics review; no attribution/prevalence inference |
+| AC-03 | `comparisonTimeline`, `comparisonCoverage`, loaded JSON SHA-256 in `fetchCorpus`; `Issue #25 AC-01/03` and `AC-03` tests cover source/event distinctions, interval precision, unknown ordering, duplicate reports, exact count units and mixed recorded review events | Final-revision automated output required; human review of case-context counts and non-eligibility language |
+| AC-04 | `src/index.html`, `src/style.css`, `src/app.mjs`; `Issue #25 AC-01/04` exercises semantic controls, navigation focus, reset and read-only requests; existing server suite retains CSP/offline asset boundaries | `needs-human-review`: target-viewport screenshots, executed browser/keyboard results, independent visual/accessibility review. Fake-DOM tests are not browser QA |
+| AC-05 | README comparison guide, architecture model semantics, setup/browser applicability, root CHANGELOG and this mapping; configured workbench/server commands and `python scripts/verify.py` | `needs-human-review`: exact final-revision commands and limitations on PR; independent documentation relevance/accuracy and README-applicability decision |
+
+Synthetic rendered evidence attached to this implementation:
+
+| CSS viewport | Comparison / count context | Typed timeline |
+|---|---|---|
+| 1440×900 | [Comparison](assets/issue-25-comparison-1440.png) | [Timeline](assets/issue-25-timeline-1440.png) |
+| 1024×768 | [Comparison](assets/issue-25-comparison-1024.png) | [Timeline](assets/issue-25-timeline-1024.png) |
+| 390×844 | [Comparison](assets/issue-25-comparison-390.png) | [Timeline](assets/issue-25-timeline-390.png) |
+
+[Conflict evidence](assets/issue-25-conflicts-1440.png) retains both separately
+cited claims. Installed Chromium/ChromeDriver exercised exact CSS viewports,
+document overflow, same-origin resources, Enter navigation/disclosure/reset/
+citation activation, Space checkbox selection, Tab traversal and visible focus,
+bounded unknown exclusion, unknown-only mode, and a 720×450 layout equivalent to
+200% desktop zoom. These are agent-executed browser checks, not an automated
+accessibility audit or independent human acceptance. The browser MCP transport
+was unavailable; no browser package or repository runner was installed.
+Refresh execution results on the final revision and record human review on the PR.
+
+No new lint/build/browser dependency or configured browser command is introduced.
+Recorded review-event coverage is not current acceptance eligibility; the review
+CLI remains authoritative. Overall acceptance remains `needs-human-review`
+until independent human UX/accessibility, research-semantics, and documentation
+decisions and final-revision hosted checks are recorded. A person must approve
+before merge; agent self-audit is supplemental only.
+
 ## Issue #24 reproducible exports and read-only queries
 
 Originating requirements: [Issue #24](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/24).

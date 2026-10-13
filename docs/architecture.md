@@ -34,6 +34,45 @@ Automated fixture assertions and agent browser exercises do not substitute for
 independent human visual inspection at desktop/mobile widths, keyboard review,
 research-semantics review, or documentation relevance approval before merge.
 
+### Comparison and typed timeline model
+
+The Issue #25 slice stays inside the existing `src/model.mjs`, `src/render.mjs`,
+and `src/app.mjs` modules; it needs no new asset route, runtime, framework, or
+policy authorization. `comparisonRecords` applies search AND facets, with
+explicit per-facet OR/AND modes. Categorization dimensions are associations at
+case scope, not asserted truth about each claim. Evidence status and reviewer
+disposition match individual claims; cases with no matching claims are removed
+when those claim facets are active. Empty cases can otherwise remain visible.
+
+Source-supported comparison requires a non-inference claim with a retained
+passage in its exact revision. Inferences, unavailable text/locator-only support,
+and unresolved support remain separately labeled rather than supplying a
+comparison conclusion. The view reuses the complete claim renderer, keeps
+category assertion origins/dispositions and support links, and retains both
+conflict counterparts, including clearly labeled out-of-filter context.
+Shared citations connect records only; they never imply common actors,
+equivalent behavior, prevalence, or independently established execution.
+
+`dateBounds` derives calendar intervals only for inclusive overlap and sorting;
+the stored/displayed precision is untouched. Month ends include leap-year rules.
+`recordDates` uses a claim's own source metadata and explicitly supporting
+timeline records, whereas cases use associated sources and case timelines.
+`comparisonTimeline` shows all selected case timeline assertions plus deduplicated
+source metadata, filtered by date type/range. Sorting by earliest possible bound
+does not resolve ordering between overlapping intervals. Unknown dates remain
+unordered, excluded by bounds unless the explicit unknown-only mode ignores
+those bounds. No publication date becomes an inferred incident date.
+
+Counts use distinct case/source IDs and matching claim IDs. Sources and timelines
+are labeled as selected case context, which may extend beyond matching claims.
+`comparisonCoverage` counts last recorded human events matching entity/revision/
+disposition and separately reports dispositions; it deliberately does not
+reimplement the CLI's cryptographic current-review/dependency eligibility gate.
+The UI warns that recorded events are not current eligibility or independent
+approval. `fetchCorpus` hashes the loaded JSON representation using existing
+Web Crypto support; this snapshot identifier is not a review-base or profile
+digest. Tests and screenshots use synthetic data only.
+
 ### Studio boundary and proposal formats
 
 `src/studio.mjs` owns a separate in-memory state, not the loaded model. Direct
