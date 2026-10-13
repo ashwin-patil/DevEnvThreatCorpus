@@ -17,9 +17,9 @@ executable checks, not an assertion of independent visual acceptance.
 
 | ID | Implementation and executable evidence | Remaining independent evidence |
 |---|---|---|
-| AC-01 | `src/` passage model/rendering; `tests/workbench.test.mjs` Unicode, overlap, exact-revision and linked-claim assertions; benign `tests/fixtures/benign/core-only.json` | Human inspection of highlighted normalized text; attach rendered passage screenshot and decision to originating PR |
-| AC-02 | `src/` case/source/claim exploration; workbench tests for associations, inference/support and safe DOM rendering | Human case click-through and DOM snapshot/research-state review on originating PR |
-| AC-03 | `src/` conflict comparison; reciprocal conflicting-claim fixture and workbench assertions | Human side-by-side warning/uncertainty inspection on originating PR |
+| AC-01 | `src/model.mjs` `passageSegments`, `src/render.mjs` `renderSourceText`/`renderSource`; `tests/workbench.test.mjs` Unicode, overlap, exact-revision and linked-claim assertions; benign `tests/fixtures/benign/core-only.json` | Human inspection of highlighted normalized text; attach rendered passage screenshot and decision to originating PR |
+| AC-02 | `src/render.mjs` `renderCase`/`renderClaim`, `src/app.mjs` `mountWorkbench`; workbench tests for associations, inference/support, navigation/filter state and safe DOM rendering | Human case click-through and DOM snapshot/research-state review on originating PR |
+| AC-03 | `src/model.mjs` `conflictPairs`, `src/render.mjs` `renderConflicts`; reciprocal conflicting-claim fixture and workbench assertions | Human side-by-side warning/uncertainty inspection on originating PR |
 | AC-04 | `src/style.css`, `src/index.html`, official `docs/assets/logo.svg` and favicon; workbench styling checks and browser exercise at 1440×900, 1024×768 and 390×844 | Independent human screenshot, responsiveness and keyboard audit; agent exercise is supplemental, not independent proof |
 | AC-05 | README offline commands, architecture/setup/privacy guidance, substantive CHANGELOG; `tests/server.test.mjs`; configured `python scripts/verify.py` executes all five application suites | Final tested SHA and exact command results/check links recorded on PR; human documentation relevance/accuracy and README applicability approval |
 

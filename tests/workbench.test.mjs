@@ -413,3 +413,14 @@ test('bundled entrypoint uses only permitted local assets and no external reques
   assert.ok(css.includes(':focus-visible'));
   assert.ok(css.includes('@media(max-width:700px)'));
 });
+test('official wide wordmark has its native aspect ratio, accessible brand name and no duplicate text', async () => {
+  const html = await readFile(new URL('../src/index.html', import.meta.url), 'utf8');
+  const brand = html.match(/<a class="brand"[^>]*>(.*?)<\/a>/s)?.[1];
+  assert.ok(brand);
+  assert.match(brand, /alt="DevEnvThreatCorpus"/);
+  assert.match(brand, /width="360" height="80"/);
+  assert.ok(!brand.includes('<span') && !brand.includes('<small'));
+  const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(css, /\.brand img\{[^}]*width:100%;height:auto/);
+  assert.match(css, /\.brand\{[^}]*width:300px/);
+});
