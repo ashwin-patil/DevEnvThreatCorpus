@@ -33,6 +33,29 @@ concretely rather than converted to a pass. Subsequent commits invalidate
 earlier verification. Documentation relevance, README applicability, research
 semantics, and release approval remain independent human responsibilities.
 
+### Continuation environment findings
+
+The continuation from `39ea6305d770ec44383ebe82977086845f485edd` recovered
+the pushed implementation, not an unfinished local worktree. Hosted
+[Verify run 38354186934](https://github.com/ashwin-patil/DevEnvThreatCorpus/actions/runs/38354186934)
+reported `action_required` with zero jobs; it is not passing hosted evidence.
+The preceding [agent job](https://github.com/ashwin-patil/DevEnvThreatCorpus/actions/runs/38352989745/job/115149392644)
+completed setup successfully but its processing step was cancelled. Its
+retrieved log tail contains cleanup, not a root-cause diagnostic; a session
+deadline or application failure cannot be inferred from that record.
+
+Live CLI, same-origin HTTP intake, and installed Chromium form attempts used
+the three public article URLs in the README. All returned `NETWORK` for each
+URL, retained failed-source manifests, and produced no successful revisions
+or campaign links. `getent ahosts nx.dev` returned no addresses and
+`curl --max-time 15 -I https://nx.dev/blog/s1ngularity-postmortem` reported
+`Could not resolve host: nx.dev`. The browser MCP transport was closed;
+installed Chromium/ChromeDriver provided supplemental form/reload checks.
+These observations establish concrete environment limitations, not live
+collection acceptance. A maintainer must authorize the hosted checks and
+repeat successful CLI/browser collection on a network-capable final revision.
+Exact final commands, outcomes, and tested SHA remain recorded on PR #40.
+
 ## Issue #25 comparison and timelines
 
 Originating requirements: [Issue #25](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/25).
