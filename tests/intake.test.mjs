@@ -562,11 +562,36 @@ test('Issue #39 AC-03 parser versions preserve previously retained hidden-root e
   corpus.collectionManifests = [];
   assert.deepEqual(validateCorpus(corpus), []);
   revision.parserVersion = HTML_PARSER_VERSION;
-  assert.equal(HTML_PARSER_VERSION, 'readable-html/3');
+  assert.equal(HTML_PARSER_VERSION, 'readable-html/4');
   assert.ok(validateCorpus(corpus).some(error => error.includes('transformation mismatch')));
   revision.normalizedContent = 'Actual report';
   revision.normalizedHash = sha256(revision.normalizedContent);
   assert.deepEqual(validateCorpus(corpus), []);
+  revision.parserVersion = 'readable-html/3';
+  assert.deepEqual(validateCorpus(corpus), [], 'previously retained /3 revisions keep their original transformation');
+});
+
+test('HTML NUL handling retains original bytes, creates readable text and leaves plain-text rejection intact', async t => {
+  const directory = await workspace(t);
+  const raw = '<html><head><script>bootstrap\0payload</script></head><body><article><h1>Synthetic report</h1><p>Before\0after</p><pre>tool --flag</pre></article></body></html>';
+  for (const charset of ['utf-8', 'us-ascii', 'windows-1252']) {
+    const store = path.join(directory, charset), deps = fake(() => response(raw, { headers: { 'content-type': `text/html; charset=${charset}` } }));
+    const result = await collectBatch({ store, urls: [url], caseName: 'Synthetic NUL-compatible campaign', operator }, deps);
+    assert.equal(result.results[0].status, 'collected');
+    const corpus = await corpusAt(store), revision = corpus.sourceRevisions[0];
+    assert.equal(revision.rawContent, raw);
+    assert.equal(revision.rawHash, sha256(raw));
+    assert.equal(revision.parserVersion, 'readable-html/4');
+    assert.ok(revision.normalizedContent.includes('Before\ufffdafter'));
+    assert.ok(revision.normalizedContent.includes('tool --flag'));
+    assert.ok(!revision.normalizedContent.includes('bootstrap'));
+    const original = await readArchiveArtifact({ store, sourceId: revision.sourceId, revisionId: revision.id, artifact: 'original.html' });
+    assert.equal(original.toString('utf8'), raw);
+    const repeated = await collectBatch({ store, urls: [url], caseId: result.caseId, operator }, deps);
+    assert.equal(repeated.results[0].status, 'already present');
+    assert.equal((await corpusAt(store)).sourceRevisions.length, 1);
+  }
+  assert.equal((await intakeSource(supplied(path.join(directory, 'plain'), 'Before\0after'))).code, 'MALFORMED_TEXT');
 });
 
 test('Issue #39 AC-02/03 expanded legacy text archives remain readable and idempotent', async t => {

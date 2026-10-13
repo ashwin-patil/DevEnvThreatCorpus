@@ -324,8 +324,10 @@ Documentation relevance and accuracy still require independent human review.
 Files and pasted text are strictly decoded UTF-8, preserving an input BOM in
 the raw record/hash. Public article retrieval supports HTML/plain text with
 optional charset declarations and bounded common compression; absent charset
-uses UTF-8. Unsupported encodings, NUL, malformed text, and empty readable
-content fail explicitly. Limits apply after decompression as well as to the
+uses UTF-8. Unsupported encodings, malformed text, and empty readable
+content fail explicitly. NUL-containing plain/supplied text still fails; HTML
+NULs are preserved in the raw archive and replaced only in the `/4` parsing
+projection. Earlier `/1`–`/3` transformations remain reproducible. Limits apply after decompression as well as to the
 network response. HTTP charset takes precedence over an early HTML meta charset;
 otherwise UTF-8 is used. Explicit UTF-8 and US-ASCII use fatal decoding;
 Windows-1252, ISO-8859-1, and Latin-1 declarations use Windows-1252 decoding,
@@ -562,7 +564,7 @@ Private artifacts live in `<store>/articles/<source-id>/<revision-id>/`.
 `original.html` retains the returned article, `article.txt` its normalized text,
 `metadata.json` original/final URL, canonical identity, extracted and normalized
 publisher metadata, reported dates, retrieval time, parser/hash provenance
-(`readable-html/3`, `unicode-lf-nfc/1`), original response-byte hash,
+(`readable-html/4`, `unicode-lf-nfc/1`), original response-byte hash,
 and artifact paths. `assets.json` records image URL, local path, hash, and
 success/failure/skip reason. The editable hostname map starts with confirmed
 StepSecurity, Socket, and Red Canary domains; unrecognized publisher identity

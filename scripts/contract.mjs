@@ -739,8 +739,9 @@ export function validateCorpus(corpus) {
     if (revision.rawContent !== null && revision.normalizedContent !== null) {
       try {
         const normalized = revision.parserVersion === HTML_PARSER_VERSION
-          ? normalizeText(readableHtml(revision.rawContent)) : revision.parserVersion === 'readable-html/2'
-            ? normalizeText(parseArticle(revision.rawContent, undefined, { legacyRoots: true }).text) : revision.parserVersion === 'readable-html/1'
+          ? normalizeText(readableHtml(revision.rawContent)) : revision.parserVersion === 'readable-html/3'
+            ? normalizeText(parseArticle(revision.rawContent, undefined, { replaceNulls: false }).text) : revision.parserVersion === 'readable-html/2'
+            ? normalizeText(parseArticle(revision.rawContent, undefined, { legacyRoots: true, replaceNulls: false }).text) : revision.parserVersion === 'readable-html/1'
             ? normalizeText(legacyReadableHtml(revision.rawContent)) : normalizeText(revision.rawContent);
         if (normalized !== revision.normalizedContent) fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch');
       } catch { fail('sourceRevisions', revision.id, 'raw/normalized content transformation mismatch'); }
@@ -1021,12 +1022,12 @@ export function assertAppendOnlyReviews(previous, next) {
     ].some(([base, bits]) => inRange(base, bits));
   }
 
-  function strictText(bytes, ascii = false) {
+  function strictText(bytes, ascii = false, allowHtmlNulls = false) {
     try {
       if (ascii && bytes.some(byte => byte > 127)) rejectIntake('UNSUPPORTED_ENCODING');
       // BOM handling is explicit: retain it in rawContent so rawHash covers every input byte.
       const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-      if (text.includes('\0') || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(text)) rejectIntake('MALFORMED_TEXT');
+      if ((!allowHtmlNulls && text.includes('\0')) || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(text)) rejectIntake('MALFORMED_TEXT');
       return text;
     } catch (error) {
       if (error instanceof IntakeError) throw error;
@@ -1117,11 +1118,11 @@ export function assertAppendOnlyReviews(previous, next) {
       charset = /<meta\b[^>]*charset\s*=\s*["']?\s*([\w-]+)/i.exec(prefix)?.[1]?.toLowerCase();
     }
     charset ??= 'utf-8';
-    if (['utf-8', 'utf8'].includes(charset)) return { raw: strictText(bytes), charset: 'utf-8' };
-    if (['us-ascii', 'ascii'].includes(charset)) return { raw: strictText(bytes, true), charset: 'us-ascii' };
+    if (['utf-8', 'utf8'].includes(charset)) return { raw: strictText(bytes, false, type.html), charset: 'utf-8' };
+    if (['us-ascii', 'ascii'].includes(charset)) return { raw: strictText(bytes, true, type.html), charset: 'us-ascii' };
     if (!['windows-1252', 'iso-8859-1', 'latin1'].includes(charset)) rejectIntake('UNSUPPORTED_ENCODING');
     const raw = new TextDecoder('windows-1252', { fatal: true }).decode(bytes);
-    if (raw.includes('\0')) rejectIntake('MALFORMED_TEXT');
+    if (!type.html && raw.includes('\0')) rejectIntake('MALFORMED_TEXT');
     return { raw, charset: 'windows-1252' };
   }
 

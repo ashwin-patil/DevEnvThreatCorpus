@@ -1,4 +1,4 @@
-export const ARTICLE_PARSER_VERSION = 'readable-html/3';
+export const ARTICLE_PARSER_VERSION = 'readable-html/4';
 export const PUBLISHERS = Object.freeze({
   'stepsecurity.io': 'StepSecurity',
   'socket.dev': 'Socket',
@@ -110,8 +110,10 @@ function textOf(root) {
 }
 const clean = value => typeof value === 'string' && value.trim() ? value.trim() : null;
 
-export function parseArticle(raw, url, { legacyRoots = false } = {}) {
-  const root = tree(raw);
+export function parseArticle(raw, url, { legacyRoots = false, replaceNulls = true } = {}) {
+  // Browser HTML tokenization replaces NULs. Keep the original response unchanged
+  // for retention/hashing and apply replacement only to the parsing projection.
+  const root = tree(replaceNulls ? raw.replace(/\0/g, '\ufffd') : raw);
   const article = nodes(root, node => node.name === 'article', !legacyRoots)[0]
     ?? nodes(root, node => node.name === 'main' || node.attrs.role === 'main', !legacyRoots)[0]
     ?? nodes(root, node => node.name === 'body', !legacyRoots)[0] ?? root;

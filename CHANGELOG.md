@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-13 — HTML intake compatibility
+
+- Allow NUL characters in returned HTML without rejecting usable articles such
+  as the Nx postmortem. Preserve original content/response hashes privately;
+  replace NULs only while parsing under `readable-html/4`. Keep prior parser
+  revisions reproducible, reject malformed UTF-8 and NUL-containing plain text,
+  and add archive/idempotency/charset regressions without committing real text.
+
 ## 2026-10-12 — Local research presentation integration
 
 - Restore optional attack-path, behavior, framework, security telemetry, and
