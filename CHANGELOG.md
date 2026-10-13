@@ -2,6 +2,13 @@
 
 ## 2026-10-13 — Passage-grounded campaign extraction
 
+- Remove large empty row gaps beneath variable-height research/artifact cards
+  using column flow with consistent gutters; preserve expandable campaign grid
+  positions. Make usage colors override base card styling. Unify publisher
+  metadata/domain normalization across intake, cards and filters, including
+  migrated Zscaler pages and explicit HTML brand names. Retain raw publisher
+  metadata and historical Red Canary identity; version new HTML intake as /5.
+
 - Align Case library with expandable campaign cards and Research library with
   one card per blog plus many-to-many campaign tags. Preserve article-specific
   behavior/evidence links and case identities. Replace usage suffixes on tool and

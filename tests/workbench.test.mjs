@@ -93,6 +93,16 @@ test('publisher labels normalize known hosts, retain metadata and reject lookali
   assert.match(publisherDisplay({ originalUrl: 'https://unknown.example/report' }).basis, /unverified/);
   assert.equal(JSON.stringify(source), before);
 });
+test('publisher display and facets follow migrated URLs and explicit metadata without changing source records', () => {
+  const m = model(), source = m.corpus.sources[0];
+  source.publisher = 'Red Canary'; source.originalUrl = 'https://redcanary.com/blog/report'; source.canonicalUrl = 'https://www.zscaler.com/blogs/report';
+  const before = JSON.stringify(source);
+  assert.equal(publisherDisplay(source).name, 'Zscaler');
+  assert.equal(filterRecords(m, 'sources', { publishers: ['Zscaler'] }).some(s => s.id === source.id), true);
+  assert.equal(JSON.stringify(source), before);
+  assert.equal(publisherDisplay({ ...source, canonicalUrl: null }).name, 'Red Canary');
+  assert.equal(publisherDisplay({ ...source, canonicalUrl: null, publisher: 'Zscaler Blog' }).name, 'Zscaler');
+});
 
 test('compact research chips retain full accessible titles and disambiguate repeated publishers', () => {
   const corpus = fresh();

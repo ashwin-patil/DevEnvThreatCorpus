@@ -610,7 +610,7 @@ Private artifacts live in `<store>/articles/<source-id>/<revision-id>/`.
 `original.html` retains the returned article, `article.txt` its normalized text,
 `metadata.json` original/final URL, canonical identity, extracted and normalized
 publisher metadata, reported dates, retrieval time, parser/hash provenance
-(`readable-html/4`, `unicode-lf-nfc/1`), original response-byte hash,
+(`readable-html/5`, `unicode-lf-nfc/1`), original response-byte hash,
 and artifact paths. `assets.json` records image URL, local path, hash, and
 success/failure/skip reason. The editable hostname map starts with confirmed
 StepSecurity, Socket, and Red Canary domains; unrecognized publisher identity
@@ -854,3 +854,14 @@ Activity patterns with text labels and backgrounds; titles remain plain concept
 names. Case summaries expand through native keyboard-accessible details controls
 and link to the full workspace. These are read-only views; shared article tags
 do not deduplicate or merge case IDs, claims, provenance or review decisions.
+
+Publisher attribution now shares the same normalization between HTML intake and
+read-only display/facets. A known Zscaler canonical/final domain supersedes a
+legacy label; otherwise recognized explicit page metadata is preferred before
+host fallback. Unknown page labels remain raw metadata, with known hosts as the
+fallback. The readable-html/5 metadata change retains raw pagePublisher in the
+archive and preserves existing revision text/hashes. It does not infer historical
+publisher identity merely from corporate ownership. Research and artifact cards
+use break-inside-protected column flow with 24px gutters; campaign cards retain
+native expandable grid layout. Usage colors follow base card styles so source
+classification backgrounds cannot be overwritten by generic panel styling.

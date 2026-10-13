@@ -1,5 +1,5 @@
-export const ARTICLE_PARSER_VERSION = 'readable-html/4';
-import { PUBLISHER_NAMES } from './research-inventory.mjs';
+export const ARTICLE_PARSER_VERSION = 'readable-html/5';
+import { PUBLISHER_NAMES, publisherDisplay } from './research-inventory.mjs';
 export const PUBLISHERS = PUBLISHER_NAMES;
 
 const entities = {
@@ -134,8 +134,8 @@ export function parseArticle(raw, url, { legacyRoots = false, replaceNulls = tru
   const author = structured.author;
   const pagePublisher = meta['og:site_name'] ?? meta.publisher ?? meta['dc.publisher']
     ?? clean(typeof structured.publisher === 'string' ? structured.publisher : structured.publisher?.name) ?? null;
-  const hostname = url ? new URL(url).hostname.toLowerCase() : '';
-  const publisher = Object.entries(PUBLISHERS).find(([host]) => hostname === host || hostname.endsWith(`.${host}`))?.[1] ?? pagePublisher;
+  const display = publisherDisplay({ canonicalUrl: url, publisher: pagePublisher });
+  const publisher = ['URL host; publisher unverified', 'unavailable'].includes(display.basis) ? null : display.name;
   const metadata = {
     title: meta['og:title'] ?? meta['twitter:title'] ?? clean(structured.headline)
       ?? (titleNode ? clean(titleNode.children.filter(value => typeof value === 'string').join('')) : null)

@@ -26,6 +26,15 @@ acceptance eligibility; local reviewer identity is self-attested, not authentica
 
 ## Current implementation
 
+Variable-height research/artifact cards use a column flow with consistent gutters
+so shorter cards do not leave an empty grid row underneath. Campaign cards retain
+stable expandable grid positions. Publisher labels and Publisher filters use
+recognized HTML publisher metadata or the canonical/final URL host. Zscaler URLs
+use Zscaler; explicit rebranded metadata is normalized while raw page publisher
+values remain archived. Historical Red Canary pages retain their own identity
+unless their retained URL or metadata identifies Zscaler. No arbitrary HTML tags
+or publisher ownership relationship is promoted to accepted campaign evidence.
+
 Case library is the campaign-level overview: one expandable card per case, with
 links to its research blogs, behaviors, tools, prompts and full workspace. Research
 library is the source-level overview: one card per blog/article, with campaign
@@ -221,7 +230,7 @@ text and metadata allow up to 6 MiB for supported charset expansion, with the
 same limits enforced when writing and downloading. Hidden/template article
 roots and their images are excluded from extraction. Archive links are tied
 to the selected revision even when the source was initially supplied as text.
-New HTML revisions use `readable-html/4`; existing `/1`, `/2`, and `/3` revisions
+New HTML revisions use `readable-html/5`; existing `/1`, `/2`, `/3`, and `/4` revisions
 validate against their original transformations without rewriting evidence.
 HTML NUL characters are replaced only in the parsing projection, as in browser
 HTML tokenization. Original response content and hashes remain intact in the

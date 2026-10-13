@@ -24,6 +24,19 @@ test('publisher normalization recognizes Nx without changing reported page publi
   assert.equal(article.metadata.publisher, 'Nx');
   assert.equal(article.metadata.pagePublisher, 'Nx Blog');
 });
+test('publisher metadata and migrated domains normalize Zscaler without relabeling legacy Red Canary pages', () => {
+  for (const [host, reported, expected] of [
+    ['redcanary.com', 'Zscaler Blog', 'Zscaler'],
+    ['zscaler.com', 'Red Canary', 'Zscaler'],
+    ['redcanary.com', 'Red Canary', 'Red Canary'],
+    ['articles.example', 'Zscaler, Inc.', 'Zscaler'],
+  ]) {
+    const article = parseArticle(`<html><head><meta property="og:site_name" content="${reported}"></head><body><article><p>Benign fixture.</p></article></body></html>`, `https://${host}/blog/report`);
+    assert.equal(article.metadata.publisher, expected);
+    assert.equal(article.metadata.pagePublisher, reported);
+    assert.equal(article.text, 'Benign fixture.');
+  }
+});
 const url = 'https://articles.example/synthetic?id=7';
 const publicIP = '93.184.216.34';
 const cli = args => {
@@ -568,7 +581,7 @@ test('Issue #39 AC-03 parser versions preserve previously retained hidden-root e
   corpus.collectionManifests = [];
   assert.deepEqual(validateCorpus(corpus), []);
   revision.parserVersion = HTML_PARSER_VERSION;
-  assert.equal(HTML_PARSER_VERSION, 'readable-html/4');
+  assert.equal(HTML_PARSER_VERSION, 'readable-html/5');
   assert.ok(validateCorpus(corpus).some(error => error.includes('transformation mismatch')));
   revision.normalizedContent = 'Actual report';
   revision.normalizedHash = sha256(revision.normalizedContent);
@@ -587,7 +600,7 @@ test('HTML NUL handling retains original bytes, creates readable text and leaves
     const corpus = await corpusAt(store), revision = corpus.sourceRevisions[0];
     assert.equal(revision.rawContent, raw);
     assert.equal(revision.rawHash, sha256(raw));
-    assert.equal(revision.parserVersion, 'readable-html/4');
+    assert.equal(revision.parserVersion, 'readable-html/5');
     assert.ok(revision.normalizedContent.includes('Before\ufffdafter'));
     assert.ok(revision.normalizedContent.includes('tool --flag'));
     assert.ok(!revision.normalizedContent.includes('bootstrap'));

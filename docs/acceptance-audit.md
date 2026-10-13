@@ -1,5 +1,14 @@
 # Acceptance audit
 
+### Card spacing and publisher follow-up (PR #47)
+
+Publisher regressions cover explicit HTML publisher declarations, canonical
+domain migration, raw metadata preservation, legacy Red Canary identity and
+matching Publisher facets without source mutations. Variable-height card spacing
+and source usage backgrounds require browser geometry/visual checks in addition
+to the configured application suites. Existing revision hashes remain frozen;
+new metadata extraction uses readable-html/5. Independent UX review remains open.
+
 ### Campaign/source card alignment (PR #47)
 
 `tests/workbench.test.mjs` covers one expandable card per case, one card per blog,

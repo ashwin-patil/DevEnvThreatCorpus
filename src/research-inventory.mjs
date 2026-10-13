@@ -6,12 +6,22 @@ export const PUBLISHER_NAMES = Object.freeze({
   'microsoft.com': 'Microsoft', 'github.blog': 'GitHub',
   'attack.mitre.org': 'MITRE ATT&CK', 'atlas.mitre.org': 'MITRE ATLAS',
 });
-export function publisherDisplay(source) {
+export function normalizedPublisherName(value) {
+  if (typeof value !== 'string') return null;
+  const key = value.normalize('NFKC').toLowerCase().trim().replace(/[|,.:–—-]+/gu, ' ').replace(/\s+/gu, ' ').trim();
+  if (['red canary a zscaler company', 'red canary by zscaler'].includes(key)) return 'Zscaler';
+  const bare = key.replace(/\s+(?:blogs?|inc|incorporated|ltd|limited|corp|corporation)$/u, '').trim();
+  return [...new Set(Object.values(PUBLISHER_NAMES))].find(name => name.toLowerCase() === bare) ?? null;
+}
+export function publisherDisplay(source = {}) {
   let host = '';
   for (const url of [source.canonicalUrl, source.originalUrl]) {
     try { const parsed = new URL(url); if (['http:', 'https:'].includes(parsed.protocol)) { host = parsed.hostname.toLowerCase(); break; } } catch { /* Missing metadata remains explicit. */ }
   }
   const name = Object.entries(PUBLISHER_NAMES).find(([domain]) => host === domain || host.endsWith(`.${domain}`))?.[1];
+  const reported = normalizedPublisherName(source.publisher);
+  // A migrated Zscaler URL wins over legacy labels; otherwise explicit recognized metadata can identify a rebranded page.
+  if (reported && name !== 'Zscaler') return { name: reported, basis: 'reported publisher (normalized label)' };
   if (name) return { name, basis: 'normalized URL host' };
   if (source.publisher?.trim()) return { name: source.publisher.trim(), basis: 'reported publisher' };
   return { name: host.replace(/^www\./, '') || 'Publisher not reported', basis: host ? 'URL host; publisher unverified' : 'unavailable' };
