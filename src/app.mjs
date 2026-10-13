@@ -53,6 +53,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
           const selected = new Set(filters[key] ?? []);
           input.checked ? selected.add(value) : selected.delete(value);
           filters[key] = [...selected];
+          activePassages = [];
           details.firstChild.textContent = `${key[0].toUpperCase() + key.slice(1)} (${selected.size} selected)`;
           render();
         });
@@ -113,7 +114,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (route.id && !model[route.view].has(route.id)) detail.append(element(doc, 'p', 'Unknown target; showing a matching record instead.', 'subtle'));
     if (route.view === 'cases') detail.append(renderCase(doc, model, selected, navigate));
     if (route.view === 'sources') detail.append(renderSource(doc, model, selected, route.revisionId, navigate,
-      id => { route.revisionId = id; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
+      id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
       ids => { activePassages = ids; render(); $('content').focus(); }, activePassages));
     if (route.view === 'claims') {
       const target = claimTarget(model, selected.id), panel = element(doc, 'section', null, 'panel');
@@ -153,7 +154,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   }
   $('toolbar').addEventListener('submit', e => e.preventDefault());
   $('search').addEventListener('input', () => { filters.query = $('search').value; activePassages = []; render(); });
-  $('tag-mode').addEventListener('change', () => { filters.tagMode = $('tag-mode').value; render(); });
+  $('tag-mode').addEventListener('change', () => { filters.tagMode = $('tag-mode').value; activePassages = []; render(); });
   $('reset').addEventListener('click', () => { reset(); render(); });
   $('demo').addEventListener('click', () => load('/api/demo'));
   $('skip-content')?.addEventListener('click', event => {

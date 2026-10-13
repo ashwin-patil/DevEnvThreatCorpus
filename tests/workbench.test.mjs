@@ -366,6 +366,45 @@ test('actual facet checkbox and tag mode interactions update counts without writ
   await doc.getElementById('tag-mode').trigger('change');
   assert.equal(app.getModel().claims.get('synthetic-claim-a').disposition, 'Needs correction');
 });
+test('source facet fallback clears passage selection so the newly visible source keeps its claims', async () => {
+  const { doc, content } = await mounted(fresh(), '#sources/synthetic-source-a');
+  await descendants(content).find(n => n.className === 'passage-highlight').trigger('click');
+  assert.match(content.textContent, /Passage selection: synthetic-passage-a/);
+  const label = descendants(doc.getElementById('facets')).find(n =>
+    n.tagName === 'LABEL' && n.textContent === 'Synthetic conflicting account');
+  label.children[0].checked = true;
+  await label.children[0].trigger('change');
+  assert.ok(!content.textContent.includes('Passage selection'));
+  assert.ok(descendants(content).some(n => n.className === 'claim-title' &&
+    n.textContent === 'A second synthetic source denies tool use.'));
+  assert.ok(!content.textContent.includes('No linked claims for this revision / passage'));
+});
+test('tag mode changes clear selected passages instead of retaining a hidden subset of claims', async () => {
+  const { doc, content } = await mounted(fresh(), '#sources/synthetic-source-a');
+  await descendants(content).find(n => n.className === 'passage-highlight').trigger('click');
+  assert.ok(!content.textContent.includes('Inference rationale'));
+  doc.getElementById('tag-mode').value = 'AND';
+  await doc.getElementById('tag-mode').trigger('change');
+  assert.ok(!content.textContent.includes('Passage selection'));
+  assert.match(content.textContent, /Inference rationale/);
+});
+test('revision selection on a filtered fallback source updates the complete route and survives reset', async () => {
+  const { doc, win, content } = await mounted(fresh(), '#sources/synthetic-source-a/synthetic-revision-a');
+  const label = descendants(doc.getElementById('facets')).find(n =>
+    n.tagName === 'LABEL' && n.textContent === 'Synthetic conflicting account');
+  label.children[0].checked = true;
+  await label.children[0].trigger('change');
+  const revision = descendants(content).find(n => n.tagName === 'SELECT');
+  revision.value = 'synthetic-revision-b';
+  await revision.trigger('change');
+  assert.equal(win.location.hash, '#sources/synthetic-source-b/synthetic-revision-b');
+  await doc.getElementById('reset').trigger('click');
+  const selected = descendants(content).find(n => n.className === 'record-card' &&
+    n.attributes['aria-pressed'] === 'true');
+  assert.match(selected.textContent, /Synthetic conflicting account/);
+  assert.equal(descendants(content).find(n => n.className === 'source-text').textContent, 'The tool was not used.');
+  assert.equal(win.location.hash, '#sources/synthetic-source-b/synthetic-revision-b');
+});
 test('malformed hash navigation, unknown targets and browser back never crash', async () => {
   const { win, doc } = await mounted(fresh(), '#sources/%ZZ');
   assert.match(doc.getElementById('result').textContent, /matching cases/);
