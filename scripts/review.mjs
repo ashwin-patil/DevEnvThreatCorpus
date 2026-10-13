@@ -24,6 +24,7 @@ export function applyReview(corpus, decision, reviewer) {
     || !onlyKeys(decision, [...required, 'correction'])
     || !required.every(key => Object.hasOwn(decision, key))
     || decision.schemaVersion !== REVIEW_VERSION
+    || typeof decision.action !== 'string'
     || !Object.hasOwn(dispositions, decision.action)
     || typeof decision.rationale !== 'string' || !decision.rationale.trim()
     || typeof decision.baseDigest !== 'string' || !/^[a-f0-9]{64}$/.test(decision.baseDigest)) {
