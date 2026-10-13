@@ -66,7 +66,9 @@ test('AI libraries retain exact prompt variants, scope, provenance, navigation a
   assert.equal(explorationRecords(m, 'tools', { query: 'attempted-abuse' }).records.length, 1);
   const calls = [], root = renderExploration(new FakeDocument(), m, 'prompts', {}, (...args) => calls.push(args), 'prompts-prompt-c');
   assert.doesNotMatch(root.textContent, /Unknown target/);
-  assert.match(root.textContent, /vendor-example/);
+  assert.match(root.textContent, /Vendor example/);
+  assert.doesNotMatch(root.textContent, /artifactUsage:/);
+  assert.ok(descendants(root).some(n => n.getAttribute?.('aria-label') === 'Source artifact: Vendor example'));
   assert.match(root.textContent, /synthetic prompt 😀/);
   const sourceButton = descendants(root).find(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Source:'));
   await sourceButton.trigger('click'); assert.deepEqual(calls[0], ['sources', 'synthetic-source-a', 'synthetic-revision-a']);

@@ -37,6 +37,7 @@ function usageLegend(doc) {
   legend.setAttribute('aria-label', 'AI tool and prompt usage legend');
   legend.append(element(doc, 'strong', 'Usage legend'));
   for (const [key, [label, symbol]] of Object.entries(USAGE)) legend.append(element(doc, 'span', `${symbol} ${label}`, `usage-key usage-${key}`));
+  legend.append(element(doc, 'p', 'Each source entry retains its classification. Mixed means linked sources use different classifications.', 'legend-note subtle'));
   return legend;
 }
 function behaviorLinks(doc, parent, model, claimIds, paths, navigate) {
@@ -166,9 +167,15 @@ function support(doc, model, ids, navigate) {
 }
 function annotationCard(doc, model, annotation, navigate) {
   const card = element(doc, 'article', null, 'claim-card');
+  if (annotation.type === 'commands-ai-artifacts') {
+    const usage = usageOf([annotation]); card.className += ` usage-${usage}`;
+    card.title = USAGE[usage][0]; card.setAttribute('aria-label', `Source artifact: ${USAGE[usage][0]}`);
+  }
   card.append(element(doc, 'pre', annotation.value, 'artifact-value'), provenance(doc, annotation));
   if (annotation.normalizedValue) row(doc, card, 'Normalized value', annotation.normalizedValue);
-  for (const [key, value] of Object.entries(annotation.context ?? {})) row(doc, card, key, value);
+  for (const [key, value] of Object.entries(annotation.context ?? {})) {
+    if (key !== 'artifactUsage') row(doc, card, key, value);
+  }
   const revision = model.sourceRevisions.get(annotation.sourceRevisionId);
   const locator = annotation.support?.locator;
   const quote = locator && revision?.normalizedContent != null
