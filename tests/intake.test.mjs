@@ -329,6 +329,16 @@ test('AC-05 robots fail closed without override, including access restrictions a
   }
   const allowedStore = path.join(directory, 'allowed');
   assert.equal((await intakeSource(urlInput(allowedStore), fake(undefined, { robots: () => response('User-agent: *\nDisallow: /\nAllow: /synthetic') }))).status, 'succeeded');
+  const informationalStore = path.join(directory, 'informational-directives');
+  const informationalRobots = [
+    'User-agent: *',
+    'Allow: /synthetic',
+    'Host: https://nx.dev',
+    'Content-Signal: search=yes, ai-input=yes, ai-train=yes',
+    'Clean-param: s /article',
+    'Sitemap: https://nx.dev/sitemap.xml',
+  ].join('\n');
+  assert.equal((await intakeSource(urlInput(informationalStore), fake(undefined, { robots: () => response(informationalRobots) }))).status, 'succeeded');
   const absentStore = path.join(directory, 'gone');
   assert.equal((await intakeSource(urlInput(absentStore), fake(undefined, { robots: () => response('', { status: 410 }) }))).status, 'succeeded');
 });

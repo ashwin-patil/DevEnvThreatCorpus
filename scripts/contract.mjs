@@ -770,7 +770,9 @@ export function assertAppendOnlyReviews(previous, next) {
         if (!group || (value && (!value.startsWith('/') || /[*$%\\\u0080-\uffff]/u.test(value)))) rejectIntake('ROBOTS_UNSUPPORTED');
         rulesStarted = true;
         if (value) group.rules.push({ allow: key === 'allow', value });
-      } else if (key !== 'sitemap') rejectIntake('ROBOTS_UNSUPPORTED');
+      } else if (!['sitemap', 'host', 'content-signal', 'clean-param'].includes(key)) {
+        rejectIntake('ROBOTS_UNSUPPORTED');
+      }
     }
     // Apply both wildcard and named groups: a specific rule cannot override a broader denial.
     const applicable = groups.filter(g => g.agents.some(a => a === '*' || 'devenvthreatcorpusintake/1'.startsWith(a)));

@@ -90,6 +90,134 @@ for access policy, supported encodings/HTML, identity, bounds, safe retention,
 and failure handling. Do not pass credentials or confidential text on a shared
 command line; use a permission-restricted UTF-8 file instead.
 
+## Windows: test URL intake with WSL
+
+Use Ubuntu under WSL for real URL intake and private persistence. The current
+intake CLI checks POSIX directory/file permissions; native Windows permission
+bits do not satisfy those checks. Do not disable them. Keep both the checkout
+and private store in the Linux filesystem under `/home`, not `/mnt/c` or another
+Windows-mounted drive. Docker is not required.
+
+1. **Open Ubuntu.** In Windows PowerShell, check installed distributions and
+   launch Ubuntu:
+
+   ```powershell
+   wsl --list --verbose
+   wsl --distribution Ubuntu
+   ```
+
+   If Ubuntu is not installed, run `wsl --install --distribution Ubuntu` from
+   an administrator PowerShell, restart if prompted, and finish Ubuntu's
+   first-run user setup. Use your distribution's actual name if it differs.
+   All remaining commands in this section run in Ubuntu Bash.
+
+2. **Prepare a Linux-native checkout and the pinned runtime.**
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y git curl ca-certificates
+   mkdir -p "$HOME/projects"
+   cd "$HOME/projects"
+   git clone https://github.com/ashwin-patil/DevEnvThreatCorpus.git
+   cd DevEnvThreatCorpus
+   ```
+
+   Cloning requires repository read access; use your approved GitHub
+   authentication method if prompted, never a token embedded in a URL.
+   For an existing Linux checkout, use it instead of cloning again.
+   Install [nvm using its official instructions](https://github.com/nvm-sh/nvm#installing-and-updating)
+   if it is not already available, then open a new Ubuntu shell if required:
+
+   ```bash
+   cd "$HOME/projects/DevEnvThreatCorpus"
+   nvm install "$(cat scripts/.node-version)"
+   nvm use "$(cat scripts/.node-version)"
+   node --version
+   ```
+
+   The version must match `scripts/.node-version` (currently `v22.23.3`).
+   Runtime installation and cloning need internet access; neither is source
+   intake or research validation.
+
+3. **Create a private store and request one article.** Confirm you are
+   authorized to retrieve and retain the article, including site restrictions
+   and storage rights. This command makes a real network request:
+
+   ```bash
+   R="$(pwd -P)"
+   S="$R/.private-intake/nx-pilot"
+   umask 077
+   mkdir -p "$S"
+   chmod 700 "$S"
+   stat -c '%a %n' "$S"
+   node "$R/scripts/contract.mjs" intake url \
+     --url 'https://nx.dev/blog/s1ngularity-postmortem' \
+     --supplied-by ashwin-patil --store "$S"
+   ```
+
+   The directory should show `700`. Check the command's JSON outcome and exit
+   status: a failed request is not successful ingestion. Intake checks access
+   policy, destination safety, size/time limits, encoding, and a strict HTML
+   subset. Browser-readable pages can still be rejected. Do not bypass robots,
+   authentication, paywalls, TLS checks, or the storage-permission checks.
+
+4. **Validate and inspect the collection outcome.** If intake persisted a
+   corpus, inspect metadata locally without printing full article content:
+
+   ```bash
+   node "$R/scripts/contract.mjs" validate --file "$S/corpus.json"
+   stat -c '%a %n' "$S/corpus.json"
+   node --input-type=module -e 'import fs from "node:fs"; const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); console.log(JSON.stringify({sources:c.sources.map(s=>({id:s.id,url:s.canonicalUrl})),revisionCount:c.sourceRevisions.length,manifests:c.collectionManifests},null,2));' "$S/corpus.json"
+   ```
+
+   The corpus file should show `600`. A valid corpus can contain a failed
+   collection manifest, so validation alone does not establish retrieval
+   success. A storage failure may leave no corpus to inspect.
+   If retrieval fails, retain its reported failure. Supplied-text fallback is
+   only appropriate for material you are authorized to supply and store:
+
+   ```bash
+   # First save authorized plain text locally as $S/article.txt.
+   chmod 600 "$S/article.txt"
+   node "$R/scripts/contract.mjs" intake file \
+     --file "$S/article.txt" \
+     --source-url 'https://nx.dev/blog/s1ngularity-postmortem' \
+     --supplied-by ashwin-patil --store "$S"
+   node "$R/scripts/contract.mjs" validate --file "$S/corpus.json"
+   ```
+
+   Fallback records supplied content and URL association, not a successful
+   website fetch. It does not erase the previous failure.
+
+5. **Preview the private source locally.**
+
+   ```bash
+   node "$R/scripts/server.mjs" --corpus "$S/corpus.json" --port 4173
+   ```
+
+   In your Windows browser, open `http://127.0.0.1:4173/` and select
+   **Research library**. Only successfully retained revisions have article
+   text to inspect. The server binds to loopback; do not expose it through a
+   tunnel, shared interface, firewall exception, or public deployment.
+   If localhost forwarding is unavailable in your WSL configuration, resolve
+   that configuration rather than changing the server to bind publicly.
+   Stop with Ctrl+C and restart after changing the corpus; the preview uses
+   a startup snapshot.
+
+6. **Add other explicitly selected sources.** Stop the preview, repeat step 3's
+   intake command with each other URL and the same `S`, and inspect each outcome
+   separately. Intake processes one source per call; it does not infer that
+   articles describe the same campaign. Exact successful reruns are idempotent;
+   changed content adds a revision.
+
+This pilot tests retrieval, private retention, contract validation, and source
+browsing only. It does not create cases, extract claims, populate publication
+metadata automatically, or approve research. Manual extraction requires an
+existing schema-valid case and a researcher-completed template; use the
+[extraction workflow](#manual-extraction-offline-exercise) next. Never seed real
+research with synthetic demo claims. Keep `.private-intake/` uncommitted and
+unpublished, including its corpus and authorized fallback text.
+
 ## Manual extraction: offline exercise
 
 Extraction reads an existing valid private `corpus.json` and an explicit

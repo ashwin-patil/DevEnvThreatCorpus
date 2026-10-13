@@ -2,6 +2,10 @@
 
 ## 2026-10-12
 
+- Issue #30: allow standard benign informational directives in the conservative robots.txt parser (`Host:`, `Content-Signal:`, `Clean-param:`, and `Sitemap:`) so that standard public documentation and engineering blogs are not rejected with `ROBOTS_UNSUPPORTED` when access is otherwise allowed. Retain fail-closed enforcement for invalid or ambiguous path expressions, redirects, and crawl delays; add regression test coverage in `tests/intake.test.mjs` and update architecture documentation.
+
+- Document a Windows-to-WSL URL intake pilot in README: Linux-native checkout and pinned Node setup, private store permissions, one authorized article request, explicit failure/text fallback handling, validation, and loopback-only preview. Clarify that intake does not create cases, extract claims, or approve research, and that native Windows private persistence remains unsupported by the POSIX permission checks.
+
 - Issue #16: add a Reload local corpus button to leave the synthetic demo without refreshing the browser, restoring the configured startup snapshot and clearing filters; cover empty and configured corpus restoration with regression tests.
 
 - Issue #16 follow-up: prevent passage selections from carrying across facet changes and keep source/revision routes synchronized after filtered fallback navigation. Three focused regression tests cover the corrected state transitions; acceptance guidance distinguishes final-revision execution from stale results and pending hosted/human review.

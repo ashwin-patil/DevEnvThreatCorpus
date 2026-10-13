@@ -154,7 +154,7 @@ The fetcher checks `robots.txt` using `DevEnvThreatCorpusIntake/1` and fails clo
 when access policy cannot be safely established. A missing policy (404/410)
 allows retrieval; a policy redirect to another origin is rejected. The
 conservative parser supports user-agent groups, literal path-prefix
-Allow/Disallow rules, comments, and ignored Sitemap declarations. Both matching
+Allow/Disallow rules, comments, and ignored Sitemap, Host, Content-Signal, and Clean-param declarations. Both matching
 named and wildcard groups must allow the path; unsupported directives,
 wildcards, encoded paths, or ambiguous syntax fail closed rather than ignore
 possible restrictions. Authentication/access denials are not retried as
