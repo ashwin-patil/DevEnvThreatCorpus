@@ -2,6 +2,15 @@
 
 ## 2026-10-13 — Passage-grounded campaign extraction
 
+- Add campaign-linked AI product and exact prompt libraries with known-alias
+  normalization, unresolved executable labels, searchable usage classifications,
+  source/revision/claim navigation and private export retention. Keep prompt
+  variants separate and vendor demonstrations distinct from incident artifacts.
+  Extend the strict artifact contract with optional usage labels and version
+  extraction guidance to request complete prompts and explicit AI products.
+  Add Zscaler publisher normalization and focused alias, grounding, case isolation,
+  exact variant, navigation and classification regressions.
+
 - Normalize compact publisher display names across research cards, facets,
   citations and source inspection, including Nx; preserve raw metadata and label
   unverified host fallbacks. Number repeated publisher chips and retain full

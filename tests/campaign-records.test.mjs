@@ -9,6 +9,17 @@ import {
 const fixture = async () => JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const catalogUrl = PINNED_FRAMEWORK_CATALOG.catalogs[0].materialUrl;
 
+test('AI library candidate usage is optional, enum-checked and never invents a literal', async () => {
+  const corpus = await fixture(), value = candidate();
+  value.artifacts = [{ kind: 'prompt-instruction', literal: 'Café', usage: 'vendor-example', supportingClaimIds: ['local-claim'] }];
+  const output = normalize(corpus, value);
+  assert.equal(output.annotations.find(a => a.type === 'commands-ai-artifacts').context.artifactUsage, 'vendor-example');
+  value.artifacts[0].usage = 'confirmed-success';
+  assert.throws(() => normalize(corpus, value), /unknown artifact usage/);
+  value.artifacts[0].usage = 'targeted'; value.artifacts[0].literal = 'Unsupported product';
+  assert.throws(() => normalize(corpus, value), /literal is absent/);
+});
+
 for (const evidenceStatus of ['Potential consequence', 'Unclear or disputed']) {
   test(`issue45 preserves ${evidenceStatus} without projecting observed behavior`, async () => {
     const corpus = await fixture();

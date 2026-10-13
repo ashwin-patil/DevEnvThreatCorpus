@@ -26,6 +26,18 @@ acceptance eligibility; local reviewer identity is self-attested, not authentica
 
 ## Current implementation
 
+AI tools and Prompt library views project private, grounded `ide-cli` and
+`prompt-instruction` annotations. Campaign and Research library cards link to
+entries, exact revisions and supporting claims. Known product aliases share a
+display identity; ambiguous executables remain unresolved. Exact prompt variants
+retain case, whitespace and punctuation rather than being semantically merged.
+Prepare a fresh campaign request using extraction prompt version 3, then import
+its candidate to populate these views. Optional artifact `usage` classifies
+targeting, attempted/reported abuse, vendor examples, general mentions or unclear
+context; older annotations display unclear. These are pending research artifacts,
+not independently confirmed IOCs or deployed detection rules. Existing request
+files must be prepared again after the prompt version change.
+
 The 0.3.0 contract models sources and their revisions, passages, cases, claims,
 categorization, timelines, and review events. Its validator checks schema shape
 and relationships between records, including evidence references, content

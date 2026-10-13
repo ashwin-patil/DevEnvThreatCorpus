@@ -1,8 +1,9 @@
 import { element, action, safeExternalUrl, caseCitations, renderClaim } from './render.mjs';
 import { filterRecords, metadata, caseSourceIds } from './model.mjs';
 import { publisherDisplay, behaviorInventory } from './research-inventory.mjs';
+import { aiLibrary } from './ai-library.mjs';
 
-export const EXPLORE_VIEWS = { paths: 'Attack paths', behaviors: 'Behaviors', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry' };
+export const EXPLORE_VIEWS = { paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry' };
 export const ANNOTATION_LABELS = {
   'role-context': 'AI and attacker / victim context', 'observed-behavior': 'Observed behaviors',
   'data-sources': 'Mapped data sources', 'commands-ai-artifacts': 'Commands, prompts and AI tools',
@@ -70,6 +71,7 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
     const evidence = element(doc, 'details'); evidence.append(element(doc, 'summary', `Claims & evidence · ${claims.length}`));
     for (const c of claims) evidence.append(action(doc, c.description, () => navigate('claims', c.id)));
     card.append(evidence);
+    appendAiLinks(doc, card, model, record.id, navigate, visible);
     grid.append(card);
   }
   for (const source of sources.filter(s => !associated.has(s.id))) {
@@ -86,6 +88,18 @@ function reference(doc, url, label = url) {
   const safe = safeExternalUrl(url);
   if (!safe) return element(doc, 'span', label ?? 'No public reference');
   const link = element(doc, 'a', label); link.href = safe; link.target = '_blank'; link.rel = 'noopener noreferrer'; return link;
+}
+function appendAiLinks(doc, parent, model, caseId, navigate, sourceIds) {
+  for (const [view, label] of [['tools', 'AI tools · source-reported usage'], ['prompts', 'Prompts · exact source literals']]) {
+    const entries = aiLibrary(model, view, new Set([caseId])).filter(r => !sourceIds || r.annotations.some(a => sourceIds.has(a.sourceId)));
+    parent.append(element(doc, 'h3', label));
+    for (const r of entries) {
+      const usages = [...new Set(r.annotations.filter(a => !sourceIds || sourceIds.has(a.sourceId)).map(a => a.context?.artifactUsage ?? 'unclear'))].join(', ');
+      const chip = action(doc, `${view === 'tools' ? r.name : r.annotations[0].normalizedValue ?? r.name} · ${usages}`, () => navigate(view, r.id));
+      chip.title = view === 'prompts' ? r.annotations[0].value : r.basis; parent.append(chip);
+    }
+    if (!entries.length) parent.append(element(doc, 'p', 'No grounded entries recorded.', 'subtle'));
+  }
 }
 function row(doc, parent, label, value) {
   if (value == null || (Array.isArray(value) && !value.length)) return;
@@ -133,6 +147,7 @@ export function renderEvidencePanel(doc, model, record, navigate, download) {
   if (download) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
     () => download(format, format === 'md' ? talkMarkdown(talkBundle(model, record.id)) : talkBundle(model, record.id))));
   const annotations = caseAnnotations(model, record.id);
+  appendAiLinks(doc, panel, model, record.id, navigate);
   for (const [type, label] of Object.entries(ANNOTATION_LABELS)) {
     const items = annotations.filter(a => a.type === type);
     const section = element(doc, 'details'); section.open = type === 'observed-behavior';
@@ -197,7 +212,9 @@ export function explorationRecords(model, view, filters = {}) {
     caseIds.has(model.claims.get(id)?.caseId))) behaviorIds.add(b.id);
   for (const m of mappings) behaviorIds.add(m.behaviorId);
   const scoped = Object.entries(filters).some(([key, value]) => key !== 'query' && key !== 'tagMode' && Array.isArray(value) && value.length);
-  let records = view === 'paths' ? paths : view === 'behaviors' ? list(model, 'behaviors').filter(b => !scoped || behaviorIds.has(b.id)) :
+  let records = ['tools', 'prompts'].includes(view) ? aiLibrary(model, view, caseIds).map(r => ({ ...r,
+    annotations: r.annotations.filter(a => !filters.sources?.length || filters.sources.includes(a.sourceId)) })).filter(r => r.annotations.length) :
+    view === 'paths' ? paths : view === 'behaviors' ? list(model, 'behaviors').filter(b => !scoped || behaviorIds.has(b.id)) :
     view === 'frameworks' ? list(model, 'frameworks').filter(t => !scoped || mappings.some(m => m.techniqueId === t.id)) :
       list(model, view).filter(t => !scoped || behaviorIds.has(t.behaviorId));
   const query = (filters.query ?? '').trim().toLocaleLowerCase();
@@ -283,11 +300,40 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   panel.append(element(doc, 'p', 'Source-supported observations and pending research proposals. Missing enrichment is not evidence that a behavior did not occur; shared behaviors do not establish shared attribution.', 'subtle'));
   if (loadDemo) panel.append(action(doc, 'Load synthetic research demo (replaces displayed corpus only)', loadDemo));
   const selected = explorationRecords(model, view, filters);
-  if (selectedId && !selected.records.some(r => r.id === selectedId)
+  const matchesTarget = r => r.id === selectedId || (['tools', 'prompts'].includes(view)
+    && r.annotations.some(a => `${view}-${a.id}` === selectedId));
+  if (selectedId && !selected.records.some(matchesTarget)
     && !(view === 'telemetry' && list(model, 'detections').some(d => d.id === selectedId
       && selected.records.some(t => t.behaviorId === d.behaviorId)))) {
     panel.append(element(doc, 'p', 'Unknown target or target outside the active filters. No different research record has been substituted.', 'empty'),
       action(doc, `Return to ${EXPLORE_VIEWS[view]}`, () => navigate(view))); return panel;
+  }
+  if (['tools', 'prompts'].includes(view)) {
+    panel.append(element(doc, 'h2', EXPLORE_VIEWS[view]), element(doc, 'p', view === 'tools'
+      ? 'Normalized products with source-local usage labels. Association does not prove successful abuse. Unresolved executable names remain separate.'
+      : 'Exact vendor-reported prompts for research and detection development. Benign vendor examples remain labeled; these are not validated detection rules or independently confirmed IOCs. No prompt is executed.'));
+    const grid = element(doc, 'div', null, 'research-grid');
+    for (const record of selected.records.filter(r => !selectedId || matchesTarget(r))) {
+      const card = element(doc, 'article', null, 'panel research-card');
+      card.append(element(doc, 'h2', record.name), element(doc, 'p', record.basis, 'subtle'));
+      if (!selectedId) card.append(action(doc, 'Open library entry', () => navigate(view, record.id)));
+      for (const a of record.annotations) {
+        const item = annotationCard(doc, model, a, navigate);
+        item.append(element(doc, 'p', `Usage: ${a.context?.artifactUsage ?? 'unclear / not classified'}`),
+          action(doc, `Campaign: ${model.cases.get(a.caseId)?.name ?? a.caseId}`, () => navigate('cases', a.caseId)),
+          support(doc, model, a.claimIds, navigate));
+        // Relationships require common source-local claims, not lexical similarity or article proximity.
+        const other = view === 'tools' ? 'prompts' : 'tools';
+        for (const related of aiLibrary(model, other, new Set([a.caseId])).filter(r => r.annotations.some(b =>
+          b.sourceRevisionId === a.sourceRevisionId && b.claimIds?.some(id => a.claimIds?.includes(id))))) {
+          item.append(action(doc, `Related ${other === 'tools' ? related.name : 'prompt'}`, () => navigate(other, related.id)));
+        }
+        card.append(item);
+      }
+      grid.append(card);
+    }
+    if (!grid.children.length) panel.append(element(doc, 'p', 'No grounded entries for these filters. Prepare and import a passage-grounded extraction; collecting an article alone does not extract tools or prompts.', 'empty'));
+    panel.append(grid); return panel;
   }
   if (view === 'behaviors') {
     const inventory = element(doc, 'section', null, 'panel behavior-inventory');

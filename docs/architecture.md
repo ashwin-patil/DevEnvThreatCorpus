@@ -1,5 +1,22 @@
 # Fresh-start corpus architecture
 
+### Campaign AI artifacts
+
+`src/ai-library.mjs` provides read-only product and exact-prompt projections over
+grounded private annotations, without adding incident assertions to the core
+corpus. Product normalization uses exact known aliases, ignores model-generated
+normalized replacements, and leaves `q` unresolved without explicit product
+evidence. Campaign/research cards navigate to tool and prompt entries with source
+revision and claim support. Relationships require shared source-local claims;
+article proximity alone cannot link a prompt to a product. Exact prompt equality
+groups copies while preserving every source/case occurrence; member annotation
+IDs remain navigable when a different occurrence is the group representative.
+Optional candidate `usage` and annotation `context.artifactUsage` are strict enum
+extensions; absent values remain unclear. Prompt version 3 requests complete
+literal prompts and distinguishes incident evidence from vendor test examples.
+Private campaign and talk exports retain exact literals, usage and provenance.
+Article-wide product mentions do not establish targeting in the selected case.
+
 `src/research-inventory.mjs` is browser-safe presentation normalization shared
 with article publisher normalization. Compact host-derived publisher labels
 retain their displayed basis; reported fields, null reasons and source hashes

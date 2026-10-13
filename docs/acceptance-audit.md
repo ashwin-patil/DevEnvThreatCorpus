@@ -1,5 +1,18 @@
 # Acceptance audit
 
+### AI-tool and prompt library follow-up (PR #47)
+
+The user-requested follow-up adds private views and campaign-card links for
+grounded AI products and exact prompts. `tests/workbench.test.mjs` verifies known
+aliases, ambiguous executable isolation, exact prompt variants, case/source/search
+scoping, member-ID navigation, source citation clicks and private talk export.
+`tests/campaign-records.test.mjs` verifies usage enum rejection and unsupported
+literal rejection. These checks establish implementation behavior, not incident
+truth or a detection's effectiveness. Vendor URL intake may remain blocked by the
+normal robots policy; no bypass is authorized. Retained revisions can still be
+used for independent implementation exercises. AC-10 frozen human gold and
+independent semantic review remain unmet until supplied by a human reviewer.
+
 For every issue criterion, record a stable ID, observable outcome, changed-file evidence, verification method, result, and durable evidence reference. Use only `pass`, `fail`, or `needs-human-review`. Do not label a subjective judgment as an automated pass.
 
 Evidence is revision-bound. Record the full tested commit and relevant CI/local command results and links, then refresh all results after any new commit. Automated criteria require actual command/check execution; a declared command or green result copied from another revision is not proof. Subjective criteria need a named human's review and decision before merge.

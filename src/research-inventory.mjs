@@ -1,7 +1,7 @@
 // Presentation-only normalization; source records, provenance and review stay intact.
 export const PUBLISHER_NAMES = Object.freeze({
   'nx.dev': 'Nx', 'stepsecurity.io': 'StepSecurity', 'socket.dev': 'Socket',
-  'redcanary.com': 'Red Canary', 'pillar.security': 'Pillar Security',
+  'redcanary.com': 'Red Canary', 'zscaler.com': 'Zscaler', 'pillar.security': 'Pillar Security',
   'unit42.paloaltonetworks.com': 'Unit 42', 'snyk.io': 'Snyk', 'wiz.io': 'Wiz',
   'microsoft.com': 'Microsoft', 'github.blog': 'GitHub',
   'attack.mitre.org': 'MITRE ATT&CK', 'atlas.mitre.org': 'MITRE ATLAS',

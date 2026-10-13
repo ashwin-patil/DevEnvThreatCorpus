@@ -22,11 +22,49 @@ import { emptyCorpus } from '../scripts/server.mjs';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { publisherDisplay, behaviorInventory } from '../src/research-inventory.mjs';
+import { aiLibrary, toolIdentity } from '../src/ai-library.mjs';
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
+
+test('AI product aliases preserve literals and ambiguous executables do not become products', () => {
+  assert.equal(toolIdentity(' Claude Code ').name, 'Claude Code');
+  assert.equal(toolIdentity('codex').id, toolIdentity('OpenAI Codex').id);
+  assert.equal(toolIdentity('Amazon Q Developer CLI').name, 'Amazon Q');
+  for (const value of ['q', 'claude-sonnet-4', 'claude --flag', 'claude code evil']) assert.equal(toolIdentity(value).id, null);
+});
+
+test('AI libraries retain exact prompt variants, scope, provenance, navigation and export', async () => {
+  const m = model();
+  const base = { type: 'commands-ai-artifacts', caseId: 'synthetic-case-a', sourceId: 'synthetic-source-a',
+    sourceRevisionId: 'synthetic-revision-a', claimIds: ['synthetic-claim-a'], status: 'pending', origin: 'agent' };
+  m.annotations = [
+    { ...base, id: 'tool-a', value: 'claude', normalizedValue: 'Misleading replacement', context: { artifactKind: 'ide-cli', artifactUsage: 'attempted-abuse' } },
+    { ...base, id: 'prompt-a', value: '<script>synthetic prompt 😀</script>', context: { artifactKind: 'prompt-instruction', artifactUsage: 'vendor-example' } },
+    { ...base, id: 'prompt-b', value: '<script>synthetic prompt 😀</script> ', context: { artifactKind: 'prompt-instruction' } },
+    { ...base, id: 'prompt-c', caseId: 'synthetic-case-b', value: '<script>synthetic prompt 😀</script>', context: { artifactKind: 'prompt-instruction' } },
+  ];
+  const before = JSON.stringify(m.annotations);
+  assert.equal(aiLibrary(m, 'tools')[0].name, 'Claude Code');
+  assert.equal(aiLibrary(m, 'prompts').length, 2);
+  assert.equal(aiLibrary(m, 'prompts', new Set(['synthetic-case-b']))[0].annotations.length, 1);
+  assert.equal(explorationRecords(m, 'tools', { cases: ['synthetic-case-b'] }).records.length, 0);
+  assert.equal(explorationRecords(m, 'prompts', { sources: ['missing-source'] }).records.length, 0);
+  assert.equal(explorationRecords(m, 'tools', { query: 'attempted-abuse' }).records.length, 1);
+  const calls = [], root = renderExploration(new FakeDocument(), m, 'prompts', {}, (...args) => calls.push(args), 'prompts-prompt-c');
+  assert.doesNotMatch(root.textContent, /Unknown target/);
+  assert.match(root.textContent, /vendor-example/);
+  assert.match(root.textContent, /synthetic prompt 😀/);
+  const sourceButton = descendants(root).find(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Source:'));
+  await sourceButton.trigger('click'); assert.deepEqual(calls[0], ['sources', 'synthetic-source-a', 'synthetic-revision-a']);
+  const card = renderResearchLibrary(new FakeDocument(), m, m.corpus.sources, (...args) => calls.push(args));
+  await descendants(card).find(n => n.tagName === 'BUTTON' && n.textContent === 'Claude Code · attempted-abuse').trigger('click');
+  assert.deepEqual(calls.at(-1), ['tools', 'ai-tool-claude-code']);
+  assert.equal(talkBundle(m, 'synthetic-case-a').annotations.find(a => a.id === 'prompt-a').value, m.annotations[1].value);
+  assert.equal(JSON.stringify(m.annotations), before);
+});
 
 test('publisher labels normalize known hosts, retain metadata and reject lookalike hosts', () => {
   const source = { publisher: null, originalUrl: 'https://nx.dev/blog/report', canonicalUrl: null };

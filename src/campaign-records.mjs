@@ -1,5 +1,6 @@
 import { canonicalSerialize, stableId } from '../scripts/contract.mjs';
 import { PINNED_FRAMEWORK_CATALOG, catalogEntry, catalogSnapshot } from './framework-catalog.mjs';
+import { ARTIFACT_USAGE } from './ai-library.mjs';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const SAMPLE_ORIGIN = 'LLM synthetic fixture; not incident evidence';
@@ -29,7 +30,7 @@ export const CANDIDATE_RECORD_GUIDE = Object.freeze({
   telemetry: '{localId,behaviorId,category,eventType,logicalFields,joinKeys,availability,schema,limitations,supportingClaimIds,collection}; article-mentioned becomes a data-sources annotation, proposed becomes a sensor record',
   detections: '{localId,behaviorId,hypothesis,signalIds,otelIds,windowSeconds,windowBasis,tuning,testPlan,validation,supportingClaimIds,kind}; published-reference becomes an annotation, hypothesis becomes a proposal record',
   otel: '{localId,behaviorId,action,standardSourceIds,customFields,sample,sampleFormat,sampleOrigin,stability,limitations,supportingClaimIds}',
-  annotations: 'roles:{value,supportingClaimIds}; artifacts:{kind,literal,normalizedValue?,supportingClaimIds}; published:{title,literal,referenceUrl?,supportingClaimIds}; dataSources:{value,supportingClaimIds}',
+  annotations: 'roles:{value,supportingClaimIds}; artifacts:{kind,literal,normalizedValue?,usage?:targeted|attempted-abuse|reported-abuse|vendor-example|general-mention|unclear,supportingClaimIds}; published:{title,literal,referenceUrl?,supportingClaimIds}; dataSources:{value,supportingClaimIds}',
   templates: '{templateId,version,hash}; no templates are enabled until individually audited and pinned',
 });
 
@@ -44,7 +45,7 @@ const fields = {
   otel: ['localId', 'behaviorId', 'action', 'standardSourceIds', 'customFields', 'sample', 'sampleFormat', 'sampleOrigin', 'stability', 'limitations', 'supportingClaimIds'],
   occurrences: ['supportingClaimIds'],
   roles: ['value', 'supportingClaimIds'],
-  artifacts: ['kind', 'literal', 'normalizedValue', 'supportingClaimIds'],
+  artifacts: ['kind', 'literal', 'normalizedValue', 'usage', 'supportingClaimIds'],
   published: ['title', 'literal', 'referenceUrl', 'supportingClaimIds'],
   dataSources: ['value', 'supportingClaimIds'],
   templates: ['templateId', 'version', 'hash'],
@@ -534,6 +535,7 @@ export function normalizeCampaignRecords({
       const supportingClaimIds = resolveClaims(item.supportingClaimIds, `candidate.${name}[${index}].supportingClaimIds`);
       if (name === 'roles' && !ROLES.has(item.value)) invalid(`unknown role ${item.value}`);
       if (name === 'artifacts' && !ARTIFACT_KINDS.has(item.kind)) invalid(`unknown artifact kind ${item.kind}`);
+      if (name === 'artifacts' && item.usage !== undefined && !ARTIFACT_USAGE.includes(item.usage)) invalid('unknown artifact usage');
       if (name === 'dataSources' && !DATA_SOURCES.has(item.value)) invalid(`unknown data source ${item.value}`);
       if (name === 'published') safeReferenceUrl(item.referenceUrl, `candidate.${name}[${index}].referenceUrl`);
       const literal = name === 'artifacts' ? text(item.literal, 'artifact.literal')
@@ -553,7 +555,8 @@ export function normalizeCampaignRecords({
         claimRefs: supportingClaimIds, literal,
         ...(name === 'roles' ? { context: { roles: [item.value] } } : {}),
         ...(name === 'artifacts' ? {
-          context: indicator ? { indicatorKind: item.kind } : { artifactKind: item.kind },
+          context: { ...(indicator ? { indicatorKind: item.kind } : { artifactKind: item.kind }),
+            ...(item.usage !== undefined ? { artifactUsage: item.usage } : {}) },
           ...(item.normalizedValue !== undefined ? { normalizedValue: item.normalizedValue } : {}),
         } : {}),
         ...(name === 'published' ? {
