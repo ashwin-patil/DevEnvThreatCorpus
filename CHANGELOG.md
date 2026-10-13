@@ -10,6 +10,8 @@
   extraction guidance to request complete prompts and explicit AI products.
   Add Zscaler publisher normalization and focused alias, grounding, case isolation,
   exact variant, navigation and classification regressions.
+  Show independent-source collection/extraction state so failed intake cards
+  cannot be mistaken for successfully retained vendor articles.
 
 - Normalize compact publisher display names across research cards, facets,
   citations and source inspection, including Nx; preserve raw metadata and label

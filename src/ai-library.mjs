@@ -24,7 +24,7 @@ export function aiLibrary(model, view, caseIds = new Set(model.corpus.cases.map(
     // Exact prompt equality only: whitespace, case and code points retain detection significance.
     const key = identity?.id ?? `${kind}:${a.value}`;
     if (!groups.has(key)) groups.set(key, { id: identity?.id ?? `${view}-${a.id}`,
-      name: identity?.name ?? (view === 'prompts' ? `${a.value.slice(0, 72)}${a.value.length > 72 ? '…' : ''}` : a.value),
+      name: identity?.name ?? (view === 'prompts' ? a.normalizedValue ?? `${a.value.slice(0, 72)}${a.value.length > 72 ? '…' : ''}` : a.value),
       basis: identity?.basis ?? 'Exact literal equality; similar prompts remain separate variants', annotations: [], caseIds: [] });
     const group = groups.get(key);
     group.annotations.push(a);

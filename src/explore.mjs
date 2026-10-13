@@ -77,6 +77,7 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
   for (const source of sources.filter(s => !associated.has(s.id))) {
     const card = element(doc, 'article', null, 'panel research-card');
     card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'),
+      element(doc, 'p', `${source.collectionState} · extraction: ${source.extractionStatus}`, 'subtle'),
       element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', publisherDisplay(source).name),
       action(doc, 'Open research source', () => navigate('sources', source.id)));
     grid.append(card);
