@@ -4,4 +4,4 @@ This index contains durable lessons that can guide future contributors. Add an e
 
 - [Evidence expires when the revision changes](evidence-expires-with-revision.md) — including the distinction between head verification and trusted-base policy configuration.
 - [Preserve originals and version HTML decoding](preserve-originals-version-html-decoding.md) — distinguish HTML parsing compatibility from plain-text validation, retain original hashes, and verify real-source behavior without committing article snapshots.
-- [Recover campaign workbench decisions and evidence](workbench-session-recovery.md) — PR #52 session recovery map: final UI requirements, literal prompt/source verification, superseded withholding decisions, article retrieval diagnostics, graph invariants and Windows validation limitations.
+- [Recover campaign workbench decisions and evidence](workbench-session-recovery.md) — PR #52 session recovery map: final UI requirements, literal prompt/source verification, superseded withholding decisions, article retrieval diagnostics, graph invariants, ambiguous phase/node test selectors and Windows validation limitations.

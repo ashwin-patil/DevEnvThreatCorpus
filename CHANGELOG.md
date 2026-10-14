@@ -2,6 +2,10 @@
 
 ## 2026-10-14 — Article aliases and unified campaign exploration (#51)
 
+- Disambiguate the AP-01 text-node navigation regression from the phase selector:
+  a generated phase title can contain the same node label. Select the exact node
+  control and assert its selection state while retaining the canonical-route
+  check; no runtime navigation behavior or acceptance gate is changed.
 - Add bounded compatibility for leading-wildcard robots rules with explicit
   unsupported-policy diagnostics, while retaining origin-specific access checks,
   denial handling and historical failures. Treat the verified Red Canary AI CLI

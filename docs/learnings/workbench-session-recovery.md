@@ -235,6 +235,13 @@ The Windows runtime was Node 22.15.0 rather than pinned 22.23.3.
 Many failures concerned POSIX-style private paths/permissions and malformed
 Windows temporary paths (`ENOENT`, `Private path must be absolute and normalized`).
 The workbench also retained an AP-01 route-callback assertion failure.
+Hosted investigation later isolated that assertion to an ambiguous test lookup:
+the substring-based `button` helper matched a generated phase title containing
+the last node's label before the exact text-node control. The corrected test
+uses exact button text and checks `aria-pressed` before/after selection while
+retaining the original canonical-route assertion. Scope or exact-match synthetic
+control lookups when phase labels embed node names; do not change valid phase
+behavior to satisfy a test that selected the wrong control.
 A narrowly name-filtered selection of an early test could access `FakeDocument`
 before initialization, while the complete suite passed that selected behavior.
 Do not weaken assertions, skip suites or silently classify all failures as

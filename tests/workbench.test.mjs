@@ -1017,7 +1017,12 @@ test('Issue #51 AC-04 compact controls focus selection, bound zoom, close moveme
     assert.match(root.textContent, /line style does not establish evidence strength/i);
     assert.ok(root.textContent.includes(p.nodes[0].title));
     assert.equal(descendants(root).filter(n => n.getAttribute('data-entity-kind') === 'edge').length, 4);
-    await button(root, 'Synthetic disconnected or branching node 7').trigger('click');
+    const nodeControl = descendants(root).find(n => n.tagName === 'BUTTON'
+      && n.textContent === 'Synthetic disconnected or branching node 7');
+    assert.ok(nodeControl);
+    assert.equal(nodeControl.getAttribute('aria-pressed'), 'false');
+    await nodeControl.trigger('click');
+    assert.equal(nodeControl.getAttribute('aria-pressed'), 'true');
     assert.deepEqual(calls.at(-1), ['paths', p.id, 'branch-7']);
     const edge = descendants(root).find(n => n.getAttribute('data-entity-id') === 'branch');
     await edge.trigger('keydown', { key: 'Enter' });
