@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-13 — Nx corpus Pending draft
+
+- Add a citation-linked public projection of four retained Nx/s1ngularity
+  reports: 38 pending claims, 14 behaviors, 3 representative paths and 2 Proposed
+  node-scoped mappings. Preserve failed Red Canary/Zscaler coverage, source-local
+  conflicts and attempted-versus-reported-success distinctions.
+- Add a read-only draft adapter for the existing workbench and static serving.
+  Explicit private inputs keep precedence. Public data withholds article bodies,
+  quotations, human decisions, run envelopes and long prompt literals; bounded
+  tool labels retain claim linkage and existing alias normalization.
+- Document public export/import differences and remaining independent review.
+
 ## 2026-10-14 — Scoped attack-path exploration (#46)
 
 - Preserve saved path-return context when changing a source revision instead of

@@ -174,7 +174,7 @@ export function nodeMappings(model, path, node) {
   const claimsMatch = ids => ids?.length && ids.every(id => node.claimIds.includes(id) && model.claims.get(id)?.caseId === path.caseId);
   const records = list(model, 'mappings').filter(m => m.caseId === path.caseId && node.behaviorIds.includes(m.behaviorId));
   const runs = (model.corpus.governance?.campaignExtraction?.runs ?? []).filter(r => r.caseId === path.caseId);
-  const catalogs = runs.flatMap(r => r.catalogSnapshot?.catalogs ?? []);
+  const catalogs = [...runs.flatMap(r => r.catalogSnapshot?.catalogs ?? []), ...(model.publicCatalogSnapshot?.catalogs ?? [])];
   const pinned = m => list(model, 'frameworks').some(t => t.id === m.techniqueId && t.framework === m.framework && t.version === m.version)
     && catalogs.some(c => c.framework === m.framework && c.version === m.version && c.immutableRevision && c.materialDigest
       && c.techniques?.some(t => t.id === m.techniqueId));
@@ -223,9 +223,9 @@ function annotationCard(doc, model, annotation, navigate) {
 export function renderEvidencePanel(doc, model, record, navigate, download) {
   const panel = element(doc, 'section', null, 'panel research-evidence');
   panel.append(element(doc, 'h2', 'Campaign research & talk evidence'),
-    element(doc, 'p', 'Private annotations are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
+    element(doc, 'p', model.publicDraft ? 'Public draft tool labels are pending. Full quotations and literal prompts remain private; use the cited article and retained locators for review.' : 'Private annotations are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
   if (model.annotationError) panel.append(element(doc, 'p', model.annotationError, 'enrichment-warning'));
-  if (download) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
+  if (download && !model.publicDraft) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
     () => download(format, format === 'md' ? talkMarkdown(talkBundle(model, record.id)) : talkBundle(model, record.id))));
   panel.append(usageLegend(doc));
   const annotations = caseAnnotations(model, record.id);
@@ -644,7 +644,8 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   if (view === 'frameworks') {
     const runs = (model.corpus.governance?.campaignExtraction?.runs ?? []).filter(r => selected.caseIds.has(r.caseId));
     const unresolved = runs.flatMap(r => r.unresolvedMappings ?? []);
-    const available = Object.values(model.campaignStatus ?? {}).flatMap(s => s.availableCatalogSnapshot?.catalogs ?? []);
+    const available = [...Object.values(model.campaignStatus ?? {}).flatMap(s => s.availableCatalogSnapshot?.catalogs ?? []),
+      ...(model.publicCatalogSnapshot?.catalogs ?? [])];
     const catalogs = new Map([...available, ...runs.flatMap(r => r.catalogSnapshot?.catalogs ?? [])]
       .map(c => [`${c.framework}:${c.version}:${c.materialDigest}`, c]));
     const catalogPanel = element(doc, 'section', null, 'panel resolver-catalog');

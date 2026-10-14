@@ -16,6 +16,16 @@
 
 # DevEnvThreatCorpus
 
+The bundled **Nx / s1ngularity public Pending draft** contains 38 claims,
+14 behaviors, 3 supported representative paths and 2 Proposed mappings from
+four retained reports. Two additional explicit URLs failed intake. Start
+`node scripts/server.mjs --port 4181` without private input to inspect it, or serve
+the repository statically and open `src/index.html`. Explicit private `--corpus`
+and `--store` modes keep their existing behavior. The public draft withholds full
+articles, quotations, private run bundles and long literal prompts; it is not a
+private corpus import or a reviewed release. See [coverage and evidence
+limits](docs/nx-corpus.md) and the [typed draft export](docs/data/nx-draft.zip).
+
 The local ATLAS & TTPs view separates campaign mapping counts from resolver
 references. New campaign extraction requests include the pinned MITRE ATLAS
 2026.09 catalog (208 techniques/sub-techniques, official descriptions and parent
@@ -138,9 +148,11 @@ The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
 under `handoff/` is retained as historical and design reference only.
 
-**No live blogs or legacy records are used in the offline exercise or tests.**
+**No live fetches or legacy records are used in the offline exercise or semantic tests.**
 Fixtures are visibly synthetic, not incident evidence. Retrieval success does
 not establish research truth or human acceptance.
+The bundled public draft is checked separately for its export/privacy boundary;
+its presence in a server test does not establish incident accuracy.
 
 ## Manual intake: offline exercise
 

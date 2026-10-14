@@ -24,6 +24,49 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { publisherDisplay, behaviorInventory } from '../src/research-inventory.mjs';
 import { aiLibrary, toolIdentity } from '../src/ai-library.mjs';
+import { publicDraftModel } from '../src/public-profile.mjs';
+import { PUBLIC_DRAFT_URL } from '../src/app.mjs';
+
+test('public draft rejects retained bodies, attestation and acceptance without changing private corpus import', () => {
+  const input = { schemaVersion: 'public-draft/1', profile: 'draft', snapshotDigest: 'a'.repeat(64),
+    records: [], sourceCoverage: [], tools: [], limitations: [] };
+  const row = { schemaVersion: '0.3.0', entityType: 'sourceRevisions',
+    entity: { id: 'synthetic-revision', rawContent: null, normalizedContent: null },
+    reviewStatus: null, warnings: ['Draft profile; not a release.'] };
+  const project = () => publicDraftModel({ ...input, records: [row] });
+  assert.equal(project().collectionEnabled, false);
+  row.entity.rawContent = 'Synthetic retained private text'; assert.throws(project, /Invalid public/);
+  row.entity.rawContent = null; row.entity.normalizedContent = 'Synthetic retained text'; assert.throws(project, /Invalid public/);
+  row.entity.normalizedContent = null; row.entityType = 'passages'; row.entity = { id: 'synthetic-passage', text: null, attestation: null };
+  assert.equal(project().corpus.passages[0].text, null);
+  row.entity.attestation = { reviewer: 'invented' }; assert.throws(project, /Invalid public/);
+  row.entity.attestation = null; row.entity.text = 'Synthetic quote'; assert.throws(project, /Invalid public/);
+  row.entity.text = null; row.reviewStatus = { currentAcceptance: true }; assert.throws(project, /Invalid public/);
+  row.reviewStatus = null; row.entity.disposition = 'Accepted'; assert.throws(project, /Invalid public/);
+});
+
+test('public loader falls back only for static API absence or explicitly bundled mode; private empty input wins', async () => {
+  const projected = { schemaVersion: 'public-draft/1', profile: 'draft', snapshotDigest: 'b'.repeat(64),
+    records: [], sourceCoverage: [], tools: [], limitations: [] };
+  for (const mode of ['static', 'bundled']) {
+    const calls = [];
+    const result = await fetchCorpus(async endpoint => {
+      calls.push(endpoint);
+      if (endpoint === '/api/corpus') return { ok: mode === 'bundled', status: mode === 'static' ? 404 : 200,
+        headers: { get: key => key === 'x-corpus-mode' && mode === 'bundled' ? 'public-draft' : null } };
+      assert.equal(endpoint, PUBLIC_DRAFT_URL);
+      return { ok: true, json: async () => projected };
+    }, '/api/corpus');
+    assert.equal(result.publicDraft.snapshotDigest, projected.snapshotDigest);
+    assert.equal(result.collectionEnabled, false); assert.equal(calls.length, 2);
+  }
+  const calls = [];
+  const privateEmpty = await fetchCorpus(async endpoint => {
+    calls.push(endpoint); return { ok: true, headers: { get: () => null }, json: async () => emptyCorpus() };
+  }, '/api/corpus');
+  assert.equal(privateEmpty.publicDraft, undefined); assert.deepEqual(calls, ['/api/corpus']);
+  await assert.rejects(fetchCorpus(async () => ({ ok: false, status: 500 }), '/api/corpus'), /request failed/);
+});
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
