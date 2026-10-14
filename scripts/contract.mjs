@@ -1822,7 +1822,7 @@ export function assertAppendOnlyReviews(previous, next) {
             .filter(item => item.revisionIds.length).sort((a, b) => Number(b.canonicalUrl === canonical) - Number(a.canonicalUrl === canonical) || a.id.localeCompare(b.id))[0];
           if (retained) { source = retained; sourceId = retained.id; }
         }
-        if (source && ((failure ? source.canonicalUrl !== canonical : canonicalArticleUrl(source.canonicalUrl) !== canonical)
+        if (source && ((canonicalArticleUrl(source.canonicalUrl) !== canonicalArticleUrl(canonical))
           || (!canonical && !source.revisionIds.some(id => corpus.sourceRevisions.find(r => r.id === id)?.rawHash === sha256(content.raw))))) rejectIntake('IDENTITY_COLLISION');
         if (!source) {
           source = {

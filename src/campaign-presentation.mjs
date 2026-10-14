@@ -49,7 +49,8 @@ export function campaignGraph(model, caseId, paths = model.corpus.paths ?? []) {
 export function campaignSummary(model, record) {
   const valid = id => {
     const claim = model.claims.get(id);
-    return claim?.caseId === record.id && model.sources.has(claim.sourceId) && model.sourceRevisions.has(claim.sourceRevisionId);
+    return claim?.caseId === record.id && model.sources.has(claim.sourceId)
+      && model.sourceRevisions.get(claim.sourceRevisionId)?.sourceId === claim.sourceId;
   };
   const declared = record.summaryClaimIds ?? [];
   if (record.summary?.trim() && declared.length && declared.every(valid)) {

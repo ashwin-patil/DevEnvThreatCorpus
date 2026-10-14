@@ -37,6 +37,17 @@ export function sourceInventory(sources) {
       publisher: publisherDisplay({ ...source, canonicalUrl: group.canonicalUrl }) };
   });
 }
+export function articleCoverage(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const url = canonicalArticleUrl(row.url);
+    const key = url ?? row.url;
+    if (!groups.has(key)) groups.set(key, { url, collected: false, members: [] });
+    const article = groups.get(key);
+    article.members.push(row); article.collected ||= row.status === 'collected';
+  }
+  return [...groups.values()];
+}
 export function normalizedPublisherName(value) {
   if (typeof value !== 'string') return null;
   const key = value.normalize('NFKC').toLowerCase().trim().replace(/[|,.:–—-]+/gu, ' ').replace(/\s+/gu, ' ').trim();

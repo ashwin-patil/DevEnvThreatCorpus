@@ -275,7 +275,10 @@ test('Issue #51 AC-01 retained legacy source IDs, claims, revisions and manifest
   assert.equal(first.status, 'succeeded');
   assert.equal(first.sourceId, legacy.id);
   const after = await corpusAt(store);
-  for (const source of preserved.sources) assert.deepEqual(after.sources.find(record => record.id === source.id), source);
+  for (const source of preserved.sources) {
+    const actual = after.sources.find(record => record.id === source.id);
+    assert.deepEqual(actual, { ...source, revisionIds: source.id === legacy.id ? [...source.revisionIds, first.revisionId] : source.revisionIds });
+  }
   for (const revision of preserved.revisions) assert.deepEqual(after.sourceRevisions.find(record => record.id === revision.id), revision);
   for (const manifest of preserved.manifests) assert.deepEqual(after.collectionManifests.find(record => record.id === manifest.id), manifest);
   for (const name of ['claims', 'passages', 'reviews', 'cases']) assert.deepEqual(after[name], preserved[name]);
@@ -283,6 +286,26 @@ test('Issue #51 AC-01 retained legacy source IDs, claims, revisions and manifest
   const stable = await fs.readFile(path.join(store, 'corpus.json'), 'utf8');
   assert.deepEqual(await intakeSource({ ...urlInput(store), url: finalArticleUrl }, aliasTransport()), first);
   assert.equal(await fs.readFile(path.join(store, 'corpus.json'), 'utf8'), stable);
+});
+
+test('Issue #51 AC-01 alias failures after canonical success append failure history without losing retained coverage', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'post-success-failure');
+  const first = await intakeSource({ ...urlInput(store), url: finalArticleUrl }, aliasTransport());
+  assert.equal((await intakeSource({ ...urlInput(store), url: aliasUrl }, aliasTransport())).status, 'succeeded');
+  const before = await corpusAt(store);
+  for (let i = 0; i < 2; i++) {
+    const result = await intakeSource({ ...urlInput(store), url: aliasUrl },
+      aliasTransport({ robots: () => response('User-agent: Bad Agent\nDisallow: /') }));
+    assert.equal(result.code, 'ROBOTS_UNSUPPORTED');
+    const failed = (await corpusAt(store)).collectionManifests.find(m => m.id === result.manifestId);
+    assert.equal(failed.outcome, 'Failed');
+    assert.deepEqual(failed.inputRevisionIds, []);
+  }
+  const after = await corpusAt(store);
+  assert.equal(after.collectionManifests.length, before.collectionManifests.length + 2);
+  assert.deepEqual(after.sourceRevisions, before.sourceRevisions);
+  assert.deepEqual(after.sources, before.sources);
+  assert.equal(after.sourceRevisions[0].sourceId, first.sourceId);
 });
 
 test('AC-01 CLI text/file/validation and injected HTTPS create valid private source-only records', async t => {

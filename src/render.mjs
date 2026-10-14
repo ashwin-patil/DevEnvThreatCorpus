@@ -197,7 +197,9 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   const latestSuccess = successes.length ? Math.max(...successes) : -Infinity;
   const earlierFailures = [];
   for (const manifest of attempts.filter(item => item.outcome === 'Failed')) {
-    const note = element(doc, 'p', `Failed intake attempt — not successful evidence: ${manifest.limitations.filter(text => /^(?:error-code|event-time)=/.test(text)).join(' · ')}`);
+    const note = element(doc, 'p', `Failed intake attempt — not successful evidence: ${manifest.limitations.filter(text => /^(?:error-code|event-time|robots-reason)=/.test(text)).join(' · ')}`);
+    if (manifest.limitations.includes('error-code=ROBOTS_UNSUPPORTED')) note.append(element(doc, 'span',
+      ' Robots compatibility failed closed. Inspect the bounded reason; operator-supplied text/file with --source-url and supplier attribution is available only when retention is authorized.'));
     if (revision && eventTime(manifest) < latestSuccess) earlierFailures.push(note);
     else section.append(note);
   }

@@ -18,6 +18,10 @@
 - Extend synthetic intake, graph, navigation and presentation regressions. Protected
   live intake and independent human research, visual, accessibility and documentation
   acceptance remain required; offline automation does not establish those outcomes.
+- Preserve viewport/focus and evidence-return context across member-phase selection,
+  reset case scope when switching campaigns, and validate summary source/revision
+  closure. Separate parallel connectors with nearby label leaders; count logical
+  public article coverage without hiding original URL failures.
 
 ## 2026-10-13 — Nx corpus Pending draft
 

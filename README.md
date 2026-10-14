@@ -90,6 +90,11 @@ Pointer and button movement share bounds based on the reset fit: node boxes can
 move one fit-width/height beyond each side, and the viewport center can move one
 fit-width/height from its reset center. Reaching a boundary clamps further movement;
 zoom and reset retain these presentation-only limits.
+Selecting another phase in the same campaign keeps the viewport and focused
+control; historical member-path links still identify the exact occurrence.
+Parallel relationships retain separate connectors and claim support. Public
+coverage counts logical articles rather than aliases, with original URLs and
+failure reasons available under **Original URLs & coverage history**.
 Private case-wide talk JSON/Markdown bundles include paths, independent node/edge
 support, mapping scope labels, catalog provenance and revision hashes with exact
 passages, but omit full article bodies and visual layout state.

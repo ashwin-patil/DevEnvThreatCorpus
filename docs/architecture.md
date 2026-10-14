@@ -126,12 +126,23 @@ selection. Gestures own one pointer ID, use inverse SVG screen coordinates,
 release capture on completion/cancellation and stop on capture loss. A movement
 threshold and subsequent-click suppression separate dragging from selection.
 Zoom is bounded relative to the deterministic all-node fit. Pointer and button
-movement use the same limits: a node's 240×105 box stays in that fit expanded by
+movement use the same limits: a node's 250×126 box stays in that fit expanded by
 one fit-width/height on every side; the viewport center stays within one
 fit-width/height of the reset center at every zoom. Pan/move buttons and
 the complete text alternative do not require dragging; only a concise inspection
 status is live-announced. Layout, pan and zoom remain closure-local presentation
 state, absent from corpus hashes, review eligibility and exports.
+
+Issue #51 treats member-path selection within one case as the same displayed
+graph: canonical member routes change without replacing the viewport or its
+focused controls. Changing campaigns clears the previous case context. Connector
+routing avoids card rectangles, rounds turns, separates parallel relationships
+using occupied-lane costs, and uses nearby label leaders rather than placing
+labels at unrelated grid locations. The text alternative remains available if
+crowding leaves no safe label position. Zoom is bounded to 0.12–4 times the
+all-node fit so a multi-phase overview can be enlarged for readable inspection.
+Public coverage counts canonical logical articles once while disclosing every
+original URL and recorded failure; it never rewrites the coverage manifest.
 
 Talk bundles remain private case-wide read-only projections. Invalid path or
 mapping support scope fails closed before export. JSON retains path/node/edge and

@@ -489,7 +489,8 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
       'aria-label': `Inspect ${path.nodes.find(n => n.id === edge.from)?.title} to ${path.nodes.find(n => n.id === edge.to)?.title}: ${edge.relation}, ${edge.basis}` });
     const hit = svgNode(doc, 'path', { class: 'edge-hit' }), line = svgNode(doc, 'path', { class: 'edge-line', 'marker-end': 'url(#research-arrow)' });
     const label = svgNode(doc, 'text', { 'text-anchor': 'middle', class: 'edge-label' }, edge.relation === 'propagates' ? '↻ propagates' : edge.relation);
-    group.append(hit, line, label, svgNode(doc, 'title', {}, edge.basis));
+    const leader = svgNode(doc, 'path', { class: 'edge-label-leader', fill: 'none', stroke: 'currentColor', 'stroke-width': 1, 'aria-hidden': 'true' });
+    group.append(hit, line, label, leader, svgNode(doc, 'title', {}, edge.basis));
     group.addEventListener('click', activate(() => showEdge(edge))); group.addEventListener('keydown', activate(() => showEdge(edge)));
     edgeElements.set(`edge:${edge.id}`, group); svg.append(group);
   }
@@ -524,9 +525,10 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     const route = graphRouter(positions);
     for (const edge of path.edges) {
       const geometry = route(edge);
-      const [hit, line, label] = edgeElements.get(`edge:${edge.id}`).children;
+      const [hit, line, label, leader] = edgeElements.get(`edge:${edge.id}`).children;
       hit.setAttribute('d', geometry?.d ?? ''); line.setAttribute('d', geometry?.d ?? '');
       label.setAttribute('visibility', geometry?.label ? 'visible' : 'hidden');
+      leader.setAttribute('d', geometry?.label ? `M${geometry.labelAnchor.x} ${geometry.labelAnchor.y} H${geometry.label.x} V${geometry.label.y + 4}` : '');
       if (geometry?.label) { label.setAttribute('x', geometry.label.x); label.setAttribute('y', geometry.label.y); }
     }
     for (const node of path.nodes) nodeElements.get(`node:${node.id}`).setAttribute('transform', `translate(${positions[node.id].x},${positions[node.id].y})`);
@@ -537,7 +539,7 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     }
   }
   const zoom = factor => {
-    const ratio = Math.max(.35, Math.min(4, box.w * factor / fittedBox().w)), w = fittedBox().w * ratio, h = fittedBox().h * ratio;
+    const ratio = Math.max(.12, Math.min(4, box.w * factor / fittedBox().w)), w = fittedBox().w * ratio, h = fittedBox().h * ratio;
     box.x += (box.w - w) / 2; box.y += (box.h - h) / 2; box.w = w; box.h = h; paint();
   };
   const iconButton = (name, icon, callback) => {

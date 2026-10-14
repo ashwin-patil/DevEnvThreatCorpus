@@ -22,7 +22,9 @@ import { applyReview } from '../scripts/review.mjs';
 import { emptyCorpus } from '../scripts/server.mjs';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
-import { publisherDisplay, behaviorInventory } from '../src/research-inventory.mjs';
+import { publisherDisplay, behaviorInventory, articleCoverage } from '../src/research-inventory.mjs';
+import { campaignGraph, campaignSummary, pathDisplayName, evidenceLabel, originReview, activityIcon } from '../src/campaign-presentation.mjs';
+import { graphRouter, segmentClear, NODE_WIDTH, NODE_HEIGHT } from '../src/graph-geometry.mjs';
 import { aiLibrary, toolIdentity } from '../src/ai-library.mjs';
 import { publicDraftModel } from '../src/public-profile.mjs';
 import { PUBLIC_DRAFT_URL } from '../src/app.mjs';
@@ -641,6 +643,171 @@ function branchingModel() {
     );
     return createModel(corpus);
   }
+
+function multiPhaseModel() {
+  const m = branchingModel(), first = m.corpus.paths[0];
+  first.name = 'Synthetic upstream compromise';
+  const second = structuredClone(first);
+  second.id = 'synthetic-victim-phase'; delete second.name;
+  second.nodes = second.nodes.slice(0, 2);
+  second.nodes[0].title = 'Synthetic victim execution';
+  second.nodes[0].evidenceStatus = 'Attempted behavior';
+  second.nodes[0].claimIds = ['synthetic-claim-b'];
+  second.edges = second.edges.slice(0, 1);
+  second.edges[0].claimIds = ['synthetic-claim-b'];
+  const later = structuredClone(second);
+  later.id = 'synthetic-later-phase'; later.name = 'Synthetic credential reuse';
+  later.nodes[0].title = 'Synthetic credential reuse'; later.nodes[0].evidenceStatus = 'Potential consequence';
+  const unrelated = structuredClone(second);
+  unrelated.id = 'synthetic-other-case-path'; unrelated.caseId = 'synthetic-case-b';
+  unrelated.nodes.forEach(n => { n.claimIds = ['synthetic-claim-c']; });
+  unrelated.edges.forEach(e => { e.claimIds = ['synthetic-claim-c']; });
+  m.corpus.paths.push(second, later, unrelated);
+  m.corpus.governance.campaignExtraction = { runs: [
+    { id: 'synthetic-run-one', caseId: first.caseId, recordSupport: [{ recordId: second.id, supportingClaimIds: ['synthetic-claim-b'] }] },
+    { id: 'synthetic-run-two', caseId: first.caseId, recordSupport: [{ recordId: second.id, supportingClaimIds: ['synthetic-claim-b'] }] },
+  ] };
+  return m;
+}
+
+test('Issue #51 AC-02/03 campaign projection preserves phase occurrences, collisions, run provenance and independent support', () => {
+  const m = multiPhaseModel(), first = m.corpus.paths[0], before = digest(m.corpus), graph = campaignGraph(m, first.caseId);
+  assert.equal(graph.members.length, 3);
+  assert.equal(graph.groups.length, 3);
+  assert.equal(graph.edges.length, graph.members.reduce((n, p) => n + p.edges.length, 0));
+  assert.equal(new Set(graph.nodes.map(n => n.id)).size, graph.nodes.length);
+  const occurrences = graph.nodes.filter(n => n.canonicalId === first.nodes[0].id);
+  assert.equal(occurrences.length, 3);
+  assert.deepEqual(new Set(occurrences.map(n => n.evidenceStatus)), new Set(['Source-reported observation', 'Attempted behavior', 'Potential consequence']));
+  assert.deepEqual(occurrences[1].sourceOccurrences.map(s => s.claimId), ['synthetic-claim-b']);
+  assert.deepEqual(occurrences[1].runIds, ['synthetic-run-one', 'synthetic-run-two']);
+  for (const edge of graph.edges) {
+    assert.equal(edge.canonicalRecord, edge.memberPath.edges.find(e => e.id === edge.canonicalId));
+    assert.ok(graph.nodes.some(n => n.id === edge.from && n.memberPath === edge.memberPath));
+    assert.ok(graph.nodes.some(n => n.id === edge.to && n.memberPath === edge.memberPath));
+  }
+  assert.ok(!graph.members.some(p => p.caseId !== first.caseId));
+  assert.equal(digest(m.corpus), before);
+  const reserved = graph.nodes[0].id;
+  m.corpus.paths[0].nodes.push({ ...first.nodes[0], id: reserved });
+  const collision = campaignGraph(m, first.caseId);
+  assert.equal(new Set(collision.nodes.map(n => n.id)).size, collision.nodes.length);
+  assert.equal(collision.nodes.find(n => n.canonicalId === reserved).id, reserved);
+  assert.match(pathDisplayName(m.corpus.paths[1]), /Synthetic victim execution/);
+  assert.equal(pathDisplayName({ id: 'long-hash', nodes: [] }), 'Supported phase — title unavailable');
+});
+
+test('Issue #51 AC-05 evidence, origin and review labels do not collapse attempted, disputed or inferred activities', () => {
+  assert.deepEqual(['Source-reported observation', 'Attempted behavior', 'Demonstrated capability or proof of concept',
+    'Researcher inference', 'Potential consequence', 'Unclear or disputed'].map(evidenceLabel),
+  ['Reported', 'Attempt reported', 'Demonstrated capability', 'Inference', 'Potential consequence', 'Unclear / disputed']);
+  assert.equal(originReview({ origin: 'LLM source paraphrase', disposition: 'Pending' }), 'LLM paraphrase · unreviewed');
+  assert.equal(originReview({ origin: 'Human source paraphrase', disposition: 'Needs correction' }), 'Human source paraphrase · Needs correction');
+  assert.deepEqual(['workflow command', 'package install', 'AI agent', 'credentials', 'network upload'].map(title => activityIcon({ title })),
+    ['terminal', 'package', 'agent', 'credentials', 'network']);
+});
+
+test('Issue #51 AC-06 summary projection requires same-case source/revision closure and stays Pending without mutating claims', () => {
+  const m = multiPhaseModel(), record = m.corpus.cases[0];
+  record.summary = null; record.summaryClaimIds = [];
+  const before = digest(m.corpus), summary = campaignSummary(m, record);
+  assert.equal(summary.projected, true);
+  assert.equal(summary.disposition, 'Pending');
+  assert.match(summary.origin, /Agent/);
+  assert.ok(summary.claimIds.length);
+  for (const id of summary.claimIds) assert.ok(summary.text.includes(m.claims.get(id).description));
+  assert.equal(digest(m.corpus), before);
+  record.summary = 'Synthetic supported summary'; record.summaryClaimIds = ['synthetic-claim-a'];
+  assert.equal(campaignSummary(m, record).projected, false);
+  record.summaryClaimIds.push('synthetic-claim-c');
+  assert.notEqual(campaignSummary(m, record).text, record.summary);
+  m.claims.get('synthetic-claim-a').sourceRevisionId = m.corpus.sourceRevisions.find(r => r.sourceId !== m.claims.get('synthetic-claim-a').sourceId).id;
+  assert.ok(!campaignSummary(m, record).claimIds.includes('synthetic-claim-a'));
+  m.corpus.paths = []; m.corpus.governance = {}; record.summaryClaimIds = [];
+  assert.match(campaignSummary(m, record).text, /No cited campaign summary/);
+  const root = renderCaseLibrary(new FakeDocument(), { ...m, publicDraft: {} }, [record], () => {});
+  assert.match(root.textContent, /withheld, not established absent/);
+  assert.ok(root.textContent.includes(record.limits));
+  assert.equal(descendants(root).filter(n => n.className?.includes('case-card') && n.tagName === 'DETAILS').length, 1);
+});
+
+test('Issue #51 AC-01 logical public coverage retains alias failures but counts a successful article only once', () => {
+  const rows = [
+    { url: 'https://redcanary.com/blog/threat-detection/ai-cli-tools/', status: 'failed', reason: 'ROBOTS_UNSUPPORTED' },
+    { url: 'https://www.zscaler.com/blogs/cybersecurity-best-practices/ai-cli-tools', status: 'collected' },
+    { url: 'https://www.zscaler.com/blogs/cybersecurity-best-practices/ai-cli-tools', status: 'collected' },
+    { url: 'https://redcanary.com/blog/other/', status: 'failed', reason: 'ROBOTS_DENIED' },
+  ], before = digest(rows), articles = articleCoverage(rows);
+  assert.equal(articles.length, 2);
+  assert.equal(articles.filter(a => a.collected).length, 1);
+  assert.deepEqual(articles[0].members, rows.slice(0, 3));
+  assert.equal(digest(rows), before);
+});
+
+test('Issue #51 AC-05 geometry anchors branches, reverse/cycle/self/parallel edges outside cards with associated labels', () => {
+  const positions = { a: { x: 40, y: 70 }, b: { x: 370, y: 70 }, c: { x: 700, y: 70 }, disconnected: { x: 370, y: 350 } };
+  const rectangles = Object.values(positions).map(p => ({ ...p, w: NODE_WIDTH, h: NODE_HEIGHT }));
+  const route = graphRouter(positions), edges = [
+    { from: 'a', to: 'b' }, { from: 'a', to: 'b' }, { from: 'a', to: 'c' },
+    { from: 'c', to: 'a' }, { from: 'a', to: 'a' }, { from: 'c', to: 'disconnected' },
+  ];
+  const routes = edges.map(route);
+  assert.notEqual(routes[0].d, routes[1].d, 'parallel independently supported edges must not hide each other');
+  const onBoundary = (p, r) => ((p.x === r.x || p.x === r.x + r.w) && p.y >= r.y && p.y <= r.y + r.h)
+    || ((p.y === r.y || p.y === r.y + r.h) && p.x >= r.x && p.x <= r.x + r.w);
+  for (let i = 0; i < routes.length; i++) {
+    const g = routes[i]; assert.ok(g);
+    assert.ok(onBoundary(g.points[0], { ...positions[edges[i].from], w: NODE_WIDTH, h: NODE_HEIGHT }));
+    assert.ok(onBoundary(g.points.at(-1), { ...positions[edges[i].to], w: NODE_WIDTH, h: NODE_HEIGHT }));
+    for (let j = 1; j < g.points.length; j++) assert.ok(segmentClear(g.points[j - 1], g.points[j], rectangles));
+    assert.ok(g.label);
+    assert.ok(g.labelAnchor, 'label has an explicit association to its own connector');
+    assert.ok(rectangles.every(r => g.label.x + 66 < r.x || g.label.x - 66 > r.x + r.w || g.label.y + 6 < r.y || g.label.y - 24 > r.y + r.h));
+    assert.ok(Math.hypot(g.label.x - g.labelAnchor.x, g.label.y - g.labelAnchor.y) <= 100);
+  }
+  assert.equal(route({ from: 'a', to: 'retired' }), null);
+  const moved = graphRouter({ ...positions, b: { x: -280, y: -200 } })({ from: 'a', to: 'b' });
+  assert.ok(moved?.d);
+  const unusual = graphLayout({ nodes: [{ id: '__proto__' }, { id: 'constructor' }] });
+  assert.equal(Object.keys(unusual).length, 2);
+});
+
+test('Issue #51 AC-02/03 phase selection preserves graph viewport, focus, filters and canonical return routes', async () => {
+  const m = multiPhaseModel(), first = m.corpus.paths[0], second = m.corpus.paths[1], before = digest(m.corpus);
+  const { content, win, doc, app } = await mounted(m.corpus, routeHash('paths', first.id));
+  doc.getElementById('search').value = 'synthetic';
+  await doc.getElementById('search').trigger('input');
+  const svg = descendants(content).find(n => n.getAttribute('class') === 'research-graph');
+  await button(content, 'Zoom in').trigger('click');
+  await button(content, 'Pan down').trigger('click');
+  const box = svg.getAttribute('viewBox');
+  const node = descendants(svg).find(n => n.getAttribute('data-member-path') === second.id && n.getAttribute('data-entity-kind') === 'node');
+  node.focus(); await node.trigger('keydown', { key: 'Enter' });
+  assert.equal(descendants(content).find(n => n.getAttribute('class') === 'research-graph'), svg);
+  assert.equal(svg.getAttribute('viewBox'), box);
+  assert.equal(node.focused, true);
+  assert.equal(node.getAttribute('aria-pressed'), 'true');
+  assert.equal(win.location.hash, routeHash('paths', second.id, second.nodes[0].id));
+  assert.equal(win.history.state.pathContext.pathId, second.id);
+  assert.equal(doc.getElementById('search').value, 'synthetic');
+  const inspection = descendants(content).find(n => n.className === 'graph-inspection');
+  await button(inspection, m.claims.get('synthetic-claim-b').description).trigger('click');
+  const reload = await mounted(m.corpus, win.location.hash, win.history.state);
+  await button(reload.content, 'Return to selected path element').trigger('click');
+  assert.equal(reload.win.location.hash, routeHash('paths', second.id, second.nodes[0].id));
+  assert.equal(reload.doc.getElementById('search').value, 'synthetic');
+  assert.equal(digest(app.getModel().corpus), before);
+});
+
+test('Issue #51 AC-03 switching displayed campaigns never carries the previous case filter', async () => {
+  const m = multiPhaseModel(), { content, win } = await mounted(m.corpus, '#paths');
+  const other = m.corpus.cases[1], otherPath = m.corpus.paths.at(-1);
+  await button(content, `${other.name} · campaign graph`).trigger('click');
+  assert.equal(win.location.hash, routeHash('paths', otherPath.id));
+  assert.doesNotMatch(content.textContent, /target outside the active filters/);
+  assert.match(content.textContent, new RegExp(other.name));
+  assert.ok(descendants(content).some(n => n.getAttribute('class') === 'research-graph'));
+});
 
   test('AP-01/02/04 node routes, no-path state and directed graph inspection stay in case scope', async () => {
     const m = branchingModel(), calls = [], p = m.corpus.paths[0];
