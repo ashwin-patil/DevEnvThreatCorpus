@@ -23,6 +23,12 @@ the first run. Combined coverage is 28 processed segments from four reports.
 Failed URLs are listed in public coverage metadata but are not successful case
 evidence. No Shai-Hulud article or legacy prototype claim seeds this case.
 
+Issue #51 displays the Red Canary AI CLI URL and its verified Zscaler destination
+as one logical article reference. The two historical failed URL attempts above
+remain unchanged; parser compatibility is not evidence of a successful retry.
+An explicit protected operator-triggered collection is still required to establish
+live retention permission and retained coverage.
+
 ## Interpretation and public boundary
 
 The upstream path follows Nx's reported title injection, repository token,
@@ -31,6 +37,12 @@ path distinguishes installation, attempted AI reconnaissance, credential
 collection, conditional upload and attempted shutdown; disconnected nodes do
 not acquire invented relationships. A separate later-wave path follows Wiz's
 reported reuse of leaked credentials for repository disclosure.
+
+The workbench now presents these retained records in one named campaign graph.
+Phase grouping is display organization only; the three canonical paths, twelve
+nodes, seven independently supported relationships and historical routes remain.
+No arrow is added between phases merely to make the picture connected, and the
+number of displayed campaign graphs must not be reported as a path-record count.
 
 Nx and StepSecurity's package availability estimates remain reciprocal conflicts.
 Wiz's repository exposure interval is a different measurement. Attempted CLI use,

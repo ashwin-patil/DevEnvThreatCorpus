@@ -272,6 +272,7 @@ test('AC-04/05 preview serves every required offline entrypoint, module and bran
     ['/', 'text/html'], ['/src/index.html', 'text/html'], ['/src/style.css', 'text/css'],
     ['/src/app.mjs', 'text/javascript'], ['/src/model.mjs', 'text/javascript'],
     ['/src/render.mjs', 'text/javascript'], ['/src/studio.mjs', 'text/javascript'], ['/src/explore.mjs', 'text/javascript'], ['/docs/assets/logo.svg', 'image/svg+xml'],
+    ['/src/campaign-presentation.mjs', 'text/javascript'], ['/src/graph-geometry.mjs', 'text/javascript'],
     ['/docs/assets/favicon.svg', 'image/svg+xml'],
   ]) {
     const response = await request(port, url);

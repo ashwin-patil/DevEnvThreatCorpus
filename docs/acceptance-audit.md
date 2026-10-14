@@ -1,5 +1,36 @@
 # Acceptance audit
 
+## Issue #51 article aliases and campaign graph
+
+Originating requirements: [#51](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/51).
+Implementation and corrections stay on [PR #52](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/52),
+based on `data/nx-corpus` (`a79e05f101abc5cf201b08f799a1f3f8f77561b8`).
+The prerequisite is incorporated, not reimplemented; its historical verification
+is not evidence for changed code. AP-01 through AP-09 retain their existing meaning.
+The PR's revision-bound verification comment records the final full SHA, exact
+commands/counts and hosted check URLs after the last commit.
+The hosted PR Policy workflow runs only when the target is the repository default
+branch. While this PR targets `data/nx-corpus`, a skipped or approval-blocked policy
+run is not trusted-base enforcement proof. Human prerequisite approval and the
+normal default-branch policy gate remain outstanding; this task does not change
+workflow conditions, approve runs or bypass that boundary.
+
+| Criterion | Implementation / observable boundary | Executed evidence to record on PR #52 | Remaining independent acceptance |
+|---|---|---|---|
+| AC-01 | `scripts/contract.mjs`, `src/research-inventory.mjs`, `src/render.mjs`: bounded robots compatibility and logical article aliases; original routes, revisions and failures retained | `tests/intake.test.mjs`, `tests/article-display.test.mjs`: applicable policy/denial, redirects, alias retries, citation closure, safe links and nonmutation | Protected operator-triggered live Red Canary and Zscaler checks; historical Red Canary failure cause is not inferred from Zscaler policy |
+| AC-02 | `src/explore.mjs` and campaign presentation: same-case read-only graph across retained phase paths, no invented linking edges or shared support | Synthetic workbench multi-path, repeated occurrence, conflicting classification, case isolation, mapping-support and digest checks | Human research review of chronology, attribution and attempted/completed interpretation |
+| AC-03 | Friendly activity/phase names; technical provenance and canonical path/member routes retained | Workbench named/unnamed/collision/stale target fixtures, evidence return, revision selection, reload/back/forward regressions | Human graph-to-evidence-to-return walkthrough with protected corpus |
+| AC-04 | Compact named icon controls and discoverable non-drag pan/move actions, deterministic bounded reset | Synthetic DOM/pointer/keyboard checks; responsive/theme/reduced-motion browser observations recorded separately, never inferred from unit tests | Independent screen-reader, keyboard and touch usability review |
+| AC-05 | Evidence/origin/review axes, activity icons and card-boundary connector routing retain independent support | Graph geometry fixtures and workbench inspection checks for branches, reversed edges, cycles, self-loops, disconnected/long/moved nodes | Human visual/semantic acceptance against prototype; geometry fixtures alone are not visual proof |
+| AC-06 | One expandable overview per campaign; linked claim context and uncertainty, normalized research links and honest public withholding | Synthetic empty/partial/shared-source/mixed-status summary, support closure, alias citations and expansion checks | Human overview/research review; projected context is not accepted summary evidence |
+| AC-07 | Existing public/private export and review contracts, mapped application surfaces, safe DOM rendering | Fresh `python scripts/verify.py`, relevant campaign/citation suites, tracked-file/secret scan, code/security validation; exact final SHA and hosted Verify/PR Policy URLs on PR | Human documentation relevance, privacy/research approval and required hosted checks; no merge/deployment authorized |
+
+All independent outcomes above remain **needs-human-review** until an authorized
+human records durable decisions. A successful synthetic fixture or agent browser
+observation does not establish live access permission, research truth, accessibility,
+visual parity, documentation accuracy or review acceptance. If a check is blocked,
+record the failure/limitation rather than substituting a prior revision's result.
+
 ## Issue #46 node-scoped attack-path exploration
 
 Originating implementation requirements: [#46](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/46);

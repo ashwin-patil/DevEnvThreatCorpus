@@ -114,6 +114,8 @@ const assets = new Map([
   ['/src/render.mjs', ['src/render.mjs', 'text/javascript']],
   ['/src/studio.mjs', ['src/studio.mjs', 'text/javascript']],
   ['/src/explore.mjs', ['src/explore.mjs', 'text/javascript']],
+  ['/src/campaign-presentation.mjs', ['src/campaign-presentation.mjs', 'text/javascript']],
+  ['/src/graph-geometry.mjs', ['src/graph-geometry.mjs', 'text/javascript']],
   ['/src/research-inventory.mjs', ['src/research-inventory.mjs', 'text/javascript']],
   ['/src/ai-library.mjs', ['src/ai-library.mjs', 'text/javascript']],
   ['/src/public-profile.mjs', ['src/public-profile.mjs', 'text/javascript']],

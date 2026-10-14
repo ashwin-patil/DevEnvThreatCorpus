@@ -6,6 +6,48 @@ export const PUBLISHER_NAMES = Object.freeze({
   'microsoft.com': 'Microsoft', 'github.blog': 'GitHub',
   'attack.mitre.org': 'MITRE ATT&CK', 'atlas.mitre.org': 'MITRE ATLAS',
 });
+const articleAlias = 'https://redcanary.com/blog/threat-detection/ai-cli-tools/';
+const articleTarget = 'https://www.zscaler.com/blogs/cybersecurity-best-practices/ai-cli-tools';
+export function canonicalArticleUrl(value) {
+  if (typeof value !== 'string' || !value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    url.hash = '';
+    for (const name of [...url.searchParams.keys()]) {
+      if (/^utm_/i.test(name) || ['fbclid', 'gclid'].includes(name.toLowerCase())) url.searchParams.delete(name);
+    }
+    // Issue #51 verifies this article redirect, not a publisher-wide identity change.
+    return url.href === articleAlias ? articleTarget : url.href;
+  } catch { return null; }
+}
+export function sourceInventory(sources) {
+  const groups = new Map();
+  for (const source of sources) {
+    const canonical = canonicalArticleUrl(source.canonicalUrl) ?? canonicalArticleUrl(source.originalUrl);
+    const key = canonical ?? `source:${source.id}`;
+    if (!groups.has(key)) groups.set(key, { canonicalUrl: canonical, members: [] });
+    groups.get(key).members.push(source);
+  }
+  return [...groups.values()].map(group => {
+    const rank = source => Number(Boolean(source.revisionIds?.length)) * 2
+      + Number(source.canonicalUrl === group.canonicalUrl);
+    const source = [...group.members].sort((a, b) => rank(b) - rank(a) || a.id.localeCompare(b.id))[0];
+    return { ...group, id: source.id, source,
+      publisher: publisherDisplay({ ...source, canonicalUrl: group.canonicalUrl }) };
+  });
+}
+export function articleCoverage(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const url = canonicalArticleUrl(row.url);
+    const key = url ?? row.url;
+    if (!groups.has(key)) groups.set(key, { url, collected: false, members: [] });
+    const article = groups.get(key);
+    article.members.push(row); article.collected ||= row.status === 'collected';
+  }
+  return [...groups.values()];
+}
 export function normalizedPublisherName(value) {
   if (typeof value !== 'string') return null;
   const key = value.normalize('NFKC').toLowerCase().trim().replace(/[|,.:–—-]+/gu, ' ').replace(/\s+/gu, ' ').trim();
@@ -14,6 +56,9 @@ export function normalizedPublisherName(value) {
   return [...new Set(Object.values(PUBLISHER_NAMES))].find(name => name.toLowerCase() === bare) ?? null;
 }
 export function publisherDisplay(source = {}) {
+  if ([source.canonicalUrl, source.originalUrl].some(url => canonicalArticleUrl(url) === articleTarget)) {
+    return { name: 'Zscaler', basis: 'verified article alias (issue #51)' };
+  }
   let host = '';
   for (const url of [source.canonicalUrl, source.originalUrl]) {
     try { const parsed = new URL(url); if (['http:', 'https:'].includes(parsed.protocol)) { host = parsed.hostname.toLowerCase(); break; } } catch { /* Missing metadata remains explicit. */ }

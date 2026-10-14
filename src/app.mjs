@@ -3,6 +3,7 @@ import { element, action, renderCase, renderSource, renderClaim, renderConflicts
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
 import { publicDraftModel } from './public-profile.mjs';
+import { articleCoverage } from './research-inventory.mjs';
 export const PUBLIC_DRAFT_URL = new URL('./data/nx-draft.json', import.meta.url).href;
 
 export async function fetchCorpus(fetcher, endpoint) {
@@ -110,9 +111,15 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     $('content').focus();
   }
   function relatedNavigate(view, id = '', revisionId = '') {
+    const targetPath = view === 'paths' && model.corpus.paths?.find(p => p.id === id);
+    const currentPath = route.view === 'paths' && (model.corpus.paths?.find(p => p.id === route.id)
+      ?? (!route.id ? explorationRecords(model, 'paths', filters).records[0] : null));
+    if (targetPath && (!currentPath || targetPath.caseId !== currentPath.caseId)
+      && (!pathContext || targetPath.caseId !== pathCase())) return navigate(view, id, revisionId);
     if (route.view === 'paths') {
-      const path = explorationRecords(model, 'paths', filters).records.find(p => p.id === route.id)
-        ?? (!route.id ? explorationRecords(model, 'paths', filters).records[0] : null);
+      const selection = explorationRecords(model, 'paths', filters);
+      const path = selection.paths.find(p => p.id === route.id && selection.records.some(match => match.caseId === p.caseId))
+        ?? (!route.id ? selection.records[0] : null);
       if (path) {
         filters.cases = [path.caseId];
         pathContext = { pathId: path.id, entityId: route.revisionId || path.nodes[0]?.id || '', filters: structuredClone(filters) };
@@ -120,10 +127,10 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     }
     if (!pathContext) return navigate(view, id, revisionId);
     activePassages = [];
-    const sameGraph = view === 'paths' && route.view === 'paths' && id === pathContext.pathId && revisionId;
-    if (sameGraph) pathContext.entityId = revisionId;
+    const sameGraph = targetPath && currentPath && targetPath.caseId === currentPath.caseId && revisionId;
     if (route.view === 'paths') win.history.replaceState({ filters: structuredClone(filters), pathContext: structuredClone(pathContext) },
       '', routeHash(route.view, route.id || pathContext.pathId, route.revisionId || pathContext.entityId));
+    if (sameGraph) pathContext = { ...pathContext, pathId: id, entityId: revisionId };
     filters = view === 'paths' && id === pathContext.pathId ? structuredClone(pathContext.filters) : { cases: [pathCase()] };
     $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
     route = { view, id, revisionId };
@@ -133,8 +140,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   }
   function trustLabel() {
     if (model?.publicDraft) {
-      const sources = model.publicDraft.sourceCoverage;
-      return `PUBLIC PENDING DRAFT — ${sources.filter(s => s.status === 'collected').length}/${sources.length} source URLs retained. ` +
+      const articles = articleCoverage(model.publicDraft.sourceCoverage);
+      return `PUBLIC PENDING DRAFT — ${articles.filter(s => s.collected).length}/${articles.length} logical research articles retained. ` +
         'No human acceptance. Full articles, quotations and literal prompts remain private; evidence locators require the private archive.';
     }
     return model?.corpus.governance?.synthetic ?
@@ -229,10 +236,15 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (model.publicDraft) {
       const note = element(doc, 'details', null, 'panel');
       note.append(element(doc, 'summary', 'Public draft coverage & evidence limits'));
-      for (const source of model.publicDraft.sourceCoverage) {
-        const line = element(doc, 'p', `${source.status === 'collected' ? 'Retained privately' : `Not retained: ${source.reason}`} · `);
-        const link = element(doc, 'a', source.url); link.href = source.url; link.rel = 'noreferrer';
-        line.append(link); note.append(line);
+      for (const article of articleCoverage(model.publicDraft.sourceCoverage)) {
+        const line = element(doc, 'div', article.collected ? 'Retained privately · ' : 'Not retained · ');
+        if (article.url) {
+          const link = element(doc, 'a', article.url); link.href = article.url; link.rel = 'noreferrer'; line.append(link);
+        }
+        const history = element(doc, 'details'); history.append(element(doc, 'summary', 'Original URLs & coverage history'));
+        for (const source of article.members) history.append(element(doc, 'p',
+          `${source.url} · ${source.status === 'collected' ? 'Retained privately' : `Not retained: ${source.reason}`}`));
+        line.append(history); note.append(line);
       }
       for (const limit of model.publicDraft.limitations) note.append(element(doc, 'p', limit));
       $('content').append(note);
@@ -288,7 +300,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (Object.hasOwn(EXPLORE_VIEWS, route.view)) {
       const selection = explorationRecords(model, route.view, filters);
       const annotationCount = (model.annotations ?? []).filter(a => (VIEW_ANNOTATIONS[route.view] ?? []).includes(a.type) && selection.caseIds.has(a.caseId) && (!filters.query || JSON.stringify(a).toLowerCase().includes(filters.query.toLowerCase()))).length;
-      $('result').textContent = `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
+      const count = route.view === 'paths' ? `${new Set(selection.records.map(p => p.caseId)).size} matching campaign graph(s) · ${selection.records.length} matching retained path record(s)`
+        : `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records`;
+      $('result').textContent = `${count}${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
       $('content').append(renderExploration(doc, evidenceModel, route.view, filters, visit, route.id, () => load('/api/demo-research'), route.revisionId)); return;
     }
     const records = filterRecords(evidenceModel, route.view, pathContext ? { ...filters, cases: [pathCase()] } : filters);

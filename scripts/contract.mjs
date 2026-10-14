@@ -10,6 +10,7 @@ import https from 'node:https';
 import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';
 import { Readable } from 'node:stream';
 import { ARTICLE_PARSER_VERSION, parseArticle, PUBLISHERS } from '../src/article.mjs';
+import { canonicalArticleUrl, sourceInventory } from '../src/research-inventory.mjs';
 export { PUBLISHERS };
 
 export const schema = JSON.parse(readFileSync(new URL('../schemas/corpus.schema.json', import.meta.url), 'utf8'));
@@ -1044,9 +1045,17 @@ export function assertAppendOnlyReviews(previous, next) {
     'OUTPUT_EXISTS', 'NOT_FOUND',
   ]);
   class IntakeError extends Error {
-    constructor(code) { super(code); this.code = code; }
+    constructor(code, reason) { super(code); this.code = code; this.reason = reason; }
   }
-  const rejectIntake = code => { throw new IntakeError(code); };
+  const rejectIntake = (code, reason) => { throw new IntakeError(code, reason); };
+  const robotsReasons = Object.freeze({
+    'cross-origin-policy-redirect': 'Robots policy redirected to another origin; that policy cannot authorize this origin.',
+    'invalid-agent-token': 'Robots policy contains an unsupported user-agent token.',
+    'ungrouped-rule': 'Robots policy contains an Allow/Disallow rule without a user-agent group.',
+    'unsupported-rule-pattern': 'Robots rules must start with "/" or "*" and contain no control characters.',
+  });
+  const robotsFallback = 'Use operator-supplied text/file with --source-url and supplier attribution when retention is authorized; this does not bypass denied access.';
+  const robotsReason = error => error?.code === 'ROBOTS_UNSUPPORTED' && Object.hasOwn(robotsReasons, error.reason) ? error.reason : null;
   const safeCode = error => {
     if (safeCodes.has(error?.code)) return error.code;
     const message = String(error?.message ?? '');
@@ -1328,7 +1337,7 @@ export function assertAppendOnlyReviews(previous, next) {
           if (typeof response.headers.location !== 'string' || !response.headers.location) rejectIntake('HTTP_STATUS');
           let next;
           try { next = intakeUrl(new URL(response.headers.location, url).href); } catch { rejectIntake('UNSAFE_URL'); }
-          if (robots && new URL(next).origin !== new URL(initial).origin) rejectIntake('ROBOTS_UNSUPPORTED');
+          if (robots && new URL(next).origin !== new URL(initial).origin) rejectIntake('ROBOTS_UNSUPPORTED', 'cross-origin-policy-redirect');
           url = next;
           continue;
         }
@@ -1343,7 +1352,7 @@ export function assertAppendOnlyReviews(previous, next) {
     }
   }
 
-  function robotsAllows(raw, target) {
+  export function robotsAllows(raw, target) {
     const groups = [];
     let group = null, rulesStarted = false;
     for (const line of raw.split(/\r?\n/)) {
@@ -1353,11 +1362,12 @@ export function assertAppendOnlyReviews(previous, next) {
       if (!match) continue;
       const [, directive, value] = match, key = directive.toLowerCase();
       if (key === 'user-agent') {
-        if (!value || !/^(?:\*|[a-z0-9_-]+(?:\/[a-z0-9_.-]+)?)$/i.test(value)) rejectIntake('ROBOTS_UNSUPPORTED');
+        if (!value || !/^(?:\*|[a-z0-9_-]+(?:\/[a-z0-9_.-]+)?)$/i.test(value)) rejectIntake('ROBOTS_UNSUPPORTED', 'invalid-agent-token');
         if (!group || rulesStarted) { group = { agents: [], rules: [] }; groups.push(group); rulesStarted = false; }
         group.agents.push(value.toLowerCase());
       } else if (['allow', 'disallow'].includes(key)) {
-        if (!group || (value && !value.startsWith('/'))) rejectIntake('ROBOTS_UNSUPPORTED');
+        if (!group) rejectIntake('ROBOTS_UNSUPPORTED', 'ungrouped-rule');
+        if (value && (!/^[/*]/.test(value) || /[\u0000-\u001f\u007f]/u.test(value))) rejectIntake('ROBOTS_UNSUPPORTED', 'unsupported-rule-pattern');
         rulesStarted = true;
         if (value) group.rules.push({ allow: key === 'allow', value });
       }
@@ -1410,6 +1420,8 @@ export function assertAppendOnlyReviews(previous, next) {
       if (!policies.has(origin)) {
         const result = await fetchBounded(`${origin}/robots.txt`, deps, time, state, true);
         policies.set(origin, result.missing ? null : result.raw);
+        state.policyHashes ??= new Map();
+        state.policyHashes.set(sha256(origin), result.missing ? 'MISSING' : sha256(result.raw));
       }
       if (policies.get(origin) !== null && !robotsAllows(policies.get(origin), target)) rejectIntake('ROBOTS_DENIED');
     };
@@ -1426,6 +1438,7 @@ export function assertAppendOnlyReviews(previous, next) {
                 if (redirects >= INTAKE_LIMITS.redirects) rejectIntake('REDIRECT_LIMIT');
                 if (typeof response.headers.location !== 'string' || !response.headers.location) rejectIntake('HTTP_STATUS');
                 try { target = intakeUrl(new URL(response.headers.location, target).href); } catch { rejectIntake('UNSAFE_URL'); }
+                (state.redirectHashes ??= []).push(sha256(target));
                 continue;
               }
               state.finalHash = sha256(target);
@@ -1772,11 +1785,13 @@ export function assertAppendOnlyReviews(previous, next) {
       const state = { retries: 0, finalHash: null };
       const eventTime = new Date((deps.now ?? Date.now)()).toISOString();
       const inputProvenance = provenance(input.kind, input.suppliedBy);
-      let canonical = null, original = null, content, source, inputHash = null, failure = null;
+      let canonical = null, original = null, inputCanonical = null, content, source, inputSource,
+        inputHash = null, failure = null, failureReason = null;
       try {
         if (input.kind === 'url' || input.sourceUrl !== undefined) {
           original = input.kind === 'url' ? input.url : input.sourceUrl;
           canonical = intakeUrl(original);
+          inputCanonical = canonical;
           inputHash = sha256(canonical);
         }
         if (input.kind === 'url') content = await retrieve(canonical, deps, state, Boolean(input.archive));
@@ -1793,12 +1808,22 @@ export function assertAppendOnlyReviews(previous, next) {
           content = { raw, normalized: normalizeText(raw), parserVersion: TEXT_PARSER_VERSION };
         }
         if (!content.normalized.trim()) rejectIntake('EMPTY_CONTENT');
-      } catch (error) { failure = safeCodes.has(error?.code) ? error.code : 'MALFORMED_TEXT'; }
+        if (canonical) canonical = canonicalArticleUrl(content.finalUrl ?? canonical);
+      } catch (error) {
+        failure = safeCodes.has(error?.code) ? error.code : 'MALFORMED_TEXT';
+        failureReason = robotsReason(error);
+      }
       const identity = canonical ? `${URL_NORMALIZATION_VERSION}\n${canonical}` : content ? `supplied-bytes/1\n${sha256(content.raw)}` : null;
       if (identity) {
-        const sourceId = stableId('source', identity);
+        let sourceId = stableId('source', identity);
         source = corpus.sources.find(item => item.id === sourceId);
-        if (source && (source.canonicalUrl !== canonical || (!canonical && !source.revisionIds.some(id => corpus.sourceRevisions.find(r => r.id === id)?.rawHash === sha256(content.raw))))) rejectIntake('IDENTITY_COLLISION');
+        if (!failure && canonical) {
+          const retained = sourceInventory(corpus.sources).find(group => group.canonicalUrl === canonical)?.members
+            .filter(item => item.revisionIds.length).sort((a, b) => Number(b.canonicalUrl === canonical) - Number(a.canonicalUrl === canonical) || a.id.localeCompare(b.id))[0];
+          if (retained) { source = retained; sourceId = retained.id; }
+        }
+        if (source && ((canonicalArticleUrl(source.canonicalUrl) !== canonicalArticleUrl(canonical))
+          || (!canonical && !source.revisionIds.some(id => corpus.sourceRevisions.find(r => r.id === id)?.rawHash === sha256(content.raw))))) rejectIntake('IDENTITY_COLLISION');
         if (!source) {
           source = {
             id: sourceId, originalUrl: original, canonicalUrl: canonical, title: null, publisher: null, author: null,
@@ -1808,6 +1833,20 @@ export function assertAppendOnlyReviews(previous, next) {
             nullReasons: { title: 'not_reported', publisher: 'not_reported', author: 'not_reported', ...(!canonical ? { originalUrl: 'not_reported', canonicalUrl: 'not_reported' } : {}) },
           };
           corpus.sources.push(source);
+        }
+        // A later alias input must not overwrite the successful source's original URL or history.
+        if (!failure && inputCanonical && inputCanonical !== intakeUrl(source.originalUrl)
+          && inputCanonical !== source.canonicalUrl) {
+          const inputSourceId = stableId('source', `${URL_NORMALIZATION_VERSION}\n${inputCanonical}`);
+          inputSource = corpus.sources.find(item => item.id === inputSourceId);
+          if (inputSource && ![inputCanonical, canonical].includes(inputSource.canonicalUrl)) rejectIntake('IDENTITY_COLLISION');
+          if (!inputSource) {
+            inputSource = { ...structuredClone(source), id: inputSourceId, originalUrl: original, canonicalUrl: canonical,
+              provenance: inputProvenance, revisionIds: [], extractionStatus: 'Not started',
+              collectionState: 'Collected', retrievalDate: unknownDate(),
+              inputKind: { text: 'supplied-text', file: 'text-file', url: 'url' }[input.kind] };
+            corpus.sources.push(inputSource);
+          }
         }
       }
       let revision, archiveResult;
@@ -1846,12 +1885,15 @@ export function assertAppendOnlyReviews(previous, next) {
         || manifest.outputHash !== (revision ? digest(revision) : null))) rejectIntake('IDENTITY_COLLISION');
       if (!manifest) {
         manifest = {
-          id: manifestId, kind: 'manual-collection', inputSourceIds: source ? [source.id] : [], inputRevisionIds: revision ? [revision.id] : [],
+          id: manifestId, kind: 'manual-collection', inputSourceIds: source ? [...new Set([source.id, ...(inputSource ? [inputSource.id] : [])])] : [], inputRevisionIds: revision ? [revision.id] : [],
           outcome: failure ? 'Failed' : 'Succeeded', provenance: inputProvenance, toolVersion: INTAKE_VERSION,
           inputHash, outputHash: revision ? digest(revision) : null,
           limitations: [
             `event-time=${eventTime}`, `status=${failure ? 'failed' : 'succeeded'}`, `error-code=${failure ?? 'NONE'}`,
             `retry-count=${state.retries}`, `final-target-sha256=${state.finalHash ?? 'NONE'}`,
+            ...(state.redirectHashes ?? []).map(hash => `redirect-target-sha256=${hash}`),
+            [...(state.policyHashes ?? [])].map(([origin, hash]) => `robots-policy-sha256=${origin}:${hash}`).join(';') || 'robots-policy-sha256=NONE',
+            ...(failureReason ? [`robots-reason=${failureReason}`, robotsReasons[failureReason], robotsFallback] : []),
             `url-normalization=${URL_NORMALIZATION_VERSION}`, 'intake-only; metadata not inferred; private retention; no research approval',
           ],
           nullReasons: { ...(inputHash === null ? { inputHash: 'not_reported' } : {}), ...(revision ? {} : { outputHash: 'not_applicable' }) },
@@ -1861,6 +1903,7 @@ export function assertAppendOnlyReviews(previous, next) {
       if (store.baseline !== digest(corpus)) corpus = reviewEligibleCorpus(corpus);
       await persist(store, corpus);
       return { status: failure ? 'failed' : 'succeeded', code: failure ?? 'OK', ...(source ? { sourceId: source.id } : {}), ...(revision ? { revisionId: revision.id } : {}), manifestId: manifest.id,
+        ...(failureReason ? { reason: failureReason, guidance: `${robotsReasons[failureReason]} ${robotsFallback}` } : {}),
         ...(archiveResult ? archiveResult : {}) };
     } catch (error) { return { status: 'failed', code: safeCode(error) }; }
     finally { await store?.close().catch(() => {}); }

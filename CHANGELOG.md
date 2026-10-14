@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-14 — Article aliases and unified campaign exploration (#51)
+
+- Add bounded compatibility for leading-wildcard robots rules with explicit
+  unsupported-policy diagnostics, while retaining origin-specific access checks,
+  denial handling and historical failures. Treat the verified Red Canary AI CLI
+  URL and Zscaler destination as one logical article without merging publisher
+  identities or deleting source/revision provenance.
+- Project campaign phase paths into one read-only case graph with friendly labels,
+  original route/provenance disclosure and independently supported relationships.
+  Keep disconnected components and conflicting classifications distinct; no new
+  chronology, attribution, review acceptance or inferred connecting edges is added.
+- Compact graph controls into an accessible in-viewport toolbar and movement
+  disclosure; separate activity/evidence labels from origin and review, improve
+  boundary-anchored connectors, and show claim-grounded campaign overview context.
+  Public withholding remains explicit and private evidence inspection unchanged.
+- Extend synthetic intake, graph, navigation and presentation regressions. Protected
+  live intake and independent human research, visual, accessibility and documentation
+  acceptance remain required; offline automation does not establish those outcomes.
+- Preserve viewport/focus and evidence-return context across member-phase selection,
+  reset case scope when switching campaigns, and validate summary source/revision
+  closure. Separate parallel connectors with nearby label leaders; count logical
+  public article coverage without hiding original URL failures.
+
 ## 2026-10-13 — Nx corpus Pending draft
 
 - Add a citation-linked public projection of four retained Nx/s1ngularity
