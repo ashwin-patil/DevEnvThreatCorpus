@@ -4,10 +4,12 @@ import {
   reviewEligibleCorpus, sha256, stableId, updatePrivateCorpus, validatePrivateCorpus,
 } from '../scripts/contract.mjs';
 import { privateDirectory, privateOutput } from './enrichment.mjs';
-import { normalizeCampaignRecords, CANDIDATE_RECORD_GUIDE } from './campaign-records.mjs';
+import {
+  normalizeCampaignRecords, CANDIDATE_RECORD_GUIDE, RECORD_NORMALIZATION_VERSION, validateMappingScope,
+} from './campaign-records.mjs';
 import { catalogSnapshot } from './framework-catalog.mjs';
 
-export const CAMPAIGN_VERSION = 'campaign-extraction/1';
+export const CAMPAIGN_VERSION = 'campaign-extraction/2';
 export const REQUEST_VERSION = 'campaign-request/1';
 export const CANDIDATE_VERSION = 'campaign-candidate/1';
 export const CAMPAIGN_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, segmentPoints: 2400, segments: 1000, claims: 1000 });
@@ -140,11 +142,12 @@ export function candidateGuide() {
   };
 }
 
-function requestBody(request) {
+function requestBody(request, { allowHistorical = false } = {}) {
   if (!request || typeof request !== 'object' || Array.isArray(request)) fail();
   const { requestHash, ...body } = request;
   if (request.schemaVersion !== REQUEST_VERSION || requestHash !== digest(body)
-    || request.extractionVersion !== CAMPAIGN_VERSION || request.prompt?.version !== PROMPT_VERSION
+    || !(request.extractionVersion === CAMPAIGN_VERSION
+      || (allowHistorical && request.extractionVersion === 'campaign-extraction/1')) || request.prompt?.version !== PROMPT_VERSION
     || request.prompt?.text !== CAMPAIGN_PROMPT || request.prompt?.hash !== sha256(CAMPAIGN_PROMPT)) fail('REQUEST_TAMPERED');
   size(request);
   return body;
@@ -274,7 +277,8 @@ function normalizeCandidate(corpus, request, candidate) {
   const frameworkDependencies = enrichment.records.mappings.map(mapping =>
     [...enrichment.records.frameworks, ...(corpus.frameworks ?? [])].find(f => f.id === mapping.techniqueId));
   const run = {
-    id: runId, schemaVersion: 'campaign-run/1', extractionVersion: CAMPAIGN_VERSION, caseId: request.caseId,
+    id: runId, schemaVersion: 'campaign-run/2', extractionVersion: CAMPAIGN_VERSION,
+    normalizationVersion: RECORD_NORMALIZATION_VERSION, caseId: request.caseId,
     requestHash: request.requestHash, responseHash, inputSnapshotDigest: request.inputSnapshotDigest,
     baseDigest: request.baseDigest, provider: { ...request.provider, ...candidate.model,
       nullReasons: { ...request.provider.nullReasons, ...candidate.model.nullReasons } },
@@ -295,6 +299,7 @@ function normalizeCandidate(corpus, request, candidate) {
   const next = structuredClone(corpus);
   appendOutputs(next, claims, passages, run);
   assertValid(reviewEligibleCorpus(next));
+  validateCampaignSnapshot(next);
   return { run, claims, passages };
 }
 
@@ -316,18 +321,49 @@ function appendOutputs(corpus, claims, passages, run) {
 }
 
 export function applyCampaign(corpus, request, candidate) {
-  requestBody(request);
+  requestBody(request, { allowHistorical: true });
   validateCampaignSnapshot(corpus);
   const existing = corpus.governance.campaignExtraction?.runs?.find(run =>
     run.requestHash === request.requestHash && run.responseHash === digest(candidate));
   if (existing) {
     assertValid(reviewEligibleCorpus(corpus));
-    if (existing.inputSnapshotDigest !== request.inputSnapshotDigest) fail('RECORD_COLLISION');
+    if (existing.inputSnapshotDigest !== request.inputSnapshotDigest
+      || existing.extractionVersion !== request.extractionVersion) fail('RECORD_COLLISION');
     return { summary: campaignStatus(corpus, request.caseId), runId: existing.id, replay: true };
   }
   const { run, claims, passages } = validateCampaignCandidate(corpus, request, candidate);
   appendOutputs(corpus, claims, passages, run);
   return { summary: campaignStatus(corpus, request.caseId), runId: run.id, replay: false };
+}
+
+function validateRunMappings(run, corpus) {
+  if (run.schemaVersion === 'campaign-run/1' && run.extractionVersion === 'campaign-extraction/1') return;
+  if (run.schemaVersion !== 'campaign-run/2' || run.extractionVersion !== CAMPAIGN_VERSION
+    || run.normalizationVersion !== RECORD_NORMALIZATION_VERSION || run.disposition !== 'Pending') fail('INVALID_SNAPSHOT');
+  const context = {
+    caseId: run.caseId, claims: [...run.claimSnapshots, ...corpus.claims],
+    behaviors: run.records.behaviors, paths: run.records.paths,
+  };
+  const seen = new Set();
+  for (const mapping of run.unresolvedMappings) {
+    object(mapping, ['id', 'caseId', 'behaviorId', 'pathId', 'nodeId', 'rationale', 'applicability',
+      'framework', 'version', 'techniqueLiteral', 'sourceLiteral', 'supportingClaimIds', 'mappingBasis',
+      'reason', 'origin', 'disposition'],
+    ['id', 'caseId', 'behaviorId', 'rationale', 'applicability', 'framework', 'version', 'techniqueLiteral',
+      'sourceLiteral', 'supportingClaimIds', 'mappingBasis', 'reason', 'origin', 'disposition']);
+    for (const key of ['id', 'caseId', 'behaviorId', 'rationale', 'applicability', 'framework', 'version', 'techniqueLiteral']) text(mapping[key]);
+    if (seen.has(mapping.id) || mapping.disposition !== 'Pending'
+      || !['not-in-pinned-catalog', 'source-literal-not-found-in-supporting-passage'].includes(mapping.reason)
+      || !['source-mentioned', 'researcher-proposed'].includes(mapping.mappingBasis)
+      || mapping.origin !== (mapping.mappingBasis === 'source-mentioned' ? 'LLM source paraphrase' : 'LLM inferred mapping')) fail('INVALID_SNAPSHOT');
+    seen.add(mapping.id);
+    if (mapping.mappingBasis === 'source-mentioned') text(mapping.sourceLiteral);
+    else if (mapping.sourceLiteral !== null || mapping.reason !== 'not-in-pinned-catalog') fail('INVALID_SNAPSHOT');
+    validateMappingScope(mapping, context);
+  }
+  for (const mapping of run.records.mappings) {
+    validateMappingScope({ ...mapping, supportingClaimIds: mapping.claimIds }, context);
+  }
 }
 
 export function validateCampaignSnapshot(corpus) {
@@ -338,9 +374,11 @@ export function validateCampaignSnapshot(corpus) {
   const seen = new Set();
   for (const run of list(snapshot.runs, 10000)) {
     const { envelopeHash, ...body } = run;
-    if (run.schemaVersion !== 'campaign-run/1' || envelopeHash !== digest(body)
+    if (!['campaign-run/1', 'campaign-run/2'].includes(run.schemaVersion) || envelopeHash !== digest(body)
       || seen.has(run.id) || !corpus.cases.some(c => c.id === run.caseId)) fail('INVALID_SNAPSHOT');
     seen.add(run.id);
+    try { validateRunMappings(run, corpus); }
+    catch { fail('INVALID_SNAPSHOT'); }
     for (const frozen of run.claimSnapshots) {
       const current = corpus.claims.find(c => c.id === frozen.id);
       if (!current || (current.revision === frozen.revision && entityContentHash(current) !== entityContentHash(frozen))
@@ -360,6 +398,13 @@ export function validateCampaignSnapshot(corpus) {
   }
 }
 
+function unresolvedMappingAvailability(run) {
+  return (run.unresolvedMappings ?? []).map(mapping => ({
+    id: mapping.id, runId: run.id, scope: mapping.pathId && mapping.nodeId ? 'node' : 'case/behavior',
+    metadata: run.schemaVersion === 'campaign-run/2' ? 'recorded' : 'unavailable',
+  }));
+}
+
 export function campaignAnnotations(corpus) {
   validateCampaignSnapshot(corpus);
   return (corpus.governance.campaignExtraction?.runs ?? []).flatMap(run => run.annotations.map(item => ({
@@ -372,7 +417,7 @@ export function campaignStatus(corpus, caseId) {
   const runs = (corpus.governance.campaignExtraction?.runs ?? []).filter(r => !caseId || r.caseId === caseId);
   return { pending: true, availableCatalogSnapshot: catalogSnapshot(), runs: runs.map(({ records, annotations, ...run }) => ({
     ...structuredClone(run), recordCounts: Object.fromEntries(Object.entries(records).map(([key, items]) => [key, items.length])),
-    annotationCount: annotations.length,
+    annotationCount: annotations.length, unresolvedMappingAvailability: unresolvedMappingAvailability(run),
   })), limitations: ['Private pending drafts; no independent semantic, gold-checklist, UX or documentation approval.'] };
 }
 
@@ -427,7 +472,8 @@ export function campaignExport(corpus, caseId, format = 'json') {
     timelines: corpus.timelines.filter(t => caseIds.has(t.caseId)), paths, behaviors, mappings, frameworks,
     telemetry: (corpus.telemetry ?? []).filter(t => behaviorIds.has(t.behaviorId)),
     detections: (corpus.detections ?? []).filter(d => behaviorIds.has(d.behaviorId)), otel,
-    runs: structuredClone(runs), annotations: campaignAnnotations(corpus).filter(a => caseIds.has(a.caseId)),
+    runs: structuredClone(runs), unresolvedMappingAvailability: runs.flatMap(unresolvedMappingAvailability),
+    annotations: campaignAnnotations(corpus).filter(a => caseIds.has(a.caseId)),
     reviewState: reviewEligibleCorpus(corpus).claims.filter(c => claimIds.has(c.id)).map(c => ({
       id: c.id, recorded: corpus.claims.find(raw => raw.id === c.id).disposition, effective: c.disposition,
     })),

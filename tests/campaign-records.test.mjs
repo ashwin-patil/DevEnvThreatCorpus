@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { validateCorpus } from '../scripts/contract.mjs';
+import { stableId, validateCorpus } from '../scripts/contract.mjs';
 import {
   CANDIDATE_RECORD_GUIDE, PINNED_FRAMEWORK_CATALOG, catalogSnapshot, normalizeCampaignRecords,
 } from '../src/campaign-records.mjs';
@@ -107,6 +107,147 @@ function normalize(corpus, value = candidate(), extra = {}) {
     claimIds: { 'local-claim': 'synthetic-claim-a' }, ...extra,
   });
 }
+
+function scopedCandidate() {
+  const value = candidate();
+  value.behaviors.push({ ...structuredClone(value.behaviors[0]), localId: 'other-behavior' });
+  value.paths = [{
+    localId: 'path', scope: 'representative', supportingClaimIds: ['local-claim'],
+    nodes: ['a', 'b'].map(localId => ({
+      localId, title: localId, detail: 'Synthetic node; no execution asserted.',
+      behaviorIds: ['benign-use'], supportingClaimIds: ['local-claim'],
+      evidenceStatus: 'Attempted behavior',
+    })),
+    edges: [],
+  }];
+  Object.assign(value.mappings[0], { pathId: 'path', nodeId: 'a' });
+  return value;
+}
+
+for (const evidenceBasis of ['source-supported', 'inferred']) {
+  test(`issue48 AC-01 ${evidenceBasis} self-loop and cycle preserve independent relationship support`, async () => {
+    const corpus = await fixture(), value = scopedCandidate();
+    const path = value.paths[0];
+    path.edges = [['a', 'a'], ['a', 'b'], ['b', 'a']].map(([from, to], index) => ({
+      localId: `edge-${index}`, from, to, relation: 'conditional',
+      basis: 'Synthetic conditional relationship, not repetition, chronology or causality.',
+      evidenceBasis, supportingClaimIds: ['local-claim', 'synthetic-claim-b'],
+    }));
+    const output = normalize(corpus, value), normalized = output.records.paths[0];
+    assert.equal(normalized.edges[0].from, normalized.edges[0].to);
+    for (const edge of normalized.edges) {
+      assert.equal(edge.relation, 'conditional');
+      assert.equal(edge.basis, path.edges[0].basis);
+      assert.deepEqual(edge.claimIds, ['synthetic-claim-a', 'synthetic-claim-b']);
+      assert.equal(edge.origin, evidenceBasis === 'inferred' ? 'LLM inferred relationship' : 'LLM source paraphrase');
+      assert.equal(output.recordSupport.find(s => s.recordId === edge.id).kind, `path-edge-${evidenceBasis}`);
+    }
+    for (const [type, records] of Object.entries(output.records)) (corpus[type] ??= []).push(...records);
+    assert.deepEqual(validateCorpus(corpus), []);
+    for (const mutate of [
+      edge => { edge.to = 'missing'; }, edge => { edge.relation = 'invented'; },
+      edge => { edge.supportingClaimIds = []; }, edge => { edge.basis = ''; },
+      edge => { edge.supportingClaimIds = ['synthetic-claim-b']; },
+      edge => { edge.evidenceBasis = 'confirmed'; },
+    ]) {
+      const invalid = scopedCandidate();
+      invalid.paths[0].edges = [structuredClone(path.edges[0])];
+      mutate(invalid.paths[0].edges[0]);
+      assert.throws(() => normalize(corpus, invalid, { runId: 'invalid-loop' }), /edge|support|basis/);
+    }
+  });
+}
+
+const mappingVariants = [
+  ['resolved', {}],
+  ['unknown ID', { techniqueId: 'T9999' }],
+  ['unknown version', { version: 'unknown' }],
+  ['unsupported source literal', { mappingBasis: 'source-mentioned', sourceLiteral: 'T1059' }],
+];
+for (const [variant, mappingFields] of mappingVariants) {
+  test(`issue48 AC-02 ${variant} enforces every scope boundary before resolution`, async () => {
+    const corpus = await fixture();
+    for (const mutate of [
+      v => { delete v.mappings[0].nodeId; },
+      v => { delete v.mappings[0].pathId; },
+      v => { v.mappings[0].pathId = ''; v.mappings[0].nodeId = ''; },
+      v => { v.mappings[0].nodeId = null; },
+      v => { v.mappings[0].pathId = 'missing'; },
+      v => { v.mappings[0].nodeId = 'missing'; },
+      v => { v.mappings[0].behaviorId = 'other-behavior'; },
+      v => { v.mappings[0].supportingClaimIds.push('synthetic-claim-b'); },
+      v => { v.mappings[0].supportingClaimIds.push('synthetic-claim-c'); },
+      v => { v.paths[0].nodes[0].supportingClaimIds = ['synthetic-claim-c']; },
+      v => { v.mappings[0].pathId = 'synthetic-case-b:path'; },
+      v => { v.mappings[0].nodeId = 'b:wrong/path'; },
+      v => { v.mappings[0].rationale = ''; },
+      v => { delete v.mappings[0].applicability; },
+    ]) {
+      const value = scopedCandidate();
+      Object.assign(value.mappings[0], mappingFields);
+      mutate(value);
+      assert.throws(() => normalize(corpus, value), /mapping|case|identifier/);
+    }
+    for (const nodeScoped of [true, false]) {
+      const value = scopedCandidate();
+      Object.assign(value.mappings[0], mappingFields);
+      if (!nodeScoped) { delete value.mappings[0].pathId; delete value.mappings[0].nodeId; }
+      const output = normalize(corpus, value);
+      const mapping = output.records.mappings[0] ?? output.unresolvedMappings[0];
+      assert.equal(Boolean(mapping.pathId), nodeScoped);
+      assert.equal(Boolean(mapping.nodeId), nodeScoped);
+      if (nodeScoped) {
+        assert.equal(mapping.pathId, output.records.paths[0].id);
+        assert.equal(mapping.nodeId, output.records.paths[0].nodes[0].id);
+      }
+    }
+  });
+}
+
+test('issue48 AC-03 unresolved node and broader candidates retain exact pending metadata without an official match', async () => {
+  const corpus = await fixture(), value = scopedCandidate();
+  Object.assign(value.mappings[0], {
+    techniqueId: 'AML.未知<script>', framework: 'ATLAS', version: 'unknown',
+    rationale: '😀 Café <script>untrusted DATA</script>', applicability: '[draft](https://example.invalid) | limited',
+    mappingBasis: 'source-mentioned', sourceLiteral: 'Exact unsupported literal 😀',
+  });
+  const output = normalize(corpus, value), unresolved = output.unresolvedMappings[0];
+  assert.deepEqual(output.records.frameworks, []);
+  assert.deepEqual(output.records.mappings, []);
+  assert.deepEqual({
+    caseId: unresolved.caseId, pathId: unresolved.pathId, nodeId: unresolved.nodeId,
+    rationale: unresolved.rationale, applicability: unresolved.applicability,
+    supportingClaimIds: unresolved.supportingClaimIds, framework: unresolved.framework,
+    version: unresolved.version, techniqueLiteral: unresolved.techniqueLiteral,
+    sourceLiteral: unresolved.sourceLiteral, mappingBasis: unresolved.mappingBasis,
+    reason: unresolved.reason, origin: unresolved.origin, disposition: unresolved.disposition,
+  }, {
+    caseId: 'synthetic-case-a', pathId: output.records.paths[0].id, nodeId: output.records.paths[0].nodes[0].id,
+    rationale: value.mappings[0].rationale, applicability: value.mappings[0].applicability,
+    supportingClaimIds: ['synthetic-claim-a'], framework: 'ATLAS', version: 'unknown',
+    techniqueLiteral: value.mappings[0].techniqueId, sourceLiteral: value.mappings[0].sourceLiteral,
+    mappingBasis: 'source-mentioned', reason: 'not-in-pinned-catalog',
+    origin: 'LLM source paraphrase', disposition: 'Pending',
+  });
+});
+
+test('issue48 AC-01/04 source-backed loop support and versioned generated identity fail closed', async () => {
+  const corpus = await fixture(), value = scopedCandidate();
+  value.paths[0].nodes[0].supportingClaimIds = ['synthetic-claim-inference'];
+  value.paths[0].edges = [{
+    localId: 'loop', from: 'a', to: 'a', relation: 'conditional', basis: 'Synthetic analyst relationship.',
+    evidenceBasis: 'source-supported', supportingClaimIds: ['synthetic-claim-inference'],
+  }];
+  assert.throws(() => normalize(corpus, value), /non-inference supporting claim/);
+  value.paths[0].edges[0].evidenceBasis = 'inferred';
+  value.mappings = [];
+  const output = normalize(corpus, value);
+  assert.equal(output.records.paths[0].edges[0].origin, 'LLM inferred relationship');
+  assert.notEqual(output.records.behaviors[0].id,
+    stableId('campaign-behavior', 'campaign-run-1\nbenign-use'));
+  for (const [type, records] of Object.entries(output.records)) (corpus[type] ??= []).push(...records);
+  assert.throws(() => normalize(corpus, value), /generated ID collision/);
+});
 
 test('issue45 AC-05/06/07 creates pending grounded records with exact private support and pinned catalog provenance', async () => {
   const corpus = await fixture();

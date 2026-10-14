@@ -36,6 +36,223 @@ const candidateFor = request => ({
   limitations: ['Synthetic exercise; absence is not proof of no AI use.'],
 });
 
+function groundedCandidate(request) {
+  const candidate = candidateFor(request);
+  candidate.claims.push(claim(request, 'second', 'synthetic-revision-b', 'The tool was not used.'));
+  candidate.behaviors = [{ localId: 'behavior', name: 'Synthetic attempted behavior',
+    boundary: 'No completion or causality asserted.', description: 'Synthetic scope only.',
+    supportingClaimIds: ['first'] }];
+  candidate.paths = [{
+    localId: 'path', scope: 'representative', supportingClaimIds: ['first'],
+    nodes: ['a', 'b'].map(localId => ({
+      localId, title: localId, detail: 'No chronology asserted.', behaviorIds: ['behavior'],
+      supportingClaimIds: ['first'], evidenceStatus: 'Attempted behavior',
+    })),
+    edges: [['a', 'a', 'source-supported'], ['b', 'b', 'inferred'], ['a', 'b', 'source-supported'], ['b', 'a', 'inferred']]
+      .map(([from, to, evidenceBasis], index) => ({
+        localId: `edge-${index}`, from, to, evidenceBasis, relation: 'conditional',
+        basis: 'Synthetic supported relationship; not repeated execution or causality.',
+        supportingClaimIds: ['first', 'second'],
+      })),
+  }];
+  candidate.mappings = [{
+    localId: 'node-mapping', behaviorId: 'behavior', pathId: 'path', nodeId: 'a',
+    framework: 'ATLAS', version: 'unknown', techniqueId: 'AML.未知<script>',
+    rationale: '😀 Café <script>untrusted DATA</script>',
+    applicability: '[draft](https://example.invalid) | limited', supportingClaimIds: ['first'],
+    mappingBasis: 'source-mentioned', sourceLiteral: 'Unsupported exact literal 😀',
+  }];
+  const broad = { ...candidate.mappings[0], localId: 'broad-mapping', mappingBasis: 'researcher-proposed' };
+  delete broad.pathId; delete broad.nodeId; delete broad.sourceLiteral;
+  candidate.mappings.push(broad);
+  return candidate;
+}
+
+test('issue48 AC-01/03/05 grounded loops and unresolved metadata survive atomic apply, status, projection and export', async t => {
+  const corpus = await fixture(), original = structuredClone(corpus), store = await storeFor(t, corpus);
+  const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = groundedCandidate(request);
+  const { run: validated } = validateCampaignCandidate(corpus, request, candidate);
+  assert.equal(digest(corpus), digest(original));
+  assert.equal((await runCampaign({ command: 'apply', store, request, candidate })).status, 'succeeded');
+  const file = path.join(store, 'corpus.json'), bytes = await readFile(file, 'utf8'), applied = JSON.parse(bytes);
+  const run = applied.governance.campaignExtraction.runs[0];
+  assert.deepEqual(run, validated);
+  assert.equal(run.schemaVersion, 'campaign-run/2');
+  assert.equal(run.extractionVersion, 'campaign-extraction/2');
+  assert.deepEqual(run.records.frameworks, []);
+  assert.deepEqual(run.records.mappings, []);
+  assert.deepEqual(applied.cases, original.cases);
+  assert.deepEqual(applied.reviews, original.reviews);
+  assert.deepEqual(applied.sources, original.sources);
+  assert.deepEqual(applied.claims.filter(c => original.claims.some(o => o.id === c.id)), original.claims);
+  validateCampaignSnapshot(applied);
+  const status = campaignStatus(applied, request.caseId), bundle = campaignExport(applied, request.caseId);
+  assert.deepEqual(status.runs[0].unresolvedMappings, run.unresolvedMappings);
+  assert.deepEqual(bundle.runs[0], run);
+  assert.deepEqual(bundle.paths, run.records.paths);
+  assert.equal(campaignAnnotations(applied).every(a => a.status === 'pending'), true);
+  assert.deepEqual(bundle.unresolvedMappingAvailability.map(m => [m.scope, m.metadata]).sort(),
+    [['case/behavior', 'recorded'], ['node', 'recorded']]);
+  for (const mapping of run.unresolvedMappings) {
+    const input = candidate.mappings.find(m => m.mappingBasis === mapping.mappingBasis);
+    assert.equal(mapping.rationale, input.rationale);
+    assert.equal(mapping.applicability, input.applicability);
+    assert.equal(mapping.techniqueLiteral, input.techniqueId);
+    assert.equal(mapping.sourceLiteral, input.sourceLiteral ?? null);
+    assert.equal(mapping.version, input.version);
+    assert.deepEqual(mapping.supportingClaimIds, [run.claimIds[0]]);
+    if (mapping.pathId) {
+      const path = bundle.paths.find(p => p.id === mapping.pathId);
+      assert.ok(path.nodes.some(n => n.id === mapping.nodeId && n.behaviorIds.includes(mapping.behaviorId)));
+    }
+    assert.ok(bundle.behaviors.some(b => b.id === mapping.behaviorId));
+    for (const id of mapping.supportingClaimIds) {
+      const claim = bundle.claims.find(c => c.id === id);
+      assert.ok(claim);
+      assert.ok(bundle.sourceRevisions.some(r => r.id === claim.sourceRevisionId));
+      assert.ok(claim.passageIds.every(id => bundle.passages.some(p => p.id === id)));
+    }
+  }
+  assert.equal(bundle.paths[0].edges.filter(e => e.from === e.to).length, 2);
+  for (const edge of bundle.paths[0].edges) {
+    assert.equal(edge.basis, candidate.paths[0].edges[0].basis);
+    assert.equal(edge.relation, 'conditional');
+    assert.deepEqual(edge.claimIds, run.claimIds);
+    assert.ok(run.recordSupport.some(s => s.recordId === edge.id && s.disposition === 'Pending'));
+  }
+  const md = campaignExport(applied, request.caseId, 'md');
+  assert.ok(md.includes('😀 Café \\<script\\>untrusted DATA\\</script\\>'));
+  assert.ok(!md.includes('<script>'));
+  assert.ok(md.includes('unresolvedMappings'));
+  assert.ok(md.includes(run.unresolvedMappings[0].nodeId ?? run.unresolvedMappings[1].nodeId));
+  assert.equal((await runCampaign({ command: 'apply', store, request, candidate })).replay, true);
+  assert.equal(await readFile(file, 'utf8'), bytes);
+});
+
+test('issue48 AC-02/05 invalid unresolved scopes and unsupported loops make no private writes', async t => {
+  const corpus = await fixture(), store = await storeFor(t, corpus);
+  const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  const file = path.join(store, 'corpus.json'), before = await readFile(file, 'utf8');
+  for (const variant of [
+    { framework: 'ATT&CK', version: '19.2', techniqueId: 'T1059', mappingBasis: 'researcher-proposed' },
+    { framework: 'ATT&CK', version: '19.2', techniqueId: 'T9999', mappingBasis: 'researcher-proposed' },
+    { framework: 'ATT&CK', version: 'unknown', techniqueId: 'T1059', mappingBasis: 'researcher-proposed' },
+    { framework: 'ATT&CK', version: '19.2', techniqueId: 'T1059', mappingBasis: 'source-mentioned', sourceLiteral: 'T1059' },
+  ]) {
+    for (const mutate of [
+      c => { delete c.mappings[0].nodeId; },
+      c => { c.mappings[0].pathId = 'missing'; },
+      c => { c.mappings[0].nodeId = 'missing'; },
+      c => { c.paths[0].nodes[0].behaviorIds = []; },
+      c => { c.mappings[0].supportingClaimIds.push('second'); },
+      c => { c.mappings[0].supportingClaimIds.push('synthetic-claim-c'); },
+    ]) {
+      const candidate = groundedCandidate(request);
+      Object.assign(candidate.mappings[0], variant);
+      if (variant.mappingBasis === 'researcher-proposed') delete candidate.mappings[0].sourceLiteral;
+      mutate(candidate);
+      assert.equal((await runCampaign({ command: 'apply', store, request, candidate })).status, 'failed');
+      assert.equal(await readFile(file, 'utf8'), before);
+    }
+  }
+  for (const mutate of [
+    c => { c.paths[0].edges[0].to = 'missing'; },
+    c => { c.paths[0].edges[0].supportingClaimIds = []; },
+    c => { c.paths[0].edges[0].relation = 'invented'; },
+  ]) {
+    const candidate = groundedCandidate(request); mutate(candidate);
+    assert.equal((await runCampaign({ command: 'apply', store, request, candidate })).status, 'failed');
+    assert.equal(await readFile(file, 'utf8'), before);
+  }
+});
+
+test('issue48 AC-03/05 rehashed new run snapshots cannot bypass unresolved metadata and scope validation', async () => {
+  const corpus = await fixture(), request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  applyCampaign(corpus, request, groundedCandidate(request));
+  for (const mutate of [
+    m => { delete m.rationale; }, m => { m.applicability = ''; },
+    m => { m.pathId = 'missing'; }, m => { delete m.nodeId; },
+    m => { m.nodeId = 'missing'; }, m => { m.caseId = 'synthetic-case-b'; },
+    m => { m.behaviorId = 'missing'; }, m => { m.supportingClaimIds.push('synthetic-claim-b'); },
+    m => { m.supportingClaimIds = ['synthetic-claim-c']; },
+    m => { m.disposition = 'Accepted'; }, m => { m.origin = 'Human authored'; },
+    m => { m.mappingBasis = 'official'; }, m => { m.reason = 'confirmed'; },
+    m => { m.sourceLiteral = null; }, m => { m.techniqueLiteral = ''; },
+  ]) {
+    const changed = structuredClone(corpus), run = changed.governance.campaignExtraction.runs[0];
+    const mapping = run.unresolvedMappings.find(m => m.pathId);
+    mutate(mapping);
+    const { envelopeHash, ...body } = run; run.envelopeHash = digest(body);
+    assert.throws(() => validateCampaignSnapshot(changed), /INVALID_SNAPSHOT/);
+    assert.throws(() => campaignStatus(changed), /INVALID_SNAPSHOT/);
+    assert.throws(() => campaignExport(changed, request.caseId), /INVALID_SNAPSHOT/);
+  }
+});
+
+test('issue48 AC-02/05 new resolved run snapshots use the same all-claim scope validator', async () => {
+  const corpus = await fixture(), request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  const candidate = groundedCandidate(request);
+  Object.assign(candidate.mappings[0], {
+    framework: 'ATT&CK', version: '19.2', techniqueId: 'T1059', mappingBasis: 'researcher-proposed',
+  });
+  delete candidate.mappings[0].sourceLiteral;
+  applyCampaign(corpus, request, candidate);
+  const run = corpus.governance.campaignExtraction.runs[0], mapping = run.records.mappings[0];
+  mapping.claimIds.push(run.claimIds[1]);
+  corpus.mappings[0].claimIds.push(run.claimIds[1]);
+  const { envelopeHash, ...body } = run; run.envelopeHash = digest(body);
+  assert.deepEqual(validateCorpus(corpus), []);
+  assert.throws(() => validateCampaignSnapshot(corpus), /INVALID_SNAPSHOT/);
+});
+
+test('issue48 AC-04 actual baseline run stays immutable, unavailable metadata stays broad, and new identities supersede it', async t => {
+  const corpus = await fixture(), legacy = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
+  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  body.extractionVersion = 'campaign-extraction/1';
+  const request = { ...body, requestHash: digest(body) };
+  assert.equal(request.requestHash, legacy.candidate.requestHash);
+  const run = { ...legacy.run, catalogSnapshot: request.catalogSnapshot,
+    inputs: request.inputs.map(({ segments, ...input }) => input) };
+  const { envelopeHash, ...runBody } = run;
+  assert.equal(digest(runBody), envelopeHash);
+  for (const [type, records] of Object.entries(run.records)) (corpus[type] ??= []).push(...records);
+  corpus.governance.campaignExtraction = { schemaVersion: 'campaign-snapshot/1', runs: [run] };
+  const store = await storeFor(t, corpus), before = canonicalSerialize(corpus), file = path.join(store, 'corpus.json');
+  validateCampaignSnapshot(corpus);
+  assert.deepEqual(campaignStatus(corpus).runs[0].unresolvedMappingAvailability,
+    [{ id: run.unresolvedMappings[0].id, runId: run.id, scope: 'case/behavior', metadata: 'unavailable' }]);
+  const bundle = campaignExport(corpus, request.caseId);
+  assert.deepEqual(bundle.runs[0], run);
+  assert.equal(bundle.runs[0].unresolvedMappings[0].rationale, undefined);
+  assert.ok(campaignExport(corpus, request.caseId, 'md').includes('unavailable'));
+  assert.equal(canonicalSerialize(corpus), before);
+  assert.equal((await runCampaign({ command: 'apply', store, request, candidate: legacy.candidate })).replay, true);
+  assert.equal(await readFile(file, 'utf8'), before);
+  assert.throws(() => validateCampaignCandidate(corpus, request, legacy.candidate), /REQUEST_TAMPERED/);
+  const absent = await fixture();
+  assert.throws(() => applyCampaign(absent, request, legacy.candidate), /REQUEST_TAMPERED/);
+  const nextRequest = prepareCampaign(corpus, { caseId: request.caseId });
+  const next = { ...legacy.candidate, requestHash: nextRequest.requestHash };
+  const { run: preview } = validateCampaignCandidate(corpus, nextRequest, next);
+  assert.notEqual(preview.id, run.id);
+  assert.notEqual(preview.records.behaviors[0].id, run.records.behaviors[0].id);
+  assert.notEqual(preview.unresolvedMappings[0].id, run.unresolvedMappings[0].id);
+  assert.equal(preview.unresolvedMappings[0].rationale, next.mappings[0].rationale);
+  const result = await runCampaign({ command: 'apply', store, request: nextRequest, candidate: next });
+  assert.equal(result.status, 'succeeded');
+  const applied = JSON.parse(await readFile(file, 'utf8'));
+  assert.deepEqual(applied.governance.campaignExtraction.runs[0], run);
+  assert.deepEqual(applied.governance.campaignExtraction.runs[1].supersedes, [run.id]);
+  assert.equal((await runCampaign({ command: 'apply', store, request: nextRequest, candidate: next })).replay, true);
+  const collision = structuredClone(applied), collidingRun = collision.governance.campaignExtraction.runs[1];
+  collidingRun.inputSnapshotDigest = 'a'.repeat(64);
+  const { envelopeHash: ignored, ...collidingBody } = collidingRun;
+  collidingRun.envelopeHash = digest(collidingBody);
+  assert.throws(() => applyCampaign(collision, nextRequest, next), /RECORD_COLLISION/);
+  const stale = groundedCandidate(nextRequest);
+  assert.equal((await runCampaign({ command: 'apply', store, request: nextRequest, candidate: stale })).code, 'STALE_INPUT');
+});
+
 test('issue45 AC-01/02 preparation freezes all inputs without network, identity, association or review changes', async () => {
   const corpus = await fixture(), before = canonicalSerialize(corpus);
   const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
