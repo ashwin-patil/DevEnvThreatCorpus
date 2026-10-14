@@ -67,7 +67,13 @@ routes (it remains a revision on source routes). Selection updates history witho
 replacing graph controls. Related navigation stores case/facet/search context and
 the return selection in browser history state; direct URL entry restores the
 stable target, not a durable layout or previously saved filters. Ordinary top-level
-navigation still resets facets. Scoped evidence projections restrict shared
+navigation still resets facets. Explicit linked targets use case-only filters
+instead of graph-specific search/facets; the original graph filters are retained
+separately for return. Initial corpus loading and history navigation share a
+restoration path that validates the saved path/case and filter field types against
+the loaded corpus. Missing/changed-case paths discard context with a notice;
+retired node/edge IDs remain invalid return targets, never substitutions.
+Scoped evidence projections restrict shared
 behaviors, source claims and conflict inspection to the active case. Invalid
 targets never silently substitute a different graph or related evidence record.
 
@@ -83,7 +89,10 @@ Canvas redraw updates existing SVG attributes, preserving focused controls and
 selection. Gestures own one pointer ID, use inverse SVG screen coordinates,
 release capture on completion/cancellation and stop on capture loss. A movement
 threshold and subsequent-click suppression separate dragging from selection.
-Zoom is bounded relative to the deterministic all-node fit. Pan/move buttons and
+Zoom is bounded relative to the deterministic all-node fit. Pointer and button
+movement use the same limits: a node's 240×105 box stays in that fit expanded by
+one fit-width/height on every side; the viewport center stays within one
+fit-width/height of the reset center at every zoom. Pan/move buttons and
 the complete text alternative do not require dragging; only a concise inspection
 status is live-announced. Layout, pan and zoom remain closure-local presentation
 state, absent from corpus hashes, review eligibility and exports.
@@ -92,8 +101,12 @@ Talk bundles remain private case-wide read-only projections. Invalid path or
 mapping support scope fails closed before export. JSON retains path/node/edge and
 mapping records, historical catalogs, framework-parent/source closure and exact
 passages; `mappingScopes` distinguishes validated node targets from unavailable
-catalog provenance. `revisionProvenance` retains revision identity/hashes but
-explicitly omits normalized article bodies. Markdown includes those same research
+catalog provenance. Shared behavior `claimIds` and occurrences are copied and restricted to exported
+claims in the selected case. Other-case occurrences are omitted, even for
+standalone behaviors without paths/mappings; `behaviorProjection` labels the
+scope/limits in JSON and Markdown without changing canonical support or disposition.
+`revisionProvenance` retains revision identity/hashes but explicitly omits normalized
+article bodies. Markdown includes those same research
 limits, independent relationship support and proposal/synthetic labels with
 escaped imported text. Full article closure remains owned by protected campaign
 exports; no parallel extraction schema, persistence or public publication is added.

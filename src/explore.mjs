@@ -263,6 +263,16 @@ export function talkBundle(model, caseId) {
   }
   const behaviorIds = new Set([...paths.flatMap(p => p.nodes.flatMap(n => n.behaviorIds)), ...mappings.map(m => m.behaviorId),
     ...list(model, 'behaviors').filter(b => behaviorSupport(model, b).some(id => model.claims.get(id)?.caseId === caseId)).map(b => b.id)]);
+  const claimIds = new Set(claims.map(c => c.id));
+  const behaviors = list(model, 'behaviors').filter(b => behaviorIds.has(b.id)).map(b => {
+    const projected = structuredClone(b);
+    if (projected.caseId) projected.caseId = caseId;
+    if (projected.claimIds) projected.claimIds = projected.claimIds.filter(id => claimIds.has(id));
+    if (projected.occurrences) projected.occurrences = projected.occurrences
+      .filter(o => !o.caseId || o.caseId === caseId)
+      .map(o => ({ ...o, claimIds: (o.claimIds ?? []).filter(id => claimIds.has(id)) })).filter(o => o.claimIds.length);
+    return projected;
+  });
   const techniqueIds = new Set(mappings.map(m => m.techniqueId));
   let size;
   do {
@@ -282,7 +292,9 @@ export function talkBundle(model, caseId) {
       return [m.id, !node ? 'Broader behavior/case candidate — not node-specific' :
         nodeMappings(model, path, node).nodeScoped.includes(m) ? 'Node-scoped candidate — Proposed' :
           'Node target recorded; catalog provenance unavailable — not a validated node mapping'];
-    })), behaviors: list(model, 'behaviors').filter(b => behaviorIds.has(b.id)),
+    })), behaviors, behaviorProjection: {
+      caseId, limits: 'Case-scoped behavior projection; other-case support omitted. Canonical records are unchanged; shared behavior is not shared attribution.',
+    },
     sources: model.corpus.sources.filter(s => sourceIds.has(s.id)),
     revisionProvenance: model.corpus.sourceRevisions.filter(r => sourceIds.has(r.sourceId)).map(({ normalizedContent, ...revision }) => ({
       ...revision, bodyIncluded: false,
@@ -332,6 +344,7 @@ export function talkMarkdown(bundle) {
     ['catalogSnapshots', 'Pinned historical catalogs']]) {
     if (bundle[key]?.length) lines.push('', `## ${label}`, ...bundle[key].map(r => `- ${text(JSON.stringify(r))}`));
   }
+  if (bundle.behaviorProjection) lines.push('', text(bundle.behaviorProjection.limits));
   if (bundle.detections?.length) lines.push('', '## Detection hypotheses', ...bundle.detections.map(d => `- ${text(d.hypothesis)} — ${text(d.validation)} — ${text(d.origin)}`));
   return lines.join('\n') + '\n';
 }
@@ -379,6 +392,13 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     return { x: -30, y: -100, w: width + 60, h: Math.max(430, ...values.map(p => p.y + 240)) + 100 };
   };
   let positions = graphLayout(path), box = fittedBox(), dragging = null, suppressClick = false, selected = null;
+  const fit = fittedBox();
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const boundedPosition = position => ({
+    x: clamp(position.x, fit.x - fit.w, fit.x + 2 * fit.w - 240),
+    y: clamp(position.y, fit.y - fit.h, fit.y + 2 * fit.h - 105),
+  });
+  panel.append(element(doc, 'p', 'Movement bounds: node boxes stay within the reset fit plus one fit-width/height margin on each side. The viewport center stays within one fit-width/height of its reset center. Reset restores every node.', 'subtle'));
   const nodeElements = new Map(), edgeElements = new Map(), textControls = new Map();
   function select(kind, record, updateRoute) {
     selected = { kind, id: record.id };
@@ -441,6 +461,8 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     group.append(grip); nodeElements.set(`node:${node.id}`, group); svg.append(group);
   }
   function paint() {
+    box.x = clamp(box.x, fit.x - fit.w / 2 - box.w / 2, fit.x + fit.w * 1.5 - box.w / 2);
+    box.y = clamp(box.y, fit.y - fit.h / 2 - box.h / 2, fit.y + fit.h * 1.5 - box.h / 2);
     svg.setAttribute('viewBox', `${box.x} ${box.y} ${box.w} ${box.h}`);
     for (const edge of path.edges) {
       const a = positions[edge.from], b = positions[edge.to]; if (!a || !b) continue;
@@ -470,7 +492,7 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     toolbar.append(action(doc, `Move selected node ${direction}`, () => {
       endGesture();
       if (selected?.kind !== 'node') { announcement.textContent = 'Select a node before moving it.'; return; }
-      positions[selected.id].x += dx; positions[selected.id].y += dy; paint();
+      positions[selected.id] = boundedPosition({ x: positions[selected.id].x + dx, y: positions[selected.id].y + dy }); paint();
     }));
   }
   function point(event) {
@@ -505,7 +527,7 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     const dx = current.x - dragging.start.x, dy = current.y - dragging.start.y;
     dragging.moved ||= Math.abs(e.clientX - dragging.clientX) + Math.abs(e.clientY - dragging.clientY) > 4;
     if (!dragging.moved) return;
-    if (dragging.id) positions[dragging.id] = { x: dragging.origin.x + dx, y: dragging.origin.y + dy };
+    if (dragging.id) positions[dragging.id] = boundedPosition({ x: dragging.origin.x + dx, y: dragging.origin.y + dy });
     else { box.x = dragging.origin.x - dx; box.y = dragging.origin.y - dy; } paint();
   });
   for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) svg.addEventListener(event, endGesture);

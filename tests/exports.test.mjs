@@ -55,6 +55,33 @@ test('AP-08 talk export fails closed on cross-case support and invalid node mapp
   assert.throws(() => talkBundle(createModel(corpus), base.paths[0].caseId), /Invalid path support scope/);
 });
 
+test('AP-02/08 standalone shared behavior exports project every claim and occurrence to the selected case', async () => {
+  const corpus = JSON.parse(await readFile(fixture, 'utf8'));
+  corpus.behaviors = [{
+    id: 'shared-behavior', name: 'Shared synthetic behavior', origin: 'Human authored', disposition: 'Pending',
+    claimIds: ['synthetic-claim-a', 'synthetic-claim-c'],
+    occurrences: [
+      { caseId: 'synthetic-case-a', claimIds: ['synthetic-claim-a', 'synthetic-claim-c'] },
+      { caseId: 'synthetic-case-b', claimIds: ['synthetic-claim-c'] },
+      { claimIds: ['synthetic-claim-a', 'synthetic-claim-c'] },
+    ],
+  }];
+  const m = createModel(corpus), before = canonicalSerialize(corpus);
+  for (const caseId of ['synthetic-case-a', 'synthetic-case-b']) {
+    const bundle = talkBundle(m, caseId), behavior = bundle.behaviors[0], claimIds = new Set(bundle.claims.map(c => c.id));
+    const otherClaim = caseId === 'synthetic-case-a' ? 'synthetic-claim-c' : 'synthetic-claim-a';
+    assert.equal(bundle.paths.length, 0); assert.equal(bundle.mappings.length, 0);
+    assert.ok(behavior.claimIds.length);
+    for (const id of [...behavior.claimIds, ...behavior.occurrences.flatMap(o => o.claimIds)]) assert.ok(claimIds.has(id));
+    assert.ok(behavior.occurrences.every(o => !o.caseId || o.caseId === caseId));
+    assert.ok(!JSON.stringify(behavior).includes(otherClaim));
+    assert.ok(!talkMarkdown(bundle).includes(otherClaim));
+    assert.match(talkMarkdown(bundle), /Case-scoped behavior projection.*other-case support omitted/i);
+    for (const claim of bundle.claims) for (const id of claim.passageIds) assert.ok(bundle.passages.some(p => p.id === id));
+  }
+  assert.equal(canonicalSerialize(corpus), before);
+});
+
 async function setup(t, { accepted = false, optional = false, standalone = false } = {}) {
   const privateRoot = path.join(root, '.private-intake');
   await mkdir(privateRoot, { recursive: true, mode: 0o700 });

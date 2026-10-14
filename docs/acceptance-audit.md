@@ -12,14 +12,14 @@ results and hosted Verify/PR Policy links; a new commit invalidates earlier chec
 
 | Stable alias | Outcome and implementation/test evidence | Acceptance result and remaining evidence |
 |---|---|---|
-| AC-01 = AP-01 | `src/app.mjs` related history/context and `src/explore.mjs` invalid/no-path states; `tests/workbench.test.mjs` AP-01 routes, mixed-case and no-path regressions | `needs-human-review`: final executed fixtures plus independent navigation review |
+| AC-01 = AP-01 | `src/app.mjs` related history/context and `src/explore.mjs` invalid/no-path states; `tests/workbench.test.mjs` AP-01 routes, active graph-search evidence traversal, reload/back/forward, invalid/retired saved context, mixed-case and no-path regressions | `needs-human-review`: final executed fixtures plus independent navigation review |
 | AC-02 = AP-02 | Case-scoped support/conflicts and separate named edge inspection; AP-02 unsafe/mixed-case tests and AP-08 export-scope negatives | `needs-human-review`: supported nodes must not imply supported edges; human origin/uncertainty review |
 | AC-03 = AP-03 | `nodeMappings` checks every claim, behavior, path/node and retained catalog/version; AP-03 valid/invalid/no-match fixtures; mapping scope labels in private exports | `needs-human-review`: independent rationale/applicability and unresolved literal interpretation |
 | AC-04 = AP-04 | Existing SVG with distinct directed sequence/conditional/propagation geometry, visible loop labels and full text inspection; branching/cycle/self-loop/disconnected AP-04 fixtures | `needs-human-review`: final desktop/tablet/mobile light/dark browser evidence and human visual review |
-| AC-05 = AP-05 | Stable SVG attributes, bounded zoom, deterministic fit, explicit grips, pointer-ID/cancel/capture-loss lifecycle, click suppression; AP-05 controls and unchanged corpus digest | `needs-human-review`: final pointer/touch/browser checks plus independent interaction review |
+| AC-05 = AP-05 | Stable SVG attributes, bounded zoom/pan/node positions relative to reset fit, deterministic fit, explicit grips, pointer-ID/cancel/capture-loss lifecycle, click suppression; AP-05 repeated/extreme pointer and button controls, stable selection/focus and unchanged corpus digest | `needs-human-review`: final pointer/touch/browser checks plus independent interaction review |
 | AC-06 = AP-06 | Named Enter/Space controls, selected/focused cues, non-drag pan/move/reset, complete text support and concise live status; AP-06 selection/DOM identity tests | `needs-human-review`: independent screen-reader/focus/accessibility review remains unmet |
 | AC-07 = AP-07 | Return-to-selection through claims/sources/behaviors/frameworks/telemetry/OTEL, same-case projections, published/proposed/synthetic distinctions and inert imported text; AP-07 traversal/shared-behavior/detection-only regressions | `needs-human-review`: independent protected real-campaign walkthrough and semantics review |
-| AC-08 = AP-08 | Case-wide talk JSON/Markdown now includes complete paths/support, mapping scope/catalogs, framework parents, source/revision provenance and exact passages; export scope negatives in `tests/exports.test.mjs`; existing private-store ignore boundary unchanged | `needs-human-review`: final executed closure/tracked-file checks and independent private-bundle review; full article bodies stay in protected campaign export |
+| AC-08 = AP-08 | Case-wide talk JSON/Markdown includes paths/support, mapping scope/catalogs, framework parents, source/revision provenance and exact passages; `tests/exports.test.mjs` checks standalone shared-behavior claim/occurrence projection, limit labels, complete same-case closure, no canonical mutation and invalid scope; private-store ignore boundary unchanged | `needs-human-review`: final executed closure/tracked-file checks and independent private-bundle review; full article bodies stay in protected campaign export |
 | AC-09 = AP-09 | Focused tests, README usage, architecture and substantive CHANGELOG; `python scripts/verify.py` runs scaffold and all seven configured application commands, with additional campaign suites run directly | `needs-human-review`: exact final-SHA command results and hosted checks required; independent research/UX/documentation relevance review and approval before merge remain unmet |
 
 Requested implementation setting is advisory GPT-6.1 Sol / High. The effective
@@ -27,6 +27,14 @@ main-session model/reasoning setting is not exposed here and is unknown; no Auto
 fallback or model configuration is assumed. Synthetic cloud checks do not establish
 real campaign accuracy, independent accessibility or human acceptance. No private
 article bodies, corpus content or private screenshots may enter Git.
+
+Follow-up corrections address [review comment 6159260454](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/50#issuecomment-6159260454)
+on this same PR. Focused synthetic probes and fixture tests are not production
+browser or independent acceptance evidence. This cloud follow-up's browser MCP
+requires browser-based OAuth, so desktop/narrow light/dark, touch and screen-reader
+checks remain unmet until an authorized session executes them. The final SHA,
+exact command/count results and fresh hosted-check links belong in that PR's
+revision-bound progress/reply record, not a self-referential commit assertion here.
 
 ## Issue #48 grounded self-loops and unresolved mapping provenance
 

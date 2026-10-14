@@ -726,12 +726,97 @@ function response(corpus = fresh(), status = 200, collectionEnabled = false) {
   return { ok: status === 200, status, headers: { get: key => key === 'x-collection-enabled' && collectionEnabled ? 'true' : null },
     async json() { return corpus; } };
 }
-async function mounted(corpus = fresh(), hash = '') {
+async function mounted(corpus = fresh(), hash = '', historyState = null) {
   const doc = new FakeDocument(), win = fakeWindow(hash), requests = [];
+  win.history.state = structuredClone(historyState);
   const app = mountWorkbench(doc, win, async (path, options) => { requests.push([path, options]); return response(structuredClone(corpus)); });
   await app.ready;
   return { doc, win, app, requests, content: doc.getElementById('content') };
 }
+
+test('AP-01/07 graph search reveals linked evidence and restores context on reload and back/forward', async () => {
+  const corpus = branchingModel().corpus, p = corpus.paths[0];
+  const { doc, win, content } = await mounted(corpus, routeHash('paths', p.id, 'branch-7'));
+  doc.getElementById('search').value = 'disconnected';
+  await doc.getElementById('search').trigger('input');
+  const inspection = descendants(content).find(n => n.className === 'graph-inspection');
+  await button(inspection, corpus.claims[0].description).trigger('click');
+  const claimHash = win.location.hash, claimState = structuredClone(win.history.state);
+  assert.match(content.textContent, /Claim & exact source evidence/);
+  assert.equal(doc.getElementById('search').value, '');
+  assert.equal(claimState.pathContext.filters.query, 'disconnected');
+  assert.deepEqual(claimState.filters.cases, [p.caseId]);
+  await button(content, 'Source:').trigger('click');
+  assert.match(content.textContent, /Café/);
+  assert.ok(!content.textContent.includes(corpus.claims.find(c => c.caseId === 'synthetic-case-b').description));
+  const sourceHash = win.location.hash, sourceState = structuredClone(win.history.state);
+  const reloaded = await mounted(corpus, sourceHash, sourceState);
+  await button(reloaded.content, 'Return to selected path element').trigger('click');
+  assert.equal(reloaded.win.location.hash, routeHash('paths', p.id, 'branch-7'));
+  assert.equal(reloaded.doc.getElementById('search').value, 'disconnected');
+  assert.ok(descendants(reloaded.content).find(n => n.className === 'graph-inspection').textContent.startsWith('Synthetic disconnected or branching node 7'));
+  for (const [hash, state] of [[claimHash, claimState], [sourceHash, sourceState]]) {
+    reloaded.win.location.hash = hash; reloaded.win.history.state = state;
+    await reloaded.win.listeners.popstate();
+    assert.ok(button(reloaded.content, 'Return to selected path element'));
+    assert.equal(reloaded.doc.getElementById('search').value, '');
+    assert.doesNotMatch(reloaded.content.textContent, /No records match/);
+  }
+  const retired = structuredClone(corpus);
+  retired.paths[0].nodes = retired.paths[0].nodes.filter(n => n.id !== 'branch-7');
+  const stale = await mounted(retired, claimHash, claimState);
+  await button(stale.content, 'Return to selected path element').trigger('click');
+  assert.match(stale.content.textContent, /Unknown or retired node\/relationship/);
+  assert.equal(descendants(stale.content).filter(n => n.getAttribute('class') === 'research-graph').length, 0);
+  const changed = structuredClone(corpus); changed.paths = [];
+  const missing = await mounted(changed, claimHash, claimState);
+  assert.ok(!button(missing.content, 'Return to selected path element'));
+  assert.match(missing.doc.getElementById('status').textContent, /Saved path context.*unavailable/);
+  const invalid = await mounted(corpus, claimHash, { ...claimState, pathContext: { ...claimState.pathContext, filters: { cases: ['synthetic-case-b'] } } });
+  assert.ok(!button(invalid.content, 'Return to selected path element'));
+});
+
+test('AP-05 extreme pointer and repeated button movement are bounded with capture-loss and reset', async () => {
+  const m = branchingModel(), before = digest(m.corpus), root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
+  const svg = descendants(root).find(n => n.getAttribute('class') === 'research-graph');
+  const node = descendants(svg).find(n => n.getAttribute('data-entity-kind') === 'node');
+  node.focus();
+  const initial = svg.getAttribute('viewBox').split(' ').map(Number), transform = node.getAttribute('transform');
+  const [x, y, w, h] = initial, coordinates = () => node.getAttribute('transform').match(/-?[\d.]+/g).map(Number);
+  const assertBounds = () => {
+    const [bx, by, bw, bh] = svg.getAttribute('viewBox').split(' ').map(Number), [nx, ny] = coordinates();
+    assert.ok(bx + bw / 2 >= x - w / 2 && bx + bw / 2 <= x + w * 1.5);
+    assert.ok(by + bh / 2 >= y - h / 2 && by + bh / 2 <= y + h * 1.5);
+    assert.ok(nx >= x - w && nx <= x + 2 * w - 240);
+    assert.ok(ny >= y - h && ny <= y + 2 * h - 105);
+  };
+  for (const direction of ['right', 'down', 'left', 'up']) {
+    for (let i = 0; i < 120; i++) {
+      await button(root, `Pan ${direction}`).trigger('click');
+      await button(root, `Move selected node ${direction}`).trigger('click');
+    }
+    assertBounds();
+  }
+  svg.getBoundingClientRect = () => ({ width: 920, height: 430 });
+  svg.setPointerCapture = () => {};
+  svg.releasePointerCapture = () => {};
+  const grip = descendants(node).find(n => n.getAttribute('data-drag-node'));
+  for (const target of [svg, grip]) for (const extreme of [-1e9, 1e9]) {
+    await svg.trigger('pointerdown', { target, pointerId: 4, clientX: 0, clientY: 0, button: 0 });
+    await svg.trigger('pointermove', { pointerId: 4, clientX: extreme, clientY: extreme });
+    assertBounds();
+    await svg.trigger('lostpointercapture', { pointerId: 4 });
+    const stopped = [svg.getAttribute('viewBox'), node.getAttribute('transform')];
+    await svg.trigger('pointermove', { pointerId: 4, clientX: -extreme, clientY: -extreme });
+    assert.deepEqual([svg.getAttribute('viewBox'), node.getAttribute('transform')], stopped);
+  }
+  assert.equal(node.focused, true);
+  assert.equal(node.getAttribute('aria-pressed'), 'true');
+  await button(root, 'Reset layout').trigger('click');
+  assert.deepEqual(svg.getAttribute('viewBox').split(' ').map(Number), initial);
+  assert.equal(node.getAttribute('transform'), transform);
+  assert.equal(digest(m.corpus), before);
+});
 
 test('AP-01/06/07 routed selection and evidence traversal preserve case, filters and return target', async () => {
   const corpus = branchingModel().corpus, p = corpus.paths[0];

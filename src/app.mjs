@@ -41,17 +41,49 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   let model = null, filters = {}, route = parseRoute(win.location.hash), activePassages = [], request = 0;
   let studio = null;
   let pathContext = null;
+  const pathCase = () => model?.corpus.paths?.find(p => p.id === pathContext?.pathId)?.caseId;
+  function savedFilters(value, caseId) {
+    const restored = {};
+    for (const key of FACETS) if (Array.isArray(value?.[key]) && value[key].every(v => typeof v === 'string')) {
+      restored[key] = [...value[key]];
+    }
+    if (typeof value?.query === 'string') restored.query = value.query;
+    if (['OR', 'AND'].includes(value?.tagMode)) restored.tagMode = value.tagMode;
+    if (caseId) restored.cases = [caseId];
+    return restored;
+  }
+  function restoreNavigation() {
+    const state = win.history.state, context = state?.pathContext;
+    pathContext = null;
+    let notice = '';
+    if (context) {
+      const path = model.corpus.paths?.find(p => p.id === context.pathId);
+      if (path && typeof context.entityId === 'string' && context.filters?.cases?.length === 1
+        && context.filters.cases[0] === path.caseId) {
+        pathContext = { pathId: path.id, entityId: context.entityId, filters: savedFilters(context.filters, path.caseId) };
+      } else notice = 'Saved path context is invalid or unavailable in this corpus; no other path was substituted. ';
+    }
+    filters = savedFilters(pathContext ? (route.view === 'paths' ? pathContext.filters : state?.filters) : null, pathCase());
+    if (!pathContext && route.view === 'paths' && route.id) {
+      const path = model.corpus.paths?.find(p => p.id === route.id);
+      if (path) filters.cases = [path.caseId];
+    }
+    $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
+    buildFacets();
+    return notice;
+  }
   const status = (text, kind = '') => {
     $('status').textContent = text; $('status').setAttribute('data-kind', kind);
   };
   function reset() {
     filters = {}; activePassages = [];
+    if (pathCase()) filters.cases = [pathCase()];
     $('search').value = ''; $('tag-mode').value = 'OR';
     if (model) buildFacets();
   }
   function navigate(view, id = '', revisionId = '') {
-    reset();
     pathContext = null;
+    reset();
     if (view === 'paths' && id) {
       const path = model?.corpus.paths?.find(p => p.id === id);
       if (path) filters.cases = [path.caseId];
@@ -79,9 +111,13 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     activePassages = [];
     const sameGraph = view === 'paths' && route.view === 'paths' && id === pathContext.pathId && revisionId;
     if (sameGraph) pathContext.entityId = revisionId;
+    if (route.view === 'paths') win.history.replaceState({ filters: structuredClone(filters), pathContext: structuredClone(pathContext) },
+      '', routeHash(route.view, route.id || pathContext.pathId, route.revisionId || pathContext.entityId));
+    filters = view === 'paths' && id === pathContext.pathId ? structuredClone(pathContext.filters) : { cases: [pathCase()] };
+    $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
     route = { view, id, revisionId };
-    win.history.pushState({ filters: structuredClone(filters), pathContext }, '', routeHash(view, id, revisionId));
-    status('Related evidence navigation preserved case / filter context. ' + trustLabel(), model?.corpus.governance?.synthetic ? 'synthetic' : '');
+    win.history.pushState({ filters: structuredClone(filters), pathContext: structuredClone(pathContext) }, '', routeHash(view, id, revisionId));
+    status('Linked evidence revealed within the path case; original graph filters retained for return. ' + trustLabel(), model?.corpus.governance?.synthetic ? 'synthetic' : '');
     if (!sameGraph) { buildFacets(); render(); $('content').focus(); }
   }
   function trustLabel() {
@@ -168,7 +204,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   function render() {
     if (!model) return;
     const visit = pathContext || route.view === 'paths' ? relatedNavigate : navigate;
-    const scopedClaims = model.corpus.claims.filter(c => !pathContext || (filters.cases ?? []).includes(c.caseId));
+    const scopedClaims = model.corpus.claims.filter(c => !pathContext || c.caseId === pathCase());
     const evidenceModel = pathContext ? { ...model, corpus: { ...model.corpus, claims: scopedClaims },
       claims: new Map(scopedClaims.map(c => [c.id, c])) } : model;
     for (const button of $('views').children) button.setAttribute('aria-current',
@@ -227,7 +263,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       $('result').textContent = `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
       $('content').append(renderExploration(doc, evidenceModel, route.view, filters, visit, route.id, () => load('/api/demo-research'), route.revisionId)); return;
     }
-    const records = filterRecords(model, route.view, filters);
+    const records = filterRecords(evidenceModel, route.view, pathContext ? { ...filters, cases: [pathCase()] } : filters);
     $('result').textContent = `${records.length} matching ${route.view} / ${model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;
     if (!records.length) {
       $('content').append(empty(model.corpus[route.view].length ?
@@ -377,8 +413,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       const loaded = await fetchCorpus(fetcher, endpoint);
       if (token !== request) return;
       model = loaded; studio = createStudio(model.corpus); pathContext = null; reset();
+      const notice = endpoint === '/api/corpus' ? restoreNavigation() : '';
       renderStats();
-      status(`${trustLabel()} ${model.corpus.name}`, model.corpus.governance?.synthetic ? 'synthetic' : '');
+      status(`${notice}${trustLabel()} ${model.corpus.name}`, model.corpus.governance?.synthetic ? 'synthetic' : '');
       render();
     } catch (error) {
       if (token === request) status(`${error.message} ${model ? 'Previously loaded corpus remains displayed.' : 'No corpus loaded; the synthetic demo can be tried explicitly.'}`, 'error');
@@ -404,17 +441,10 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   });
   function restoreRoute() {
     route = parseRoute(win.location.hash); reset();
-    pathContext = win.history.state?.pathContext ?? null;
-    if (win.history.state?.filters) {
-      filters = structuredClone(win.history.state.filters);
-      $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
-      if (model) buildFacets();
-    } else if (route.view === 'paths' && route.id) {
-      const path = model?.corpus.paths?.find(p => p.id === route.id);
-      if (path) { filters.cases = [path.caseId]; buildFacets(); }
-    }
     if (model) {
-      status('Route navigation reset search / facets. ' + trustLabel(), model.corpus.governance?.synthetic ? 'synthetic' : '');
+      const notice = restoreNavigation();
+      status(notice + (pathContext ? 'Saved case and path return context restored. ' : 'Route navigation reset search / facets. ') + trustLabel(),
+        model.corpus.governance?.synthetic ? 'synthetic' : '');
       render();
     }
   }

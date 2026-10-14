@@ -2,6 +2,12 @@
 
 ## 2026-10-14 — Scoped attack-path exploration (#46)
 
+- Correct the originating PR's review gaps: reveal explicit claim/source links
+  under case-only filters while preserving graph search/facets for return; restore
+  and validate saved context on reload/back/forward; project standalone shared
+  behavior support to the exported case with explicit limits; clamp pointer and
+  button pan/node movement to documented reset-fit bounds. Add focused synthetic
+  reload/retirement, JSON/Markdown closure and extreme/capture-loss regressions.
 - Extend existing SVG inspection with stable path-local node/edge routes, retained
   case/filter return context, no-path evidence navigation and explanatory invalid
   targets. Separate node/edge support, origins, uncertainty and conflicts.
