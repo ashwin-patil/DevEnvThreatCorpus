@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-14 — Scoped attack-path exploration (#46)
+
+- Preserve saved path-return context when changing a source revision instead of
+  clearing browser history state. Add a synthetic revision-switch regression for
+  reload/back/forward, selected-node/filter restoration, case isolation, ordinary
+  source navigation and unchanged corpus content.
+
+- Correct the originating PR's review gaps: reveal explicit claim/source links
+  under case-only filters while preserving graph search/facets for return; restore
+  and validate saved context on reload/back/forward; project standalone shared
+  behavior support to the exported case with explicit limits; clamp pointer and
+  button pan/node movement to documented reset-fit bounds. Add focused synthetic
+  reload/retirement, JSON/Markdown closure and extreme/capture-loss regressions.
+- Extend existing SVG inspection with stable path-local node/edge routes, retained
+  case/filter return context, no-path evidence navigation and explanatory invalid
+  targets. Separate node/edge support, origins, uncertainty and conflicts.
+- Present pinned, scope-checked node candidates separately from broad/unresolved
+  mappings; link behaviors to published references, security proposals and labeled
+  synthetic OTEL instrumentation without extraction or corpus write-back.
+- Preserve SVG focus/selection on zoom, pan and node movement; add non-drag
+  controls, pointer ownership/cancellation/capture-loss handling, deterministic
+  reset fit, propagation/loop text and geometry, and theme-aware selected/focused cues.
+- Complete private case-wide talk path/mapping presentation and revision/citation
+  closure while omitting article bodies and canvas state; reject invalid support
+  scope. Add branching, cycle, self-loop, disconnected, mixed-case, unsafe-text,
+  navigation and export regressions. Independent human and protected real-output
+  acceptance remain pending rather than implied by synthetic automation.
+
 ## 2026-10-14 — Grounded relationship and unresolved mapping prerequisite (#48)
 
 - Preserve explicitly supported self-loops and cycles through campaign normalization,

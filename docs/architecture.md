@@ -1,5 +1,11 @@
 # Fresh-start corpus architecture
 
+Source revision selection replaces the revision URL while retaining the current
+browser history state. Related path evidence therefore keeps its case scope,
+selected path element and original graph filters through reload/back/forward.
+Ordinary source navigation retains its existing null history state. The existing
+navigation restoration validates saved context; corpus records remain unchanged.
+
 ### ATLAS catalog and compact evidence presentation
 
 Framework resolver `/2` includes a checked-in official ATLAS 2026.09 projection
@@ -60,6 +66,56 @@ not observed activity. Node-scoped campaign mappings require all supporting
 claims, as well as the behavior, to belong to the selected node.
 
 ## Optional research presentation and private annotations
+
+Issue #46 extends the existing `src/explore.mjs` SVG, not extraction or persistence.
+The third existing route segment identifies a path-local node or edge on path
+routes (it remains a revision on source routes). Selection updates history without
+replacing graph controls. Related navigation stores case/facet/search context and
+the return selection in browser history state; direct URL entry restores the
+stable target, not a durable layout or previously saved filters. Ordinary top-level
+navigation still resets facets. Explicit linked targets use case-only filters
+instead of graph-specific search/facets; the original graph filters are retained
+separately for return. Initial corpus loading and history navigation share a
+restoration path that validates the saved path/case and filter field types against
+the loaded corpus. Missing/changed-case paths discard context with a notice;
+retired node/edge IDs remain invalid return targets, never substitutions.
+Scoped evidence projections restrict shared
+behaviors, source claims and conflict inspection to the active case. Invalid
+targets never silently substitute a different graph or related evidence record.
+
+Node mapping presentation requires paired path/node IDs, behavior membership,
+every claim within the node/case, and framework/version membership in a retained
+validated run catalog. It consumes historical snapshots rather than resolving
+against today's reference catalog. Unavailable provenance, broader mappings and
+unresolved literal IDs remain distinct; the UI cannot promote candidates or write
+back. Sequence/reconstruction, conditional execution and propagation labels
+remain independent of origin, classification and Pending disposition.
+
+Canvas redraw updates existing SVG attributes, preserving focused controls and
+selection. Gestures own one pointer ID, use inverse SVG screen coordinates,
+release capture on completion/cancellation and stop on capture loss. A movement
+threshold and subsequent-click suppression separate dragging from selection.
+Zoom is bounded relative to the deterministic all-node fit. Pointer and button
+movement use the same limits: a node's 240×105 box stays in that fit expanded by
+one fit-width/height on every side; the viewport center stays within one
+fit-width/height of the reset center at every zoom. Pan/move buttons and
+the complete text alternative do not require dragging; only a concise inspection
+status is live-announced. Layout, pan and zoom remain closure-local presentation
+state, absent from corpus hashes, review eligibility and exports.
+
+Talk bundles remain private case-wide read-only projections. Invalid path or
+mapping support scope fails closed before export. JSON retains path/node/edge and
+mapping records, historical catalogs, framework-parent/source closure and exact
+passages; `mappingScopes` distinguishes validated node targets from unavailable
+catalog provenance. Shared behavior `claimIds` and occurrences are copied and restricted to exported
+claims in the selected case. Other-case occurrences are omitted, even for
+standalone behaviors without paths/mappings; `behaviorProjection` labels the
+scope/limits in JSON and Markdown without changing canonical support or disposition.
+`revisionProvenance` retains revision identity/hashes but explicitly omits normalized
+article bodies. Markdown includes those same research
+limits, independent relationship support and proposal/synthetic labels with
+escaped imported text. Full article closure remains owned by protected campaign
+exports; no parallel extraction schema, persistence or public publication is added.
 
 The researcher-authorized local presentation integration adapts the former
 prototype's views to 0.3.0 without migrating its incident assertions. Core

@@ -8,6 +8,8 @@ import {
   canonicalSerialize, parseCsv, profileFiles, profileRecords, queryProfile, reviewBaseDigest, sha256, validateCorpus,
 } from '../scripts/contract.mjs';
 import { applyReview } from '../scripts/review.mjs';
+import { createModel } from '../src/model.mjs';
+import { talkBundle, talkMarkdown } from '../src/explore.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixture = new URL('./fixtures/benign/core-only.json', import.meta.url);
@@ -16,6 +18,69 @@ const run = args => {
   assert.equal(child.error, undefined);
   return { exit: child.status, ...JSON.parse(child.stdout) };
 };
+
+test('AP-08 talk projection closes catalog parents, sources and exact revisions without canvas state', async () => {
+  const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
+  const technique = corpus.frameworks[0];
+  technique.parentId = 'synthetic-parent';
+  corpus.frameworks.push({ ...technique, id: 'synthetic-parent', parentId: undefined });
+  const m = createModel(corpus), before = canonicalSerialize(corpus), bundle = talkBundle(m, corpus.paths[0].caseId);
+  assert.equal(bundle.frameworks.length, 2);
+  for (const claim of bundle.claims) {
+    assert.ok(bundle.sources.some(s => s.id === claim.sourceId));
+    assert.ok(bundle.revisionProvenance.some(r => r.id === claim.sourceRevisionId && r.bodyIncluded === false
+      && !Object.hasOwn(r, 'normalizedContent')));
+    for (const id of claim.passageIds) assert.ok(bundle.passages.some(p => p.id === id));
+  }
+  assert.match(talkMarkdown(bundle), /recorded relationship|Recorded relationship/);
+  assert.match(talkMarkdown(bundle), /Broader behavior\/case/);
+  assert.equal(Object.hasOwn(bundle, 'positions'), false);
+  assert.equal(Object.hasOwn(bundle, 'viewBox'), false);
+  assert.equal(canonicalSerialize(corpus), before);
+});
+
+test('AP-08 talk export fails closed on cross-case support and invalid node mapping scope', async () => {
+  const base = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
+  for (const change of [
+    m => { m.claimIds = ['synthetic-claim-c']; },
+    m => { m.pathId = 'other-case-path'; m.nodeId = 'node'; },
+    m => { m.pathId = base.paths[0].id; },
+    m => { m.pathId = base.paths[0].id; m.nodeId = base.paths[0].nodes[0].id; m.claimIds = ['synthetic-claim-a', 'synthetic-claim-b']; },
+  ]) {
+    const corpus = structuredClone(base); change(corpus.mappings[0]);
+    assert.throws(() => talkBundle(createModel(corpus), base.paths[0].caseId), /Invalid mapping support scope/);
+  }
+  const corpus = structuredClone(base);
+  corpus.paths[0].edges[0].claimIds = ['synthetic-claim-c'];
+  assert.throws(() => talkBundle(createModel(corpus), base.paths[0].caseId), /Invalid path support scope/);
+});
+
+test('AP-02/08 standalone shared behavior exports project every claim and occurrence to the selected case', async () => {
+  const corpus = JSON.parse(await readFile(fixture, 'utf8'));
+  corpus.behaviors = [{
+    id: 'shared-behavior', name: 'Shared synthetic behavior', origin: 'Human authored', disposition: 'Pending',
+    claimIds: ['synthetic-claim-a', 'synthetic-claim-c'],
+    occurrences: [
+      { caseId: 'synthetic-case-a', claimIds: ['synthetic-claim-a', 'synthetic-claim-c'] },
+      { caseId: 'synthetic-case-b', claimIds: ['synthetic-claim-c'] },
+      { claimIds: ['synthetic-claim-a', 'synthetic-claim-c'] },
+    ],
+  }];
+  const m = createModel(corpus), before = canonicalSerialize(corpus);
+  for (const caseId of ['synthetic-case-a', 'synthetic-case-b']) {
+    const bundle = talkBundle(m, caseId), behavior = bundle.behaviors[0], claimIds = new Set(bundle.claims.map(c => c.id));
+    const otherClaim = caseId === 'synthetic-case-a' ? 'synthetic-claim-c' : 'synthetic-claim-a';
+    assert.equal(bundle.paths.length, 0); assert.equal(bundle.mappings.length, 0);
+    assert.ok(behavior.claimIds.length);
+    for (const id of [...behavior.claimIds, ...behavior.occurrences.flatMap(o => o.claimIds)]) assert.ok(claimIds.has(id));
+    assert.ok(behavior.occurrences.every(o => !o.caseId || o.caseId === caseId));
+    assert.ok(!JSON.stringify(behavior).includes(otherClaim));
+    assert.ok(!talkMarkdown(bundle).includes(otherClaim));
+    assert.match(talkMarkdown(bundle), /Case-scoped behavior projection.*other-case support omitted/i);
+    for (const claim of bundle.claims) for (const id of claim.passageIds) assert.ok(bundle.passages.some(p => p.id === id));
+  }
+  assert.equal(canonicalSerialize(corpus), before);
+});
 
 async function setup(t, { accepted = false, optional = false, standalone = false } = {}) {
   const privateRoot = path.join(root, '.private-intake');

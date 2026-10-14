@@ -40,16 +40,54 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   const $ = id => doc.getElementById(id);
   let model = null, filters = {}, route = parseRoute(win.location.hash), activePassages = [], request = 0;
   let studio = null;
+  let pathContext = null;
+  const pathCase = () => model?.corpus.paths?.find(p => p.id === pathContext?.pathId)?.caseId;
+  function savedFilters(value, caseId) {
+    const restored = {};
+    for (const key of FACETS) if (Array.isArray(value?.[key]) && value[key].every(v => typeof v === 'string')) {
+      restored[key] = [...value[key]];
+    }
+    if (typeof value?.query === 'string') restored.query = value.query;
+    if (['OR', 'AND'].includes(value?.tagMode)) restored.tagMode = value.tagMode;
+    if (caseId) restored.cases = [caseId];
+    return restored;
+  }
+  function restoreNavigation() {
+    const state = win.history.state, context = state?.pathContext;
+    pathContext = null;
+    let notice = '';
+    if (context) {
+      const path = model.corpus.paths?.find(p => p.id === context.pathId);
+      if (path && typeof context.entityId === 'string' && context.filters?.cases?.length === 1
+        && context.filters.cases[0] === path.caseId) {
+        pathContext = { pathId: path.id, entityId: context.entityId, filters: savedFilters(context.filters, path.caseId) };
+      } else notice = 'Saved path context is invalid or unavailable in this corpus; no other path was substituted. ';
+    }
+    filters = savedFilters(pathContext ? (route.view === 'paths' ? pathContext.filters : state?.filters) : null, pathCase());
+    if (!pathContext && route.view === 'paths' && route.id) {
+      const path = model.corpus.paths?.find(p => p.id === route.id);
+      if (path) filters.cases = [path.caseId];
+    }
+    $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
+    buildFacets();
+    return notice;
+  }
   const status = (text, kind = '') => {
     $('status').textContent = text; $('status').setAttribute('data-kind', kind);
   };
   function reset() {
     filters = {}; activePassages = [];
+    if (pathCase()) filters.cases = [pathCase()];
     $('search').value = ''; $('tag-mode').value = 'OR';
     if (model) buildFacets();
   }
   function navigate(view, id = '', revisionId = '') {
+    pathContext = null;
     reset();
+    if (view === 'paths' && id) {
+      const path = model?.corpus.paths?.find(p => p.id === id);
+      if (path) filters.cases = [path.caseId];
+    }
     status('Navigation revealed the target and reset search / facets. ' + trustLabel(),
       model?.corpus.governance?.synthetic ? 'synthetic' : '');
     route = { view, id, revisionId };
@@ -59,6 +97,28 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     win.history.pushState(null, '', hash);
     render();
     $('content').focus();
+  }
+  function relatedNavigate(view, id = '', revisionId = '') {
+    if (route.view === 'paths') {
+      const path = explorationRecords(model, 'paths', filters).records.find(p => p.id === route.id)
+        ?? (!route.id ? explorationRecords(model, 'paths', filters).records[0] : null);
+      if (path) {
+        filters.cases = [path.caseId];
+        pathContext = { pathId: path.id, entityId: route.revisionId || path.nodes[0]?.id || '', filters: structuredClone(filters) };
+      }
+    }
+    if (!pathContext) return navigate(view, id, revisionId);
+    activePassages = [];
+    const sameGraph = view === 'paths' && route.view === 'paths' && id === pathContext.pathId && revisionId;
+    if (sameGraph) pathContext.entityId = revisionId;
+    if (route.view === 'paths') win.history.replaceState({ filters: structuredClone(filters), pathContext: structuredClone(pathContext) },
+      '', routeHash(route.view, route.id || pathContext.pathId, route.revisionId || pathContext.entityId));
+    filters = view === 'paths' && id === pathContext.pathId ? structuredClone(pathContext.filters) : { cases: [pathCase()] };
+    $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
+    route = { view, id, revisionId };
+    win.history.pushState({ filters: structuredClone(filters), pathContext: structuredClone(pathContext) }, '', routeHash(view, id, revisionId));
+    status('Linked evidence revealed within the path case; original graph filters retained for return. ' + trustLabel(), model?.corpus.governance?.synthetic ? 'synthetic' : '');
+    if (!sameGraph) { buildFacets(); render(); $('content').focus(); }
   }
   function trustLabel() {
     return model?.corpus.governance?.synthetic ?
@@ -143,9 +203,18 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   }
   function render() {
     if (!model) return;
+    const visit = pathContext || route.view === 'paths' ? relatedNavigate : navigate;
+    const scopedClaims = model.corpus.claims.filter(c => !pathContext || c.caseId === pathCase());
+    const evidenceModel = pathContext ? { ...model, corpus: { ...model.corpus, claims: scopedClaims },
+      claims: new Map(scopedClaims.map(c => [c.id, c])) } : model;
     for (const button of $('views').children) button.setAttribute('aria-current',
       button.dataset.view === route.view ? 'page' : 'false');
     $('content').replaceChildren();
+    if (pathContext && route.view !== 'paths') $('content').append(action(doc, 'Return to selected path element', () => {
+      const context = pathContext;
+      filters = structuredClone(context.filters); $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
+      relatedNavigate('paths', context.pathId, context.entityId);
+    }));
     $('toolbar').hidden = ['method', 'studio'].includes(route.view);
     if (route.view === 'studio') {
       $('result').textContent = 'Private curator drafts · no canonical writes or approval';
@@ -192,9 +261,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       const selection = explorationRecords(model, route.view, filters);
       const annotationCount = (model.annotations ?? []).filter(a => (VIEW_ANNOTATIONS[route.view] ?? []).includes(a.type) && selection.caseIds.has(a.caseId) && (!filters.query || JSON.stringify(a).toLowerCase().includes(filters.query.toLowerCase()))).length;
       $('result').textContent = `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
-      $('content').append(renderExploration(doc, model, route.view, filters, navigate, route.id, () => load('/api/demo-research'))); return;
+      $('content').append(renderExploration(doc, evidenceModel, route.view, filters, visit, route.id, () => load('/api/demo-research'), route.revisionId)); return;
     }
-    const records = filterRecords(model, route.view, filters);
+    const records = filterRecords(evidenceModel, route.view, pathContext ? { ...filters, cases: [pathCase()] } : filters);
     $('result').textContent = `${records.length} matching ${route.view} / ${model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;
     if (!records.length) {
       $('content').append(empty(model.corpus[route.view].length ?
@@ -203,6 +272,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       return;
     }
     const selected = records.find(r => r.id === route.id) ?? records[0];
+    if (pathContext && route.id && !records.some(r => r.id === route.id)) {
+      $('content').append(empty('Target outside the active case / filters or retired. No different research record has been substituted.')); return;
+    }
     if (route.id && !model[route.view].has(route.id)) {
       $('content').append(empty('Unknown target. No different research record has been substituted.'),
         action(doc, `Return to ${VIEWS[route.view]}`, () => navigate(route.view))); return;
@@ -230,9 +302,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     const detail = element(doc, 'div');
     if (route.id && selected.id !== route.id) detail.append(element(doc, 'p', 'The selected target is hidden by filters; showing the matching record named below. Reset filters to return to the selected target.', 'subtle'));
     if (route.id && !model[route.view].has(route.id)) detail.append(element(doc, 'p', 'Unknown target; showing a matching record instead.', 'subtle'));
-    if (route.view === 'cases') detail.append(action(doc, 'Back to campaign cards', () => navigate('cases', '')), renderCase(doc, model, selected, navigate,
+    if (route.view === 'cases') detail.append(action(doc, 'Back to campaign cards', () => visit('cases', '')), renderCase(doc, evidenceModel, selected, visit,
       value => downloadProposal(doc, win, value, 'campaign-citations.json')),
-      renderEvidencePanel(doc, model, selected, navigate, async (format, value) => {
+      renderEvidencePanel(doc, evidenceModel, selected, visit, async (format, value) => {
         let campaign = null;
         if (model.collectionEnabled && model.corpus.governance?.campaignExtraction) {
           const response = await fetcher('/api/campaign/export', { method: 'POST', cache: 'no-store',
@@ -250,16 +322,16 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
           win.setTimeout(() => win.URL.revokeObjectURL(url), 1000);
         }
       }));
-    if (route.view === 'sources') detail.append(action(doc, 'Back to research library cards', () => navigate('sources', '')), renderSource(doc, model, selected, route.revisionId, navigate,
-      id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
+    if (route.view === 'sources') detail.append(action(doc, 'Back to research library cards', () => visit('sources', '')), renderSource(doc, evidenceModel, selected, route.revisionId, visit,
+      id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(win.history.state, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
       ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
     if (route.view === 'claims') {
       const target = claimTarget(model, selected.id), panel = element(doc, 'section', null, 'panel');
       panel.append(element(doc, 'h2', 'Claim & exact source evidence'),
-        renderClaim(doc, model, selected, navigate),
-        renderConflicts(doc, model, [selected.id], navigate));
-      detail.append(panel, renderSource(doc, model, model.sources.get(target.sourceId), target.revisionId, navigate,
-        id => navigate('sources', target.sourceId, id), ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
+        renderClaim(doc, evidenceModel, selected, visit),
+        renderConflicts(doc, evidenceModel, [selected.id], visit));
+      detail.append(panel, renderSource(doc, evidenceModel, model.sources.get(target.sourceId), target.revisionId, visit,
+        id => visit('sources', target.sourceId, id), ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
     }
     workspace.append(list, detail); $('content').append(workspace);
   }
@@ -340,9 +412,10 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     try {
       const loaded = await fetchCorpus(fetcher, endpoint);
       if (token !== request) return;
-      model = loaded; studio = createStudio(model.corpus); reset();
+      model = loaded; studio = createStudio(model.corpus); pathContext = null; reset();
+      const notice = endpoint === '/api/corpus' ? restoreNavigation() : '';
       renderStats();
-      status(`${trustLabel()} ${model.corpus.name}`, model.corpus.governance?.synthetic ? 'synthetic' : '');
+      status(`${notice}${trustLabel()} ${model.corpus.name}`, model.corpus.governance?.synthetic ? 'synthetic' : '');
       render();
     } catch (error) {
       if (token === request) status(`${error.message} ${model ? 'Previously loaded corpus remains displayed.' : 'No corpus loaded; the synthetic demo can be tried explicitly.'}`, 'error');
@@ -369,7 +442,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   function restoreRoute() {
     route = parseRoute(win.location.hash); reset();
     if (model) {
-      status('Route navigation reset search / facets. ' + trustLabel(), model.corpus.governance?.synthetic ? 'synthetic' : '');
+      const notice = restoreNavigation();
+      status(notice + (pathContext ? 'Saved case and path return context restored. ' : 'Route navigation reset search / facets. ') + trustLabel(),
+        model.corpus.governance?.synthetic ? 'synthetic' : '');
       render();
     }
   }

@@ -40,6 +40,45 @@ acceptance eligibility; local reviewer identity is self-attested, not authentica
 
 ## Current implementation
 
+Attack paths retain stable `#paths/<path-id>/<node-or-edge-id>` routes. Select a
+node or directed relationship on the SVG canvas or in its complete text
+alternative; related evidence, behavior, framework and telemetry navigation keeps
+the case context and offers **Return to selected path element**. Explicit evidence
+links clear graph-specific search/facets so they can reveal the linked claim or
+source, while the return action restores the original graph filters and selection.
+Changing a source revision retains this saved return context, including after
+reload and browser back/forward. Missing paths
+discard it with an explanation, and retired elements remain explanatory targets. Missing,
+retired or filtered targets explain their state rather than substituting another
+case. Cases without paths still expose their claims and behaviors.
+
+The graph labels representative/composite scope, research-exercise case kind and
+recorded review state. Solid sequence, dashed conditional and dotted propagation
+curves describe relationships, not evidence strength, execution or chronology.
+Inspection keeps node and edge support separate, including exact passages,
+uncertainty and conflicts. Node candidates require matching behavior, every
+supporting claim and a retained pinned catalog; broader and unresolved candidates
+are labeled separately. No recorded candidate does not mean no behavior occurred.
+
+Zoom, background pan and explicit node grips affect only in-memory presentation.
+Use **Pan** and **Move selected node** buttons without dragging; **Reset layout**
+restores a deterministic fit, including disconnected nodes and loops. Enter/Space
+select named controls; focus survives canvas updates and a short status announces
+inspection. Both themes and narrow screens use the existing workbench shell.
+Pointer and button movement share bounds based on the reset fit: node boxes can
+move one fit-width/height beyond each side, and the viewport center can move one
+fit-width/height from its reset center. Reaching a boundary clamps further movement;
+zoom and reset retain these presentation-only limits.
+Private case-wide talk JSON/Markdown bundles include paths, independent node/edge
+support, mapping scope labels, catalog provenance and revision hashes with exact
+passages, but omit full article bodies and visual layout state.
+Shared behaviors are case-scoped projections: only the selected case's claims and
+occurrences survive, with an explicit limit label; canonical records stay unchanged.
+Protected campaign exports remain the full retained-revision closure; selected-path-only and image
+exports are deferred. Never commit private bundles or screenshots of private data.
+Independent research, screen-reader/accessibility, UX and documentation review
+and a protected real-extraction walkthrough remain required before merge.
+
 Variable-height research/artifact cards use a column flow with consistent gutters
 so shorter cards do not leave an empty grid row underneath. Campaign cards retain
 stable expandable grid positions. Publisher labels and Publisher filters use
