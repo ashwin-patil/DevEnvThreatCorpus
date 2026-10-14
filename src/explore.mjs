@@ -1,4 +1,4 @@
-import { element, action, safeExternalUrl, caseCitations, renderClaim, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend } from './render.mjs';
+import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend } from './render.mjs';
 import { filterRecords, metadata, caseSourceIds } from './model.mjs';
 import { publisherDisplay, behaviorInventory } from './research-inventory.mjs';
 import { aiLibrary } from './ai-library.mjs';
@@ -156,15 +156,45 @@ function provenance(doc, record) {
   return element(doc, 'p', [record.origin, record.evidenceStatus, record.disposition ?? record.status ?? 'Pending',
     record.mappingStatus].filter(Boolean).join(' · '), 'subtle');
 }
-function support(doc, model, ids, navigate) {
+function support(doc, model, ids, navigate, caseId) {
   const section = element(doc, 'details'); section.append(element(doc, 'summary', 'Supporting claims and exact passages'));
+  const scopedClaims = model.corpus.claims.filter(c => !caseId || c.caseId === caseId);
+  const scopedModel = { ...model, corpus: { ...model.corpus, claims: scopedClaims }, claims: new Map(scopedClaims.map(c => [c.id, c])) };
   for (const id of [...new Set(ids ?? [])]) {
-    const claim = model.claims.get(id);
-    if (claim) section.append(renderClaim(doc, model, claim, navigate));
-    else section.append(element(doc, 'p', `Unavailable claim: ${id}. No support inferred.`));
+    const claim = scopedModel.claims.get(id);
+    if (claim) section.append(renderClaim(doc, scopedModel, claim, navigate));
+    else section.append(element(doc, 'p', `Unavailable claim or outside this case: ${id}. No support inferred.`));
   }
+  section.append(renderConflicts(doc, scopedModel, ids ?? [], navigate));
   if (!ids?.length) section.append(element(doc, 'p', 'No claim support recorded. This is not established campaign evidence.'));
   return section;
+}
+
+export function nodeMappings(model, path, node) {
+  const claimsMatch = ids => ids?.length && ids.every(id => node.claimIds.includes(id) && model.claims.get(id)?.caseId === path.caseId);
+  const records = list(model, 'mappings').filter(m => m.caseId === path.caseId && node.behaviorIds.includes(m.behaviorId));
+  const runs = (model.corpus.governance?.campaignExtraction?.runs ?? []).filter(r => r.caseId === path.caseId);
+  const catalogs = runs.flatMap(r => r.catalogSnapshot?.catalogs ?? []);
+  const pinned = m => list(model, 'frameworks').some(t => t.id === m.techniqueId && t.framework === m.framework && t.version === m.version)
+    && catalogs.some(c => c.framework === m.framework && c.version === m.version && c.immutableRevision && c.materialDigest
+      && c.techniques?.some(t => t.id === m.techniqueId));
+  const targeted = records.filter(m => m.pathId === path.id && m.nodeId === node.id);
+  return {
+    nodeScoped: targeted.filter(m => claimsMatch(m.claimIds) && pinned(m)),
+    broad: records.filter(m => !m.pathId && !m.nodeId && m.claimIds?.every(id => model.claims.get(id)?.caseId === path.caseId)),
+    unresolved: runs.flatMap(r => r.unresolvedMappings ?? []).filter(m => node.behaviorIds.includes(m.behaviorId)
+      && ((!m.pathId && !m.nodeId) || (m.pathId === path.id && m.nodeId === node.id && claimsMatch(m.supportingClaimIds)))),
+    unavailable: targeted.filter(m => !claimsMatch(m.claimIds) || !pinned(m)),
+  };
+}
+
+function mappingCard(doc, model, mapping, navigate, caseId, scope) {
+  const card = element(doc, 'article', null, 'claim-card');
+  card.append(element(doc, 'h4', `${mapping.framework} ${mapping.version} · ${mapping.techniqueLiteral ?? mapping.techniqueId} · ${scope}`), provenance(doc, mapping));
+  for (const [key, label] of [['rationale', 'Rationale'], ['applicability', 'Applicability'], ['reason', 'Resolution limit']]) row(doc, card, label, mapping[key]);
+  card.append(support(doc, model, mapping.claimIds ?? mapping.supportingClaimIds, navigate, caseId));
+  if (mapping.techniqueId) card.append(action(doc, 'Inspect recorded framework candidate', () => navigate('frameworks', mapping.techniqueId)));
+  return card;
 }
 function annotationCard(doc, model, annotation, navigate) {
   const card = element(doc, 'article', null, 'claim-card');
@@ -217,16 +247,51 @@ export function talkBundle(model, caseId) {
   const claims = model.corpus.claims.filter(c => c.caseId === caseId);
   const passageIds = new Set(claims.flatMap(c => c.passageIds));
   const paths = list(model, 'paths').filter(p => p.caseId === caseId), mappings = list(model, 'mappings').filter(m => m.caseId === caseId);
-  const behaviorIds = new Set([...paths.flatMap(p => p.nodes.flatMap(n => n.behaviorIds)), ...mappings.map(m => m.behaviorId)]);
+  const caseSupport = ids => (ids ?? []).every(id => model.claims.get(id)?.caseId === caseId);
+  for (const p of paths) {
+    if (p.nodes.some(n => !caseSupport(n.claimIds)) || p.edges.some(e => !caseSupport(e.claimIds)
+      || !p.nodes.some(n => n.id === e.from) || !p.nodes.some(n => n.id === e.to))) {
+      throw new Error('Invalid path support scope; cannot export a talk bundle.');
+    }
+  }
+  for (const m of mappings) {
+    const path = paths.find(p => p.id === m.pathId), node = path?.nodes.find(n => n.id === m.nodeId);
+    if (!caseSupport(m.claimIds) || Boolean(m.pathId) !== Boolean(m.nodeId) || (m.pathId &&
+      (!node || !node.behaviorIds.includes(m.behaviorId) || !m.claimIds.length || !m.claimIds.every(id => node.claimIds.includes(id))))) {
+      throw new Error('Invalid mapping support scope; cannot export a talk bundle.');
+    }
+  }
+  const behaviorIds = new Set([...paths.flatMap(p => p.nodes.flatMap(n => n.behaviorIds)), ...mappings.map(m => m.behaviorId),
+    ...list(model, 'behaviors').filter(b => behaviorSupport(model, b).some(id => model.claims.get(id)?.caseId === caseId)).map(b => b.id)]);
+  const techniqueIds = new Set(mappings.map(m => m.techniqueId));
+  let size;
+  do {
+    size = techniqueIds.size;
+    for (const t of list(model, 'frameworks')) if (techniqueIds.has(t.id) && t.parentId) techniqueIds.add(t.parentId);
+  } while (techniqueIds.size !== size);
+  const frameworks = list(model, 'frameworks').filter(t => techniqueIds.has(t.id));
+  const otel = list(model, 'otel').filter(o => behaviorIds.has(o.behaviorId));
+  const sourceIds = new Set([...caseSourceIds(model, caseId), ...frameworks.map(t => t.sourceId), ...otel.flatMap(o => o.standardSourceIds ?? [])]);
+  const runs = (model.corpus.governance?.campaignExtraction?.runs ?? []).filter(r => r.caseId === caseId);
   return { schemaVersion: 'talk-bundle/1', private: true, warning: 'Research draft. Recorded dispositions do not establish current eligibility or independent approval.',
     corpusSnapshot: model.snapshot ?? null, case: record, citations: caseCitations(model, record).citations,
     claims, passages: model.corpus.passages.filter(p => passageIds.has(p.id)), annotations: caseAnnotations(model, caseId),
     categorizations: model.corpus.categorizations.filter(c => c.caseId === caseId), timelines: model.corpus.timelines.filter(t => t.caseId === caseId),
-    paths, mappings, behaviors: list(model, 'behaviors').filter(b => behaviorIds.has(b.id)),
-    frameworks: list(model, 'frameworks').filter(t => mappings.some(m => m.techniqueId === t.id)),
+    paths, mappings, mappingScopes: Object.fromEntries(mappings.map(m => {
+      const path = paths.find(p => p.id === m.pathId), node = path?.nodes.find(n => n.id === m.nodeId);
+      return [m.id, !node ? 'Broader behavior/case candidate — not node-specific' :
+        nodeMappings(model, path, node).nodeScoped.includes(m) ? 'Node-scoped candidate — Proposed' :
+          'Node target recorded; catalog provenance unavailable — not a validated node mapping'];
+    })), behaviors: list(model, 'behaviors').filter(b => behaviorIds.has(b.id)),
+    sources: model.corpus.sources.filter(s => sourceIds.has(s.id)),
+    revisionProvenance: model.corpus.sourceRevisions.filter(r => sourceIds.has(r.sourceId)).map(({ normalizedContent, ...revision }) => ({
+      ...revision, bodyIncluded: false,
+    })),
+    frameworks, unresolvedMappings: runs.flatMap(r => r.unresolvedMappings ?? []),
+    catalogSnapshots: runs.map(r => r.catalogSnapshot).filter(Boolean),
     telemetry: list(model, 'telemetry').filter(t => behaviorIds.has(t.behaviorId)),
     detections: list(model, 'detections').filter(d => behaviorIds.has(d.behaviorId)),
-    otel: list(model, 'otel').filter(o => behaviorIds.has(o.behaviorId)) };
+    otel, otelReference: model.corpus.otelReference ?? null };
 }
 export function talkMarkdown(bundle) {
   // Escape Markdown/HTML punctuation in all imported prose; source text is never executable markup.
@@ -239,6 +304,7 @@ export function talkMarkdown(bundle) {
     for (const passage of bundle.passages.filter(p => claim.passageIds.includes(p.id))) lines.push('',
       ...String(passage.text ?? '').split('\n').map(line => `> ${text(line)}`), `Locator: ${text(passage.locator)}`);
     if (claim.inference) lines.push(`Inference rationale: ${text(claim.inference.rationale)}`);
+    lines.push(`Uncertainty: ${text(claim.uncertainty)}`, `Conflicts: ${text(JSON.stringify(claim.conflictsWith))}`);
   }
   for (const [type, label] of Object.entries(ANNOTATION_LABELS)) {
     const items = bundle.annotations.filter(a => a.type === type); if (!items.length) continue;
@@ -250,7 +316,22 @@ export function talkMarkdown(bundle) {
   }
   if (bundle.timelines.length) lines.push('', '## Typed timeline', ...bundle.timelines.map(t => `- ${text(t.description)} — ${text(t.dateType)} — ${text(JSON.stringify(t.date))}`));
   if (bundle.categorizations.length) lines.push('', '## Categorization proposals', ...bundle.categorizations.map(c => `- ${text(c.dimension)}: ${text(c.value)} — ${text(c.disposition)}`));
-  if (bundle.mappings.length) lines.push('', '## Candidate framework mappings', ...bundle.mappings.map(m => `- ${text(m.framework)} ${text(m.version)} ${text(m.techniqueId)} — ${text(m.mappingStatus)} — ${text(m.rationale)}`));
+  lines.push('', '## Attack paths', 'Canvas position is presentation only, not chronology, causality or evidence.');
+  for (const path of bundle.paths) {
+    lines.push('', `### ${text(path.name ?? path.id)}`, `Case kind: ${text(bundle.case.kind)} · Scope: ${text(path.scope)}`,
+      text(`${path.origin} · ${path.disposition}`));
+    for (const node of path.nodes) lines.push('', `Node: ${text(node.title)}`, `Recorded node and support: ${text(JSON.stringify(node))}`);
+    for (const edge of path.edges) lines.push('', `${text(path.nodes.find(n => n.id === edge.from)?.title ?? edge.from)} → ${text(path.nodes.find(n => n.id === edge.to)?.title ?? edge.to)}`,
+      `Recorded relationship and independent support: ${text(JSON.stringify(edge))}`);
+  }
+  if (bundle.mappings.length) lines.push('', '## Candidate framework mappings', ...bundle.mappings.map(m =>
+    `- ${text(bundle.mappingScopes?.[m.id] ?? 'Scope unavailable')}: ${text(JSON.stringify(m))}`));
+  for (const [key, label] of [['unresolvedMappings', 'Unresolved candidates — literal IDs, not resolved mappings'], ['behaviors', 'Local behaviors'],
+    ['telemetry', 'Proposed security telemetry'], ['otel', 'Proposed OTEL instrumentation — Synthetic sample, not incident telemetry'],
+    ['sources', 'Source provenance'], ['revisionProvenance', 'Retained revision provenance — article bodies omitted; exact passages above'], ['frameworks', 'Recorded framework references'],
+    ['catalogSnapshots', 'Pinned historical catalogs']]) {
+    if (bundle[key]?.length) lines.push('', `## ${label}`, ...bundle[key].map(r => `- ${text(JSON.stringify(r))}`));
+  }
   if (bundle.detections?.length) lines.push('', '## Detection hypotheses', ...bundle.detections.map(d => `- ${text(d.hypothesis)} — ${text(d.validation)} — ${text(d.origin)}`));
   return lines.join('\n') + '\n';
 }
@@ -282,72 +363,169 @@ function svgNode(doc, tag, attributes = {}, text) {
 export function graphLayout(path) {
   return Object.fromEntries(path.nodes.map((node, index) => [node.id, { x: 24 + (index % 3) * 290, y: 28 + Math.floor(index / 3) * 165 }]));
 }
-function renderGraph(doc, model, path, navigate) {
+function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   const panel = element(doc, 'section', null, 'panel attack-graph');
   panel.append(element(doc, 'h2', path.name ?? model.cases.get(path.caseId)?.name ?? path.id), provenance(doc, path),
-    element(doc, 'p', 'Solid: proposed sequence · dashed: conditional · orange: propagation. Relationships retain their recorded basis; graph position is presentation only.'));
+    element(doc, 'p', `${model.cases.get(path.caseId)?.kind} · ${path.scope} path · ${path.disposition ?? 'Pending'}`),
+    element(doc, 'p', 'Solid: reported/reconstructed sequence · dashed: conditional prerequisite or unestablished execution · double/dotted curve: propagation, including loops. Line style does not establish evidence strength. Graph position is presentation only, not chronology, causality or attribution.'),
+    action(doc, 'Return to path case', () => navigate('cases', path.caseId)));
   const toolbar = element(doc, 'div', null, 'graph-toolbar'), inspection = element(doc, 'section', null, 'graph-inspection');
-  const svg = svgNode(doc, 'svg', { viewBox: '0 0 920 430', class: 'research-graph', role: 'img', 'aria-label': 'Attack path diagram; keyboard node and edge controls follow below' });
-  let positions = graphLayout(path), box = { x: 0, y: 0, w: 920, h: Math.max(430, Math.ceil(path.nodes.length / 3) * 165 + 50) }, dragging = null;
-  const showNode = node => {
-    inspection.replaceChildren(element(doc, 'h3', node.title), element(doc, 'p', node.detail), provenance(doc, node), support(doc, model, node.claimIds, navigate));
-    for (const id of node.behaviorIds) inspection.append(action(doc, model.corpus.behaviors?.find(b => b.id === id)?.name ?? id, () => navigate('behaviors', id)));
+  const announcement = element(doc, 'p', '', 'subtle');
+  announcement.setAttribute('role', 'status'); announcement.setAttribute('aria-live', 'polite'); announcement.setAttribute('aria-atomic', 'true');
+  const svg = svgNode(doc, 'svg', { class: 'research-graph', role: 'group', 'aria-label': 'Attack path diagram; keyboard node and edge controls and complete text alternative follow' });
+  const fittedBox = () => {
+    const values = Object.values(graphLayout(path));
+    const width = Math.max(920, ...values.map(p => p.x + 390));
+    return { x: -30, y: -100, w: width + 60, h: Math.max(430, ...values.map(p => p.y + 240)) + 100 };
   };
-  const showEdge = edge => inspection.replaceChildren(element(doc, 'h3', edge.relation), element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate));
+  let positions = graphLayout(path), box = fittedBox(), dragging = null, suppressClick = false, selected = null;
+  const nodeElements = new Map(), edgeElements = new Map(), textControls = new Map();
+  function select(kind, record, updateRoute) {
+    selected = { kind, id: record.id };
+    for (const [key, group] of [...nodeElements, ...edgeElements]) group.setAttribute('aria-pressed', String(key === `${kind}:${record.id}`));
+    for (const [key, control] of textControls) control.setAttribute('aria-pressed', String(key === `${kind}:${record.id}`));
+    announcement.textContent = `Inspecting ${kind === 'node' ? record.title : `${record.relation} relationship`}. Support and proposals are available below.`;
+    if (updateRoute) navigate('paths', path.id, record.id);
+  }
+  const showNode = (node, updateRoute = true) => {
+    inspection.replaceChildren(element(doc, 'h3', node.title), element(doc, 'p', node.detail), provenance(doc, node),
+      support(doc, model, node.claimIds, navigate, path.caseId));
+    row(doc, inspection, 'Uncertainty', node.uncertainty);
+    for (const id of node.behaviorIds) inspection.append(action(doc, model.corpus.behaviors?.find(b => b.id === id)?.name ?? id, () => navigate('behaviors', id)));
+    const mappings = nodeMappings(model, path, node);
+    inspection.append(element(doc, 'h4', 'Node-scoped candidates — Proposed, not established occurrence'));
+    for (const m of mappings.nodeScoped) inspection.append(mappingCard(doc, model, m, navigate, path.caseId, 'Node-scoped candidate'));
+    if (!mappings.nodeScoped.length) inspection.append(element(doc, 'p', 'No node-scoped candidate recorded with verified scope and a retained catalog pin. This does not mean the behavior is absent.'));
+    if (mappings.unavailable.length) inspection.append(element(doc, 'p', 'Some candidates have unavailable catalog provenance or invalid node support; not presented as validated node mappings.'));
+    if (mappings.broad.length) inspection.append(element(doc, 'h4', 'Broader behavior/case candidates — not node-specific'));
+    for (const m of mappings.broad) inspection.append(mappingCard(doc, model, m, navigate, path.caseId, 'Broader behavior/case candidate'));
+    for (const m of mappings.unresolved) inspection.append(mappingCard(doc, model, m, navigate, path.caseId,
+      m.pathId ? 'Unresolved node candidate — literal ID' : 'Unresolved broader candidate — literal ID'));
+    select('node', node, updateRoute);
+  };
+  const showEdge = (edge, updateRoute = true) => {
+    inspection.replaceChildren(element(doc, 'h3', `${path.nodes.find(n => n.id === edge.from)?.title ?? edge.from} → ${path.nodes.find(n => n.id === edge.to)?.title ?? edge.to}`),
+      element(doc, 'p', `${edge.relation}: ${edge.basis}`), provenance(doc, edge),
+      element(doc, 'p', 'Node support does not establish this relationship. Reported/reconstructed sequence and conditional execution retain their recorded basis.'),
+      support(doc, model, edge.claimIds, navigate, path.caseId));
+    row(doc, inspection, 'Uncertainty', edge.uncertainty); select('edge', edge, updateRoute);
+  };
+  const activate = handler => event => {
+    if (event.type === 'keydown' || event.key) {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+    } else if (suppressClick) { suppressClick = false; return; }
+    handler();
+  };
+  const defs = svgNode(doc, 'defs'), marker = svgNode(doc, 'marker', { id: 'research-arrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
+  marker.append(svgNode(doc, 'path', { d: 'M 0 0 L 10 5 L 0 10 z', class: 'edge-arrow' })); defs.append(marker); svg.append(defs);
+  for (const edge of path.edges) {
+    const group = svgNode(doc, 'g', { class: `research-edge ${edge.relation}`, role: 'button', tabindex: 0, 'data-entity-kind': 'edge',
+      'data-entity-id': edge.id, 'aria-label': `Inspect ${path.nodes.find(n => n.id === edge.from)?.title} to ${path.nodes.find(n => n.id === edge.to)?.title}: ${edge.relation}, ${edge.basis}` });
+    const hit = svgNode(doc, 'path', { class: 'edge-hit' }), line = svgNode(doc, 'path', { class: 'edge-line', 'marker-end': 'url(#research-arrow)' });
+    const label = svgNode(doc, 'text', { 'text-anchor': 'middle', class: 'edge-label' }, edge.relation === 'propagates' ? '↻ propagates' : edge.relation);
+    group.append(hit, line, label, svgNode(doc, 'title', {}, edge.basis));
+    group.addEventListener('click', activate(() => showEdge(edge))); group.addEventListener('keydown', activate(() => showEdge(edge)));
+    edgeElements.set(`edge:${edge.id}`, group); svg.append(group);
+  }
+  for (const node of path.nodes) {
+    const group = svgNode(doc, 'g', { class: 'research-node', tabindex: 0, role: 'button', 'data-entity-kind': 'node',
+      'data-entity-id': node.id, 'aria-label': `Inspect node: ${node.title}` });
+    group.append(svgNode(doc, 'rect', { width: 240, height: 105, rx: 6 }));
+    const words = node.title.split(/\s+/), lines = [''];
+    for (const word of words) { if ((lines.at(-1) + word).length > 28 && lines.at(-1)) lines.push(''); lines[lines.length - 1] += `${word} `; }
+    lines.slice(0, 3).forEach((line, index) => group.append(svgNode(doc, 'text', { x: 12, y: 23 + index * 17 }, line.trim().slice(0, 30))));
+    group.append(svgNode(doc, 'text', { x: 12, y: 88, class: 'node-status' }, node.disposition ?? 'Pending'), svgNode(doc, 'title', {}, `${node.title}: ${node.detail}`));
+    group.addEventListener('click', activate(() => showNode(node))); group.addEventListener('keydown', activate(() => showNode(node)));
+    const grip = svgNode(doc, 'circle', { cx: 225, cy: 12, r: 6, class: 'node-grip', 'data-drag-node': node.id });
+    group.append(grip); nodeElements.set(`node:${node.id}`, group); svg.append(group);
+  }
   function paint() {
-    svg.setAttribute('viewBox', `${box.x} ${box.y} ${box.w} ${box.h}`); svg.replaceChildren();
-    const defs = svgNode(doc, 'defs'), marker = svgNode(doc, 'marker', { id: 'research-arrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
-    marker.append(svgNode(doc, 'path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: '#2c5e50' })); defs.append(marker); svg.append(defs);
+    svg.setAttribute('viewBox', `${box.x} ${box.y} ${box.w} ${box.h}`);
     for (const edge of path.edges) {
       const a = positions[edge.from], b = positions[edge.to]; if (!a || !b) continue;
       const sameRow = Math.abs(a.y - b.y) < 80 && edge.from !== edge.to;
       const sx = sameRow ? a.x + (b.x > a.x ? 240 : 0) : a.x + 120, sy = sameRow ? a.y + 52 : a.y + 105;
       const tx = sameRow ? b.x + (b.x > a.x ? 0 : 240) : b.x + 120, ty = sameRow ? b.y + 52 : b.y;
-      const d = edge.from === edge.to ? `M${sx} ${sy} C${sx + 160} ${sy + 70} ${tx + 160} ${ty - 70} ${tx} ${ty}` :
-        sameRow ? `M${sx} ${sy} C${(sx + tx) / 2} ${sy} ${(sx + tx) / 2} ${ty} ${tx} ${ty}` :
+      const offset = path.nodes.findIndex(n => n.id === edge.from) < path.nodes.findIndex(n => n.id === edge.to) ? -70 : 70;
+      const d = edge.from === edge.to ? `M${a.x + 240} ${a.y + 60} C${a.x + 360} ${a.y + 60} ${a.x + 360} ${a.y - 80} ${a.x + 180} ${a.y}` :
+        sameRow ? `M${sx} ${sy} C${sx} ${sy + offset} ${tx} ${ty + offset} ${tx} ${ty}` :
           `M${sx} ${sy} C${sx} ${(sy + ty) / 2} ${tx} ${(sy + ty) / 2} ${tx} ${ty}`;
-      const group = svgNode(doc, 'g', { class: `research-edge ${edge.relation}`, role: 'button', tabindex: 0, 'aria-label': `Inspect ${edge.relation}: ${edge.basis}` });
-      group.append(svgNode(doc, 'path', { d, class: 'edge-hit' }), svgNode(doc, 'path', { d, class: 'edge-line', 'marker-end': 'url(#research-arrow)' }));
-      group.append(svgNode(doc, 'text', { x: (sx + tx) / 2, y: (sy + ty) / 2 - 9, 'text-anchor': 'middle', class: 'edge-label' }, edge.relation));
-      group.addEventListener('click', () => showEdge(edge)); group.addEventListener('keydown', e => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); showEdge(edge); } }); svg.append(group);
+      const [hit, line, label] = edgeElements.get(`edge:${edge.id}`).children;
+      hit.setAttribute('d', d); line.setAttribute('d', d);
+      label.setAttribute('x', edge.from === edge.to ? a.x + 285 : (sx + tx) / 2);
+      label.setAttribute('y', edge.from === edge.to ? a.y - 25 : (sy + ty) / 2 + (sameRow ? offset * .75 : 0) - 9);
     }
-    for (const node of path.nodes) {
-      const pos = positions[node.id], group = svgNode(doc, 'g', { transform: `translate(${pos.x},${pos.y})`, class: 'research-node', tabindex: 0, role: 'button', 'aria-label': `Inspect node: ${node.title}` });
-      group.append(svgNode(doc, 'rect', { width: 240, height: 105, rx: 6 }));
-      const words = node.title.split(/\s+/), lines = [''];
-      for (const word of words) { if ((lines.at(-1) + word).length > 28 && lines.at(-1)) lines.push(''); lines[lines.length - 1] += `${word} `; }
-      lines.slice(0, 3).forEach((line, index) => group.append(svgNode(doc, 'text', { x: 12, y: 23 + index * 17 }, line.trim())));
-      group.append(svgNode(doc, 'text', { x: 12, y: 88, class: 'node-status' }, node.disposition ?? 'Pending'), svgNode(doc, 'title', {}, node.detail));
-      group.addEventListener('click', () => { if (!dragging?.moved) showNode(node); });
-      group.addEventListener('keydown', e => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); showNode(node); } });
-      const grip = svgNode(doc, 'circle', { cx: 225, cy: 12, r: 6, class: 'node-grip', 'data-drag-node': node.id }); group.append(grip); svg.append(group);
-    }
+    for (const node of path.nodes) nodeElements.get(`node:${node.id}`).setAttribute('transform', `translate(${positions[node.id].x},${positions[node.id].y})`);
   }
-  const zoom = factor => { const w = box.w * factor; if (w < 350 || w > 4000) return; box.x += (box.w - w) / 2; const h = box.h * factor; box.y += (box.h - h) / 2; box.w = w; box.h = h; paint(); };
+  const zoom = factor => {
+    const ratio = Math.max(.35, Math.min(4, box.w * factor / fittedBox().w)), w = fittedBox().w * ratio, h = fittedBox().h * ratio;
+    box.x += (box.w - w) / 2; box.y += (box.h - h) / 2; box.w = w; box.h = h; paint();
+  };
   toolbar.append(action(doc, 'Zoom out', () => zoom(1.25)), action(doc, 'Zoom in', () => zoom(.8)), action(doc, 'Reset layout', () => {
-    positions = graphLayout(path); box = { x: 0, y: 0, w: 920, h: Math.max(430, Math.ceil(path.nodes.length / 3) * 165 + 50) }; paint();
+    endGesture(); positions = graphLayout(path); box = fittedBox(); paint();
   }));
+  for (const [direction, dx, dy] of [['left', -40, 0], ['right', 40, 0], ['up', 0, -40], ['down', 0, 40]]) {
+    toolbar.append(action(doc, `Pan ${direction}`, () => { endGesture(); box.x += dx; box.y += dy; paint(); }));
+    toolbar.append(action(doc, `Move selected node ${direction}`, () => {
+      endGesture();
+      if (selected?.kind !== 'node') { announcement.textContent = 'Select a node before moving it.'; return; }
+      positions[selected.id].x += dx; positions[selected.id].y += dy; paint();
+    }));
+  }
+  function point(event) {
+    const matrix = svg.getScreenCTM?.();
+    if (matrix && svg.createSVGPoint) {
+      const p = svg.createSVGPoint(); p.x = event.clientX; p.y = event.clientY;
+      return p.matrixTransform(matrix.inverse());
+    }
+    const rect = svg.getBoundingClientRect(), scale = Math.max(box.w / rect.width, box.h / rect.height);
+    return { x: event.clientX * scale, y: event.clientY * scale };
+  }
+  function endGesture(event) {
+    if (!dragging || (event && event.pointerId !== dragging.pointerId)) return;
+    const id = dragging.pointerId; suppressClick = dragging.moved; dragging = null;
+    if (svg.hasPointerCapture?.(id) !== false) svg.releasePointerCapture?.(id);
+  }
   svg.addEventListener('pointerdown', e => {
+    if (dragging || (e.button != null && e.button !== 0)) return;
     const id = e.target.getAttribute?.('data-drag-node');
     if (!id && e.target.closest?.('.research-node, .research-edge')) return;
-    dragging = { id, x: e.clientX, y: e.clientY, origin: id ? { ...positions[id] } : { ...box }, moved: false };
-    svg.setPointerCapture?.(e.pointerId);
+    suppressClick = false;
+    dragging = { id, pointerId: e.pointerId, start: point(e), matrix: svg.getScreenCTM?.()?.inverse(),
+      clientX: e.clientX, clientY: e.clientY, origin: id ? { ...positions[id] } : { ...box }, moved: false };
+    e.preventDefault(); svg.setPointerCapture?.(e.pointerId);
   });
   svg.addEventListener('pointermove', e => {
-    if (!dragging) return; const rect = svg.getBoundingClientRect();
-    const dx = (e.clientX - dragging.x) * box.w / rect.width, dy = (e.clientY - dragging.y) * box.h / rect.height;
-    dragging.moved = Math.abs(dx) + Math.abs(dy) > 4;
+    if (!dragging || e.pointerId !== dragging.pointerId) return;
+    const p = svg.createSVGPoint?.();
+    let current;
+    if (p && dragging.matrix) { p.x = e.clientX; p.y = e.clientY; current = p.matrixTransform(dragging.matrix); }
+    else current = point(e);
+    const dx = current.x - dragging.start.x, dy = current.y - dragging.start.y;
+    dragging.moved ||= Math.abs(e.clientX - dragging.clientX) + Math.abs(e.clientY - dragging.clientY) > 4;
+    if (!dragging.moved) return;
     if (dragging.id) positions[dragging.id] = { x: dragging.origin.x + dx, y: dragging.origin.y + dy };
     else { box.x = dragging.origin.x - dx; box.y = dragging.origin.y - dy; } paint();
   });
-  for (const event of ['pointerup', 'pointercancel']) svg.addEventListener(event, () => { dragging = null; });
+  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) svg.addEventListener(event, endGesture);
   const alternative = element(doc, 'details'); alternative.append(element(doc, 'summary', 'Text alternative: all nodes and cited relationships'));
-  for (const node of path.nodes) alternative.append(action(doc, node.title, () => showNode(node)));
-  for (const edge of path.edges) alternative.append(action(doc, `${path.nodes.find(n => n.id === edge.from)?.title} → ${path.nodes.find(n => n.id === edge.to)?.title} · ${edge.relation}`, () => showEdge(edge)));
-  paint(); if (path.nodes.length) showNode(path.nodes[0]); panel.append(toolbar, svg, alternative, inspection); return panel;
+  for (const node of path.nodes) {
+    const control = action(doc, node.title, () => showNode(node)); textControls.set(`node:${node.id}`, control);
+    alternative.append(control, element(doc, 'p', node.detail), provenance(doc, node), support(doc, model, node.claimIds, navigate, path.caseId));
+  }
+  for (const edge of path.edges) {
+    const control = action(doc, `${path.nodes.find(n => n.id === edge.from)?.title} → ${path.nodes.find(n => n.id === edge.to)?.title} · ${edge.relation}`, () => showEdge(edge));
+    textControls.set(`edge:${edge.id}`, control);
+    alternative.append(control, element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate, path.caseId));
+  }
+  paint();
+  const node = path.nodes.find(n => n.id === selectedEntity), edge = path.edges.find(e => e.id === selectedEntity);
+  if (node) showNode(node, false); else if (edge) showEdge(edge, false); else if (path.nodes.length) showNode(path.nodes[0], false);
+  panel.append(toolbar, svg, alternative, announcement, inspection); return panel;
 }
 
-export function renderExploration(doc, model, view, filters, navigate, selectedId = '', loadDemo) {
+export function renderExploration(doc, model, view, filters, navigate, selectedId = '', loadDemo, selectedEntity = '') {
   const panel = element(doc, 'section', null, 'exploration');
   panel.append(element(doc, 'p', 'Source-supported observations and pending research proposals. Missing enrichment is not evidence that a behavior did not occur; shared behaviors do not establish shared attribution.', 'subtle'));
   if (loadDemo) panel.append(action(doc, 'Load synthetic research demo (replaces displayed corpus only)', loadDemo));
@@ -356,9 +534,11 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     && r.annotations.some(a => `${view}-${a.id}` === selectedId));
   if (selectedId && !selected.records.some(matchesTarget)
     && !(view === 'telemetry' && list(model, 'detections').some(d => d.id === selectedId
-      && selected.records.some(t => t.behaviorId === d.behaviorId)))) {
+      && explorationRecords(model, 'behaviors', filters).records.some(b => b.id === d.behaviorId)))) {
     panel.append(element(doc, 'p', 'Unknown target or target outside the active filters. No different research record has been substituted.', 'empty'),
-      action(doc, `Return to ${EXPLORE_VIEWS[view]}`, () => navigate(view))); return panel;
+      action(doc, `Return to ${EXPLORE_VIEWS[view]}`, () => navigate(view)));
+    if (view === 'paths') for (const id of selected.caseIds) panel.append(action(doc, `Return to case: ${model.cases.get(id)?.name}`, () => navigate('cases', id)));
+    return panel;
   }
   if (['tools', 'prompts'].includes(view)) {
     panel.append(element(doc, 'h2', EXPLORE_VIEWS[view]), element(doc, 'p', view === 'tools'
@@ -418,10 +598,21 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   }
   if (view === 'paths') {
     if (selected.records.length) {
+      const path = selected.records.find(p => p.id === selectedId) ?? selected.records[0];
+      if (selectedEntity && ![...path.nodes, ...path.edges].some(r => r.id === selectedEntity)) {
+        panel.append(element(doc, 'p', 'Unknown or retired node/relationship in this path. No different entity has been substituted.', 'empty'),
+          action(doc, 'Return to path case', () => navigate('cases', path.caseId)),
+          action(doc, 'Return to path', () => navigate('paths', path.id))); return panel;
+      }
       const choose = element(doc, 'div', null, 'graph-toolbar');
-      for (const path of selected.records) choose.append(action(doc, model.cases.get(path.caseId)?.name ?? path.id, () => navigate('paths', path.id)));
-      panel.append(choose, renderGraph(doc, model, selected.records.find(p => p.id === selectedId) ?? selected.records[0], navigate));
-    } else panel.append(element(doc, 'p', 'No authored attack paths in the selected corpus. Collection does not automatically reconstruct a graph.', 'empty'));
+      for (const p of selected.records) choose.append(action(doc, `${model.cases.get(p.caseId)?.name ?? p.id} · ${p.name ?? p.id} · ${model.cases.get(p.caseId)?.kind} · ${p.scope} · ${p.disposition ?? 'Pending'}`, () => navigate('paths', p.id)));
+      panel.append(choose, renderGraph(doc, model, path, navigate, selectedEntity));
+    } else {
+      panel.append(element(doc, 'p', 'No authored attack paths in the selected corpus. Collection does not automatically reconstruct a graph.', 'empty'));
+      for (const id of selected.caseIds) panel.append(action(doc, `Case: ${model.cases.get(id)?.name}`, () => navigate('cases', id)));
+      for (const c of model.corpus.claims.filter(c => selected.caseIds.has(c.caseId))) panel.append(action(doc, c.description, () => navigate('claims', c.id)));
+      for (const b of explorationRecords(model, 'behaviors', filters).records) panel.append(action(doc, b.name, () => navigate('behaviors', b.id)));
+    }
     return panel;
   }
   const grid = element(doc, 'div', null, 'research-grid');
@@ -485,13 +676,23 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     if (view === 'behaviors') {
       row(doc, card, 'Local namespace', record.namespace); row(doc, card, 'Description', record.description); row(doc, card, 'Trust boundary', record.boundary);
       const paths = selected.paths.filter(p => p.nodes.some(n => n.behaviorIds.includes(record.id)));
-      const directSupport = behaviorSupport(model, record);
+      const directSupport = behaviorSupport(model, record).filter(id => selected.caseIds.has(model.claims.get(id)?.caseId));
       const caseIds = new Set([...paths.map(p => p.caseId), ...selected.mappings.filter(m => m.behaviorId === record.id).map(m => m.caseId),
         ...directSupport.map(id => model.claims.get(id)?.caseId).filter(id => selected.caseIds.has(id))]);
       row(doc, card, 'Distinct related cases', caseIds.size);
       for (const id of caseIds) card.append(action(doc, model.cases.get(id)?.name ?? id, () => navigate('cases', id)));
       card.append(support(doc, model, [...directSupport, ...paths.flatMap(p => p.nodes.filter(n => n.behaviorIds.includes(record.id)).flatMap(n => n.claimIds))], navigate));
-      for (const [key, target] of [['signalIds', 'telemetry'], ['detectionIds', 'telemetry'], ['otelIds', 'otel']]) for (const id of record[key] ?? []) card.append(action(doc, id, () => navigate(target, id)));
+      for (const mapping of selected.mappings.filter(m => m.behaviorId === record.id)) card.append(mappingCard(doc, model, mapping, navigate, mapping.caseId,
+        mapping.pathId && mapping.nodeId ? 'Node-scoped candidate' : 'Broader behavior/case candidate'));
+      for (const a of (model.annotations ?? []).filter(a => selected.caseIds.has(a.caseId)
+        && ['data-sources', 'detection-references'].includes(a.type) && a.claimIds?.some(id => directSupport.includes(id)))) {
+        card.append(element(doc, 'h4', a.type === 'data-sources' ? 'Source-reported data source' : 'Published detection reference — not a validated proposal'),
+          annotationCard(doc, model, a, navigate));
+      }
+      for (const [key, target, label] of [['signalIds', 'telemetry', 'Proposed security telemetry'], ['detectionIds', 'telemetry', 'Proposed detection hypothesis'],
+        ['otelIds', 'otel', 'Proposed OTEL instrumentation — synthetic sample']]) {
+        for (const id of record[key] ?? []) card.append(action(doc, `${label}: ${id}`, () => navigate(target, id)));
+      }
     } else if (view === 'frameworks') {
       card.dataset.framework = record.framework;
       row(doc, card, 'Technique / framework / version', [record.id, record.framework, record.version]); card.append(reference(doc, record.url, 'Framework reference'));
@@ -499,8 +700,11 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       card.dataset.mapped = String(mappings.length > 0);
       card.append(element(doc, 'p', mappings.length ? `${mappings.length} recorded candidate mappings; catalog membership does not establish occurrence.` : 'No candidate mapping in the selected cases.'));
       for (const mapping of mappings) {
-        const section = element(doc, 'details'); section.append(element(doc, 'summary', `${model.cases.get(mapping.caseId)?.name ?? mapping.caseId} · ${mapping.mappingStatus}`), provenance(doc, mapping));
-        row(doc, section, 'Rationale', mapping.rationale); row(doc, section, 'Applicability', mapping.applicability); section.append(support(doc, model, mapping.claimIds, navigate)); card.append(section);
+        const scope = mapping.pathId && mapping.nodeId ? 'Node-scoped candidate' : 'Broader behavior/case candidate — not node-specific';
+        const section = element(doc, 'details'); section.append(element(doc, 'summary', `${model.cases.get(mapping.caseId)?.name ?? mapping.caseId} · ${mapping.mappingStatus} · ${scope}`), provenance(doc, mapping));
+        row(doc, section, 'Rationale', mapping.rationale); row(doc, section, 'Applicability', mapping.applicability); section.append(support(doc, model, mapping.claimIds, navigate, mapping.caseId));
+        if (mapping.pathId) section.append(action(doc, 'Inspect target path node', () => navigate('paths', mapping.pathId, mapping.nodeId)));
+        card.append(section);
       }
     } else if (view === 'telemetry') {
       for (const key of ['category', 'eventType', 'logicalFields', 'joinKeys', 'availability', 'schema', 'limitations']) row(doc, card, key, record[key]);

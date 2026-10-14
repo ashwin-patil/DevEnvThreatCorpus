@@ -1,5 +1,33 @@
 # Acceptance audit
 
+## Issue #46 node-scoped attack-path exploration
+
+Originating implementation requirements: [#46](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/46);
+the merged [PRD](PRD-ATTACK-PATH-MAPPING.md) remains context. Extraction and grounded
+mapping contracts are reused from merged #45/#48 work; no provider, catalog
+resolution, persistence, review workflow or public publication is introduced.
+Corrections stay on the originating implementation PR. Its revision-bound
+progress record must give exact final commands, full SHA, synthetic browser
+results and hosted Verify/PR Policy links; a new commit invalidates earlier checks.
+
+| Stable alias | Outcome and implementation/test evidence | Acceptance result and remaining evidence |
+|---|---|---|
+| AC-01 = AP-01 | `src/app.mjs` related history/context and `src/explore.mjs` invalid/no-path states; `tests/workbench.test.mjs` AP-01 routes, mixed-case and no-path regressions | `needs-human-review`: final executed fixtures plus independent navigation review |
+| AC-02 = AP-02 | Case-scoped support/conflicts and separate named edge inspection; AP-02 unsafe/mixed-case tests and AP-08 export-scope negatives | `needs-human-review`: supported nodes must not imply supported edges; human origin/uncertainty review |
+| AC-03 = AP-03 | `nodeMappings` checks every claim, behavior, path/node and retained catalog/version; AP-03 valid/invalid/no-match fixtures; mapping scope labels in private exports | `needs-human-review`: independent rationale/applicability and unresolved literal interpretation |
+| AC-04 = AP-04 | Existing SVG with distinct directed sequence/conditional/propagation geometry, visible loop labels and full text inspection; branching/cycle/self-loop/disconnected AP-04 fixtures | `needs-human-review`: final desktop/tablet/mobile light/dark browser evidence and human visual review |
+| AC-05 = AP-05 | Stable SVG attributes, bounded zoom, deterministic fit, explicit grips, pointer-ID/cancel/capture-loss lifecycle, click suppression; AP-05 controls and unchanged corpus digest | `needs-human-review`: final pointer/touch/browser checks plus independent interaction review |
+| AC-06 = AP-06 | Named Enter/Space controls, selected/focused cues, non-drag pan/move/reset, complete text support and concise live status; AP-06 selection/DOM identity tests | `needs-human-review`: independent screen-reader/focus/accessibility review remains unmet |
+| AC-07 = AP-07 | Return-to-selection through claims/sources/behaviors/frameworks/telemetry/OTEL, same-case projections, published/proposed/synthetic distinctions and inert imported text; AP-07 traversal/shared-behavior/detection-only regressions | `needs-human-review`: independent protected real-campaign walkthrough and semantics review |
+| AC-08 = AP-08 | Case-wide talk JSON/Markdown now includes complete paths/support, mapping scope/catalogs, framework parents, source/revision provenance and exact passages; export scope negatives in `tests/exports.test.mjs`; existing private-store ignore boundary unchanged | `needs-human-review`: final executed closure/tracked-file checks and independent private-bundle review; full article bodies stay in protected campaign export |
+| AC-09 = AP-09 | Focused tests, README usage, architecture and substantive CHANGELOG; `python scripts/verify.py` runs scaffold and all seven configured application commands, with additional campaign suites run directly | `needs-human-review`: exact final-SHA command results and hosted checks required; independent research/UX/documentation relevance review and approval before merge remain unmet |
+
+Requested implementation setting is advisory GPT-6.1 Sol / High. The effective
+main-session model/reasoning setting is not exposed here and is unknown; no Auto
+fallback or model configuration is assumed. Synthetic cloud checks do not establish
+real campaign accuracy, independent accessibility or human acceptance. No private
+article bodies, corpus content or private screenshots may enter Git.
+
 ## Issue #48 grounded self-loops and unresolved mapping provenance
 
 Originating requirements: [#48](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/48);

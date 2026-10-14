@@ -10,7 +10,7 @@ import {
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl, sourceCitation, claimCitation, reviewChip, reviewLegend } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
 import { catalogSnapshot } from '../src/framework-catalog.mjs';
-import { renderExploration, renderResearchLibrary, renderCaseLibrary, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout } from '../src/explore.mjs';
+import { renderExploration, renderResearchLibrary, renderCaseLibrary, renderEvidencePanel, talkBundle, talkMarkdown, explorationRecords, graphLayout, nodeMappings } from '../src/explore.mjs';
 import {
   DIMENSIONS, EVIDENCE, normalizeSuppliedText, serializeProposal, hashText, selectedPassage,
   CAMPAIGN_FILE_LIMIT, campaignCandidate, createStudio, pasteArticle, addStudioCase, saveDraft, extractionProposal,
@@ -579,12 +579,130 @@ class FakeElement {
   setAttribute(key, value) { this.attributes[key] = String(value); }
   getAttribute(key) { return this.attributes[key]; }
   addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); }
-  async trigger(name) {
-    for (const fn of this.listeners[name] ?? []) await fn({ target: this, preventDefault() {} });
+  async trigger(name, event = {}) {
+    for (const fn of this.listeners[name] ?? []) await fn({ target: this, preventDefault() {}, ...event });
   }
   focus() { this.focused = true; }
   get firstChild() { return this.children[0]; }
 }
+
+function branchingModel() {
+    const corpus = structuredClone(researchFixture), p = corpus.paths[0];
+    p.scope = 'composite';
+    for (let i = 2; i < 8; i++) p.nodes.push({ ...structuredClone(p.nodes[0]), id: `branch-${i}`, title: `Synthetic disconnected or branching node ${i}` });
+    p.nodes[0].title = '<script>Long synthetic node label that remains available in inspection and text controls</script>';
+    p.edges.push(
+      { ...p.edges[0], id: 'branch', to: 'branch-2', relation: 'sequence', basis: 'Reconstructed synthetic sequence; execution not confirmed' },
+      { ...p.edges[0], id: 'cycle', from: 'branch-2', relation: 'propagates', basis: 'Synthetic cycle' },
+      { ...p.edges[0], id: 'loop', to: p.nodes[0].id, relation: 'propagates', basis: 'Synthetic self-loop' },
+    );
+    return createModel(corpus);
+  }
+
+  test('AP-01/02/04 node routes, no-path state and directed graph inspection stay in case scope', async () => {
+    const m = branchingModel(), calls = [], p = m.corpus.paths[0];
+    const root = renderExploration(new FakeDocument(), m, 'paths', { cases: [p.caseId] }, (...args) => calls.push(args), p.id, null, p.nodes[0].id);
+    assert.match(root.textContent, /Research exercise.*composite/);
+    assert.match(root.textContent, /line style does not establish evidence strength/i);
+    assert.ok(root.textContent.includes(p.nodes[0].title));
+    assert.equal(descendants(root).filter(n => n.getAttribute('data-entity-kind') === 'edge').length, 4);
+    await button(root, 'Synthetic disconnected or branching node 7').trigger('click');
+    assert.deepEqual(calls.at(-1), ['paths', p.id, 'branch-7']);
+    const edge = descendants(root).find(n => n.getAttribute('data-entity-id') === 'branch');
+    await edge.trigger('keydown', { key: 'Enter' });
+    assert.match(root.textContent, /Reconstructed synthetic sequence/);
+    const inspection = descendants(root).find(n => n.className === 'graph-inspection');
+    assert.match(inspection.textContent, /Node support does not establish this relationship/);
+    assert.match(inspection.textContent, /Conflicting claims/);
+    assert.equal(descendants(root).filter(n => n.tagName === 'SCRIPT').length, 0);
+    const missing = renderExploration(new FakeDocument(), m, 'paths', {}, () => {}, p.id, null, 'retired-node');
+    assert.match(missing.textContent, /Unknown or retired node\/relationship/);
+    assert.equal(descendants(missing).filter(n => n.className === 'research-graph').length, 0);
+    const empty = renderExploration(new FakeDocument(), m, 'paths', { cases: ['synthetic-case-b'] }, () => {});
+    assert.match(empty.textContent, /No authored attack paths/);
+    assert.ok(empty.textContent.includes(m.corpus.claims.find(c => c.caseId === 'synthetic-case-b').description));
+    p.nodes[0].claimIds.push('synthetic-claim-c');
+    const scoped = renderExploration(new FakeDocument(), m, 'paths', {}, () => {}, p.id);
+    const scopedInspection = descendants(scoped).find(n => n.className === 'graph-inspection');
+    assert.match(scopedInspection.textContent, /outside this case.*No support inferred/);
+    assert.ok(!scopedInspection.textContent.includes(m.claims.get('synthetic-claim-c').description));
+  });
+
+  test('AP-03 node mappings require exact support and retained catalog pins, with broad and unresolved separated', () => {
+    const m = branchingModel(), p = m.corpus.paths[0], n = p.nodes[0], base = m.corpus.mappings[0];
+    const pin = catalogSnapshot().catalogs.find(c => c.framework === 'ATT&CK');
+    const technique = pin.techniques[0];
+    m.corpus.frameworks.push({ id: technique.id, framework: pin.framework, version: pin.version, name: technique.name });
+    const valid = { ...base, id: 'node-mapping', pathId: p.id, nodeId: n.id, framework: pin.framework, version: pin.version, techniqueId: technique.id };
+    m.corpus.mappings.push(valid);
+    m.corpus.governance.campaignExtraction = { runs: [{ caseId: p.caseId, catalogSnapshot: { catalogs: [pin] },
+      unresolvedMappings: [{ ...valid, id: 'unresolved', techniqueLiteral: 'literal-unresolved', supportingClaimIds: n.claimIds, reason: 'No official match' }] }] };
+    assert.equal(nodeMappings(m, p, n).nodeScoped.length, 1);
+    assert.equal(nodeMappings(m, p, n).broad.length, 1);
+    assert.equal(nodeMappings(m, p, n).unresolved.length, 1);
+    for (const change of [
+      { claimIds: [...n.claimIds, 'synthetic-claim-b'] }, { claimIds: [] }, { claimIds: ['synthetic-claim-c'] },
+      { caseId: 'synthetic-case-b' }, { behaviorId: 'not-on-node' }, { version: 'wrong-version' },
+      { techniqueId: 'not-in-catalog' }, { nodeId: undefined },
+    ]) {
+      Object.assign(valid, { ...base, pathId: p.id, nodeId: n.id, framework: pin.framework, version: pin.version, techniqueId: technique.id }, change);
+      assert.equal(nodeMappings(m, p, n).nodeScoped.length, 0, JSON.stringify(change));
+    }
+    const root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {}, p.id);
+    assert.match(root.textContent, /No node-scoped candidate recorded/);
+    assert.match(root.textContent, /Broader behavior\/case candidates/);
+    assert.match(root.textContent, /literal-unresolved/);
+  });
+
+  test('AP-05/06 graph controls preserve entities, selection, cancellation and corpus identity', async () => {
+    const m = branchingModel(), before = digest(m.corpus), root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
+    const svg = descendants(root).find(n => n.className === 'research-graph' || n.getAttribute('class') === 'research-graph');
+    const nodes = descendants(svg).filter(n => n.getAttribute('data-entity-kind') === 'node');
+    const initial = svg.getAttribute('viewBox'), transforms = nodes.map(n => n.getAttribute('transform'));
+    await nodes.at(-1).trigger('keydown', { key: ' ' });
+    assert.equal(nodes.at(-1).getAttribute('aria-pressed'), 'true');
+    await button(root, 'Move selected node right').trigger('click');
+    assert.notEqual(nodes.at(-1).getAttribute('transform'), transforms.at(-1));
+    await button(root, 'Pan left').trigger('click');
+    await button(root, 'Zoom in').trigger('click');
+    assert.notEqual(svg.getAttribute('viewBox'), initial);
+    assert.equal(descendants(svg).filter(n => n.getAttribute('data-entity-kind') === 'node').at(-1), nodes.at(-1));
+    let captured, released;
+    svg.setPointerCapture = id => { captured = id; };
+    svg.releasePointerCapture = id => { released = id; };
+    svg.getBoundingClientRect = () => ({ width: 920, height: 430 });
+    const grip = descendants(nodes[0]).find(n => n.getAttribute('data-drag-node'));
+    await svg.trigger('pointerdown', { target: grip, pointerId: 7, clientX: 20, clientY: 20, button: 0 });
+    assert.equal(captured, 7);
+    await svg.trigger('pointermove', { pointerId: 8, clientX: 900, clientY: 900 });
+    assert.equal(nodes[0].getAttribute('transform'), transforms[0]);
+    await svg.trigger('pointermove', { pointerId: 7, clientX: 40, clientY: 40 });
+    const moved = nodes[0].getAttribute('transform');
+    await svg.trigger('pointercancel', { pointerId: 7 });
+    assert.equal(released, 7);
+    await svg.trigger('pointermove', { pointerId: 7, clientX: 100, clientY: 100 });
+    assert.equal(nodes[0].getAttribute('transform'), moved);
+    await nodes[0].trigger('click');
+    assert.equal(nodes.at(-1).getAttribute('aria-pressed'), 'true', 'drag/cancel must not select another entity');
+    await button(root, 'Reset layout').trigger('click');
+    assert.equal(svg.getAttribute('viewBox'), initial);
+    assert.deepEqual(nodes.map(n => n.getAttribute('transform')), transforms);
+    assert.equal(digest(m.corpus), before);
+    assert.ok(descendants(root).some(n => n.getAttribute('role') === 'status' && n.getAttribute('aria-live') === 'polite'));
+  });
+
+  test('AP-08 private talk exports preserve path semantics, closure and exact scoped mapping metadata', () => {
+    const m = branchingModel(), p = m.corpus.paths[0];
+    const bundle = talkBundle(m, p.caseId), markdown = talkMarkdown(bundle);
+    assert.deepEqual(bundle.paths, [p]);
+    assert.ok(bundle.revisionProvenance.some(r => r.id === m.claims.get(p.nodes[0].claimIds[0]).sourceRevisionId));
+    for (const value of [p.nodes[0].title, p.edges[1].basis, p.edges[3].id, 'composite', 'Broader behavior/case', 'Synthetic sample', 'Uncertainty', 'Conflicts']) {
+      assert.ok(markdown.includes(value.replace(/[\\`*_{}\[\]()<>#!|]/g, '\\$&')), value);
+    }
+    assert.ok(!bundle.claims.some(c => c.caseId !== p.caseId));
+    assert.doesNotMatch(markdown, /<script>/);
+    assert.equal(bundle.private, true);
+  });
 class FakeDocument {
   constructor() {
     this.body = new FakeElement('body');
@@ -599,8 +717,8 @@ function button(node, label) { return descendants(node).find(n => n.tagName === 
 function fakeWindow(hash = '') {
   const win = { location: { hash }, listeners: {}, addEventListener(name, fn) { this.listeners[name] = fn; } };
   win.history = {
-    pushState(_state, _title, value) { win.location.hash = value; },
-    replaceState(_state, _title, value) { win.location.hash = value; },
+    pushState(state, _title, value) { this.state = state; win.location.hash = value; },
+    replaceState(state, _title, value) { this.state = state; win.location.hash = value; },
   };
   return win;
 }
@@ -614,6 +732,47 @@ async function mounted(corpus = fresh(), hash = '') {
   await app.ready;
   return { doc, win, app, requests, content: doc.getElementById('content') };
 }
+
+test('AP-01/06/07 routed selection and evidence traversal preserve case, filters and return target', async () => {
+  const corpus = branchingModel().corpus, p = corpus.paths[0];
+  const { doc, win, app, content } = await mounted(corpus, routeHash('paths', p.id, 'branch-7'));
+  const inspection = () => descendants(content).find(n => n.className === 'graph-inspection');
+  assert.ok(inspection().textContent.startsWith('Synthetic disconnected or branching node 7'));
+  const entity = descendants(content).find(n => n.getAttribute('data-entity-id') === 'branch-7');
+  await entity.trigger('keydown', { key: 'Enter' });
+  assert.equal(descendants(content).find(n => n.getAttribute('data-entity-id') === 'branch-7'), entity);
+  assert.equal(win.location.hash, routeHash('paths', p.id, 'branch-7'));
+  const contextState = win.history.state;
+  await button(inspection(), corpus.claims[0].description).trigger('click');
+  assert.match(content.textContent, /Claim & exact source evidence/);
+  assert.ok(!content.textContent.includes(corpus.claims.find(c => c.caseId === 'synthetic-case-b').description));
+  assert.deepEqual(win.history.state.filters.cases, [p.caseId]);
+  await button(content, 'Return to selected path element').trigger('click');
+  assert.equal(win.location.hash, routeHash('paths', p.id, 'branch-7'));
+  assert.ok(inspection().textContent.startsWith('Synthetic disconnected or branching node 7'));
+  win.history.state = contextState;
+  await win.listeners.popstate();
+  assert.ok(inspection().textContent.startsWith('Synthetic disconnected or branching node 7'));
+  await button(inspection(), 'Benign tool invocation').trigger('click');
+  assert.match(content.textContent, /Broader behavior\/case candidate/);
+  assert.match(content.textContent, /Proposed security telemetry/);
+  await button(content, 'Proposed OTEL instrumentation').trigger('click');
+  assert.match(content.textContent, /Synthetic sample · not incident telemetry/);
+  await button(content, 'Return to selected path element').trigger('click');
+  assert.equal(win.location.hash, routeHash('paths', p.id, 'branch-7'));
+  assert.equal(digest(app.getModel().corpus), digest(corpus));
+});
+
+test('AP-07 shared behavior and detection-only routes do not borrow another case support', () => {
+  const m = branchingModel(), b = m.corpus.behaviors[0];
+  b.claimIds = ['synthetic-claim-a', 'synthetic-claim-c'];
+  const root = renderExploration(new FakeDocument(), m, 'behaviors', { cases: ['synthetic-case-a'] }, () => {}, b.id);
+  assert.ok(!root.textContent.includes(m.claims.get('synthetic-claim-c').description));
+  m.corpus.telemetry = [];
+  const detection = renderExploration(new FakeDocument(), m, 'telemetry', { cases: ['synthetic-case-a'] }, () => {}, m.corpus.detections[0].id);
+  assert.doesNotMatch(detection.textContent, /Unknown target/);
+  assert.match(detection.textContent, /Untested hypothesis/);
+});
 
 test('model accepts the 0.3.0 core-only contract without enrichment', () => {
   const m = model(); assert.equal(m.cases.size, 2); assert.equal(m.sources.size, 2);

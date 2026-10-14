@@ -61,6 +61,43 @@ claims, as well as the behavior, to belong to the selected node.
 
 ## Optional research presentation and private annotations
 
+Issue #46 extends the existing `src/explore.mjs` SVG, not extraction or persistence.
+The third existing route segment identifies a path-local node or edge on path
+routes (it remains a revision on source routes). Selection updates history without
+replacing graph controls. Related navigation stores case/facet/search context and
+the return selection in browser history state; direct URL entry restores the
+stable target, not a durable layout or previously saved filters. Ordinary top-level
+navigation still resets facets. Scoped evidence projections restrict shared
+behaviors, source claims and conflict inspection to the active case. Invalid
+targets never silently substitute a different graph or related evidence record.
+
+Node mapping presentation requires paired path/node IDs, behavior membership,
+every claim within the node/case, and framework/version membership in a retained
+validated run catalog. It consumes historical snapshots rather than resolving
+against today's reference catalog. Unavailable provenance, broader mappings and
+unresolved literal IDs remain distinct; the UI cannot promote candidates or write
+back. Sequence/reconstruction, conditional execution and propagation labels
+remain independent of origin, classification and Pending disposition.
+
+Canvas redraw updates existing SVG attributes, preserving focused controls and
+selection. Gestures own one pointer ID, use inverse SVG screen coordinates,
+release capture on completion/cancellation and stop on capture loss. A movement
+threshold and subsequent-click suppression separate dragging from selection.
+Zoom is bounded relative to the deterministic all-node fit. Pan/move buttons and
+the complete text alternative do not require dragging; only a concise inspection
+status is live-announced. Layout, pan and zoom remain closure-local presentation
+state, absent from corpus hashes, review eligibility and exports.
+
+Talk bundles remain private case-wide read-only projections. Invalid path or
+mapping support scope fails closed before export. JSON retains path/node/edge and
+mapping records, historical catalogs, framework-parent/source closure and exact
+passages; `mappingScopes` distinguishes validated node targets from unavailable
+catalog provenance. `revisionProvenance` retains revision identity/hashes but
+explicitly omits normalized article bodies. Markdown includes those same research
+limits, independent relationship support and proposal/synthetic labels with
+escaped imported text. Full article closure remains owned by protected campaign
+exports; no parallel extraction schema, persistence or public publication is added.
+
 The researcher-authorized local presentation integration adapts the former
 prototype's views to 0.3.0 without migrating its incident assertions. Core
 ingestion, comparison, passage selection, reviews, and the original demo retain
