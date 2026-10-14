@@ -1,5 +1,11 @@
 # Fresh-start corpus architecture
 
+Source revision selection replaces the revision URL while retaining the current
+browser history state. Related path evidence therefore keeps its case scope,
+selected path element and original graph filters through reload/back/forward.
+Ordinary source navigation retains its existing null history state. The existing
+navigation restoration validates saved context; corpus records remain unchanged.
+
 ### ATLAS catalog and compact evidence presentation
 
 Framework resolver `/2` includes a checked-in official ATLAS 2026.09 projection

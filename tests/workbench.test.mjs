@@ -776,6 +776,57 @@ test('AP-01/07 graph search reveals linked evidence and restores context on relo
   assert.ok(!button(invalid.content, 'Return to selected path element'));
 });
 
+test('AP-01/07 source revision changes retain path context through reload and back/forward', async () => {
+  const corpus = branchingModel().corpus, p = corpus.paths[0], claim = corpus.claims[0];
+  const revision = { ...structuredClone(corpus.sourceRevisions.find(r => r.id === claim.sourceRevisionId)),
+    id: 'synthetic-new-revision', normalizedContent: 'Synthetic newer snapshot.' };
+  corpus.sourceRevisions.push(revision);
+  corpus.sources.find(s => s.id === claim.sourceId).revisionIds.push(revision.id);
+  const before = digest(corpus);
+  const { doc, win, content } = await mounted(corpus, routeHash('paths', p.id, 'branch-7'));
+  doc.getElementById('search').value = 'disconnected';
+  await doc.getElementById('search').trigger('input');
+  const inspection = descendants(content).find(n => n.className === 'graph-inspection');
+  await button(inspection, claim.description).trigger('click');
+  const claimHash = win.location.hash, claimState = structuredClone(win.history.state);
+  await button(content, 'Source:').trigger('click');
+  const sourceState = structuredClone(win.history.state);
+  const select = descendants(content).find(n => n.tagName === 'SELECT' && n.children.some(o => o.value === revision.id));
+  select.value = revision.id;
+  await select.trigger('change');
+  const revisionHash = routeHash('sources', claim.sourceId, revision.id);
+  assert.equal(win.location.hash, revisionHash);
+  assert.deepEqual(win.history.state, sourceState);
+  assert.match(content.textContent, /Synthetic newer snapshot/);
+  const reloaded = await mounted(corpus, revisionHash, win.history.state);
+  assert.ok(button(reloaded.content, 'Return to selected path element'));
+  assert.match(reloaded.content.textContent, /Synthetic newer snapshot/);
+  assert.ok(!reloaded.content.textContent.includes(corpus.claims.find(c => c.caseId === 'synthetic-case-b').description));
+  for (const [hash, state] of [[claimHash, claimState], [revisionHash, sourceState]]) {
+    reloaded.win.location.hash = hash;
+    reloaded.win.history.state = structuredClone(state);
+    await reloaded.win.listeners.popstate();
+    assert.ok(button(reloaded.content, 'Return to selected path element'));
+    assert.deepEqual(reloaded.win.history.state.filters.cases, [p.caseId]);
+  }
+  await button(reloaded.content, 'Return to selected path element').trigger('click');
+  assert.equal(reloaded.win.location.hash, routeHash('paths', p.id, 'branch-7'));
+  assert.equal(reloaded.doc.getElementById('search').value, 'disconnected');
+  assert.ok(descendants(reloaded.content).find(n => n.className === 'graph-inspection').textContent.startsWith('Synthetic disconnected or branching node 7'));
+  assert.equal(digest(reloaded.app.getModel().corpus), before);
+
+  // Ordinary source navigation still carries no path context and retains its selected revision.
+  const plain = await mounted(corpus, routeHash('sources', claim.sourceId, claim.sourceRevisionId));
+  const plainSelect = descendants(plain.content).find(n => n.tagName === 'SELECT' && n.children.some(o => o.value === revision.id));
+  plainSelect.value = revision.id;
+  await plainSelect.trigger('change');
+  assert.equal(plain.win.history.state, null);
+  assert.equal(plain.win.location.hash, revisionHash);
+  const plainReload = await mounted(corpus, revisionHash, plain.win.history.state);
+  assert.match(plainReload.content.textContent, /Synthetic newer snapshot/);
+  assert.ok(!button(plainReload.content, 'Return to selected path element'));
+});
+
 test('AP-05 extreme pointer and repeated button movement are bounded with capture-loss and reset', async () => {
   const m = branchingModel(), before = digest(m.corpus), root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
   const svg = descendants(root).find(n => n.getAttribute('class') === 'research-graph');

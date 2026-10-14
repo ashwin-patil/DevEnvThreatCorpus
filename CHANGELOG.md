@@ -2,6 +2,11 @@
 
 ## 2026-10-14 — Scoped attack-path exploration (#46)
 
+- Preserve saved path-return context when changing a source revision instead of
+  clearing browser history state. Add a synthetic revision-switch regression for
+  reload/back/forward, selected-node/filter restoration, case isolation, ordinary
+  source navigation and unchanged corpus content.
+
 - Correct the originating PR's review gaps: reveal explicit claim/source links
   under case-only filters while preserving graph search/facets for return; restore
   and validate saved context on reload/back/forward; project standalone shared

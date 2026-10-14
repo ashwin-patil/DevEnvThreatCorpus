@@ -46,7 +46,8 @@ alternative; related evidence, behavior, framework and telemetry navigation keep
 the case context and offers **Return to selected path element**. Explicit evidence
 links clear graph-specific search/facets so they can reveal the linked claim or
 source, while the return action restores the original graph filters and selection.
-Reload and browser back/forward restore validated saved context; missing paths
+Changing a source revision retains this saved return context, including after
+reload and browser back/forward. Missing paths
 discard it with an explanation, and retired elements remain explanatory targets. Missing,
 retired or filtered targets explain their state rather than substituting another
 case. Cases without paths still expose their claims and behaviors.

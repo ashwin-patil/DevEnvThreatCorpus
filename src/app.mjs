@@ -323,7 +323,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         }
       }));
     if (route.view === 'sources') detail.append(action(doc, 'Back to research library cards', () => visit('sources', '')), renderSource(doc, evidenceModel, selected, route.revisionId, visit,
-      id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(null, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
+      id => { route = { view: 'sources', id: selected.id, revisionId: id }; activePassages = []; win.history.replaceState(win.history.state, '', routeHash('sources', selected.id, id)); render(); $('content').focus(); },
       ids => { activePassages = ids; render(); $('content').focus(); }, activePassages, openDraft));
     if (route.view === 'claims') {
       const target = claimTarget(model, selected.id), panel = element(doc, 'section', null, 'panel');

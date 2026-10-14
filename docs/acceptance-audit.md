@@ -10,6 +10,12 @@ Corrections stay on the originating implementation PR. Its revision-bound
 progress record must give exact final commands, full SHA, synthetic browser
 results and hosted Verify/PR Policy links; a new commit invalidates earlier checks.
 
+The focused `AP-01/07 source revision changes retain path context through reload
+and back/forward` regression in `tests/workbench.test.mjs` covers revision URL
+changes, saved history state, return selection/filter restoration, same-case
+evidence, ordinary source navigation and unchanged corpus digest. It does not
+replace independent browser/accessibility or protected research acceptance.
+
 | Stable alias | Outcome and implementation/test evidence | Acceptance result and remaining evidence |
 |---|---|---|
 | AC-01 = AP-01 | `src/app.mjs` related history/context and `src/explore.mjs` invalid/no-path states; `tests/workbench.test.mjs` AP-01 routes, active graph-search evidence traversal, reload/back/forward, invalid/retired saved context, mixed-case and no-path regressions | `needs-human-review`: final executed fixtures plus independent navigation review |
