@@ -1,5 +1,68 @@
 # Changelog
 
+## 2026-10-14 — Article aliases and unified campaign exploration (#51)
+
+- Disambiguate the AP-01 text-node navigation regression from the phase selector:
+  a generated phase title can contain the same node label. Select the exact node
+  control and assert its selection state while retaining the canonical-route
+  check; no runtime navigation behavior or acceptance gate is changed.
+- Add bounded compatibility for leading-wildcard robots rules with explicit
+  unsupported-policy diagnostics, while retaining origin-specific access checks,
+  denial handling and historical failures. Treat the verified Red Canary AI CLI
+  URL and Zscaler destination as one logical article without merging publisher
+  identities or deleting source/revision provenance.
+- Project campaign phase paths into one read-only case graph with friendly labels,
+  original route/provenance disclosure and independently supported relationships.
+  Keep disconnected components and conflicting classifications distinct; no new
+  chronology, attribution, review acceptance or inferred connecting edges is added.
+- Compact graph controls into an accessible in-viewport toolbar and movement
+  disclosure; separate activity/evidence labels from origin and review, improve
+  boundary-anchored connectors, and show claim-grounded campaign overview context.
+  Public withholding remains explicit and private evidence inspection unchanged.
+- Extend synthetic intake, graph, navigation and presentation regressions. Protected
+  live intake and independent human research, visual, accessibility and documentation
+  acceptance remain required; offline automation does not establish those outcomes.
+- Preserve viewport/focus and evidence-return context across member-phase selection,
+  reset case scope when switching campaigns, and validate summary source/revision
+  closure. Separate parallel connectors with nearby label leaders; count logical
+  public article coverage without hiding original URL failures.
+- Refine the campaign overview after local visual review: keep full claim details
+  in the workspace, remove duplicate publisher/source links, omit pinned MITRE
+  catalogs from the blog library, group claims by campaign and publisher, and
+  collapse compact action/relationship tiles. Focus the initial graph on a phase
+  with explicit phase and full-overview controls.
+- Expand campaign cards by default, show a concise cited claim summary, place AI
+  tool/prompt references before behavior actions, and render those actions as
+  compact inline links.
+- Replace the Nx campaign card's arbitrary first-two-claims fallback with a
+  concise Pending overview grounded in retained injection, credential-theft,
+  malicious-release and attempted-AI-reconnaissance claims. Leave Zscaler's
+  robots-policy retrieval failure unchanged; no unavailable article content is
+  treated as parsed or retained.
+- Display published literal prompts from StepSecurity and Socket in the Prompt
+  library instead of activity-claim cards. Preserve exact variants, source-local
+  citations, code-point locators and Pending labels; group identical text without
+  discarding either publisher. Validate bounded prompt projection support and
+  render text without execution. Do not invent a Wiz prompt from its AI-tool
+  activity report or change the underlying corpus/export acceptance state.
+- Record the full review/refinement session in the indexed workbench recovery
+  learning: final user decisions, affected implementation/test surfaces, exact
+  prompt provenance, superseded approaches, retrieval-versus-extraction diagnosis
+  and revision-bound validation limits. The note supports selective recovery
+  without treating uncommitted work or historical checks as current acceptance.
+
+## 2026-10-13 — Nx corpus Pending draft
+
+- Add a citation-linked public projection of four retained Nx/s1ngularity
+  reports: 38 pending claims, 14 behaviors, 3 representative paths and 2 Proposed
+  node-scoped mappings. Preserve failed Red Canary/Zscaler coverage, source-local
+  conflicts and attempted-versus-reported-success distinctions.
+- Add a read-only draft adapter for the existing workbench and static serving.
+  Explicit private inputs keep precedence. Public data withholds article bodies,
+  quotations, human decisions, run envelopes and long prompt literals; bounded
+  tool labels retain claim linkage and existing alias normalization.
+- Document public export/import differences and remaining independent review.
+
 ## 2026-10-14 — Scoped attack-path exploration (#46)
 
 - Preserve saved path-return context when changing a source revision instead of

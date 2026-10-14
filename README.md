@@ -16,6 +16,20 @@
 
 # DevEnvThreatCorpus
 
+The bundled **Nx / s1ngularity public Pending draft** contains 38 claims,
+14 behaviors, 3 retained representative phase paths and 2 Proposed mappings from
+four retained reports. Attack paths presents these records as one case-scoped
+campaign graph, not three competing campaign histories. Two explicit URLs for
+one additional article failed the original intake; their failure history remains
+available even when their alias is displayed once. Start
+`node scripts/server.mjs --port 4181` without private input to inspect it, or serve
+the repository statically and open `src/index.html`. Explicit private `--corpus`
+and `--store` modes keep their existing behavior. The public draft withholds full
+articles, other quotations and private run bundles; published prompt literals
+are available as source-attributed, untrusted research artifacts. It is not a
+private corpus import or a reviewed release. See [coverage and evidence
+limits](docs/nx-corpus.md) and the [typed draft export](docs/data/nx-draft.zip).
+
 The local ATLAS & TTPs view separates campaign mapping counts from resolver
 references. New campaign extraction requests include the pinned MITRE ATLAS
 2026.09 catalog (208 techniques/sub-techniques, official descriptions and parent
@@ -40,6 +54,13 @@ acceptance eligibility; local reviewer identity is self-attested, not authentica
 
 ## Current implementation
 
+Attack paths groups existing phase paths into a read-only campaign view. Friendly
+phase/activity labels replace identifier-heavy selectors; technical disclosures
+retain the original path, node and edge identities. Disconnected phases remain
+disconnected: the view does not invent chronology, actor identity or transitions.
+Additional supported paths enrich the same case graph, without merging other cases,
+source occurrences, evidence classifications or review states.
+
 Attack paths retain stable `#paths/<path-id>/<node-or-edge-id>` routes. Select a
 node or directed relationship on the SVG canvas or in its complete text
 alternative; related evidence, behavior, framework and telemetry navigation keeps
@@ -61,14 +82,42 @@ supporting claim and a retained pinned catalog; broader and unresolved candidate
 are labeled separately. No recorded candidate does not mean no behavior occurred.
 
 Zoom, background pan and explicit node grips affect only in-memory presentation.
-Use **Pan** and **Move selected node** buttons without dragging; **Reset layout**
-restores a deterministic fit, including disconnected nodes and loops. Enter/Space
+The compact icon toolbar has accessible names and tooltips; expand its movement
+controls for **Pan** and **Move selected node** actions without dragging.
+**Focus selection** enlarges the selected activity or relationship for readable
+inspection, including narrow screens. A phase selector focuses the initial
+campaign view on one readable phase while keeping the other phases available;
+**Full campaign overview** and **Reset layout** restore the complete deterministic
+fit, including disconnected nodes and loops. Enter/Space
 select named controls; focus survives canvas updates and a short status announces
 inspection. Both themes and narrow screens use the existing workbench shell.
 Pointer and button movement share bounds based on the reset fit: node boxes can
 move one fit-width/height beyond each side, and the viewport center can move one
 fit-width/height from its reset center. Reaching a boundary clamps further movement;
 zoom and reset retain these presentation-only limits.
+Selecting another phase in the same campaign keeps the viewport and focused
+control; historical member-path links still identify the exact occurrence.
+Parallel relationships retain separate connectors and claim support. Public
+coverage counts logical articles rather than aliases, with original URLs and
+failure reasons available under **Original URLs & coverage history**.
+Campaign cards open expanded with a short cited claim-based summary and defer
+full claim details to the campaign workspace.
+Publisher controls open one internal source view; the outbound article link is
+available from that view rather than duplicated beside each campaign chip.
+Campaign cards list AI tools and prompt references before compact inline behavior
+actions and can be collapsed to a compact overview.
+The Research library excludes pinned MITRE catalog records, which remain in
+**ATLAS & TTPs**. Claims are grouped by campaign and publisher in collapsible
+navigation sections; distinct records and source support are never merged.
+Behavior actions use compact, borderless inline labels and avoid repeating
+single-source group names; recorded relationships use compact collapsible tiles;
+sequence, conditional and propagation relationships have separate visual labels.
+The Prompt library shows extracted prompt text, not prompt-activity claim cards.
+The public draft contains two exact variants from StepSecurity and Socket;
+identical text shares a card while preserving each source citation and revision
+locator. Wiz reports AI-tool use and flags but does not quote a complete prompt
+in the retained article, so no literal is attributed to Wiz. Prompts are displayed
+as inert text for research, never executed or treated as independent confirmation.
 Private case-wide talk JSON/Markdown bundles include paths, independent node/edge
 support, mapping scope labels, catalog provenance and revision hashes with exact
 passages, but omit full article bodies and visual layout state.
@@ -97,7 +146,19 @@ visible usage legend; behavior titles remain plain names under Actions or Activi
 patterns category sections. This changes presentation only, not corpus identities
 or pending/accepted review state.
 
-AI tools and Prompt library views project private, grounded `ide-cli` and
+The verified Red Canary AI CLI article alias and its Zscaler destination are one
+logical research article, not a publisher-wide merger. Original source routes,
+URLs, retained revisions and failed manifests remain inspectable. Collection still
+checks each redirect origin's robots policy and never treats HTTP 200 as permission.
+Leading-wildcard policies such as `*_archive.html` use bounded wildcard matching,
+longest matching rule and Allow on ties. Unsupported policies fail explicitly with
+a supplied-text fallback; collection never silently refetches or impersonates a bot.
+Overview summaries retain linked claim citations and explicit uncertainty. Projected
+claim excerpts are agent-origin Pending presentation, not human-approved summaries.
+Published prompt literals are visible; full article and other quotation inspection
+still requires the private archive.
+
+AI tools and Prompt library views project grounded `ide-cli` and
 `prompt-instruction` annotations. Campaign and Research library cards link to
 entries, exact revisions and supporting claims. Known product aliases share a
 display identity; the Amazon Q CLI alias `q` displays as Amazon Q while its
@@ -138,9 +199,11 @@ The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
 under `handoff/` is retained as historical and design reference only.
 
-**No live blogs or legacy records are used in the offline exercise or tests.**
+**No live fetches or legacy records are used in the offline exercise or semantic tests.**
 Fixtures are visibly synthetic, not incident evidence. Retrieval success does
 not establish research truth or human acceptance.
+The bundled public draft is checked separately for its export/privacy boundary;
+its presence in a server test does not establish incident accuracy.
 
 ## Manual intake: offline exercise
 

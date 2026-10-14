@@ -240,7 +240,9 @@ export function renderWebIntake(doc, state, { enabled = false, collect, refresh,
     for (const manifest of failures) {
       const item = element(doc, 'div', null, 'intake-outcome');
       item.append(element(doc, 'p', `Failed intake ${manifest.id} · operator ${manifest.provenance.suppliedBy ?? 'unknown'}`));
-      for (const detail of manifest.limitations.filter(text => /^(?:error-code|event-time)=/.test(text))) item.append(element(doc, 'p', detail));
+      for (const detail of manifest.limitations.filter(text => /^(?:error-code|event-time|robots-reason)=/.test(text))) item.append(element(doc, 'p', detail));
+      if (manifest.limitations.includes('error-code=ROBOTS_UNSUPPORTED')) item.append(element(doc, 'p',
+        'Robots compatibility failed closed. Use operator-supplied text/file with --source-url and supplier attribution only when retention is authorized; never bypass denied access.'));
       for (const id of manifest.inputSourceIds) {
         const source = state.base.sources.find(record => record.id === id);
         item.append(element(doc, 'p', source?.originalUrl ?? `Source ${id}`));
@@ -292,6 +294,7 @@ export function renderWebIntake(doc, state, { enabled = false, collect, refresh,
     for (const result of batch.results) {
       const item = element(doc, 'div', null, 'intake-outcome');
       item.append(element(doc, 'p', `${result.url} · ${result.status} · ${result.code ?? ''}`));
+      if (result.guidance) item.append(element(doc, 'p', result.guidance));
       for (const warning of result.warnings ?? []) item.append(element(doc, 'p', `Image warning: ${typeof warning === 'string' ? warning : JSON.stringify(warning)}`));
       if (result.status === 'failed') {
         const label = element(doc, 'label', 'Select failed URL for manual retry'), selected = element(doc, 'input');

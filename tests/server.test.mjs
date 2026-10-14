@@ -37,6 +37,20 @@ async function workspace(t) {
 
 const sameOrigin = port => ({ Origin: `http://127.0.0.1:${port}`, 'Sec-Fetch-Site': 'same-origin', 'Content-Type': 'application/json' });
 
+test('bundled default advertises public projection and serves only allowlisted public files', async t => {
+  const port = await start(t);
+  assert.equal((await request(port, '/api/corpus')).headers['x-corpus-mode'], 'public-draft');
+  const data = await request(port, '/src/data/nx-draft.json');
+  assert.equal(data.status, 200);
+  const draft = JSON.parse(data.body);
+  assert.equal(draft.profile, 'draft');
+  assert.ok(draft.records.every(r => r.entityType !== 'sourceRevisions' || r.entity.rawContent === null && r.entity.normalizedContent === null));
+  assert.ok(draft.records.every(r => r.entityType !== 'passages' || r.entity.text === null && r.entity.attestation === null));
+  assert.equal((await request(port, '/src/public-profile.mjs')).status, 200);
+  assert.equal((await request(port, '/.private-intake/candidate.json')).status, 404);
+  assert.equal((await request(port, '/docs/data/nx-draft/records.jsonl')).status, 404);
+});
+
 test('browser normalization helper is explicitly served without exposing private implementation modules', async t => {
   const port = await start(t);
   const response = await request(port, '/src/research-inventory.mjs');
@@ -258,6 +272,7 @@ test('AC-04/05 preview serves every required offline entrypoint, module and bran
     ['/', 'text/html'], ['/src/index.html', 'text/html'], ['/src/style.css', 'text/css'],
     ['/src/app.mjs', 'text/javascript'], ['/src/model.mjs', 'text/javascript'],
     ['/src/render.mjs', 'text/javascript'], ['/src/studio.mjs', 'text/javascript'], ['/src/explore.mjs', 'text/javascript'], ['/docs/assets/logo.svg', 'image/svg+xml'],
+    ['/src/campaign-presentation.mjs', 'text/javascript'], ['/src/graph-geometry.mjs', 'text/javascript'],
     ['/docs/assets/favicon.svg', 'image/svg+xml'],
   ]) {
     const response = await request(port, url);

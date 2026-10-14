@@ -1,5 +1,48 @@
 # Fresh-start corpus architecture
 
+## Issue #51 campaign presentation and article identity
+
+Campaign exploration is a read-only aggregate over existing same-case path records.
+Each phase retains canonical path/run provenance and separate node/relationship
+support. Similar activities may share display concepts but never share inferred
+support, evidence status or acceptance. Historical routes identify their original
+occurrence inside the aggregate, including colliding labels or identifiers. Layout
+is not a timeline: disconnected components receive no invented connecting edges.
+Technical disclosures retain stable IDs rather than putting hashes in selectors.
+Campaign cards keep claim detail in the workspace; library cards use a single
+internal source action, with outbound article navigation available in the source
+detail. Pinned framework catalog sources are excluded from the research-article
+projection. Claims navigation groups, but never merges, records by campaign and
+publisher. Behavior actions and path relationships use collapsible tiles; sequence,
+conditional and propagation labels describe recorded edges only. The graph starts
+focused on one phase and retains explicit phase switching and full-overview controls.
+Campaign cards start expanded, display a short claim-backed summary with
+collapsible citations, and place AI-tool/prompt references before compact inline
+behavior links. The public Prompt library shows complete published prompt
+literals as inert text, with source-local citations rather than activity-claim
+cards. Exact duplicates retain separate source occurrences within one card.
+
+Activity cards expose independent evidence, origin and review axes. Projected
+campaign context comes only from linked same-case claims and retains those citations,
+uncertainty and Pending agent origin; it is not a persistent summary claim or review.
+Full public article quotations remain omitted; published prompt artifacts are
+an explicit exception and do not grant passage attestation or acceptance.
+The compact graph toolbar and non-drag movement disclosure share deterministic
+layout/reset and movement bounds with pointer controls; they never write a corpus.
+
+Article alias grouping is similarly presentation-only for historical records.
+The specifically verified Red Canary AI CLI article maps to the Zscaler target;
+other Red Canary articles retain their own identity. A logical card retains member
+source routes and revisions instead of deleting or rewriting them. New collection
+must still authorize every requested/redirect origin under its own robots policy.
+Policy parsing uses bounded wildcard patterns, longest-match precedence and Allow
+on equal specificity; unsupported constructs and cross-origin policy redirects
+remain explicit failures with a supported supplied-text alternative. Historical
+failed attempts are evidence of failure, not successful article coverage.
+
+See [the acceptance audit](acceptance-audit.md#issue-51-article-aliases-and-campaign-graph)
+for synthetic checks and the independent human/operator review boundary.
+
 Source revision selection replaces the revision URL while retaining the current
 browser history state. Related path evidence therefore keeps its case scope,
 selected path element and original graph filters through reload/back/forward.
@@ -41,6 +84,14 @@ extensions; absent values remain unclear. Prompt version 3 requests complete
 literal prompts and distinguishes incident evidence from vendor test examples.
 Private campaign and talk exports retain exact literals, usage and provenance.
 Article-wide product mentions do not establish targeting in the selected case.
+The public adapter accepts a bounded optional `prompts` list beside `tools`.
+Each prompt must close over a same-case claim, source and revision, and its
+code-point locator must be covered by that claim's consecutive cited passages.
+Literal length must match the locator span. This validates linkage and shape,
+not authenticity without retained text; human source review remains required.
+The bundled StepSecurity and Socket literals were checked against live normalized
+article text whose hashes matched the recorded revisions. No Wiz prompt is
+invented from its discussion of flags or general AI-assisted activity.
 
 `src/research-inventory.mjs` is browser-safe presentation normalization shared
 with article publisher normalization. Compact host-derived publisher labels
@@ -96,12 +147,25 @@ selection. Gestures own one pointer ID, use inverse SVG screen coordinates,
 release capture on completion/cancellation and stop on capture loss. A movement
 threshold and subsequent-click suppression separate dragging from selection.
 Zoom is bounded relative to the deterministic all-node fit. Pointer and button
-movement use the same limits: a node's 240×105 box stays in that fit expanded by
+movement use the same limits: a node's 250×126 box stays in that fit expanded by
 one fit-width/height on every side; the viewport center stays within one
 fit-width/height of the reset center at every zoom. Pan/move buttons and
 the complete text alternative do not require dragging; only a concise inspection
 status is live-announced. Layout, pan and zoom remain closure-local presentation
 state, absent from corpus hashes, review eligibility and exports.
+
+Issue #51 treats member-path selection within one case as the same displayed
+graph: canonical member routes change without replacing the viewport or its
+focused controls. Changing campaigns clears the previous case context. Connector
+routing avoids card rectangles, rounds turns, separates parallel relationships
+using occupied-lane costs, and uses nearby label leaders rather than placing
+labels at unrelated grid locations. The text alternative remains available if
+crowding leaves no safe label position. Zoom is bounded to 0.12–4 times the
+all-node fit so a multi-phase overview can be enlarged for readable inspection.
+The named Focus selection control centers the selected node or edge endpoints
+using the measured viewport; zoom preserves that viewport aspect ratio.
+Public coverage counts canonical logical articles once while disclosing every
+original URL and recorded failure; it never rewrites the coverage manifest.
 
 Talk bundles remain private case-wide read-only projections. Invalid path or
 mapping support scope fails closed before export. JSON retains path/node/edge and
