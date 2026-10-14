@@ -25,6 +25,7 @@
       "schemas/contract.d.ts"
     ],
     "readme_triggers": [
+      ".devcontainer/**",
       "scripts/contract.mjs",
       "scripts/extract.mjs",
       "scripts/review.mjs",
@@ -56,6 +57,7 @@
       "docs/learnings/**"
     ],
     "governance": [
+      ".devcontainer/**",
       ".github/**",
       ".gitignore",
       "scripts/__init__.py",

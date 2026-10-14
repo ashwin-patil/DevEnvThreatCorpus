@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-14 - Codespaces trusted-base authorization (#56)
+
+- Classify `.devcontainer/**` as governance and a README upkeep trigger so the
+  subsequent Codespaces implementation can be evaluated against a reviewed base.
+  Preserve documentation/changelog requirements and rejection by unmapped bases.
+  Document the merge/base-refresh sequence; no devcontainer, automatic startup,
+  server behavior change or verified Codespaces availability is added here.
+
 ## 2026-10-14 — Article aliases and unified campaign exploration (#51)
 
 - Disambiguate the AP-01 text-node navigation regression from the phase selector:
