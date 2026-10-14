@@ -255,6 +255,32 @@ class PolicyTests(unittest.TestCase):
         # Non-trigger implementation still needs a human to decide README relevance.
         evaluate(with_files([changed("scripts/pr_policy.py"), changed("docs/lifecycle.md"), changed("CHANGELOG.md")]), base_config())
 
+    def test_devcontainer_authorization_requires_trusted_base_and_upkeep(self) -> None:
+        config = base_config()
+        for surface in ("governance", "readme_triggers"):
+            self.assertEqual(config["paths"][surface].count(".devcontainer/**"), 1)
+        self.assertNotIn(".devcontainer/**", config["paths"]["application"])
+        files = [
+            changed(".devcontainer/devcontainer.json", status="added"),
+            changed("README.md"),
+            changed("CHANGELOG.md"),
+        ]
+        self.assertEqual(evaluate(with_files(files), config)["changed_paths"], 3)
+
+        unmapped = copy.deepcopy(config)
+        for surface in ("governance", "readme_triggers"):
+            unmapped["paths"][surface].remove(".devcontainer/**")
+        with self.assertRaisesRegex(VerificationError, "no configured surface"):
+            evaluate(with_files(files), unmapped)
+
+        for upkeep, message in (
+            ([changed("CHANGELOG.md")], "documentation update"),
+            ([changed("README.md")], "root CHANGELOG.md"),
+            ([changed("docs/setup-and-configuration.md"), changed("CHANGELOG.md")], "root README.md"),
+        ):
+            with self.subTest(message=message), self.assertRaisesRegex(VerificationError, message):
+                evaluate(with_files([files[0], *upkeep]), config)
+
     def test_ac05_learning_removal_and_rename_require_surviving_index_update(self) -> None:
         for note in (
             changed("docs/learnings/lesson.md", status="removed"),

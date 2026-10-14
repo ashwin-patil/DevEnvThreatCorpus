@@ -16,6 +16,16 @@
 
 # DevEnvThreatCorpus
 
+## Codespaces setup status
+
+The policy prerequisite for [Codespaces setup (#53)](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/53)
+classifies `.devcontainer/**` as governance and a README upkeep trigger; it does
+not provide a devcontainer or automatic webapp startup. After this prerequisite
+is merged, refresh implementation PR #55 from `main` before adding the Codespaces
+configuration. Until that implementation and its live Codespaces checks are
+complete, use the existing local startup instructions below. See
+[trusted-base bootstrap](docs/setup-and-configuration.md#trusted-base-bootstrap).
+
 The bundled **Nx / s1ngularity public Pending draft** contains 38 claims,
 14 behaviors, 3 retained representative phase paths and 2 Proposed mappings from
 four retained reports. Attack paths presents these records as one case-scoped
