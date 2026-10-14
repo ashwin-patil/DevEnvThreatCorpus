@@ -82,7 +82,9 @@ are labeled separately. No recorded candidate does not mean no behavior occurred
 
 Zoom, background pan and explicit node grips affect only in-memory presentation.
 The compact icon toolbar has accessible names and tooltips; expand its movement
-controls for **Pan** and **Move selected node** actions without dragging. **Reset layout**
+controls for **Pan** and **Move selected node** actions without dragging.
+**Focus selection** enlarges the selected activity or relationship for readable
+inspection, including narrow screens. **Reset layout**
 restores a deterministic fit, including disconnected nodes and loops. Enter/Space
 select named controls; focus survives canvas updates and a short status announces
 inspection. Both themes and narrow screens use the existing workbench shell.

@@ -510,8 +510,12 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     }
     lines.slice(0, 3).forEach((line, index) => group.append(svgNode(doc, 'text', { x: 42, y: 27 + index * 18, class: 'node-title' },
       `${line.trim().slice(0, 25)}${index === 2 && lines.length > 3 ? '…' : ''}`)));
+    const fullOriginReview = originReview(node), separator = fullOriginReview.lastIndexOf(' · ');
+    const review = fullOriginReview.slice(separator + 3), origin = fullOriginReview.slice(0, separator);
+    const originLength = Math.max(8, 42 - review.length - 3);
+    const conciseOriginReview = `${origin.length > originLength ? `${origin.slice(0, originLength - 1)}…` : origin} · ${review}`;
     group.append(svgNode(doc, 'text', { x: 12, y: 92, class: 'node-evidence' }, evidenceLabel(node.evidenceStatus)),
-      svgNode(doc, 'text', { x: 12, y: 112, class: 'node-status' }, originReview(node)),
+      svgNode(doc, 'text', { x: 12, y: 112, class: 'node-status' }, conciseOriginReview),
       svgNode(doc, 'title', {}, `${node.title}: ${node.detail} · ${evidenceLabel(node.evidenceStatus)} · ${originReview(node)}`));
     group.addEventListener('click', activate(() => showNode(node))); group.addEventListener('keydown', activate(() => showNode(node)));
     const grip = svgNode(doc, 'circle', { cx: 230, cy: 16, r: 14, class: 'node-grip', 'data-drag-node': node.id });
@@ -539,7 +543,7 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     }
   }
   const zoom = factor => {
-    const ratio = Math.max(.12, Math.min(4, box.w * factor / fittedBox().w)), w = fittedBox().w * ratio, h = fittedBox().h * ratio;
+    const ratio = Math.max(.12, Math.min(4, box.w * factor / fittedBox().w)), w = fittedBox().w * ratio, h = box.h * w / box.w;
     box.x += (box.w - w) / 2; box.y += (box.h - h) / 2; box.w = w; box.h = h; paint();
   };
   const iconButton = (name, icon, callback) => {
@@ -550,6 +554,19 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   };
   toolbar.append(iconButton('Zoom out', '−', () => zoom(1.25)), iconButton('Zoom in', '+', () => zoom(.8)), iconButton('Reset layout', '↺', () => {
     endGesture(); positions = graphLayout(path); box = fittedBox(); paint();
+  }));
+  toolbar.append(iconButton('Focus selection', '⌖', () => {
+    endGesture();
+    const record = selected?.kind === 'node' ? path.nodes.find(n => n.id === selected.id) : path.edges.find(e => e.id === selected?.id);
+    const points = record ? (selected.kind === 'node' ? [positions[record.id]] : [positions[record.from], positions[record.to]]) : [];
+    if (!points.length) { announcement.textContent = 'Select an activity or relationship to focus it.'; return; }
+    const rect = svg.getBoundingClientRect?.(), width = rect?.width || 620, height = rect?.height || 500;
+    const left = Math.min(...points.map(p => p.x)), right = Math.max(...points.map(p => p.x)) + NODE_WIDTH;
+    const top = Math.min(...points.map(p => p.y)), bottom = Math.max(...points.map(p => p.y)) + NODE_HEIGHT;
+    const w = Math.max(NODE_WIDTH + 48, Math.min(920, width), right - left + 60, (bottom - top + 100) * width / height);
+    const h = w * height / width;
+    box = { x: (left + right - w) / 2, y: (top + bottom - h) / 2, w, h }; paint();
+    announcement.textContent = 'Selection enlarged for inspection. Reset layout restores the full campaign overview.';
   }));
   const movement = element(doc, 'details', null, 'graph-movement'), movementTitle = element(doc, 'summary', '↔');
   movementTitle.title = 'Pan and move'; movementTitle.setAttribute('aria-label', 'Pan and move');
@@ -632,7 +649,10 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   const selected = explorationRecords(model, view, filters);
   const matchesTarget = r => r.id === selectedId || (['tools', 'prompts'].includes(view)
     && r.annotations.some(a => `${view}-${a.id}` === selectedId));
+  const visibleMemberTarget = view === 'paths' && selected.paths.some(p => p.id === selectedId
+    && selected.records.some(match => match.caseId === p.caseId));
   if (selectedId && !selected.records.some(matchesTarget)
+    && !visibleMemberTarget
     && !(view === 'telemetry' && list(model, 'detections').some(d => d.id === selectedId
       && explorationRecords(model, 'behaviors', filters).records.some(b => b.id === d.behaviorId)))) {
     panel.append(element(doc, 'p', 'Unknown target or target outside the active filters. No different research record has been substituted.', 'empty'),
@@ -698,7 +718,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
   }
   if (view === 'paths') {
     if (selected.records.length) {
-      const path = selected.records.find(p => p.id === selectedId) ?? selected.records[0];
+      const path = selected.paths.find(p => p.id === selectedId) ?? selected.records[0];
       if (selectedEntity && ![...path.nodes, ...path.edges].some(r => r.id === selectedEntity)) {
         panel.append(element(doc, 'p', 'Unknown or retired node/relationship in this path. No different entity has been substituted.', 'empty'),
           action(doc, 'Return to path case', () => navigate('cases', path.caseId)),

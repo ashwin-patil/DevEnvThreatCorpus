@@ -64,14 +64,18 @@ export function graphRouter(positions) {
     };
     // Self-loops use distinct ports; identical endpoints must not produce a zero-length edge.
     const self = from.id === to.id;
+    const loopStart = self ? startPorts.findIndex(p => {
+      const q = { x: p.x + p.dx, y: p.y + p.dy };
+      return neighbors.has(index(q)) && segmentClear(p, q, rectangles);
+    }) : -1;
     startPorts.forEach((p, i) => {
-      if (self && i !== 0) return;
+      if (self && i !== loopStart) return;
       const q = { x: p.x + p.dx, y: p.y + p.dy }, k = index(q);
       if (!neighbors.has(k) || !segmentClear(p, q, rectangles)) return;
       const cost = ROUTE_GUTTER + (usedPorts.get(portKey(p)) ?? 0) * 160;
       distance.set(k, cost); roots.set(k, p); push(k, cost);
     });
-    const targets = new Map(endPorts.filter((p, i) => !self || i === 2).map(p => [index({ x: p.x + p.dx, y: p.y + p.dy }), p])
+    const targets = new Map(endPorts.filter((p, i) => !self || i !== loopStart).map(p => [index({ x: p.x + p.dx, y: p.y + p.dy }), p])
       .filter(([k, p]) => neighbors.has(k) && segmentClear(point(k), p, rectangles)));
     let found;
     while (queue.length) {

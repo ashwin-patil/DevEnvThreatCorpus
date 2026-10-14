@@ -770,6 +770,8 @@ test('Issue #51 AC-05 geometry anchors branches, reverse/cycle/self/parallel edg
   assert.ok(moved?.d);
   const unusual = graphLayout({ nodes: [{ id: '__proto__' }, { id: 'constructor' }] });
   assert.equal(Object.keys(unusual).length, 2);
+  const closeCards = graphRouter({ a: positions.a, neighbor: { x: 300, y: 70 } });
+  assert.ok(closeCards({ from: 'a', to: 'a' })?.d, 'self-loop uses alternative ports when a permitted neighbor blocks its right port');
 });
 
 test('Issue #51 AC-02/03 phase selection preserves graph viewport, focus, filters and canonical return routes', async () => {
@@ -807,6 +809,52 @@ test('Issue #51 AC-03 switching displayed campaigns never carries the previous c
   assert.doesNotMatch(content.textContent, /target outside the active filters/);
   assert.match(content.textContent, new RegExp(other.name));
   assert.ok(descendants(content).some(n => n.getAttribute('class') === 'research-graph'));
+});
+
+test('Issue #51 AC-03 search-matched campaigns retain unmatched member routes through evidence, reload and history', async () => {
+  const m = multiPhaseModel(), first = m.corpus.paths[0], other = m.corpus.paths[1];
+  const { content, win, doc } = await mounted(m.corpus, routeHash('paths', first.id));
+  doc.getElementById('search').value = 'upstream compromise';
+  await doc.getElementById('search').trigger('input');
+  const node = descendants(content).find(n => n.getAttribute('data-member-path') === other.id && n.getAttribute('data-entity-kind') === 'node');
+  await node.trigger('keydown', { key: 'Enter' });
+  const hash = win.location.hash, state = structuredClone(win.history.state);
+  const reload = await mounted(m.corpus, hash, state);
+  assert.doesNotMatch(reload.content.textContent, /target outside the active filters/);
+  const inspection = descendants(reload.content).find(n => n.className === 'graph-inspection');
+  assert.ok(inspection.textContent.startsWith(other.nodes[0].title));
+  await button(inspection, m.claims.get('synthetic-claim-b').description).trigger('click');
+  await button(reload.content, 'Return to selected path element').trigger('click');
+  assert.equal(reload.win.location.hash, hash);
+  assert.equal(reload.doc.getElementById('search').value, 'upstream compromise');
+  assert.doesNotMatch(reload.content.textContent, /target outside the active filters/);
+  reload.win.location.hash = hash; reload.win.history.state = state;
+  await reload.win.listeners.popstate();
+  assert.ok(descendants(reload.content).some(n => n.getAttribute('class') === 'research-graph'));
+});
+
+test('Issue #51 AC-04 compact controls focus selection, bound zoom, close movement menu and deterministically reset', async () => {
+  const m = multiPhaseModel(), before = digest(m.corpus), root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
+  const svg = descendants(root).find(n => n.getAttribute('class') === 'research-graph');
+  svg.getBoundingClientRect = () => ({ width: 317, height: 420 });
+  const initial = svg.getAttribute('viewBox'), fitWidth = Number(initial.split(' ')[2]);
+  const control = name => descendants(root).find(n => n.getAttribute('aria-label') === name);
+  await control('Focus selection').trigger('click');
+  assert.ok(Number(svg.getAttribute('viewBox').split(' ')[2]) < fitWidth);
+  for (let i = 0; i < 100; i++) await control('Zoom in').trigger('click');
+  assert.equal(Number(svg.getAttribute('viewBox').split(' ')[2]) / fitWidth, .12);
+  for (let i = 0; i < 100; i++) await control('Zoom out').trigger('click');
+  assert.equal(Number(svg.getAttribute('viewBox').split(' ')[2]) / fitWidth, 4);
+  const menu = descendants(root).find(n => n.className === 'graph-movement');
+  menu.open = true;
+  const toolbar = descendants(root).find(n => n.className === 'graph-icon-toolbar');
+  await toolbar.trigger('keydown', { key: 'Escape' });
+  assert.equal(menu.open, false);
+  await control('Reset layout').trigger('click');
+  assert.equal(svg.getAttribute('viewBox'), initial);
+  assert.equal(digest(m.corpus), before);
+  const labels = descendants(root).filter(n => n.getAttribute('class') === 'node-status');
+  assert.ok(labels.every(n => n.textContent.length <= 42 && n.textContent.endsWith('unreviewed')));
 });
 
   test('AP-01/02/04 node routes, no-path state and directed graph inspection stay in case scope', async () => {

@@ -117,8 +117,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (targetPath && (!currentPath || targetPath.caseId !== currentPath.caseId)
       && (!pathContext || targetPath.caseId !== pathCase())) return navigate(view, id, revisionId);
     if (route.view === 'paths') {
-      const path = explorationRecords(model, 'paths', filters).records.find(p => p.id === route.id)
-        ?? (!route.id ? explorationRecords(model, 'paths', filters).records[0] : null);
+      const selection = explorationRecords(model, 'paths', filters);
+      const path = selection.paths.find(p => p.id === route.id && selection.records.some(match => match.caseId === p.caseId))
+        ?? (!route.id ? selection.records[0] : null);
       if (path) {
         filters.cases = [path.caseId];
         pathContext = { pathId: path.id, entityId: route.revisionId || path.nodes[0]?.id || '', filters: structuredClone(filters) };

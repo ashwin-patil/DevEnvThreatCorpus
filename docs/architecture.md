@@ -141,6 +141,8 @@ using occupied-lane costs, and uses nearby label leaders rather than placing
 labels at unrelated grid locations. The text alternative remains available if
 crowding leaves no safe label position. Zoom is bounded to 0.12–4 times the
 all-node fit so a multi-phase overview can be enlarged for readable inspection.
+The named Focus selection control centers the selected node or edge endpoints
+using the measured viewport; zoom preserves that viewport aspect ratio.
 Public coverage counts canonical logical articles once while disclosing every
 original URL and recorded failure; it never rewrites the coverage manifest.
 
