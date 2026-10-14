@@ -1,0 +1,23 @@
+{
+  "name": "Research Workbench",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "vscode",
+  "init": true,
+  "forwardPorts": [4173],
+  "portsAttributes": {
+    "4173": {
+      "label": "Research Workbench (private)",
+      "protocol": "http",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "postCreateCommand": ["python", ".devcontainer/workbench.py", "check"],
+  "postStartCommand": ["python", ".devcontainer/workbench.py", "start"],
+  "waitFor": "postStartCommand"
+}

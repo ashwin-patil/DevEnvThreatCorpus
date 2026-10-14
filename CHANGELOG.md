@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-14 — Codespaces Research Workbench lifecycle (#53)
+
+- Add a discoverable devcontainer using a digest-pinned Python 3.12 base, the
+  existing Node version file and pinned governance requirements. Restrict the
+  image build context to pin files; no application install/build, private data
+  import, credentials or private store mode is enabled automatically.
+- Start the unchanged loopback preview on creation/rebuild and subsequent starts,
+  with labeled port 4173 and browser-opening forwarding. Preserve Codespaces'
+  private default and all existing Host/Origin checks; no public ports or server
+  security changes are introduced.
+- Add lock-serialized readiness/start/stop/restart commands, protected logs and
+  process-identity checks, with focused real-process regressions for duplicate
+  starts, stale PIDs and visible startup failure/recovery. Document Codespaces
+  usage, billing, troubleshooting and explicit private-store opt-in.
+- Track AC-01–AC-06 without equating local checks to actual Codespaces lifecycle,
+  authenticated/private access, browser acceptance or independent human review.
+
 ## 2026-10-14 - Codespaces trusted-base authorization (#56)
 
 - Classify `.devcontainer/**` as governance and a README upkeep trigger so the

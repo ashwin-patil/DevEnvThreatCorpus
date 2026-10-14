@@ -16,15 +16,87 @@
 
 # DevEnvThreatCorpus
 
-## Codespaces setup status
+## GitHub Codespaces: automatic Research Workbench
 
-The policy prerequisite for [Codespaces setup (#53)](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/53)
-classifies `.devcontainer/**` as governance and a README upkeep trigger; it does
-not provide a devcontainer or automatic webapp startup. After this prerequisite
-is merged, refresh implementation PR #55 from `main` before adding the Codespaces
-configuration. Until that implementation and its live Codespaces checks are
-complete, use the existing local startup instructions below. See
-[trusted-base bootstrap](docs/setup-and-configuration.md#trusted-base-bootstrap).
+[Create a Codespace](https://codespaces.new/ashwin-patil/DevEnvThreatCorpus)
+from the branch/revision containing this configuration (select PR #55's branch
+until it is merged). Alternatively, select **Code → Codespaces → Create codespace**
+on that branch. The repository's `.devcontainer/devcontainer.json` builds Python
+3.12, installs Node from `scripts/.node-version` and governance dependencies from
+`requirements-governance.txt`. No application install/build command is needed.
+First creation/rebuild needs network access to download the image and pinned
+packages; wait for the setup/start lifecycle tasks to finish.
+
+On creation, rebuild and subsequent starts, the lifecycle command starts the
+existing loopback server on `4173` and checks its HTTP readiness. The **Research
+Workbench (private)** port requests a browser tab. If popup settings prevent it,
+open **Ports → 4173 → Open in Browser**. Use an external browser tab rather than
+an embedded preview: the existing frame/host/origin protections are unchanged.
+The initial UI shows the bundled public Pending draft, not private data. Choose
+**Load synthetic demo**, or **Load synthetic research demo** in a research view,
+for an explicit benign exercise. These fixtures are not incident evidence and
+do not populate a store. **Reload local corpus** leaves demo mode.
+
+Codespaces forwarded ports are private/authenticated by default. Keep `4173`
+**Private** in the Ports panel; do not change it to organization/public visibility,
+share it, or use public tunnels. The label is not an access-control mechanism.
+Before using private data, independently verify the forwarded URL works when
+signed in and denies an unauthenticated/private-window session. Do not put tokens,
+credential-bearing URLs or private screenshots in evidence.
+
+Use **Codespaces: Stop Current Codespace** (or stop it on your GitHub Codespaces
+page) when done. Reopening starts the workbench again; closing a browser tab alone
+does not immediately stop compute. Use **Codespaces: Rebuild Container** after
+changing runtime pins, dependencies or devcontainer configuration. Quotas, idle
+timeouts, compute and retained storage can affect availability and billing; review
+[Codespaces billing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-codespaces/about-billing-for-github-codespaces)
+before creating one. Stopped Codespaces can still consume storage; delete unused
+Codespaces when their contents are no longer needed.
+
+From the repository root in the Codespace terminal:
+
+```sh
+python .devcontainer/workbench.py check
+python .devcontainer/workbench.py status
+python .devcontainer/workbench.py restart
+python .devcontainer/workbench.py stop
+python .devcontainer/workbench.py start
+```
+
+The lifecycle prints its mode-0600 log location in an owned mode-0700 `/tmp`
+directory. Repeat `start` does not add a second server. Failures return nonzero
+and remain visible in lifecycle task output and `server.log`; `status` also
+returns nonzero if stopped/unready. If `4173` is occupied, stop the conflicting
+server you started (do not blindly kill unrelated processes), then run `restart`.
+For version/dependency mismatch, rebuild instead of changing pins or skipping
+checks. For image/download failures inspect the creation log and retry the build
+after network access is restored. If local HTTP works but the forwarded browser
+returns 403, preserve Host/Origin checks and loopback binding: record a
+synthetic-only failure for investigation, or use VS Code desktop's authenticated
+Codespaces connection and localhost forwarding. Never solve this by making the
+port public or relaxing server validation.
+
+Private store mode is **opt-in, per session**, never part of automatic startup.
+Stop the managed preview, then run the existing server explicitly:
+
+```sh
+python .devcontainer/workbench.py stop
+umask 077
+mkdir -p .private-intake/codespaces-store
+chmod 700 .private-intake .private-intake/codespaces-store
+node scripts/server.mjs --store "$PWD/.private-intake/codespaces-store" --port 4173
+```
+
+Keep files mode `0600`; `.private-intake/` is ignored, not a backup or access
+control. Do not import credentials or collect sources automatically. Collection
+requires an explicit researcher action. Ctrl+C stops this foreground server;
+`python .devcontainer/workbench.py start` restores the default data-free preview.
+Codespaces restarts do not automatically reopen your private store. For stricter
+privacy keep private research local instead of on a hosted development machine.
+
+[Setup and acceptance limits](docs/setup-and-configuration.md#codespaces-environment-and-lifecycle)
+distinguish local checks from required live Codespaces and independent human
+acceptance. Configuration alone does not establish those outcomes.
 
 The bundled **Nx / s1ngularity public Pending draft** contains 38 claims,
 14 behaviors, 3 retained representative phase paths and 2 Proposed mappings from
@@ -666,7 +738,8 @@ root; no installation, build, CDN, model, or internet connection is required:
 node scripts/server.mjs
 ```
 
-Open `http://127.0.0.1:4173/`. The initial corpus is empty. Select **Load synthetic
+Open `http://127.0.0.1:4173/`. Without private input, the UI shows the bundled public
+Pending draft (the local corpus API is empty). Select **Load synthetic
 demo** to exercise benign 0.3.0 fixtures, including emoji passages, inference,
 and conflicting claims. Demo records are not incident evidence and are never
 written to your corpus. Browse cases and sources independently; click passage
@@ -674,7 +747,8 @@ highlights or claim links to inspect their exact retained revision.
 
 Select **Reload local corpus** to leave the demo and restore the configured
 startup snapshot (or the empty corpus if none was supplied), clearing search
-and filters. This does not reread changed files; restart the server for that.
+and filters; without private input the UI returns to the public draft. This does
+not reread changed files; restart the server for that.
 
 To inspect fresh intake/extraction output instead, supply its absolute private
 corpus path (file mode `0600`, as produced by intake):
