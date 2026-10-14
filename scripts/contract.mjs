@@ -271,6 +271,22 @@ function currentAccepted(corpus, type, entity) {
   return entity.disposition === 'Accepted' && currentReview(corpus, type, entity);
 }
 
+function behaviorClaimIds(behavior) {
+  return [...new Set([
+    ...(behavior.claimIds ?? []),
+    ...(behavior.supportingClaimIds ?? []),
+    ...(behavior.occurrenceClaimIds ?? []),
+    ...(behavior.occurrences ?? []).flatMap(item => item.claimIds ?? item.supportingClaimIds ?? []),
+  ])];
+}
+
+function behaviorCaseIds(behavior) {
+  return new Set([
+    ...(behavior.caseId ? [behavior.caseId] : []),
+    ...(behavior.occurrences ?? []).flatMap(item => item.caseId ? [item.caseId] : []),
+  ]);
+}
+
 export function profileRecords(input, profile = 'reviewed') {
   if (!['reviewed', 'draft'].includes(profile)) throw new Error('profile must be reviewed or draft');
   if (input?.schemaVersion !== CONTRACT_VERSION) throw new Error(`unsupported schema version ${JSON.stringify(input?.schemaVersion)}; expected ${CONTRACT_VERSION}`);
@@ -330,12 +346,17 @@ export function profileRecords(input, profile = 'reviewed') {
       && item.claimIds.every(id => selectedClaims.has(id))
       && (!item.pathId || selectedPaths.has(item.pathId))))
     .map(item => item.id));
-  const selectedBehaviorIds = new Set([
+  const linkedBehaviorIds = new Set([
     ...(corpus.paths ?? []).filter(item => selectedPaths.has(item.id)).flatMap(item => item.nodes.flatMap(node => node.behaviorIds)),
     ...(corpus.mappings ?? []).filter(item => selectedMappings.has(item.id)).map(item => item.behaviorId),
   ]);
   const selectedBehaviors = new Set((corpus.behaviors ?? [])
-    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviorIds.has(item.id))
+    .filter(item => {
+      const supportIds = behaviorClaimIds(item);
+      return profile === 'draft' || item.disposition !== 'Excluded'
+        && (linkedBehaviorIds.has(item.id) || supportIds.length > 0)
+        && supportIds.every(id => selectedClaims.has(id));
+    })
     .map(item => item.id));
   const selectedPathIds = new Set((corpus.paths ?? [])
     .filter(item => selectedPaths.has(item.id) && item.nodes.every(node => node.behaviorIds.every(id => selectedBehaviors.has(id))))
@@ -344,15 +365,33 @@ export function profileRecords(input, profile = 'reviewed') {
     .filter(item => selectedMappings.has(item.id) && selectedBehaviors.has(item.behaviorId)
       && (!item.pathId || selectedPathIds.has(item.pathId)))
     .map(item => item.id));
-  const selectedDetectionIds = new Set((corpus.detections ?? [])
-    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviors.has(item.behaviorId))
-    .map(item => item.id));
-  const selectedOtelIds = new Set((corpus.otel ?? [])
-    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviors.has(item.behaviorId))
-    .map(item => item.id));
-  const selectedTelemetryIds = new Set((corpus.telemetry ?? [])
-    .filter(item => profile === 'draft' || item.disposition !== 'Excluded' && selectedBehaviors.has(item.behaviorId))
-    .map(item => item.id));
+  const telemetryById = new Map((corpus.telemetry ?? []).map(item => [item.id, item]));
+  const detectionsById = new Map((corpus.detections ?? []).map(item => [item.id, item]));
+  const otelById = new Map((corpus.otel ?? []).map(item => [item.id, item]));
+  const available = item => item && (profile === 'draft' || item.disposition !== 'Excluded');
+  const selectedDetectionIds = new Set();
+  const selectedOtelIds = new Set();
+  const selectedTelemetryIds = new Set();
+  for (const behavior of corpus.behaviors ?? []) {
+    if (!selectedBehaviors.has(behavior.id)) continue;
+    for (const item of corpus.telemetry ?? []) {
+      if (item.behaviorId === behavior.id && available(item)) selectedTelemetryIds.add(item.id);
+    }
+    for (const item of corpus.detections ?? []) {
+      if (item.behaviorId === behavior.id && available(item)) selectedDetectionIds.add(item.id);
+    }
+    for (const item of corpus.otel ?? []) {
+      if (item.behaviorId === behavior.id && available(item)) selectedOtelIds.add(item.id);
+    }
+    behavior.signalIds.filter(id => available(telemetryById.get(id))).forEach(id => selectedTelemetryIds.add(id));
+    behavior.detectionIds.filter(id => available(detectionsById.get(id))).forEach(id => selectedDetectionIds.add(id));
+    behavior.otelIds.filter(id => available(otelById.get(id))).forEach(id => selectedOtelIds.add(id));
+  }
+  for (const detection of corpus.detections ?? []) {
+    if (!selectedDetectionIds.has(detection.id)) continue;
+    detection.signalIds.filter(id => available(telemetryById.get(id))).forEach(id => selectedTelemetryIds.add(id));
+    detection.otelIds.filter(id => available(otelById.get(id))).forEach(id => selectedOtelIds.add(id));
+  }
   const selectedFrameworkIds = new Set(profile === 'draft' ? (corpus.frameworks ?? []).map(item => item.id)
     : (corpus.mappings ?? []).filter(item => selectedMappingIds.has(item.id)).map(item => item.techniqueId));
   let parentFramework;
@@ -638,22 +677,58 @@ export function queryProfile(profile, operation, options = {}) {
     const paths = entries.filter(item => item.entityType === 'paths' && caseIds.has(item.entity.caseId));
     const mappings = entries.filter(item => item.entityType === 'mappings'
       && (caseIds.has(item.entity.caseId) || item.entity.claimIds.some(id => claimIds.has(id))));
-    const behaviorIds = new Set([
+    const linkedBehaviorIds = new Set([
       ...paths.flatMap(item => item.entity.nodes.flatMap(node => node.behaviorIds)),
       ...mappings.map(item => item.entity.behaviorId),
     ]);
+    const behaviorIds = new Set(entries.filter(item => {
+      if (item.entityType !== 'behaviors') return false;
+      const supportIds = behaviorClaimIds(item.entity);
+      const scopedCases = behaviorCaseIds(item.entity);
+      const standalone = supportIds.length > 0 && supportIds.every(id => claimIds.has(id))
+        && (!scopedCases.size || [...scopedCases].some(id => caseIds.has(id)));
+      return linkedBehaviorIds.has(item.entity.id) || standalone;
+    }).map(item => item.entity.id));
+    const selectedBehaviors = entries.filter(item => item.entityType === 'behaviors' && behaviorIds.has(item.entity.id));
+    const telemetryIds = new Set(entries.filter(item => item.entityType === 'telemetry'
+      && behaviorIds.has(item.entity.behaviorId)).map(item => item.entity.id));
+    const detectionIds = new Set(entries.filter(item => item.entityType === 'detections'
+      && behaviorIds.has(item.entity.behaviorId)).map(item => item.entity.id));
+    const otelIds = new Set(entries.filter(item => item.entityType === 'otel'
+      && behaviorIds.has(item.entity.behaviorId)).map(item => item.entity.id));
+    for (const record of selectedBehaviors) {
+      record.entity.signalIds.forEach(id => telemetryIds.add(id));
+      record.entity.detectionIds.forEach(id => detectionIds.add(id));
+      record.entity.otelIds.forEach(id => otelIds.add(id));
+    }
+    for (const record of entries.filter(item => item.entityType === 'detections' && detectionIds.has(item.entity.id))) {
+      record.entity.signalIds.forEach(id => telemetryIds.add(id));
+      record.entity.otelIds.forEach(id => otelIds.add(id));
+    }
     const techniqueIds = new Set(mappings.map(item => item.entity.techniqueId));
+    let addedParent;
+    do {
+      addedParent = false;
+      for (const record of entries.filter(item => item.entityType === 'frameworks' && techniqueIds.has(item.entity.id))) {
+        if (record.entity.parentId && !techniqueIds.has(record.entity.parentId)) {
+          techniqueIds.add(record.entity.parentId);
+          addedParent = true;
+        }
+      }
+    } while (addedParent);
     const techniques = entries.filter(item => item.entityType === 'frameworks' && techniqueIds.has(item.entity.id));
     const caseSources = cases.flatMap(item => item.entity.sourceIds);
     const sources = new Set([
       ...caseSources,
       ...claims.map(item => item.entity.sourceId),
       ...techniques.map(item => item.entity.sourceId),
-      ...entries.filter(item => item.entityType === 'otel' && behaviorIds.has(item.entity.behaviorId)).flatMap(item => item.entity.standardSourceIds),
+      ...entries.filter(item => item.entityType === 'otel' && otelIds.has(item.entity.id)).flatMap(item => item.entity.standardSourceIds),
     ]);
     const revisions = new Set([
       ...claims.map(item => item.entity.sourceRevisionId),
       ...entries.filter(item => item.entityType === 'timelines' && caseIds.has(item.entity.caseId)).flatMap(item => item.entity.sourceRevisionIds),
+      ...entries.filter(item => item.entityType === 'sources' && sources.has(item.entity.id))
+        .flatMap(item => item.entity.revisionIds),
     ]);
     const passages = new Set(claims.flatMap(item => item.entity.passageIds));
     const bundleRecords = entries.filter(item => item.entityType === 'cases' && caseIds.has(item.entity.id)
@@ -665,7 +740,9 @@ export function queryProfile(profile, operation, options = {}) {
       || item.entityType === 'mappings' && (caseIds.has(item.entity.caseId) || item.entity.claimIds.some(id => claimIds.has(id)))
       || item.entityType === 'behaviors' && behaviorIds.has(item.entity.id)
       || item.entityType === 'frameworks' && techniqueIds.has(item.entity.id)
-      || ['telemetry', 'detections', 'otel'].includes(item.entityType) && behaviorIds.has(item.entity.behaviorId));
+      || item.entityType === 'telemetry' && telemetryIds.has(item.entity.id)
+      || item.entityType === 'detections' && detectionIds.has(item.entity.id)
+      || item.entityType === 'otel' && otelIds.has(item.entity.id));
     return {
       status: 'succeeded', operation, profile: profile.profile, digest: profile.snapshotDigest,
       unit: 'case bundle', caseId: options.caseId, coverage: profile.coverage, records: bundleRecords,
@@ -738,7 +815,7 @@ export function validateCorpus(corpus) {
     }
     if (revision.rawContent !== null && revision.normalizedContent !== null) {
       try {
-        const normalized = revision.parserVersion === HTML_PARSER_VERSION
+        const normalized = (revision.parserVersion === HTML_PARSER_VERSION || revision.parserVersion === 'readable-html/4')
           ? normalizeText(readableHtml(revision.rawContent)) : revision.parserVersion === 'readable-html/3'
             ? normalizeText(parseArticle(revision.rawContent, undefined, { replaceNulls: false }).text) : revision.parserVersion === 'readable-html/2'
             ? normalizeText(parseArticle(revision.rawContent, undefined, { legacyRoots: true, replaceNulls: false }).text) : revision.parserVersion === 'readable-html/1'
@@ -1569,7 +1646,7 @@ export function assertAppendOnlyReviews(previous, next) {
     };
     try {
       await unchanged();
-      assertValid(corpus);
+      assertValid(store.reviewAware ? reviewEligibleCorpus(corpus) : corpus);
       temporary = path.join(path.dirname(store.file), `.intake-${randomUUID()}.pending`);
       handle = await fs.open(temporary, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY | fsConstants.O_NOFOLLOW, 0o600);
       await handle.writeFile(canonicalSerialize(corpus), 'utf8');

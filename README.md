@@ -16,6 +16,20 @@
 
 # DevEnvThreatCorpus
 
+The local ATLAS & TTPs view separates campaign mapping counts from resolver
+references. New campaign extraction requests include the pinned MITRE ATLAS
+2026.09 catalog (208 techniques/sub-techniques, official descriptions and parent
+relationships) alongside the existing ATT&CK projection. Catalog sections expand
+and search by ID, name or description. Catalog membership is not incident evidence:
+source-mentioned IDs must occur in supporting passages; grounded analogies remain
+researcher-proposed and Pending. Historical runs retain their original snapshots.
+
+Citation chips show publisher names and navigate to exact evidence or source
+revisions. Full IDs, hashes and Unicode offsets remain in collapsed Technical
+provenance and private exports. Undated timeline entries are collapsed without
+inventing dates. Behavior chips use review colors/symbols and a Human review
+legend; Pending means awaiting human review, separate from attack outcome.
+
 DevEnvThreatCorpus is building a human-reviewed corpus for research on
 developer-environment threats. The current work provides the data contract,
 offline validation, operator-triggered source intake, researcher-triggered
@@ -25,6 +39,37 @@ The private review CLI records append-only decisions and checks current
 acceptance eligibility; local reviewer identity is self-attested, not authenticated.
 
 ## Current implementation
+
+Variable-height research/artifact cards use a column flow with consistent gutters
+so shorter cards do not leave an empty grid row underneath. Campaign cards retain
+stable expandable grid positions. Publisher labels and Publisher filters use
+recognized HTML publisher metadata or the canonical/final URL host. Zscaler URLs
+use Zscaler; explicit rebranded metadata is normalized while raw page publisher
+values remain archived. Historical Red Canary pages retain their own identity
+unless their retained URL or metadata identifies Zscaler. No arbitrary HTML tags
+or publisher ownership relationship is promoted to accepted campaign evidence.
+
+Case library is the campaign-level overview: one expandable card per case, with
+links to its research blogs, behaviors, tools, prompts and full workspace. Research
+library is the source-level overview: one card per blog/article, with campaign
+tags and source-specific behavior and evidence links. Shared blogs can tag several
+cases without merging their attribution. Tool/prompt colors and symbols use a
+visible usage legend; behavior titles remain plain names under Actions or Activity
+patterns category sections. This changes presentation only, not corpus identities
+or pending/accepted review state.
+
+AI tools and Prompt library views project private, grounded `ide-cli` and
+`prompt-instruction` annotations. Campaign and Research library cards link to
+entries, exact revisions and supporting claims. Known product aliases share a
+display identity; the Amazon Q CLI alias `q` displays as Amazon Q while its
+source literal remains available. Unknown executables remain unresolved. Exact prompt variants
+retain case, whitespace and punctuation rather than being semantically merged.
+Prepare a fresh campaign request using extraction prompt version 3, then import
+its candidate to populate these views. Optional artifact `usage` classifies
+targeting, attempted/reported abuse, vendor examples, general mentions or unclear
+context; older annotations display unclear. These are pending research artifacts,
+not independently confirmed IOCs or deployed detection rules. Existing request
+files must be prepared again after the prompt version change.
 
 The 0.3.0 contract models sources and their revisions, passages, cases, claims,
 categorization, timelines, and review events. Its validator checks schema shape
@@ -45,7 +90,10 @@ comparison, and a **Comparison & timelines** view of selected corpus observation
 Its curator studio adds in-memory article intake, passage selection,
 and pending claim/behavior proposal downloads. Explicit batch URL collection
 also persists private sources and campaign links through the local backend.
-Neither path accepts claims or adjudicates research.
+For an existing case, campaign extraction now prepares a bounded private request
+for a researcher-mediated Codex chat handoff and validates/imports its returned
+candidate as pending records. It does not call a model or network endpoint.
+None of these paths accepts claims or adjudicates research.
 
 The new corpus starts from newly supplied source material. Existing 0.2.0
 claims are not migrated, copied, or used to seed it. The frozen 0.2.0 material
@@ -115,12 +163,13 @@ Collection alone creates no attack graph, framework mapping, or accepted fact.
 No legacy 0.2.0 incidents are imported automatically.
 
 In private `--store` mode, campaign pages display validated `talk-enrichment/1`
-annotations grouped by AI/attacker/victim context, behaviors, data sources,
+annotations and the derived `campaign-projection/1` view of applied campaign
+runs, grouped by AI/attacker/victim context, behaviors, data sources,
 commands/prompts/tools, indicators/CI/CD artifacts, TTPs, detection references,
-and talk tags. Import annotations with the existing enrichment CLI below and
-click **Reload local corpus**. Invalid/stale sidecars display a warning while
-core sources and claims remain usable. The annotation endpoint is read-only;
-the browser does not receive filesystem access or model credentials.
+and talk tags. Import manual annotations with the existing enrichment CLI below
+and click **Reload local corpus**. Invalid/stale annotations display a warning
+while core sources and claims remain usable. The annotation endpoint is
+read-only; the browser does not receive filesystem access or model credentials.
 
 Campaign pages export private talk bundles as JSON or Markdown: citations,
 case claims and passages, annotations, categories, timelines, and optional
@@ -195,7 +244,7 @@ text and metadata allow up to 6 MiB for supported charset expansion, with the
 same limits enforced when writing and downloading. Hidden/template article
 roots and their images are excluded from extraction. Archive links are tied
 to the selected revision even when the source was initially supplied as text.
-New HTML revisions use `readable-html/4`; existing `/1`, `/2`, and `/3` revisions
+New HTML revisions use `readable-html/5`; existing `/1`, `/2`, `/3`, and `/4` revisions
 validate against their original transformations without rewriting evidence.
 HTML NUL characters are replaced only in the parsing projection, as in browser
 HTML tokenization. Original response content and hashes remain intact in the
@@ -232,6 +281,118 @@ for required fields, evidence locators, overlapping role dimensions,
 agent/model provenance, and observed-versus-proposed distinctions.
 Case/source/revision references use the existing core identifier syntax,
 including colons; annotation IDs retain their separate sidecar restrictions.
+
+### Campaign extraction through a configured Codex chat
+
+This separate workflow operates on one **existing** case. `prepare` freezes its
+selected retained revisions, exact citations and hashes, at most 1,000 passages
+of at most 2,400 Unicode code points each, the extraction instructions, and the
+candidate guide into a `campaign-request/1` file. By default it deduplicates the
+case's source list and selects the last retained revision in each source's
+revision list. Use `--revisions` only to select comma-separated retained revision
+IDs explicitly. Unavailable text is recorded rather than fetched or omitted.
+Requests and candidates are each limited to 2 MiB.
+
+**Research library** opens as cards grouped by existing cases, with article,
+claim, path and supported-behavior links; sources without cases remain independent
+cards. Selecting an article opens its exact revision/evidence detail, while
+**Claims & evidence** remains the claim-first inspection view. **ATLAS & TTPs**
+shows recorded mappings separately from unresolved candidates and the pinned
+resolver references present in applied runs. Catalog references are not incident
+evidence; the current resolver has limited ATT&CK coverage and no ATLAS catalog.
+
+Research chips use compact normalized publisher names (including Nx); repeated
+publisher chips are numbered, with exact article titles in tooltips/accessibility
+labels. Reported metadata stays separate. Behaviors opens a suggested normalized
+inventory, separating atomic actions and activity-pattern candidates; original
+records and evidence remain inspectable. Chained activities come only from
+recorded path relationships. Grouping suggests review and never merges evidence.
+See the [researcher usability review](docs/usability-review.md) for limits.
+
+Potential consequences and disputed behavior remain inference in the research
+annotation projection, with the original classification in context notes.
+Node-specific technique candidates may cite only claims supporting that node.
+
+```bash
+R=/absolute/path/to/DevEnvThreatCorpus
+S=/absolute/private/store
+CASE_ID=existing-case-id
+umask 077
+node "$R/scripts/extract.mjs" campaign prepare --store "$S" --case "$CASE_ID" \
+  --output "$S/campaign-request.json" --requested-model 'GPT-6.1 Sol High'
+# Optional: add --revisions source-revision-id-1,source-revision-id-2
+# Give only campaign-request.json to the researcher-configured Codex chat.
+# Save its single campaign-candidate/1 JSON response as the private file below.
+chmod 600 "$S/campaign-candidate.json"
+node "$R/scripts/extract.mjs" campaign validate --store "$S" \
+  --request "$S/campaign-request.json" --input "$S/campaign-candidate.json"
+node "$R/scripts/extract.mjs" campaign apply --store "$S" \
+  --request "$S/campaign-request.json" --input "$S/campaign-candidate.json"
+node "$R/scripts/extract.mjs" campaign status --store "$S" --case "$CASE_ID"
+node "$R/scripts/extract.mjs" campaign export --store "$S" --case "$CASE_ID" \
+  --output "$S/campaign-talk.json" --format json
+node "$R/scripts/extract.mjs" campaign export --store "$S" --case "$CASE_ID" \
+  --output "$S/campaign-talk.md" --format md
+# Omit --case from status to summarize every run in the private store.
+```
+
+The requested model label is advisory metadata, not a selection made by this
+repository. For this implementation the requested label is `GPT-6.1 Sol High`;
+the effective main-chat model/version is not exposed and must remain `null` with
+an `unknown` reason unless the entrypoint supplies it. Do not confuse either
+value with the model used by an implementation agent. Candidate article text,
+code, prompts, and links remain untrusted data; do not execute or follow them.
+CLI terminal output is limited to safe identifiers, hashes, coverage and record
+counts, while request, candidate and export content stays in protected files.
+
+`apply` rechecks the unchanged request/base/hashes and exact quotations, resolves
+Unicode code-point offsets locally, validates complete coverage and dependency
+closure, then atomically updates `corpus.json`. Core pending records and a
+versioned `governance.campaignExtraction` run snapshot share that publication
+boundary. Existing manual extraction, review history and enrichment sidecars are
+preserved; generated annotations are a derived compatibility projection. Exact
+replay is idempotent, while stale, colliding, invalid or concurrent operations
+leave the prior snapshot usable. JSON/Markdown exports are private,
+dependency-closed pending research drafts, never reviewed releases.
+
+In `node "$R/scripts/server.mjs" --store "$S"`, open **Curator studio → Enrich
+campaign**. Choose an existing case, prepare/download its request, use the same
+researcher-mediated Codex handoff, and import one returned JSON file (2 MiB
+maximum) against that in-session request. The workbench displays pending state,
+coverage, limitations and model disclosure. Case talk downloads add the same
+campaign run/catalog provenance and dependency closure. Preparation is not
+extraction, and the browser never receives filesystem paths or model credentials.
+
+Before evaluating protected retained material, copy the pre-evaluation store;
+never refetch substitute text for a missing revision. Keep the frozen gold
+checklist human-authored and independent of the model response:
+
+```bash
+LIVE=/absolute/private/original-store
+E=/absolute/private/evaluation
+umask 077
+mkdir -p "$E"
+cp -a "$LIVE/." "$E/store/"
+cp "$LIVE/corpus.json" "$E/corpus.before.json"
+chmod 700 "$E" "$E/store"
+find "$E" -type d -exec chmod 700 {} \;
+find "$E" -type f -exec chmod 600 {} \;
+find "$E/store" -type f -print0 | sort -z | xargs -0 sha256sum > "$E/pre-evaluation.sha256"
+sha256sum "$E/corpus.before.json" > "$E/corpus.before.sha256"
+# A human now creates $E/gold-checklist.json independently of the candidate.
+chmod 600 "$E/gold-checklist.json"
+sha256sum "$E/gold-checklist.json" > "$E/gold-checklist.sha256"
+# Run prepare/validate/apply/status/export against $E/store, not $LIVE.
+# Compare quoted evidence programmatically and the result against the human gold.
+sha256sum -c "$E/corpus.before.sha256"
+sha256sum -c "$E/gold-checklist.sha256"
+```
+
+Record only safe aggregate complete/partial/failed revision counts, gold coverage
+counts, quote-validation counts, hashes and discrepancies on the issue/PR—never
+private text. The current three-revision protected evaluation and frozen gold
+measurement have not been performed. See the [campaign architecture](docs/architecture.md#campaign-extraction-contract)
+and [Issue #45 acceptance matrix](docs/acceptance-audit.md#issue-45-passage-grounded-campaign-extraction).
 
 ## Manual extraction: offline exercise
 
@@ -488,14 +649,16 @@ python scripts/verify.py
 ```
 
 `python scripts/verify.py` runs the repository governance checks and configured
-project commands, including the offline contract, intake, extraction, review, workbench,
-export/query, workbench, and preview-server suites.
+project commands, including the offline contract, intake, extraction,
+campaign-record, review, export/query, workbench, and preview-server suites.
 To run the focused suites directly with the pinned Node runtime:
 
 ```powershell
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/contract.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/intake.test.mjs
 npm.cmd exec --yes --package=node@22.23.3 -- node --test --test-reporter=dot tests/extract.test.mjs
+node --test tests/campaign.test.mjs
+node --test tests/campaign-records.test.mjs
 node --test tests/review.test.mjs
 node --test tests/exports.test.mjs
 node --test tests/workbench.test.mjs
@@ -509,6 +672,9 @@ requirements, clean-start behavior, optional enrichment, and deterministic
 serialization. Intake checks use injected fake DNS/transports, while extraction
 tests use synthetic corpus/templates and temporary private stores. Neither suite
 contacts websites or assesses whether a research claim is factually true.
+Campaign-record checks use benign claims and a narrow pinned catalog fixture to
+exercise supported/unresolved records and inert proposals; they do not measure
+real extraction recall, framework correctness, or research truth.
 Review tests exercise private decisions, append-only history, stale acceptance,
 negative inputs, and separate provenance/status axes without authenticating a human.
 Export/query tests use only visibly synthetic corpus fixtures and check reproducible
@@ -527,6 +693,10 @@ Implemented now:
 - Offline manual extraction from researcher-completed templates, exact
   revision-grounded passages, explicit case/source links, inference and conflict
   records, and pending-only outcomes.
+- Researcher-mediated campaign request/candidate handoff for existing cases,
+  with bounded passage coverage, exact local quote resolution, atomic pending
+  records/run snapshots, narrow pinned-catalog resolution, status and private
+  dependency-closed talk exports. No runtime model/network adapter is included.
 - Private local claim acceptance, correction, and exclusion with append-only
   digest-bound events, explicit reviewer attribution, and current-eligibility checks.
 - Deterministic reviewed/draft export profiles, typed JSONL, case/source/timeline
@@ -541,8 +711,9 @@ Implemented now:
 
 Not implemented yet:
 
-- Semantic article interpretation or assisted research workflows.
-- Authenticated reviewer identity, hosted review, or an in-browser curator interface.
+- Unattended semantic extraction, runtime model/provider integration, or
+  independently validated real-article extraction quality.
+- Authenticated reviewer identity or hosted review.
 - Deployment or an operational corpus-processing pipeline.
 
 See [Architecture](docs/architecture.md) for the intended fresh-input flow,

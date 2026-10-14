@@ -4,6 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { canonicalSerialize, readPrivateTemplate, stableId, validatePrivateCorpus } from '../scripts/contract.mjs';
+import { ARTIFACT_USAGE } from './ai-library.mjs';
 
 export const ENRICHMENT_VERSION = 'talk-enrichment/1';
 export const ENRICHMENT_LIMITS = Object.freeze({ annotations: 1000, bytes: 2 * 1024 * 1024 });
@@ -27,6 +28,7 @@ const contextSchema = shape({
   collection: enumeration(['article-mentioned', 'proposed']),
   dataSources: list(['endpoint', 'process', 'network', 'dns', 'identity', 'repository', 'package', 'agent-ide', 'github-actions', 'ci-cd', 'cloud']),
   artifactKind: enumeration(['command', 'executable', 'flag-argument', 'prompt-instruction', 'agent-configuration', 'ide-cli', 'extension', 'skill', 'mcp-tool', 'mcp-server']),
+  artifactUsage: enumeration(ARTIFACT_USAGE),
   indicatorKind: enumeration(['domain', 'ip', 'url', 'hash', 'file-path', 'package', 'repository', 'user-agent', 'workflow', 'action-ref', 'runner', 'configuration']),
   mapping: enumeration(['source-mentioned', 'researcher-proposed']),
   framework: text, frameworkVersion: text,
@@ -248,7 +250,7 @@ async function components(file) {
   }
 }
 
-async function privateDirectory(directory, { create = false } = {}) {
+export async function privateDirectory(directory, { create = false } = {}) {
   absoluteSafe(directory, true);
   if (create) {
     await components(path.dirname(directory));
@@ -287,8 +289,9 @@ async function syncDirectory(directory) {
   try { await handle.sync(); } finally { await handle.close(); }
 }
 
-async function privateOutput(file, document) {
-  const output = serialize(document);
+export async function privateOutput(file, document, { raw = false } = {}) {
+  const output = raw ? document : serialize(document);
+  if (typeof output !== 'string' || Buffer.byteLength(output) > ENRICHMENT_LIMITS.bytes) throw failure('TOO_LARGE');
   absoluteSafe(file, true);
   const verify = await privateDirectory(path.dirname(file));
   await verify();

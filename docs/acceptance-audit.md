@@ -1,10 +1,121 @@
 # Acceptance audit
 
+### ATLAS reference catalog and evidence readability (PR #47)
+
+AC-06: `tests/campaign-records.test.mjs` checks ATLAS membership, wrong-version/ID
+failures, absent source literals, official name and Pending inferred mapping
+provenance. The projection pins 208 official techniques/sub-techniques with raw
+SHA-256 and Git blob hash; source hashes were verified before generation. Current
+resolver catalogs do not replace historic run snapshots or create mappings.
+AC-09: `tests/workbench.test.mjs` checks compact citations still navigate to exact
+claim/revision targets, collapsed IDs and undated entries remain retrievable, and
+review symbols/accessible labels distinguish Pending from attack outcome. The
+catalog disclosure/search test checks reference counts separately from mappings
+and unchanged corpus content. These are implementation checks, not independent
+semantic or UX acceptance. AC-10 human-authored frozen gold and independent review
+remain unmet; final executed commands/SHA and browser checks are recorded on PR #47.
+
+### Card spacing and publisher follow-up (PR #47)
+
+Publisher regressions cover explicit HTML publisher declarations, canonical
+domain migration, raw metadata preservation, legacy Red Canary identity and
+matching Publisher facets without source mutations. Variable-height card spacing
+and source usage backgrounds require browser geometry/visual checks in addition
+to the configured application suites. Existing revision hashes remain frozen;
+new metadata extraction uses readable-html/5. Independent UX review remains open.
+
+### Campaign/source card alignment (PR #47)
+
+`tests/workbench.test.mjs` covers one expandable card per case, one card per blog,
+many-to-many campaign tags, no corpus mutations, usage-color accessible labels,
+Amazon Q executable alias normalization with raw literal retention, source-local
+behavior links and category headings separate from behavior titles. These are
+implementation regressions; independent UX/research review remains required.
+
+### AI-tool and prompt library follow-up (PR #47)
+
+The user-requested follow-up adds private views and campaign-card links for
+grounded AI products and exact prompts. `tests/workbench.test.mjs` verifies known
+aliases, ambiguous executable isolation, exact prompt variants, case/source/search
+scoping, member-ID navigation, source citation clicks and private talk export.
+`tests/campaign-records.test.mjs` verifies usage enum rejection and unsupported
+literal rejection. These checks establish implementation behavior, not incident
+truth or a detection's effectiveness. Vendor URL intake may remain blocked by the
+normal robots policy; no bypass is authorized. Retained revisions can still be
+used for independent implementation exercises. AC-10 frozen human gold and
+independent semantic review remain unmet until supplied by a human reviewer.
+
 For every issue criterion, record a stable ID, observable outcome, changed-file evidence, verification method, result, and durable evidence reference. Use only `pass`, `fail`, or `needs-human-review`. Do not label a subjective judgment as an automated pass.
 
 Evidence is revision-bound. Record the full tested commit and relevant CI/local command results and links, then refresh all results after any new commit. Automated criteria require actual command/check execution; a declared command or green result copied from another revision is not proof. Subjective criteria need a named human's review and decision before merge.
 
 The PR policy reads GitHub's linked-issue and complete changed-file metadata: it requires exactly one open linked issue with stable acceptance IDs, mapped changed paths, documentation/root changelog upkeep for application/governance changes, configured README triggers, and a same-PR learning-index update when a learning note changes. It uses the exact trusted base's evaluator/configuration; patches are untrusted data, not commands or proof of quality. It does not read the PR body or comments, run tests, certify acceptance outcomes, or replace code review. The independent `Verify` check runs scaffold and configured application commands on the PR revision. Require both checks and human approval through repository settings; policy passing alone does not imply verification passed. A local fixture is only a test of the evaluator. On a new repository, hosted PR Policy is unavailable until that workflow is on the trusted default branch. See [applicability and bootstrap](setup-and-configuration.md#documentation-upkeep-policy).
+
+## Issue #45 passage-grounded campaign extraction
+
+The researcher-requested UI follow-up makes the source library a card overview
+with case/article/claim/path/behavior navigation while retaining exact source-ID
+routes. Focused workbench regressions cover direct behaviors without paths,
+article-filter isolation, independent sources, safe imported titles, and explicit
+resolver-reference/unresolved/mapping distinctions in the TTP view. No missing
+ATLAS catalog or candidate mapping is filled with legacy incident assertions.
+
+The originating requirements are [Issue #45](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/45).
+Implementation and corrections remain on draft [PR #47](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/47),
+which closes that one issue. Exact command output, the final full commit SHA and
+safe aggregate private-evaluation results belong in revision-bound PR comments;
+hosted evidence belongs under [PR #47 checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/47/checks).
+The cloud session stopped with a failure before final verification. Its initial
+run state is not passing evidence; current hosted results must be inspected for
+the latest head. Same-PR fixes are authorized, while merge and public corpus
+publication still require a person.
+
+Local follow-up reproduced and fixed behavior annotations that promoted
+potential/disputed claims to observed activity, and node-scoped mappings that
+accepted additional claims outside the node's support. Three focused synthetic
+regressions demonstrate those boundaries. Full final-revision commands, SHA and
+hosted results are recorded in the PR description rather than a self-referential
+commit assertion here.
+
+The original three retained revision hashes were verified in a protected local
+copy. Preparation covered 25 segments with no unavailable sources. A deliberately
+partial source-grounded smoke candidate exercised validation, atomic apply,
+idempotent replay, JSON/Markdown exports and browser evidence presentation:
+four exact quotations from three examined segments remained pending, case count
+and review history stayed unchanged, and all remaining segments were explicitly
+skipped. This is pipeline testing, not completed corpus extraction or human gold
+evaluation. No frozen human checklist was present; AC-10 remains unmet.
+
+The configured Codex chat handoff is the only model/provider integration.
+`GPT-6.1 Sol High` is requested advisory metadata for the implementation; the
+effective main-chat setting is not exposed and remains unknown. This is distinct
+from any implementation agent's model. Synthetic automated checks cannot
+establish factual extraction quality. All semantic, research, mapping-rationale,
+UX, accessibility, visual and documentation judgments below remain
+`needs-human-review`, regardless of later automated results.
+
+| ID | Observable implementation and synthetic automated evidence | Current result / durable evidence still required |
+|---|---|---|
+| AC-01 | `src/campaign.mjs` `prepareCampaign` and `scripts/extract.mjs` campaign CLI; `scripts/server.mjs` prepare route; `tests/campaign.test.mjs` and server cases cover existing-case selection, source/revision deduplication, last-retained policy, explicit revisions, bounded code-point segments, unavailable text and unchanged associations | `needs-human-review` — execute configured final-revision checks; protected real-set coverage and human mixed-grouping review remain required |
+| AC-02 | `CAMPAIGN_PROMPT`, request/provider metadata, exported `candidateGuide`, strict request hash/reconstruction and 2 MiB bounds in `src/campaign.mjs`; `tests/campaign.test.mjs` uses hostile synthetic text/no adapter, while `tests/workbench.test.mjs` exercises the two-step handoff and unknown model disclosure | `needs-human-review` — no executed final-revision evidence yet; human prompt/provider disclosure review required |
+| AC-03 | `resolveQuote` locally derives half-open code-point offsets from exact supplied segment quotes/occurrences; request and revision hashes fail closed. `tests/campaign.test.mjs` covers long Unicode segmentation, repetition/occurrence, tampering and staleness | `needs-human-review` — execute checks and programmatically validate every protected-set quotation; independent semantic review required |
+| AC-04 | `normalizeCandidate` and `src/campaign-records.mjs` preserve atomic source-local claims, overlapping roles, literal/normalized artifacts, inference support, null reasons and reciprocal conflicts; `tests/campaign.test.mjs` and `tests/campaign-records.test.mjs` use strict benign fixtures | `needs-human-review` — synthetic structure is not factual completeness; private frozen-gold comparison and human review of every factual claim required |
+| AC-05 | `normalizeCampaignRecords` requires claim support for behavior occurrences and every path node/edge, labels inferred edges and allows an unordered-only behavior set; `tests/campaign-records.test.mjs` contains supported/inferred/unordered graph cases | `needs-human-review` — execute final checks; independently review relationships, chronology and cross-source semantics |
+| AC-06 | `src/framework-catalog.mjs` freezes resolver version/digest/full pin and membership into each request; `src/campaign-records.mjs` requires exact built-in membership, deterministically separates the official catalog source, rejects collisions and emits invalid/source-literal IDs as unresolved. `tests/campaign-records.test.mjs` covers the narrow snapshot and resolution boundary | `needs-human-review` — a reported focused run occurred before a committed final revision and is not accepted evidence; independently review catalog provenance, rationale and applicability. Initial projection is only ATT&CK 19.2 T1059 |
+| AC-07 | Candidate normalization separates article-mentioned/proposed telemetry and published references/hypotheses, disables unaudited templates, and restricts OTEL to inert allowlisted synthetic values. `tests/campaign-records.test.mjs` covers pending labels, empty template allowlist and unsafe samples | `needs-human-review` — execute checks; human gold, labeling and proposal/deployment-boundary review required |
+| AC-08 | `applyCampaign` plus review-aware `updatePrivateCorpus` publishes core records and the versioned `governance.campaignExtraction` run in one locked atomic `corpus.json`; `tests/campaign.test.mjs` covers replay, staleness, collision/tampering, lock/interrupted-file behavior, private paths and prior manual/history preservation | `needs-human-review` — final POSIX execution and review-staleness inspection required |
+| AC-09 | `campaignStatus`, `campaignAnnotations` and dependency-closing `campaignExport`; same-origin bounded server routes and workbench integration in `scripts/server.mjs`, `src/app.mjs`, `src/studio.mjs`; `tests/campaign.test.mjs`, `tests/exports.test.mjs`, server and workbench suites cover closure, escaped Markdown, route/file bounds, pending status and JSON/Markdown paths | `needs-human-review` — reported pre-final focused results are not final evidence; execute checks, then independently inspect exact passages/literals and browser behavior at 1440×900, 1024×768 and 390×844 in light/dark themes with keyboard traversal |
+| AC-10 | Protected evaluation procedure and safe reporting boundary are documented in `README.md`; retained revisions were hash-verified and partial pipeline smoke tested locally, preserving private baseline and pending state | **fail** — comprehensive extraction, frozen human gold measurement and independent human research review remain outstanding; partial smoke coverage is not acceptance |
+| AC-11 | Usage, architecture, this matrix and substantive `CHANGELOG.md` map the implemented boundary; existing and focused campaign suites are configured through `python scripts/verify.py` | `needs-human-review` — record exact commands/results and final full SHA only after the final commit; hosted checks are currently unapproved/`action_required`; independent documentation relevance/accuracy review required |
+
+Automated command success does not close the composite human-review criteria. Fresh execution must include
+`python scripts/verify.py` and every configured application command on the final
+full SHA; a later commit invalidates that evidence. The private POSIX exercise
+must copy and protect the pre-evaluation store, retain baseline and gold hashes,
+and never refetch replacement data. Its terminal/PR record may contain only safe
+counts, hashes and discrepancy summaries, never retained text. Browser evidence
+must include desktop 1440×900, tablet 1024×768, mobile 390×844, light/dark and
+keyboard results. Agent self-audit cannot satisfy any independent review.
 
 ## Issue #39 batch article intake and private campaign corpus
 

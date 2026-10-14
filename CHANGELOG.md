@@ -1,5 +1,94 @@
 # Changelog
 
+## 2026-10-13 — Passage-grounded campaign extraction
+
+- Add the official immutable MITRE ATLAS 2026.09 catalog projection (208
+  techniques/sub-techniques) with descriptions, provenance hashes and license
+  notice. Freeze resolver `/2` in new extraction requests and explain grounded
+  proposal semantics in prompt `/4`. Show searchable catalog disclosures separately
+  from recorded mappings, retaining historical run provenance.
+- Replace GUID-heavy citation/passage labels with publisher/evidence labels while
+  preserving exact navigation and private provenance. Collapse technical details
+  and undated entries; suppress missing metadata placeholders. Behavior review
+  chips use colors, symbols and accessible legends instead of Pending suffixes.
+
+- Remove large empty row gaps beneath variable-height research/artifact cards
+  using column flow with consistent gutters; preserve expandable campaign grid
+  positions. Make usage colors override base card styling. Unify publisher
+  metadata/domain normalization across intake, cards and filters, including
+  migrated Zscaler pages and explicit HTML brand names. Retain raw publisher
+  metadata and historical Red Canary identity; version new HTML intake as /5.
+  Preserve /4 HTML transformation validation, including NUL replacement, so
+  previously retained revisions remain readable and altered text is rejected.
+
+- Align Case library with expandable campaign cards and Research library with
+  one card per blog plus many-to-many campaign tags. Preserve article-specific
+  behavior/evidence links and case identities. Replace usage suffixes on tool and
+  prompt chips with colored backgrounds, distinct symbols and an accessible
+  legend. Move behavior categories out of titles into Actions/Activity patterns
+  sections. Normalize the Amazon Q CLI alias q using the AWS product reference
+  while retaining literal source evidence.
+
+- Add campaign-linked AI product and exact prompt libraries with known-alias
+  normalization, unresolved executable labels, searchable usage classifications,
+  source/revision/claim navigation and private export retention. Keep prompt
+  variants separate and vendor demonstrations distinct from incident artifacts.
+  Extend the strict artifact contract with optional usage labels and version
+  extraction guidance to request complete prompts and explicit AI products.
+  Add Zscaler publisher normalization and focused alias, grounding, case isolation,
+  exact variant, navigation and classification regressions.
+  Show independent-source collection/extraction state so failed intake cards
+  cannot be mistaken for successfully retained vendor articles.
+
+- Normalize compact publisher display names across research cards, facets,
+  citations and source inspection, including Nx; preserve raw metadata and label
+  unverified host fallbacks. Number repeated publisher chips and retain full
+  article titles in accessible labels/tooltips. Add a suggested behavior inventory
+  with separate atomic/activity-pattern kinds and explainable overlap candidates,
+  preserving original evidence records. Display supported path transitions as
+  chained activities and version extraction guidance for shared definitions and
+  distinct occurrences. Unknown targets no longer substitute another record;
+  filtered source fallback is explicitly explained. Record the bounded researcher
+  walkthrough and remaining semantic/theme/deployment limitations.
+
+- Research library now opens as case-grouped research cards with explicit links
+  to articles, claims, supported paths and behaviors; independent sources remain
+  visible and exact source/revision detail stays available on selection. Direct
+  claim-backed behaviors retain related-case and support links even without a
+  path or technique mapping. The TTP view separately explains pinned resolver
+  coverage, unresolved candidates and recorded mappings, including missing ATLAS
+  coverage, instead of presenting an unexplained empty tab.
+
+- Local follow-up testing preserves potential/disputed behavior as inference in
+  the annotation projection, with its original classification visible in notes;
+  it no longer appears as an observed action. Node-specific mapping validation
+  now requires every supporting claim to belong to the selected node, preventing
+  unrelated same-case claims from being attached to that node's technique.
+
+- Issue #45 adds a researcher-mediated, offline
+  `prepare -> Codex chat handoff -> validate -> apply -> status/export` workflow
+  for existing cases under `scripts/extract.mjs campaign`. Requests freeze
+  deduplicated retained revision inputs, hashes, bounded Unicode passages,
+  provider/prompt metadata, limitations and a strict candidate guide. Local
+  validation derives exact quote offsets and rejects incomplete coverage,
+  tampering, stale input, ambiguity and unsupported dependencies; the repository
+  adds no model endpoint, credential, network adapter or automatic acceptance.
+- Atomically publish pending claims/passages and grounded behavior, path,
+  framework mapping, telemetry, detection and inert OTEL proposals together with
+  versioned `governance.campaignExtraction` run snapshots. Preserve manual
+  records, review history and old enrichment sidecars; expose only a derived
+  compatibility projection. Exact replay is idempotent, changed runs retain
+  supersession history, invalid/concurrent operations preserve the prior corpus,
+  and private JSON/Markdown exports retain dependency closure, coverage,
+  limitations and run/catalog provenance.
+- Add same-origin store-mode **Enrich campaign** prepare/download and bounded
+  candidate import, pending coverage/status displays, and case-scoped private
+  JSON/Markdown downloads. The two-step UI does not present preparation as
+  extraction or expose storage/model credentials. Synthetic checks cover the
+  shared CLI/server/record/UI boundaries; the unavailable protected
+  three-revision gold evaluation remains unmet, and independent semantic,
+  mapping, UX/accessibility and documentation review is still required.
+
 ## 2026-10-13 — HTML intake compatibility
 
 - Move failed source-intake attempts that precede a successful collection into

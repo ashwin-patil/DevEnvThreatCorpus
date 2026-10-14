@@ -60,7 +60,9 @@ export function selectedPassage(root, selection, revision) {
 
 export function createStudio(base) {
   return { base, intakes: [], cases: [], drafts: [], selection: null, sourceId: '', revisionId: '',
-    webIntake: { urls: '', operator: '', caseId: '', caseName: '', waiting: false, results: [], error: '', resultCaseId: '' } };
+    webIntake: { urls: '', operator: '', caseId: '', caseName: '', waiting: false, results: [], error: '', resultCaseId: '' },
+    campaign: { caseId: '', requestedModel: '', waiting: false, error: '', preparedRequest: null,
+      preparedCaseId: '', candidate: null, candidateName: '', summary: null } };
 }
 export function studioSources(state) { return [...state.base.sources, ...state.intakes.map(i => i.source)]; }
 export function studioRevisions(state) { return [...state.base.sourceRevisions, ...state.intakes.map(i => i.revision)]; }
@@ -313,6 +315,134 @@ export function renderWebIntake(doc, state, { enabled = false, collect, refresh,
   return section;
 }
 
+export const CAMPAIGN_FILE_LIMIT = 2 * 1024 * 1024;
+
+export async function campaignCandidate(file) {
+  if (!file) throw new Error('Choose a returned candidate JSON file.');
+  if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > CAMPAIGN_FILE_LIMIT) {
+    throw new Error('Candidate JSON must be at most 2 MiB.');
+  }
+  let value;
+  try { value = JSON.parse(await file.text()); }
+  catch { throw new Error('Candidate file must be valid UTF-8 JSON.'); }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Candidate JSON must be an object.');
+  return value;
+}
+
+export function renderCampaignEnrichment(doc, win, state, {
+  enabled = false, prepareCampaign, importCampaign, campaignStatus = {}, campaignStatusError = '',
+} = {}, refresh = () => {}) {
+  const section = element(doc, 'section', null, 'campaign-enrichment');
+  section.append(element(doc, 'h3', 'Enrich campaign'),
+    element(doc, 'p', 'Two-step private handoff. This workbench does not call a model service: prepare and download the bounded request, use the configured Codex chat with a researcher, then import its returned JSON against that same request.'));
+  if (campaignStatusError) section.append(element(doc, 'p', campaignStatusError, 'enrichment-warning'));
+  const campaign = state.campaign;
+  const wrapper = element(doc, 'label', 'Existing campaign '), select = element(doc, 'select');
+  select.setAttribute('aria-label', 'Campaign to enrich');
+  select.append(element(doc, 'option', 'Choose an existing campaign'));
+  select.firstChild.value = '';
+  for (const record of state.base.cases) {
+    const option = element(doc, 'option', `${record.name} · ${record.disposition}`);
+    option.value = record.id; select.append(option);
+  }
+  select.value = campaign.caseId; select.disabled = !enabled || campaign.waiting;
+  select.addEventListener('change', () => {
+    campaign.caseId = select.value; campaign.preparedRequest = null; campaign.preparedCaseId = '';
+    campaign.candidate = null; campaign.candidateName = ''; campaign.summary = null; campaign.error = ''; refresh();
+  });
+  wrapper.append(select); section.append(wrapper);
+  if (!enabled) {
+    section.append(element(doc, 'p', state.base.governance?.synthetic ?
+      'Campaign enrichment is disabled for the read-only synthetic demo.' :
+      'Campaign enrichment is disabled. Start the local backend with --store /absolute/private/store.'));
+    const disabled = action(doc, 'Prepare & download private request', () => {});
+    disabled.disabled = true; section.append(disabled); return section;
+  }
+  const requested = element(doc, 'input');
+  requested.setAttribute('aria-label', 'Requested model (optional)');
+  requested.value = campaign.requestedModel; requested.maxLength = 200; requested.disabled = campaign.waiting;
+  requested.addEventListener('input', () => { campaign.requestedModel = requested.value; });
+  const requestedLabel = element(doc, 'label', 'Requested model (optional) '); requestedLabel.append(requested);
+  section.append(element(doc, 'h4', 'Step 1 — prepare request'), requestedLabel);
+  const prepare = action(doc, campaign.waiting ? 'Working…' : 'Prepare & download private request', async () => {
+    if (campaign.waiting) return;
+    if (!campaign.caseId) { campaign.error = 'Choose an existing campaign first.'; refresh(); return; }
+    campaign.waiting = true; campaign.error = ''; refresh();
+    try {
+      const result = await prepareCampaign({ caseId: campaign.caseId,
+        ...(campaign.requestedModel.trim() ? { requestedModel: campaign.requestedModel.trim() } : {}) });
+      if (result.status !== 'succeeded' || !result.request) throw new Error(result.message ?? `Preparation failed (${result.code ?? 'unknown'}).`);
+      campaign.preparedRequest = result.request; campaign.preparedCaseId = campaign.caseId;
+      campaign.candidate = null; campaign.candidateName = ''; campaign.summary = result.summary ?? null;
+      downloadProposal(doc, win, result.request, `campaign-${campaign.caseId}-request.json`);
+    } catch (error) { campaign.error = error.message; }
+    finally { campaign.waiting = false; refresh(); }
+  });
+  prepare.disabled = campaign.waiting || !campaign.caseId; section.append(prepare,
+    element(doc, 'p', campaign.preparedRequest ?
+      `Prepared request for ${campaign.preparedCaseId}. Send only this downloaded request to the configured Codex chat; researcher review remains required.` :
+      'No request prepared in this browser session.', 'subtle'));
+
+  section.append(element(doc, 'h4', 'Step 2 — choose returned JSON and import'));
+  const fileLabel = element(doc, 'label', 'Returned candidate JSON '), file = element(doc, 'input');
+  file.type = 'file'; file.accept = 'application/json,.json'; file.disabled = campaign.waiting || !campaign.preparedRequest;
+  file.setAttribute('aria-label', 'Returned campaign candidate JSON');
+  file.addEventListener('change', async () => {
+    campaign.error = ''; campaign.candidate = null; campaign.candidateName = '';
+    try {
+      campaign.candidate = await campaignCandidate(file.files?.[0]);
+      campaign.candidateName = file.files[0].name ?? 'candidate.json';
+    } catch (error) { campaign.error = error.message; }
+    refresh();
+  });
+  fileLabel.append(file); section.append(fileLabel,
+    element(doc, 'p', campaign.candidateName ? `Selected ${campaign.candidateName}; import remains bound to the prepared request for ${campaign.preparedCaseId}.` :
+      'Choose one JSON object no larger than 2 MiB. The file is size-checked before it is read.', 'subtle'));
+  const apply = action(doc, campaign.waiting ? 'Working…' : 'Import candidate against prepared request', async () => {
+    if (campaign.waiting || !campaign.preparedRequest || !campaign.candidate) return;
+    if (campaign.preparedCaseId !== campaign.caseId) {
+      campaign.error = 'The selected campaign no longer matches the prepared request. Prepare a new request.'; refresh(); return;
+    }
+    campaign.waiting = true; campaign.error = ''; refresh();
+    try {
+      const result = await importCampaign({ request: campaign.preparedRequest, candidate: campaign.candidate });
+      if (result.status !== 'succeeded') throw new Error(result.message ?? `Import failed (${result.code ?? 'unknown'}).`);
+      campaign.summary = result.summary ?? {};
+      campaign.candidate = null; campaign.candidateName = '';
+    } catch (error) { campaign.error = error.message; }
+    finally { campaign.waiting = false; refresh(); }
+  });
+  apply.disabled = campaign.waiting || !campaign.preparedRequest || !campaign.candidate; section.append(apply);
+
+  const status = campaignStatus[campaign.caseId] ?? campaignStatus.get?.(campaign.caseId);
+  const summary = campaign.summary ?? {};
+  const run = summary.runs?.at(-1) ?? status?.runs?.at(-1);
+  const coverage = run?.coverage ?? summary.coverage;
+  const totals = Array.isArray(coverage) ? coverage.reduce((result, item) => ({
+    completed: result.completed + (item.completed ?? 0),
+    skipped: result.skipped + (item.skipped ?? 0),
+    failed: result.failed + (item.failed ?? 0),
+  }), { completed: 0, skipped: 0, failed: 0 }) : summary;
+  const provider = run?.provider ?? {};
+  if (Array.isArray(coverage)) {
+    section.append(element(doc, 'p', `Coverage: ${coverage.length} source revision${coverage.length === 1 ? '' : 's'}`));
+    for (const row of coverage) section.append(element(doc, 'p',
+      `${row.sourceId ?? 'unknown source'} / ${row.sourceRevisionId ?? 'unknown revision'} · ${row.status ?? 'unknown status'} · ` +
+      `${row.segments ?? 0} segments · ${row.completed ?? 0} completed · ${row.skipped ?? 0} skipped · ${row.failed ?? 0} failed`));
+  } else if (coverage != null) {
+    section.append(element(doc, 'p', `Coverage: ${typeof coverage === 'object' ? JSON.stringify(coverage) : coverage}`));
+  }
+  section.append(element(doc, 'p', `Completed: ${totals.completed ?? 0} · Skipped: ${totals.skipped ?? 0} · Failed: ${totals.failed ?? 0}`),
+    element(doc, 'p', `Disposition: ${run?.disposition ?? summary.disposition ?? 'Pending'} · Pending: ${status?.pending ?? true ? 'yes' : 'no'}`),
+    element(doc, 'p', `Provider: ${provider.id ?? summary.provider ?? 'not recorded'} · Requested model: ${provider.requestedModel ?? 'not recorded'} · Effective model: ${provider.effectiveModel ?? provider.version ?? summary.effectiveModel ?? summary.modelVersion ?? 'not recorded'} · Prompt version: ${summary.promptVersion ?? run?.promptVersion ?? 'not recorded'}`));
+  for (const limitation of [...new Set([...(status?.limitations ?? []), ...(summary.limitations ?? []), ...(run?.limitations ?? [])])]) {
+    section.append(element(doc, 'p', `Limitation: ${limitation}`));
+  }
+  const message = element(doc, 'p', campaign.waiting ? 'Campaign operation in progress; do not resubmit.' : campaign.error, 'studio-message');
+  message.setAttribute('role', 'status'); section.append(message);
+  return section;
+}
+
 export function renderStudio(doc, win, state, collection = {}) {
   const panel = element(doc, 'section', null, 'panel studio');
   panel.append(element(doc, 'h2', 'Ingestion & curator studio'),
@@ -321,6 +451,7 @@ export function renderStudio(doc, win, state, collection = {}) {
   const message = element(doc, 'p', '', 'studio-message'); message.setAttribute('role', 'status');
   panel.append(message);
   panel.append(renderWebIntake(doc, state, collection));
+  panel.append(renderCampaignEnrichment(doc, win, state, collection, refresh));
   function run(fn) {
     return async () => {
       try { await fn(); } catch (error) { message.textContent = error.message; }

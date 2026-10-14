@@ -1,5 +1,64 @@
 # Fresh-start corpus architecture
 
+### ATLAS catalog and compact evidence presentation
+
+Framework resolver `/2` includes a checked-in official ATLAS 2026.09 projection
+in `src/atlas-catalog.json`. The upstream immutable commit, raw material SHA-256,
+Git blob SHA and license URL are pinned in the projection. No runtime network
+lookup is required. The upstream copyright/license notice is preserved under
+`docs/licenses`; descriptions are adapted into an ID/name/description/parent/tactic
+projection, not imported as incident claims or case studies. Requests freeze this
+catalog in their hash; prompt `/4` distinguishes explicit source IDs from grounded
+researcher proposals. Existing applied run envelopes remain independent of the
+current resolver. Read-only campaign status exposes the current catalog separately
+from historical run snapshots; the UI does not mutate records.
+
+Compact publisher citations retain exact revision/claim navigation. Technical
+identifiers and code-point intervals use collapsed disclosures; undated timeline
+records remain available under an explicit Undated entries disclosure. Review
+color/symbol chips expose accessible labels and a legend independently of usage
+classification and evidence status.
+
+### Campaign AI artifacts
+
+`src/ai-library.mjs` provides read-only product and exact-prompt projections over
+grounded private annotations, without adding incident assertions to the core
+corpus. Product normalization uses exact known aliases, ignores model-generated
+normalized replacements, and maps the Amazon Q CLI executable alias `q` to
+Amazon Q using the AWS product reference while preserving the source literal. Campaign/research cards navigate to tool and prompt entries with source
+revision and claim support. Relationships require shared source-local claims;
+article proximity alone cannot link a prompt to a product. Exact prompt equality
+groups copies while preserving every source/case occurrence; member annotation
+IDs remain navigable when a different occurrence is the group representative.
+Optional candidate `usage` and annotation `context.artifactUsage` are strict enum
+extensions; absent values remain unclear. Prompt version 3 requests complete
+literal prompts and distinguishes incident evidence from vendor test examples.
+Private campaign and talk exports retain exact literals, usage and provenance.
+Article-wide product mentions do not establish targeting in the selected case.
+
+`src/research-inventory.mjs` is browser-safe presentation normalization shared
+with article publisher normalization. Compact host-derived publisher labels
+retain their displayed basis; reported fields, null reasons and source hashes
+remain distinct. Behavior inventory groups preserve member IDs/classifications
+and suggest concepts for human review; activity patterns and supported path
+transitions are distinct from atomic actions. The extraction prompt is versioned
+as `passage-grounded-campaign/3` to discourage duplicate definitions while
+retaining distinct supported occurrences. No semantic auto-merge is performed.
+
+The Case library overview uses expandable campaign cards. The Research library
+overview uses one card per blog/source, with many-to-many campaign tags and
+independent unassociated sources. Behavior links derive from actual
+source-local claim support, occurrences and supported path nodes; a missing path
+or mapping does not hide direct claim-backed behavior. Existing source-ID routes
+still open exact revision text with a return action to the card overview. TTP
+presentation separates immutable resolver references and unresolved candidates
+from core technique/mapping records, without inventing missing ATLAS content.
+
+Campaign behavior annotations retain potential-consequence and disputed claim
+classifications in context notes and project them conservatively as inference,
+not observed activity. Node-scoped campaign mappings require all supporting
+claims, as well as the behavior, to belong to the selected node.
+
 ## Optional research presentation and private annotations
 
 The researcher-authorized local presentation integration adapts the former
@@ -14,17 +73,22 @@ never imply shared attribution. Graph positions are ephemeral UI state.
 `GET /api/enrichment` exists only in private store mode and shares the loopback
 Host/Origin/Fetch-Metadata gate. It reads the bounded private sidecar with the
 existing schema, case/source/revision, evidence, and filesystem validation,
-then rechecks directory identity. It cannot import, accept, or write anything.
-The browser loads it separately from `/api/corpus`; errors leave core data
-usable and display a warning. Snapshot and synthetic modes do not load private
-sidecars. Original HTML remains download-only under the existing CSP.
+then combines it with the derived campaign-run annotation projection. It cannot
+import, accept, or write anything. The browser loads it separately from
+`/api/corpus`; errors leave core data usable and display a warning. Snapshot and
+synthetic modes do not load private annotations. Original HTML remains
+download-only under the existing CSP.
 
 Campaign talk bundles are private, explicitly draft-oriented presentation
 exports, not reviewed releases. They include cited claims/passages and pending
 annotations, categories, dates, optional paths/mappings, and the loaded core
-snapshot digest; they exclude full raw/normalized article archives. Annotation
-model/prompt provenance and exact source revisions survive JSON/Markdown export.
-Markdown escapes imported markup. No current approval eligibility is asserted.
+snapshot digest; applied campaign runs additionally contribute dependency-closed
+records, coverage, limitations and catalog/run provenance. Bundles exclude full
+original-response/image archive files; campaign bundles include retained
+normalized revision content needed for exact dependency closure and therefore
+must remain private. Annotation model/prompt provenance and exact source
+revisions survive JSON/Markdown export. Markdown escapes imported markup. No
+current approval eligibility is asserted.
 
 `/api/demo-research` serves a distinct schema-valid benign synthetic fixture
 for all optional views. Loading it changes display only and disables collection;
@@ -49,7 +113,8 @@ There is no directory listing or arbitrary file path API. `--corpus` responses
 are validated read-only startup snapshots; restart after external changes.
 Issue #39's explicit `--store` mode adds bounded same-origin collection writes
 and dynamic corpus reload. Network requests run in the Node backend, not the
-browser. Collection never accepts annotations or canonical claims.
+browser. Intake collection never accepts annotations or canonical claims;
+Issue #45's separate explicit candidate import is described below.
 Local users can inspect the data, so do
 not expose the port through tunnels or deploy this server.
 
@@ -564,7 +629,7 @@ Private artifacts live in `<store>/articles/<source-id>/<revision-id>/`.
 `original.html` retains the returned article, `article.txt` its normalized text,
 `metadata.json` original/final URL, canonical identity, extracted and normalized
 publisher metadata, reported dates, retrieval time, parser/hash provenance
-(`readable-html/4`, `unicode-lf-nfc/1`), original response-byte hash,
+(`readable-html/5`, `unicode-lf-nfc/1`), original response-byte hash,
 and artifact paths. `assets.json` records image URL, local path, hash, and
 success/failure/skip reason. The editable hostname map starts with confirmed
 StepSecurity, Socket, and Red Canary domains; unrecognized publisher identity
@@ -631,6 +696,116 @@ infer case attribution, or establish maliciousness. Collection itself changes
 the canonical review base, so earlier acceptance may become stale under the
 existing review contract; independent human review is still required.
 
+## Campaign extraction contract
+
+Issue #45 adds `campaign prepare|validate|apply|status|export` beneath the
+existing `scripts/extract.mjs` entrypoint. The provider boundary is deliberately
+manual: preparation writes `campaign-request/1`, a researcher gives that file
+to their configured Codex chat, and local code treats the returned
+`campaign-candidate/1` file as untrusted input. There is no model adapter,
+credential, endpoint, background service, runtime network call, or fallback
+provider. A requested model is advisory metadata. The effective model and
+version remain null with explicit `unknown` reasons when the chat entrypoint
+does not expose them.
+
+Preparation requires an existing case and does not alter it. It deduplicates
+the case source IDs and defaults to the last retained normalized revision in
+each source's ordered revision list; explicit `--revisions` selections must
+belong to those sources. Missing retained text becomes an unavailable input
+with a reason and no segments—never a refetch or silent omission. Normalized
+hashes are rechecked. Deterministic segments use zero-based half-open Unicode
+code-point positions, at most 2,400 points each and 1,000 in one request.
+Request and candidate envelopes are each bounded to 2 MiB. The request freezes
+the case scope, associations, base/review digests, citations, revision/parser/
+normalization identities, selection/deduplication metadata, prompt text/version/
+hash, input snapshot digest, limitations, and the exported candidate-record
+guide. Existing associations are input scope, not proof of one campaign.
+
+Validation recomputes the request from the current corpus and rejects tampering
+or a stale base. Every supplied segment must be exactly once `completed`,
+`skipped`, or `failed`; aggregate revision status is complete, partial, or
+failed. Source-backed claims require exact quotes in completed supplied
+segments. Local code selects the requested repeated-quote occurrence and derives
+the final offsets; model-provided offsets are not accepted. Inferences instead
+require local claim support and rationale and cannot carry fabricated passages.
+Claims remain source-local and Pending; reciprocal conflicts, explicit
+uncertainty, null/absence reasons, and model metadata fail closed when malformed.
+
+`src/campaign-records.mjs` normalizes candidate records only after their
+supporting local claim IDs resolve to same-case claims. It supports overlapping
+role and literal-artifact annotations, behavior definitions/occurrences,
+unordered behavior sets or explicitly supported paths, telemetry, published
+references, detection hypotheses, mappings, and OTEL proposals. Literal values
+remain separate from normalized values. Every derived annotation carries exact
+claim support and Pending disposition. Path edges distinguish source-supported
+from inferred relationships; no path is required when chronology is absent.
+Article-mentioned data sources/references remain distinct from proposed
+collection/detections. OTEL samples accept only allowlisted fields and inert
+`synthetic.*` or reserved `example.invalid` values with the exact
+`LLM synthetic fixture; not incident evidence` label. No legacy templates are
+enabled: the template allowlist is empty until a template is individually
+audited and pinned.
+
+Framework resolution is intentionally narrow. `src/framework-catalog.mjs`
+contains a reviewed immutable catalog projection with upstream revision,
+material digest, framework version, retrieval provenance and license. A
+request embeds the resolver version, digest, full pin and membership snapshot,
+so a catalog change alters request and run identity. A candidate becomes a
+Proposed core mapping only if its exact framework/version/technique exists in
+that projection. Resolution deterministically adds the separately identified
+official catalog source from the built-in pin when absent and rejects a changed
+record at that generated ID; arbitrary or candidate-supplied catalogs are never
+trusted and no runtime fetch occurs. The initial projection contains ATT&CK
+19.2 technique `T1059`; it does not claim broad ATT&CK or ATLAS coverage.
+Unsupported IDs and unverified source literals survive as explicit pending
+unresolved mappings rather than official framework records.
+
+Application validates the complete projected corpus, then uses the existing
+private-store lock and atomic replacement to publish one `corpus.json`. The
+same boundary adds exact passages and claims plus behaviors, paths, framework
+records, mappings, telemetry, detections and OTEL to their core arrays, and adds
+the immutable versioned run snapshot under
+`governance.campaignExtraction` (`campaign-snapshot/1` / `campaign-run/1`).
+The snapshot binds request/response/input hashes, provider/prompt/catalog
+provenance, coverage, absences, limitations, unresolved mappings, annotations
+and frozen claim/passage/record snapshots under a digest-checked run envelope.
+An identical request/response replay is idempotent; changed input produces a new
+superseding run, while collisions, stale input, snapshot tampering, invalid
+dependency closure, crashes, or concurrent writers preserve the prior file.
+Existing manual records, append-only review history and `talk-enrichment/1`
+sidecars are not rewritten.
+
+`campaignAnnotations` derives a read-only `campaign-projection/1` compatibility
+view and combines it with a valid old manual sidecar for `/api/enrichment`.
+This projection is not another source of truth. `status` reports safe pending
+run coverage/record counts globally or for one case. JSON/Markdown
+`campaign-talk-bundle/1` exports close claim inference/conflict, case/source/
+revision/passage, path/behavior/mapping/framework, telemetry/detection/OTEL,
+run/catalog and effective-review dependencies. They carry conspicuous
+private/pending/synthetic warnings, include private normalized revision content
+but not original HTML/image archive files, refuse existing output files, and do
+not confer review eligibility.
+
+Store-mode web endpoints expose the same helpers: exact same-origin bounded JSON
+POSTs prepare and import, a case-scoped status GET supplies coverage, and
+case-scoped JSON/Markdown downloads use the same export closure. Candidate files
+are size-checked before browser reading. One write is active at a time, and
+`--corpus` remains read-only. The UI calls this a two-step researcher handoff,
+not completed extraction; it displays pending state, coverage, limitations and
+requested/effective model disclosure. Independent desktop (1440×900), tablet
+(1024×768), mobile (390×844), light/dark, keyboard, visual and accessibility
+review remains required.
+
+The protected three-revision evaluation is a separate POSIX exercise. First
+copy the original store, preserve a permission-restricted baseline and hashes,
+and freeze a private human-authored gold checklist before exposing the request
+to the model. Never replace an unavailable retained revision by refetching it.
+Gold coverage is measured against the human checklist, not the candidate answer.
+Only aggregate counts, hashes and discrepancies may leave the private store.
+The executable preparation and evaluation steps are in the
+[README](../README.md#campaign-extraction-through-a-configured-codex-chat);
+their current absence is an unmet acceptance condition, not fixture evidence.
+
 ## Reproducible exports and read-only queries
 
 Issue #24 adds `export`, `list`, `get`, and `bundle` to the already authorized
@@ -690,3 +865,22 @@ permissions; the platform limitation is not an application-test pass.
 
 Acceptance remains `needs-human-review` for independent review of output
 usability, documentation relevance, and the exported evidence boundary.
+
+Usage colors and distinct symbols replace classification suffixes on tool/prompt
+chips. A visible legend, accessible names and hover titles retain the status for
+color-blind and keyboard users. Behavior category sections separate Actions from
+Activity patterns with text labels and backgrounds; titles remain plain concept
+names. Case summaries expand through native keyboard-accessible details controls
+and link to the full workspace. These are read-only views; shared article tags
+do not deduplicate or merge case IDs, claims, provenance or review decisions.
+
+Publisher attribution now shares the same normalization between HTML intake and
+read-only display/facets. A known Zscaler canonical/final domain supersedes a
+legacy label; otherwise recognized explicit page metadata is preferred before
+host fallback. Unknown page labels remain raw metadata, with known hosts as the
+fallback. The readable-html/5 metadata change retains raw pagePublisher in the
+archive and preserves existing revision text/hashes. It does not infer historical
+publisher identity merely from corporate ownership. Research and artifact cards
+use break-inside-protected column flow with 24px gutters; campaign cards retain
+native expandable grid layout. Usage colors follow base card styles so source
+classification backgrounds cannot be overwritten by generic panel styling.
