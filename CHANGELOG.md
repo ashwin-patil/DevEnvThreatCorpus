@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-14 — Grounded relationship and unresolved mapping prerequisite (#48)
+
+- Preserve explicitly supported self-loops and cycles through campaign normalization,
+  validation, atomic apply and private export without inventing chronology or
+  repetition; retain relation, basis, edge support and inference classification.
+- Validate both resolved and unresolved mapping scope before catalog lookup,
+  enforcing paired valid path/node references, same-case behavior membership and
+  every supporting claim's node boundary. Retain unresolved rationale, applicability,
+  canonical scope, exact support, literals and pending provenance in run/status/export.
+- Version fresh extraction/run/record normalization identities as `/2`, preserving
+  immutable historical `/1` runs and exact applied replay. Expose missing historical
+  metadata as unavailable/broad without reconstruction, migration or retroactive writes.
+- Add synthetic scope/no-write, export closure, rehashed-snapshot and actual baseline
+  historical-run regressions. Document the case-wide export boundary and handoff to
+  #46; graph/UI implementation and independent human semantic/documentation approval
+  are not completed by this prerequisite.
+
 ## 2026-10-13 — Passage-grounded campaign extraction
 
 - Add the official immutable MITRE ATLAS 2026.09 catalog projection (208

@@ -299,7 +299,8 @@ cards. Selecting an article opens its exact revision/evidence detail, while
 **Claims & evidence** remains the claim-first inspection view. **ATLAS & TTPs**
 shows recorded mappings separately from unresolved candidates and the pinned
 resolver references present in applied runs. Catalog references are not incident
-evidence; the current resolver has limited ATT&CK coverage and no ATLAS catalog.
+evidence; the current resolver has limited ATT&CK coverage and the pinned ATLAS
+2026.09 catalog. Historical run snapshots remain separate from current references.
 
 Research chips use compact normalized publisher names (including Nx); repeated
 publisher chips are numbered, with exact article titles in tooltips/accessibility
@@ -312,6 +313,20 @@ See the [researcher usability review](docs/usability-review.md) for limits.
 Potential consequences and disputed behavior remain inference in the research
 annotation projection, with the original classification in context notes.
 Node-specific technique candidates may cite only claims supporting that node.
+This boundary applies before catalog lookup, including unknown IDs/versions and
+unsupported source literals: `pathId` and `nodeId` must be supplied together,
+name a node in the candidate path and include the candidate behavior; **all**
+mapping claims must support that node. Candidate path/node references use their
+local IDs; stored records retain the canonical generated IDs. Unscoped candidates
+remain broader case/behavior proposals even when their claims overlap a node.
+
+Issue #48 permits explicitly supported self-loops as well as multi-node cycles.
+Every edge still needs its own claim support, relation, plain-language basis and
+source-supported/inferred classification. A loop alone proves neither repetition
+nor chronology, execution or causality. New unresolved candidates retain scope,
+rationale, applicability, exact support, framework/version, technique/source
+literals, reason, agent authorship and Pending state in status and private exports;
+no catalog miss becomes an official mapping.
 
 ```bash
 R=/absolute/path/to/DevEnvThreatCorpus
@@ -354,6 +369,22 @@ preserved; generated annotations are a derived compatibility projection. Exact
 replay is idempotent, while stale, colliding, invalid or concurrent operations
 leave the prior snapshot usable. JSON/Markdown exports are private,
 dependency-closed pending research drafts, never reviewed releases.
+Fresh preparation uses `campaign-extraction/2` and writes `campaign-run/2`, binding
+`campaign-record-normalization/2` into generated record identities. Request and
+candidate interfaces remain `/1`; existing snapshot/export containers are unchanged.
+Applied `/1` runs stay readable and exact replay does not rewrite them. Unapplied
+old requests must be prepared again rather than normalized under old identities.
+The read-only `unresolvedMappingAvailability` entries label historical missing
+metadata `unavailable` and scope `case/behavior`; they never reconstruct a node,
+rationale or applicability, or alter the original run envelope.
+
+This is the extraction prerequisite for #46, not graph/navigation completion.
+Exports remain case-wide private dependency-closed bundles; selected-path-only
+exports are deferred. Run `node --test tests/campaign-records.test.mjs tests/campaign.test.mjs`
+explicitly alongside `python scripts/verify.py` using pinned Node 22.23.3 on POSIX.
+Native Windows file-URL/permission behavior is not validated by this exercise.
+Independent human relationship, metadata, compatibility and documentation review
+and approval remain required; synthetic success is not semantic gold acceptance.
 
 In `node "$R/scripts/server.mjs" --store "$S"`, open **Curator studio → Enrich
 campaign**. Choose an existing case, prepare/download its request, use the same

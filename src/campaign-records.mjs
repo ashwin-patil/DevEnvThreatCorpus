@@ -21,6 +21,7 @@ const DATA_SOURCES = new Set([
   'agent-ide', 'github-actions', 'ci-cd', 'cloud',
 ]);
 const EMPTY_RECORDS = () => Object.fromEntries(GROUPS.map(name => [name, []]));
+export const RECORD_NORMALIZATION_VERSION = 'campaign-record-normalization/2';
 
 export const CANDIDATE_RECORD_GUIDE = Object.freeze({
   note: 'Documentation only: place each optional array at the candidate top level; never return a records property. Every candidate record requires nonempty exact supportingClaimIds using local claim IDs. Unknown fields are rejected. Resolved frameworks may add a separate authoritative catalog source.',
@@ -161,6 +162,27 @@ function inertSample(sample, location) {
   }
 }
 
+export function validateMappingScope(mapping, { caseId, claims, behaviors, paths }) {
+  const { behaviorId, supportingClaimIds } = mapping;
+  const behavior = behaviors.find(record => record.id === behaviorId);
+  if (mapping.caseId !== caseId || !behavior || behavior.caseId !== caseId) invalid('mapping behavior/case reference is invalid');
+  unique(array(supportingClaimIds, 'mapping.supportingClaimIds', { nonempty: true }), 'mapping.supportingClaimIds');
+  if (!supportingClaimIds.every(claimId => claims.some(claim => claim.id === claimId && claim.caseId === caseId))) {
+    invalid('mapping support refers to an unknown claim or another case');
+  }
+  if (Object.hasOwn(mapping, 'pathId') !== Object.hasOwn(mapping, 'nodeId')) {
+    invalid('mapping.pathId and nodeId must occur together');
+  }
+  if (!Object.hasOwn(mapping, 'pathId')) return;
+  id(mapping.pathId, 'mapping.pathId'); id(mapping.nodeId, 'mapping.nodeId');
+  const path = paths.find(record => record.id === mapping.pathId);
+  const node = path?.nodes.find(record => record.id === mapping.nodeId);
+  if (!path || path.caseId !== caseId || !node) invalid('mapping path/node reference is unknown or in another case');
+  if (!node.behaviorIds.includes(behaviorId) || !supportingClaimIds.every(claimId => node.claimIds.includes(claimId))) {
+    invalid('mapping path/node does not share behavior and claim support');
+  }
+}
+
 export function normalizeCampaignRecords({
   candidate, request, claims, passages, corpus, runId, claimIds = {},
 }) {
@@ -179,7 +201,7 @@ export function normalizeCampaignRecords({
   const local = Object.fromEntries(GROUPS.map(name => [name, new Map()]));
   const coreIds = new Set(GROUPS.flatMap(name => (corpus[name] ?? []).map(item => item.id)));
 
-  const makeId = (type, localId) => stableId(`campaign-${type}`, `${runId}\n${localId}`);
+  const makeId = (type, localId) => stableId(`campaign-${type}`, `${RECORD_NORMALIZATION_VERSION}\n${runId}\n${localId}`);
   const register = (type, localId, record) => {
     id(localId, `${type}.localId`);
     if (local[type].has(localId)) invalid(`duplicate ${type} localId ${localId}`);
@@ -417,7 +439,7 @@ export function normalizeCampaignRecords({
       if (generated.has(edgeId) || coreIds.has(edgeId)) invalid(`generated ID collision ${edgeId}`);
       generated.set(edgeId, 'edges');
       const from = nodeMap.get(edge.from), to = nodeMap.get(edge.to);
-      if (!from || !to || from === to) invalid('edge endpoints must be distinct nodes in its path');
+      if (!from || !to) invalid('edge endpoints must be nodes in its path');
       if (!['sequence', 'conditional', 'propagates'].includes(edge.relation)) invalid('edge.relation is invalid');
       if (!['source-supported', 'inferred'].includes(edge.evidenceBasis)) invalid('edge.evidenceBasis must be source-supported or inferred');
       const claimIds = support('edges', edgeId, edge.supportingClaimIds, `path-edge-${edge.evidenceBasis}`);
@@ -454,6 +476,21 @@ export function normalizeCampaignRecords({
     const behaviorId = local.behaviors.get(item.behaviorId);
     if (!behaviorId) invalid(`mapping refers to unknown behavior ${item.behaviorId}`);
     if (!['source-mentioned', 'researcher-proposed'].includes(item.mappingBasis)) invalid('mapping.mappingBasis is invalid');
+    const scope = {};
+    if (Object.hasOwn(item, 'pathId') !== Object.hasOwn(item, 'nodeId')) invalid('mapping.pathId and nodeId must occur together');
+    if (Object.hasOwn(item, 'pathId')) {
+      id(item.pathId, 'mapping.pathId'); id(item.nodeId, 'mapping.nodeId');
+      const pathId = local.paths.get(item.pathId);
+      const path = records.paths.find(record => record.id === pathId);
+      const nodeId = path?.nodes.find(node => node.id === makeId('node', `${item.pathId}:${item.nodeId}`))?.id;
+      if (!pathId || !nodeId) invalid('mapping path/node reference is unknown');
+      Object.assign(scope, { pathId, nodeId });
+    }
+    validateMappingScope({ caseId, behaviorId, supportingClaimIds, ...scope }, {
+      caseId, claims: [...byClaim.values()], behaviors: records.behaviors, paths: records.paths,
+    });
+    const rationale = text(item.rationale, 'mapping.rationale');
+    const applicability = text(item.applicability, 'mapping.applicability');
     const entry = catalogEntry(item.framework, item.version, item.techniqueId);
     const catalogSource = entry && findCatalogSource(corpus, entry.catalog);
     let literalSupported = true;
@@ -470,7 +507,7 @@ export function normalizeCampaignRecords({
     if (!entry || !literalSupported) {
       unresolvedMappings.push({
         id: makeId('unresolved-mapping', mappingLocalId),
-        caseId, behaviorId, framework: text(item.framework, 'mapping.framework'),
+        caseId, behaviorId, ...scope, rationale, applicability, framework: text(item.framework, 'mapping.framework'),
         version: text(item.version, 'mapping.version'), techniqueLiteral: text(item.techniqueId, 'mapping.techniqueId'),
         sourceLiteral: item.sourceLiteral ?? null, supportingClaimIds, mappingBasis: item.mappingBasis,
         reason: !entry ? 'not-in-pinned-catalog' : 'source-literal-not-found-in-supporting-passage',
@@ -509,22 +546,10 @@ export function normalizeCampaignRecords({
     const mapping = {
       id: mappingId, caseId, behaviorId, framework: entry.catalog.framework, version: entry.catalog.version,
       techniqueId: techniqueRecord.id, claimIds: supportingClaimIds,
-      rationale: text(item.rationale, 'mapping.rationale'), applicability: text(item.applicability, 'mapping.applicability'),
+      ...scope, rationale, applicability,
       origin: item.mappingBasis === 'source-mentioned' ? 'LLM source paraphrase' : 'LLM inferred mapping',
       mappingStatus: 'Proposed', disposition: 'Pending',
     };
-    if (Boolean(item.pathId) !== Boolean(item.nodeId)) invalid('mapping.pathId and nodeId must occur together');
-    if (item.pathId) {
-      const pathId = local.paths.get(item.pathId);
-      const path = records.paths.find(record => record.id === pathId);
-      const nodeId = path?.nodes.find(node => node.id === makeId('node', `${item.pathId}:${item.nodeId}`))?.id;
-      if (!path || !nodeId) invalid('mapping path/node reference is unknown');
-      const node = path.nodes.find(value => value.id === nodeId);
-      if (!node.behaviorIds.includes(behaviorId) || !supportingClaimIds.every(claimId => node.claimIds.includes(claimId))) {
-        invalid('mapping path/node does not share behavior and claim support');
-      }
-      mapping.pathId = pathId; mapping.nodeId = nodeId;
-    }
     support('mappings', mappingId, item.supportingClaimIds, item.mappingBasis);
     register('mappings', mappingLocalId, mapping);
   }

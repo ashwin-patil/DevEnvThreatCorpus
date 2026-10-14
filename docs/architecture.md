@@ -739,6 +739,11 @@ references, detection hypotheses, mappings, and OTEL proposals. Literal values
 remain separate from normalized values. Every derived annotation carries exact
 claim support and Pending disposition. Path edges distinguish source-supported
 from inferred relationships; no path is required when chronology is absent.
+Issue #48 removes only the distinct-endpoints restriction: explicitly supported
+self-loops and multi-node cycles keep their supplied relation, basis and independent
+edge claims. Endpoint existence, endpoint-support overlap, nonempty support and
+source-supported versus inferred classification remain checked. No repetition,
+chronology, execution or causality is derived from a loop.
 Article-mentioned data sources/references remain distinct from proposed
 collection/detections. OTEL samples accept only allowlisted fields and inert
 `synthetic.*` or reserved `example.invalid` values with the exact
@@ -759,13 +764,22 @@ trusted and no runtime fetch occurs. The initial projection contains ATT&CK
 19.2 technique `T1059`; it does not claim broad ATT&CK or ATLAS coverage.
 Unsupported IDs and unverified source literals survive as explicit pending
 unresolved mappings rather than official framework records.
+`validateMappingScope` is shared by resolved/unresolved normalization and new run
+validation. Before lookup, paired local path/node identifiers resolve to canonical
+IDs in a same-case path, the node must contain the behavior, and every mapping claim
+must belong to that node. Empty, malformed, dangling, mixed-case or off-node support
+fails even on a catalog miss. Rationale and applicability are required for both
+outcomes. New unresolved records retain canonical scope when supplied, exact claim
+IDs, framework/version, technique/source literals, mapping basis, unresolved reason,
+origin and Pending disposition. Without supplied scope the candidate stays broader;
+claim overlap cannot manufacture a node mapping.
 
 Application validates the complete projected corpus, then uses the existing
 private-store lock and atomic replacement to publish one `corpus.json`. The
 same boundary adds exact passages and claims plus behaviors, paths, framework
 records, mappings, telemetry, detections and OTEL to their core arrays, and adds
 the immutable versioned run snapshot under
-`governance.campaignExtraction` (`campaign-snapshot/1` / `campaign-run/1`).
+`governance.campaignExtraction` (`campaign-snapshot/1` / new `campaign-run/2`).
 The snapshot binds request/response/input hashes, provider/prompt/catalog
 provenance, coverage, absences, limitations, unresolved mappings, annotations
 and frozen claim/passage/record snapshots under a digest-checked run envelope.
@@ -774,6 +788,16 @@ superseding run, while collisions, stale input, snapshot tampering, invalid
 dependency closure, crashes, or concurrent writers preserve the prior file.
 Existing manual records, append-only review history and `talk-enrichment/1`
 sidecars are not rewritten.
+Fresh requests identify `campaign-extraction/2`; normalized record IDs additionally
+include `campaign-record-normalization/2`. Changed output therefore cannot reuse
+the old generated identities. Request/candidate interfaces remain `/1`. Historical
+`campaign-run/1` envelopes remain readable, immutable and replayable only when the
+matching run was already applied; old unapplied requests must be prepared again.
+New run validation checks unresolved metadata, pending provenance and all scope
+references independently of envelope integrity, using recorded paths/behaviors and
+claim identity/case boundaries, never today's catalog to reinterpret a historical
+attempt. Rehashed malformed new records still fail. Historical absence of newly
+required metadata is not a reason for retroactive rejection.
 
 `campaignAnnotations` derives a read-only `campaign-projection/1` compatibility
 view and combines it with a valid old manual sidecar for `/api/enrichment`.
@@ -785,6 +809,14 @@ run/catalog and effective-review dependencies. They carry conspicuous
 private/pending/synthetic warnings, include private normalized revision content
 but not original HTML/image archive files, refuse existing output files, and do
 not confer review eligibility.
+Status and case-wide exports include read-only `unresolvedMappingAvailability`
+entries: new metadata is `recorded`, legacy missing metadata is `unavailable`, and
+scope is `node` only when explicit IDs exist, otherwise `case/behavior`. These
+labels do not change frozen run records or reconstruct missing rationale/scope.
+There is no store migration, selected-path-only export, catalog expansion or new
+route. Issue #46 owns graph inspection/navigation/accessibility and keeps AP-01
+through AP-09 and their AC aliases; it must consume these validated outputs rather
+than repair extraction data in the read-only presentation layer.
 
 Store-mode web endpoints expose the same helpers: exact same-origin bounded JSON
 POSTs prepare and import, a case-scoped status GET supplies coverage, and

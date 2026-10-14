@@ -1,0 +1,98 @@
+{
+  "baselineSha": "48354a311f057c9b272ce012c0e64898305499b0",
+  "omittedRunFields": ["catalogSnapshot", "inputs"],
+  "candidate": {
+    "schemaVersion": "campaign-candidate/1",
+    "requestHash": "9f718b93d1de6e327e2cb3e01b98223560750e1e29cbfc50e2b9b0ac5d99b9e6",
+    "model": { "effectiveModel": null, "version": null, "nullReasons": { "effectiveModel": "unknown", "version": "unknown" } },
+    "coverage": [
+      { "segmentId": "segment-50d25002bf730edf1919cbff17d7cbe5c6921fd86047a6a9c63c2bb824bf087e", "status": "completed", "reason": null },
+      { "segmentId": "segment-4e249c2b6c4514b5d0dba992cea88e875681ac01785e4cbb4525291d40ddaf01", "status": "completed", "reason": null }
+    ],
+    "claims": [],
+    "absences": [],
+    "limitations": ["Synthetic legacy fixture only."],
+    "behaviors": [{
+      "localId": "legacy-behavior", "name": "Legacy synthetic behavior", "description": "No incident assertion.",
+      "boundary": "Synthetic only.", "supportingClaimIds": ["synthetic-claim-a"]
+    }],
+    "mappings": [{
+      "localId": "legacy-mapping", "behaviorId": "legacy-behavior", "framework": "ATT&CK", "version": "unknown",
+      "techniqueId": "T9999", "mappingBasis": "researcher-proposed",
+      "rationale": "Legacy rationale not retained by version 1.",
+      "applicability": "Legacy applicability not retained by version 1.",
+      "supportingClaimIds": ["synthetic-claim-a"]
+    }]
+  },
+  "run": {
+    "id": "campaign-run-58db908d638689d198e72158ff648fa1fda4338debe5102c512bb790e0b2631f",
+    "schemaVersion": "campaign-run/1", "extractionVersion": "campaign-extraction/1", "caseId": "synthetic-case-a",
+    "requestHash": "9f718b93d1de6e327e2cb3e01b98223560750e1e29cbfc50e2b9b0ac5d99b9e6",
+    "responseHash": "1a17ad43b2971236e449730099527326b07209e739f8326cd4c9751405a69ef3",
+    "inputSnapshotDigest": "ad75bdbb87c4d67a94603b54d4e25b9d348b358c9a728247236f5bd46cdb13e3",
+    "baseDigest": "eb26763d2d0f445bf20cd2e525e487732b9aee29ad0afa4c8da3244b3b8be6fb",
+    "provider": {
+      "id": "codex-chat-handoff", "entrypoint": "researcher configured Codex chat", "requestedModel": null,
+      "nullReasons": { "requestedModel": "unknown", "effectiveModel": "unknown", "version": "unknown" },
+      "effectiveModel": null, "version": null
+    },
+    "promptVersion": "passage-grounded-campaign/4",
+    "promptHash": "85bb7b5e94e84abaa9eecf30af16fe50560269f414f1d3213ef9a3dd3f7ac6fe",
+    "disposition": "Pending",
+    "coverage": [
+      {
+        "sourceId": "synthetic-source-a", "sourceRevisionId": "synthetic-revision-a",
+        "normalizedHash": "7792f6dd8e7fef93ac18cd44219b02376ca325dc1e53bd8e62daa46a711f9931",
+        "codePoints": 44, "segments": 1, "completed": 1, "skipped": 0, "failed": 0, "status": "complete", "reason": null
+      },
+      {
+        "sourceId": "synthetic-source-b", "sourceRevisionId": "synthetic-revision-b",
+        "normalizedHash": "c7887854d7e4ce08d57b1e897164cb7095b04345a5894af6e619ff5f0cd4a59e",
+        "codePoints": 22, "segments": 1, "completed": 1, "skipped": 0, "failed": 0, "status": "complete", "reason": null
+      }
+    ],
+    "limitations": [
+      "Preparation only: researcher handoff and candidate-file import are required; no model or network call.",
+      "Existing case associations are frozen, not validated as a single campaign; human grouping review is required.",
+      "Every result remains pending; protected gold evaluation and independent semantic review are required.",
+      "Synthetic legacy fixture only."
+    ],
+    "absences": [], "claimIds": [], "passageIds": [],
+    "records": {
+      "sources": [],
+      "behaviors": [{
+        "id": "campaign-behavior-c981d880c7235869ef508e9ad5113cd068e7f11a6e357f0e45c915c863e14b48",
+        "caseId": "synthetic-case-a", "claimIds": ["synthetic-claim-a"],
+        "occurrences": [{ "caseId": "synthetic-case-a", "claimIds": ["synthetic-claim-a"], "origin": "LLM source paraphrase", "disposition": "Pending" }],
+        "namespace": "campaign:campaign-run-58db908d638689d198e72158ff648fa1fda4338debe5102c512bb790e0b2631f",
+        "name": "Legacy synthetic behavior", "boundary": "Synthetic only.", "description": "No incident assertion.",
+        "signalIds": [], "detectionIds": [], "otelIds": [], "origin": "LLM normalized behavior", "disposition": "Pending"
+      }],
+      "paths": [], "frameworks": [], "mappings": [], "telemetry": [], "detections": [], "otel": []
+    },
+    "annotations": [{
+      "id": "campaign-annotation-4cb3765fa466a920e25a5d0f376946cdd7abb17c70fd1f1ad4a6068319da3ef6",
+      "type": "observed-behavior", "value": "Legacy synthetic behavior", "caseId": "synthetic-case-a",
+      "sourceId": "synthetic-source-a", "sourceRevisionId": "synthetic-revision-a", "evidenceStatus": "evidence-backed",
+      "support": { "quote": "Café", "locator": { "start": 2, "end": 6 } },
+      "claimIds": ["synthetic-claim-a"], "context": { "behavior": "observed" }, "status": "pending", "origin": "agent"
+    }],
+    "recordSupport": [{
+      "id": "campaign-record-support-973aa43e5ffb4a60d16859215e772943a3cee6c72c322b2d47dbb6b410df3be9",
+      "caseId": "synthetic-case-a", "recordType": "behaviors",
+      "recordId": "campaign-behavior-c981d880c7235869ef508e9ad5113cd068e7f11a6e357f0e45c915c863e14b48",
+      "kind": "behavior-definition", "supportingClaimIds": ["synthetic-claim-a"], "origin": "LLM source paraphrase", "disposition": "Pending"
+    }],
+    "unresolvedMappings": [{
+      "id": "campaign-unresolved-mapping-e4ab81765628e1758d5a78bd78bdabce31101927a7cd111ad80236d49dd819ac",
+      "caseId": "synthetic-case-a",
+      "behaviorId": "campaign-behavior-c981d880c7235869ef508e9ad5113cd068e7f11a6e357f0e45c915c863e14b48",
+      "framework": "ATT&CK", "version": "unknown", "techniqueLiteral": "T9999", "sourceLiteral": null,
+      "supportingClaimIds": ["synthetic-claim-a"], "mappingBasis": "researcher-proposed",
+      "reason": "not-in-pinned-catalog", "origin": "LLM inferred mapping", "disposition": "Pending"
+    }],
+    "templateProvenance": [], "catalogProvenance": [], "supersedes": [], "claimSnapshots": [], "passageSnapshots": [],
+    "dependencySnapshots": { "frameworks": [], "sources": [] },
+    "envelopeHash": "81c195300938e00766bcb094171cfedfd63178e7d8096c5c51548e59e8cadb79"
+  }
+}

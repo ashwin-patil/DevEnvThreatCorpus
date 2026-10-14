@@ -1,5 +1,41 @@
 # Acceptance audit
 
+## Issue #48 grounded self-loops and unresolved mapping provenance
+
+Originating requirements: [#48](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/48);
+implementation and corrections stay on [PR #49](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/49).
+Durable revision-bound command results, counts and the final full SHA belong in
+that PR's progress/evidence record and [hosted checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/49/checks),
+not a self-referential commit assertion here. Each new commit invalidates earlier
+test evidence. Pending/approval-required hosted jobs are not passing evidence.
+
+| ID | Files and executed-check targets | Independent evidence still required |
+|---|---|---|
+| AC-01 | `src/campaign-records.mjs` endpoint/support checks; `tests/campaign-records.test.mjs` source-supported/inferred loops, cycles and invalid edges; `tests/campaign.test.mjs` normalize/validate/atomic apply/status/export equality | `needs-human-review`: relationship semantics, no invented repetition/chronology/causality |
+| AC-02 | Shared `validateMappingScope`; campaign record and no-write tests repeat paired-ID, unknown path/node, wrong behavior, mixed-case and all-claim negatives for a catalog hit, unknown ID/version and unsupported literal; positive node/broad candidates | `needs-human-review`: human scope/behavior interpretation; executed command evidence on final SHA |
+| AC-03 | Unresolved normalization and `validateRunMappings`; integration tests assert exact field equality, pending provenance, Unicode/hostile Markdown, no-match and dependency closure; rehashed malformed run negatives | `needs-human-review`: rationale/applicability, exact metadata and authorship review |
+| AC-04 | Versioned extraction/run/record identities; baseline-generated `tests/fixtures/benign/campaign-run-v1.json` reattaches unchanged catalog/inputs and verifies its original hash; tests cover unavailable/broad metadata, no reconstruction/write, old replay, new IDs/supersession, collision and stale base; configured manual extraction/sidecar suites | `needs-human-review`: historical/manual compatibility; executed final-revision regressions |
+| AC-05 | Existing private-store atomic update and case-wide export helpers unchanged; campaign invalid-input byte/digest comparisons, original manual/review/source preservation and export closure; configured contract/review/export/server tests | `needs-human-review`: independent isolation, pinned-provenance and compatibility review |
+| AC-06 | Updated README campaign usage, architecture and root CHANGELOG; direct campaign command plus pinned-runtime verifier; PR #49 final-SHA results and hosted Verify/PR Policy checks | `needs-human-review`: independent documentation relevance/accuracy, semantic gold/research review and approval before merge; missing hosted evidence remains unmet |
+
+Required final commands are `node --test tests/campaign-records.test.mjs tests/campaign.test.mjs`
+and `python scripts/verify.py` (which executes every configured application command),
+on Node 22.23.3 in the supported POSIX private-file environment. Native Windows
+file-URL and permission limitations are not repaired or reported as passes.
+Fixture automation establishes contract behavior, not factual extraction quality.
+No private source bodies, evaluation material or conversation details belong here.
+
+After this prerequisite is independently reviewed and merged, #46 remains the
+originating graph/navigation/accessibility implementation issue. Preserve AP-01
+through AP-09 and their AC aliases for node/edge inspection, stable selection and
+return context, focus/non-drag alternatives, gesture cancellation, responsive/theme
+rendering and scoped presentation inside existing case-wide private exports.
+Normalized behavior and AI tool/prompt groups are presentation projections:
+retain source-specific IDs, exact literals, usage labels and provenance. Current
+resolver references and historical catalogs remain distinct from recorded mappings.
+Selected-path-only export is deferred, and real-output use still needs independent
+human semantic gold acceptance and research/accessibility review.
+
 ### ATLAS reference catalog and evidence readability (PR #47)
 
 AC-06: `tests/campaign-records.test.mjs` checks ATLAS membership, wrong-version/ID
