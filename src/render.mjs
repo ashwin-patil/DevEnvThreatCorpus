@@ -1,5 +1,5 @@
 import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline } from './model.mjs';
-import { publisherDisplay } from './research-inventory.mjs';
+import { publisherDisplay, sourceInventory, canonicalArticleUrl } from './research-inventory.mjs';
 
 // Corpus values enter the DOM only through textContent; attributes and handlers are UI-owned.
 export function element(doc, tag, text, className = '') {
@@ -72,12 +72,16 @@ function externalLink(doc, value) {
 
 export function caseCitations(model, record) {
   return { schemaVersion: 'campaign-citations/1', caseId: record.id, caseName: record.name,
-    citations: caseSourceIds(model, record.id).map(id => {
-      const source = model.sources.get(id);
-      return { sourceId: id, title: source?.title ?? null, publisher: source?.publisher ?? null,
-        url: safeExternalUrl(source?.originalUrl) ?? safeExternalUrl(source?.canonicalUrl),
+    citations: sourceInventory(caseSourceIds(model, record.id).map(id => model.sources.get(id)).filter(Boolean)).map(group => {
+      const source = group.source;
+      const alias = canonicalArticleUrl(source.originalUrl) !== safeExternalUrl(source.originalUrl);
+      return { sourceId: source.id, title: source?.title ?? null,
+        publisher: group.members.length > 1 || alias ? group.publisher.name : source?.publisher ?? null,
+        url: safeExternalUrl(group.canonicalUrl) ?? safeExternalUrl(source?.originalUrl),
         publicationDate: source?.publicationDate ?? null, retrievalDate: source?.retrievalDate ?? null,
-        sourceRevisionIds: [...(source?.revisionIds ?? [])] };
+        sourceRevisionIds: [...new Set(group.members.flatMap(member => member.revisionIds ?? []))],
+        members: group.members.map(member => ({ sourceId: member.id, originalUrl: safeExternalUrl(member.originalUrl),
+          canonicalUrl: safeExternalUrl(member.canonicalUrl), sourceRevisionIds: [...(member.revisionIds ?? [])] })) };
     }) };
 }
 

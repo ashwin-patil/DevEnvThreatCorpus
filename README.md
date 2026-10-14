@@ -17,8 +17,11 @@
 # DevEnvThreatCorpus
 
 The bundled **Nx / s1ngularity public Pending draft** contains 38 claims,
-14 behaviors, 3 supported representative paths and 2 Proposed mappings from
-four retained reports. Two additional explicit URLs failed intake. Start
+14 behaviors, 3 retained representative phase paths and 2 Proposed mappings from
+four retained reports. Attack paths presents these records as one case-scoped
+campaign graph, not three competing campaign histories. Two explicit URLs for
+one additional article failed the original intake; their failure history remains
+available even when their alias is displayed once. Start
 `node scripts/server.mjs --port 4181` without private input to inspect it, or serve
 the repository statically and open `src/index.html`. Explicit private `--corpus`
 and `--store` modes keep their existing behavior. The public draft withholds full
@@ -50,6 +53,13 @@ acceptance eligibility; local reviewer identity is self-attested, not authentica
 
 ## Current implementation
 
+Attack paths groups existing phase paths into a read-only campaign view. Friendly
+phase/activity labels replace identifier-heavy selectors; technical disclosures
+retain the original path, node and edge identities. Disconnected phases remain
+disconnected: the view does not invent chronology, actor identity or transitions.
+Additional supported paths enrich the same case graph, without merging other cases,
+source occurrences, evidence classifications or review states.
+
 Attack paths retain stable `#paths/<path-id>/<node-or-edge-id>` routes. Select a
 node or directed relationship on the SVG canvas or in its complete text
 alternative; related evidence, behavior, framework and telemetry navigation keeps
@@ -71,7 +81,8 @@ supporting claim and a retained pinned catalog; broader and unresolved candidate
 are labeled separately. No recorded candidate does not mean no behavior occurred.
 
 Zoom, background pan and explicit node grips affect only in-memory presentation.
-Use **Pan** and **Move selected node** buttons without dragging; **Reset layout**
+The compact icon toolbar has accessible names and tooltips; expand its movement
+controls for **Pan** and **Move selected node** actions without dragging. **Reset layout**
 restores a deterministic fit, including disconnected nodes and loops. Enter/Space
 select named controls; focus survives canvas updates and a short status announces
 inspection. Both themes and narrow screens use the existing workbench shell.
@@ -106,6 +117,17 @@ cases without merging their attribution. Tool/prompt colors and symbols use a
 visible usage legend; behavior titles remain plain names under Actions or Activity
 patterns category sections. This changes presentation only, not corpus identities
 or pending/accepted review state.
+
+The verified Red Canary AI CLI article alias and its Zscaler destination are one
+logical research article, not a publisher-wide merger. Original source routes,
+URLs, retained revisions and failed manifests remain inspectable. Collection still
+checks each redirect origin's robots policy and never treats HTTP 200 as permission.
+Leading-wildcard policies such as `*_archive.html` use bounded wildcard matching,
+longest matching rule and Allow on ties. Unsupported policies fail explicitly with
+a supplied-text fallback; collection never silently refetches or impersonates a bot.
+Overview summaries retain linked claim citations and explicit uncertainty. Projected
+claim excerpts are agent-origin Pending presentation, not human-approved summaries.
+Public prompt/quotation withholding is explained; full inspection remains private.
 
 AI tools and Prompt library views project private, grounded `ide-cli` and
 `prompt-instruction` annotations. Campaign and Research library cards link to

@@ -1,5 +1,35 @@
 # Fresh-start corpus architecture
 
+## Issue #51 campaign presentation and article identity
+
+Campaign exploration is a read-only aggregate over existing same-case path records.
+Each phase retains canonical path/run provenance and separate node/relationship
+support. Similar activities may share display concepts but never share inferred
+support, evidence status or acceptance. Historical routes identify their original
+occurrence inside the aggregate, including colliding labels or identifiers. Layout
+is not a timeline: disconnected components receive no invented connecting edges.
+Technical disclosures retain stable IDs rather than putting hashes in selectors.
+
+Activity cards expose independent evidence, origin and review axes. Projected
+campaign context comes only from linked same-case claims and retains those citations,
+uncertainty and Pending agent origin; it is not a persistent summary claim or review.
+Public article quotations and full prompt literals remain withheld, not absent.
+The compact graph toolbar and non-drag movement disclosure share deterministic
+layout/reset and movement bounds with pointer controls; they never write a corpus.
+
+Article alias grouping is similarly presentation-only for historical records.
+The specifically verified Red Canary AI CLI article maps to the Zscaler target;
+other Red Canary articles retain their own identity. A logical card retains member
+source routes and revisions instead of deleting or rewriting them. New collection
+must still authorize every requested/redirect origin under its own robots policy.
+Policy parsing uses bounded wildcard patterns, longest-match precedence and Allow
+on equal specificity; unsupported constructs and cross-origin policy redirects
+remain explicit failures with a supported supplied-text alternative. Historical
+failed attempts are evidence of failure, not successful article coverage.
+
+See [the acceptance audit](acceptance-audit.md#issue-51-article-aliases-and-campaign-graph)
+for synthetic checks and the independent human/operator review boundary.
+
 Source revision selection replaces the revision URL while retaining the current
 browser history state. Related path evidence therefore keeps its case scope,
 selected path element and original graph filters through reload/back/forward.

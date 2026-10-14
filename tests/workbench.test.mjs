@@ -215,7 +215,7 @@ test('research cards preserve independent sources and escape imported titles', (
 test('case cards expand per campaign while blog cards retain many-to-many tags', async () => {
   const m = model(), calls = [], before = JSON.stringify(m.corpus);
   const cases = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
-  const campaignCards = descendants(cases).filter(n => n.tagName === 'DETAILS' && n.className.includes('case-card'));
+  const campaignCards = descendants(cases).filter(n => n.tagName === 'DETAILS' && (n.className ?? '').includes('case-card'));
   assert.equal(campaignCards.length, m.corpus.cases.length);
   assert.ok(campaignCards.every(n => !n.open));
   assert.match(campaignCards[0].textContent, /Expand campaign/);
@@ -305,7 +305,7 @@ test('research views retain optional core-only empty states and synthetic graph 
     assert.match(empty.content.textContent, /No (authored attack paths|records)/);
   }
   app.navigate('paths');
-  await button(content, '→').trigger('click');
+  await button(content, '→ Benign tool response').trigger('click');
   assert.match(content.textContent, /Synthetic conditional relationship/);
   const svg = descendants(content).find(n => n.tagName === 'SVG');
   const box = svg.getAttribute('viewBox');

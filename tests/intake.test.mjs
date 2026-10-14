@@ -11,8 +11,11 @@ import {
   HTML_PARSER_VERSION, TEXT_PARSER_VERSION, NORMALIZATION_VERSION, URL_NORMALIZATION_VERSION,
   sha256, normalizeText, canonicalSerialize, stableId, validateCorpus,
   collectBatch, readArchiveArtifact, IMAGE_LIMITS, BATCH_LIMIT,
+  robotsAllows, digest,
 } from '../scripts/contract.mjs';
 import { parseArticle } from '../src/article.mjs';
+import { canonicalArticleUrl, publisherDisplay, sourceInventory } from '../src/research-inventory.mjs';
+import { applyExtraction } from '../scripts/extract.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixture = name => fileURLToPath(new URL(`./fixtures/intake/${name}`, import.meta.url));
@@ -52,6 +55,8 @@ async function workspace(t) {
   return directory;
 }
 const corpusAt = directory => validatePrivateCorpus(path.join(directory, 'corpus.json'));
+const aliasUrl = 'https://redcanary.com/blog/threat-detection/ai-cli-tools/';
+const finalArticleUrl = 'https://www.zscaler.com/blogs/cybersecurity-best-practices/ai-cli-tools';
 const supplied = (store, text = 'Synthetic content.') => ({ kind: 'text', text, suppliedBy: operator, store });
 function response(text = 'Synthetic URL content.', options = {}) {
   return {
@@ -87,6 +92,198 @@ const checkFailure = async (store, input, deps, code) => {
   assert.deepEqual(validateCorpus(corpus), []);
   return corpus;
 };
+
+test('Issue #51 AC-01 logical article grouping preserves records and narrowly identifies the verified alias', () => {
+  const historical = { id: 'legacy-alias', canonicalUrl: aliasUrl, originalUrl: aliasUrl,
+    publisher: 'Red Canary', revisionIds: ['retained-revision'], extractionStatus: 'Extracted' };
+  const target = { id: 'target-failure', canonicalUrl: finalArticleUrl, originalUrl: finalArticleUrl,
+    publisher: null, revisionIds: [] };
+  const other = { ...historical, id: 'other-redcanary', canonicalUrl: 'https://redcanary.com/blog/other/',
+    originalUrl: 'https://redcanary.com/blog/other/' };
+  const sources = [target, historical, other, { id: 'no-url-a' }, { id: 'no-url-b' }];
+  const before = digest(sources);
+  const groups = sourceInventory(sources);
+  assert.equal(groups.length, 4);
+  const article = groups.find(group => group.canonicalUrl === finalArticleUrl);
+  assert.equal(article.source, historical);
+  assert.equal(article.id, historical.id);
+  assert.deepEqual(article.members, [target, historical]);
+  assert.equal(article.publisher.name, 'Zscaler');
+  assert.equal(publisherDisplay(other).name, 'Red Canary');
+  assert.equal(digest(sources), before);
+  assert.equal(canonicalArticleUrl(`${aliasUrl}?utm_source=synthetic#fixture`), finalArticleUrl);
+  for (const address of [
+    'https://redcanary.com/blog/other/', 'https://redcanary.com/blog/threat-detection/ai-cli-tools/?edition=2',
+    'https://redcanary.com.evil.invalid/blog/threat-detection/ai-cli-tools/',
+  ]) assert.equal(canonicalArticleUrl(address), address);
+  assert.equal(canonicalArticleUrl('https://operator@redcanary.com/blog/threat-detection/ai-cli-tools/'), null);
+  assert.equal(canonicalArticleUrl('javascript:alert(1)'), null);
+  assert.equal(sourceInventory([historical, { ...target, revisionIds: ['target-revision'] }])[0].id, target.id);
+});
+
+test('Issue #51 AC-01 robots leading wildcards retain agent selection, longest match, ties and explicit denial', () => {
+  for (const [policy, address, expected] of [
+    ['User-agent: *\nDisallow: *_archive.html', finalArticleUrl, true],
+    ['User-agent: *\nDisallow: *_archive.html', 'https://articles.example/report_archive.html', false],
+    ['User-agent: *\nDisallow: *_archive.html$', 'https://articles.example/report_archive.html?edition=2', true],
+    ['User-agent: *\nDisallow: *_archive.html\nAllow: /report_archive.html', 'https://articles.example/report_archive.html', true],
+    ['User-agent: *\nDisallow: *_archive.html\nAllow: *_archive.html', 'https://articles.example/report_archive.html', true],
+    ['User-agent: *\nAllow: /\nDisallow: *secret*archive$', 'https://articles.example/secret/x/archive', false],
+    ['User-agent: *\nDisallow: /\nUser-agent: OtherBot\nDisallow: *\nUser-agent: DevEnvThreatCorpusIntake\nAllow: /', finalArticleUrl, true],
+    ['User-agent: *\nAllow: /\nUser-agent: DevEnvThreatCorpusIntake\nDisallow: *', finalArticleUrl, false],
+    ['User-agent: DevEnvThreatCorpusIntake\nDisallow: /\nUser-agent: DevEnvThreatCorpusIntake\nAllow: /report', 'https://articles.example/report', true],
+    ['User-agent: DevEnvThreatCorpusIntake\nAllow: /\nUser-agent: DevEnvThreatCorpusIntake/1\nDisallow: /report', 'https://articles.example/report', false],
+    ['User-agent: *\nDisallow: *%73ecret', 'https://articles.example/secret', false],
+  ]) assert.equal(robotsAllows(policy, address), expected, policy);
+});
+
+test('Issue #51 AC-01 unsupported robots reasons are bounded, actionable and preserve attributed text fallback', async t => {
+  const directory = await workspace(t);
+  for (const [name, policy, reason] of [
+    ['agent', 'User-agent: Bad Agent\nAllow: /', 'invalid-agent-token'],
+    ['ungrouped', 'Disallow: /', 'ungrouped-rule'],
+    ['pattern', 'User-agent: *\nDisallow: confidential-relative-path', 'unsupported-rule-pattern'],
+  ]) {
+    const store = path.join(directory, name), deps = fake(undefined, { robots: () => response(policy) });
+    const result = await intakeSource(urlInput(store), deps);
+    assert.equal(result.code, 'ROBOTS_UNSUPPORTED');
+    assert.equal(result.reason, reason);
+    assert.match(result.guidance, /operator-supplied text\/file with --source-url/);
+    assert.ok(result.guidance.length < 400);
+    assert.ok(!JSON.stringify(result).includes('confidential-relative-path'));
+    assert.equal(deps.calls.length, 1);
+    const before = await corpusAt(store), failure = structuredClone(before.collectionManifests[0]);
+    assert.ok(failure.limitations.includes(`robots-reason=${reason}`));
+    assert.equal((await intakeSource({ ...supplied(store), sourceUrl: url })).status, 'succeeded');
+    const after = await corpusAt(store);
+    assert.deepEqual(after.collectionManifests.find(record => record.id === failure.id), failure);
+    assert.equal(after.sourceRevisions[0].provenance.kind, 'supplied-text');
+    assert.equal(after.sourceRevisions[0].provenance.suppliedBy, operator);
+    assert.equal(deps.calls.length, 1);
+  }
+  const store = path.join(directory, 'cross-origin');
+  const deps = fake(undefined, { robots: () => response('', { status: 301, headers: { location: 'https://other.example/robots.txt' } }) });
+  const failed = await intakeSource({ ...urlInput(store), url: aliasUrl }, deps);
+  assert.equal(failed.code, 'ROBOTS_UNSUPPORTED');
+  assert.equal(failed.reason, 'cross-origin-policy-redirect');
+  assert.equal(deps.calls.length, 1, 'cross-origin robots endpoint and article are not fetched');
+});
+
+function aliasTransport(options = {}) {
+  return fake(request => request.url === aliasUrl
+    ? response('', { status: 301, headers: { location: finalArticleUrl } })
+    : response('Synthetic canonical article.'), {
+    robots: request => response(new URL(request.url).hostname === 'redcanary.com'
+      ? 'User-agent: *\nAllow: /blog/'
+      : 'User-agent: *\nDisallow: *_archive.html'),
+    ...options,
+  });
+}
+
+test('Issue #51 AC-01 alias retries retain both failures and independently authorize each article origin', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'history');
+  for (const address of [aliasUrl, finalArticleUrl]) {
+    const failed = await intakeSource({ ...urlInput(store), url: address },
+      fake(undefined, { robots: () => response('User-agent: Bad Agent\nAllow: /') }));
+    assert.equal(failed.code, 'ROBOTS_UNSUPPORTED');
+  }
+  const before = await corpusAt(store), failures = structuredClone(before.collectionManifests);
+  const aliasRecord = structuredClone(before.sources.find(source => source.canonicalUrl === aliasUrl));
+  const deps = aliasTransport();
+  const first = await intakeSource({ ...urlInput(store), url: aliasUrl }, deps);
+  assert.equal(first.status, 'succeeded');
+  assert.deepEqual(deps.calls.map(request => request.url), [
+    'https://redcanary.com/robots.txt', aliasUrl, 'https://www.zscaler.com/robots.txt', finalArticleUrl,
+  ]);
+  let corpus = await corpusAt(store);
+  assert.equal(corpus.sourceRevisions.length, 1);
+  assert.deepEqual(corpus.sources.find(source => source.id === aliasRecord.id), aliasRecord);
+  for (const failed of failures) assert.deepEqual(corpus.collectionManifests.find(record => record.id === failed.id), failed);
+  const successful = corpus.collectionManifests.find(record => record.id === first.manifestId);
+  assert.ok(successful.inputSourceIds.includes(aliasRecord.id));
+  assert.ok(successful.limitations.includes(`redirect-target-sha256=${sha256(finalArticleUrl)}`));
+  assert.ok(successful.limitations.some(value => value.startsWith('robots-policy-sha256=') && value.includes(sha256('https://redcanary.com')) && value.includes(sha256('https://www.zscaler.com'))));
+  const originalRevision = structuredClone(corpus.sourceRevisions[0]);
+  const second = await intakeSource({ ...urlInput(store), url: finalArticleUrl }, aliasTransport());
+  const stable = await fs.readFile(path.join(store, 'corpus.json'), 'utf8');
+  assert.equal(second.sourceId, first.sourceId);
+  assert.equal(second.revisionId, first.revisionId);
+  assert.deepEqual(await intakeSource({ ...urlInput(store), url: aliasUrl }, aliasTransport()), first);
+  assert.equal(await fs.readFile(path.join(store, 'corpus.json'), 'utf8'), stable);
+  corpus = await corpusAt(store);
+  assert.deepEqual(corpus.sourceRevisions, [originalRevision]);
+  assert.equal(sourceInventory(corpus.sources).length, 1);
+  assert.equal(corpus.claims.length, 0);
+  const deniedStore = path.join(directory, 'denied');
+  const denied = aliasTransport({ robots: request => response(new URL(request.url).hostname === 'redcanary.com'
+    ? 'User-agent: *\nAllow: /' : 'User-agent: *\nDisallow: *') });
+  assert.equal((await intakeSource({ ...urlInput(deniedStore), url: aliasUrl }, denied)).code, 'ROBOTS_DENIED');
+  assert.ok(!denied.calls.some(request => request.url === finalArticleUrl));
+});
+
+test('Issue #51 AC-01 canonical-first and alias-first batches share one successful source, revision and manual claim', async t => {
+  const directory = await workspace(t);
+  for (const addresses of [[finalArticleUrl, aliasUrl], [aliasUrl, finalArticleUrl]]) {
+    const store = path.join(directory, `batch-${addresses[0] === aliasUrl ? 'alias' : 'canonical'}`);
+    const result = await collectBatch({ urls: addresses, caseName: 'Synthetic alias campaign', operator, store }, aliasTransport());
+    assert.equal(result.status, 'succeeded');
+    assert.equal(result.results[0].sourceId, result.results[1].sourceId);
+    assert.equal(result.results[0].revisionId, result.results[1].revisionId);
+    assert.equal(result.results[1].status, 'already present');
+    let corpus = await corpusAt(store);
+    assert.equal(corpus.cases[0].sourceIds.length, 1);
+    assert.equal(corpus.sourceRevisions.length, 1);
+    assert.equal(sourceInventory(corpus.sources).length, 1);
+    assert.ok(corpus.sources.some(source => source.originalUrl === aliasUrl));
+    assert.ok(corpus.sources.some(source => [source.originalUrl, source.canonicalUrl].includes(finalArticleUrl)));
+    const revision = corpus.sourceRevisions[0];
+    const template = { schemaVersion: 'manual-extraction/1', claims: [{
+      id: 'synthetic-alias-claim', caseId: corpus.cases[0].id, sourceId: revision.sourceId,
+      sourceRevisionId: revision.id, revisionHash: revision.normalizedHash,
+      description: 'Synthetic canonical article.', evidenceStatus: 'Source-reported observation', origin: 'Human source paraphrase',
+      passages: [{ id: 'synthetic-alias-passage', locator: 'synthetic whole article', start: 0,
+        end: [...revision.normalizedContent].length, text: revision.normalizedContent }],
+    }] };
+    applyExtraction(corpus, template, operator, JSON.stringify(template));
+    await fs.writeFile(path.join(store, 'corpus.json'), canonicalSerialize(corpus), { mode: 0o600 });
+    const claims = structuredClone(corpus.claims), passages = structuredClone(corpus.passages);
+    assert.equal((await collectBatch({ urls: [...addresses].reverse(), caseId: corpus.cases[0].id, operator, store }, aliasTransport())).status, 'succeeded');
+    corpus = await corpusAt(store);
+    assert.deepEqual(corpus.claims, claims);
+    assert.deepEqual(corpus.passages, passages);
+    const prior = digest(corpus);
+    applyExtraction(corpus, template, operator, JSON.stringify(template));
+    assert.equal(digest(corpus), prior);
+    assert.equal(corpus.claims.length, 1);
+  }
+});
+
+test('Issue #51 AC-01 retained legacy source IDs, claims, revisions and manifests survive canonical retries', async t => {
+  const directory = await workspace(t), store = path.join(directory, 'legacy');
+  await fs.mkdir(store, { mode: 0o700 });
+  const corpus = JSON.parse(await fs.readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
+  const legacy = corpus.sources[0];
+  legacy.originalUrl = aliasUrl;
+  legacy.canonicalUrl = aliasUrl;
+  delete legacy.nullReasons.originalUrl;
+  delete legacy.nullReasons.canonicalUrl;
+  assert.deepEqual(validateCorpus(corpus), []);
+  await fs.writeFile(path.join(store, 'corpus.json'), canonicalSerialize(corpus), { mode: 0o600 });
+  const preserved = structuredClone({ sources: corpus.sources, claims: corpus.claims, passages: corpus.passages,
+    revisions: corpus.sourceRevisions, manifests: corpus.collectionManifests, reviews: corpus.reviews, cases: corpus.cases });
+  const first = await intakeSource({ ...urlInput(store), url: finalArticleUrl }, aliasTransport());
+  assert.equal(first.status, 'succeeded');
+  assert.equal(first.sourceId, legacy.id);
+  const after = await corpusAt(store);
+  for (const source of preserved.sources) assert.deepEqual(after.sources.find(record => record.id === source.id), source);
+  for (const revision of preserved.revisions) assert.deepEqual(after.sourceRevisions.find(record => record.id === revision.id), revision);
+  for (const manifest of preserved.manifests) assert.deepEqual(after.collectionManifests.find(record => record.id === manifest.id), manifest);
+  for (const name of ['claims', 'passages', 'reviews', 'cases']) assert.deepEqual(after[name], preserved[name]);
+  assert.equal(after.sourceRevisions.filter(revision => revision.sourceId === legacy.id).length, 2, 'new content adds a revision, not a replacement source');
+  const stable = await fs.readFile(path.join(store, 'corpus.json'), 'utf8');
+  assert.deepEqual(await intakeSource({ ...urlInput(store), url: finalArticleUrl }, aliasTransport()), first);
+  assert.equal(await fs.readFile(path.join(store, 'corpus.json'), 'utf8'), stable);
+});
 
 test('AC-01 CLI text/file/validation and injected HTTPS create valid private source-only records', async t => {
   const directory = await workspace(t);
