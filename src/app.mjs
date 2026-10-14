@@ -3,7 +3,7 @@ import { element, action, renderCase, renderSource, renderClaim, renderConflicts
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
 import { publicDraftModel } from './public-profile.mjs';
-import { articleCoverage } from './research-inventory.mjs';
+import { articleCoverage, publisherDisplay } from './research-inventory.mjs';
 export const PUBLIC_DRAFT_URL = new URL('./data/nx-draft.json', import.meta.url).href;
 
 export async function fetchCorpus(fetcher, endpoint) {
@@ -142,7 +142,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (model?.publicDraft) {
       const articles = articleCoverage(model.publicDraft.sourceCoverage);
       return `PUBLIC PENDING DRAFT — ${articles.filter(s => s.collected).length}/${articles.length} logical research articles retained. ` +
-        'No human acceptance. Full articles, quotations and literal prompts remain private; evidence locators require the private archive.';
+        'No human acceptance. Published prompt literals are displayed as untrusted research artifacts; full articles and other quotations remain private.';
     }
     return model?.corpus.governance?.synthetic ?
       'SYNTHETIC DEMO — generated benign fixture, not incident evidence.' :
@@ -248,7 +248,6 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       }
       for (const limit of model.publicDraft.limitations) note.append(element(doc, 'p', limit));
       $('content').append(note);
-      if (route.view === 'prompts') $('content').append(element(doc, 'p', 'Two literal prompt variants are retained privately and withheld from this public projection. An empty public prompt library does not mean no prompts were reported.', 'panel'));
     }
     if (pathContext && route.view !== 'paths') $('content').append(action(doc, 'Return to selected path element', () => {
       const context = pathContext;
@@ -329,7 +328,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     }
     const workspace = element(doc, 'div', null, 'workspace'), list = element(doc, 'aside', null, 'record-list');
     list.setAttribute('aria-label', `Matching ${route.view}`);
-    for (const record of records) {
+    const appendRecordButton = record => {
       const button = action(doc, '', () => {
         route = { view: route.view, id: record.id, revisionId: '' }; activePassages = [];
         win.history.pushState(null, '', routeHash(route.view, route.id)); render(); $('content').focus();
@@ -339,7 +338,36 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         element(doc, 'strong', record.name ?? record.title ?? record.description ?? metadata(record, 'title')),
         element(doc, 'small', route.view === 'sources' && !record.revisionIds.length ?
           'No retained revision / failed or incomplete intake' : record.disposition ?? record.collectionState));
-      list.append(button);
+      return button;
+    };
+    if (route.view === 'claims') {
+      const campaigns = new Map();
+      for (const record of records) {
+        if (!campaigns.has(record.caseId)) campaigns.set(record.caseId, []);
+        campaigns.get(record.caseId).push(record);
+      }
+      for (const [caseId, claims] of campaigns) {
+        const campaign = element(doc, 'details', null, 'claim-campaign-group');
+        campaign.open = claims.some(claim => claim.id === selected.id);
+        campaign.append(element(doc, 'summary', `${model.cases.get(caseId)?.name ?? caseId} · ${claims.length} claims`));
+        const publishers = new Map();
+        for (const claim of claims) {
+          const source = model.sources.get(claim.sourceId);
+          const publisher = publisherDisplay(source).name;
+          if (!publishers.has(publisher)) publishers.set(publisher, []);
+          publishers.get(publisher).push(claim);
+        }
+        for (const [publisher, entries] of publishers) {
+          const group = element(doc, 'details', null, 'claim-publisher-group');
+          group.open = entries.some(claim => claim.id === selected.id);
+          group.append(element(doc, 'summary', `${publisher} · ${entries.length}`));
+          for (const claim of entries) group.append(appendRecordButton(claim));
+          campaign.append(group);
+        }
+        list.append(campaign);
+      }
+    } else {
+      for (const record of records) list.append(appendRecordButton(record));
     }
     const detail = element(doc, 'div');
     if (route.id && selected.id !== route.id) detail.append(element(doc, 'p', 'The selected target is hidden by filters; showing the matching record named below. Reset filters to return to the selected target.', 'subtle'));

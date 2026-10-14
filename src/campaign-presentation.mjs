@@ -1,4 +1,16 @@
 // Read-only display occurrences: canonical records and historical routes never change.
+const PROJECTED_SUMMARIES = new Map([[
+  'case-06efe0e7191796ad8e1bd690e22de800b249ccfb9e8fb905efaf0af28d3f2b02',
+  {
+    text: 'Reports link CI workflow injection and npm token theft to malicious Nx package releases, whose payloads attempted AI-assisted reconnaissance.',
+    claimIds: [
+      'campaign-claim-4fa00fd472e08bbbf73af7393bc6dc3abd1ef85d68d44c199947f1fd5153c555',
+      'campaign-claim-fb592ad1903dbcc008321f5760bf1638184b4558f36e77a2f2504f4cd33c15fe',
+      'campaign-claim-0c4d8e8c7d865e53b02a44a719a2df4e8f2524b94e1108dbf43576d38501a140',
+    ],
+  },
+]]);
+
 export function pathDisplayName(path) {
   if (path.name?.trim() && path.name !== path.id) return path.name.trim();
   const titles = [...new Set((path.nodes ?? []).map(n => n.title?.trim()).filter(Boolean))];
@@ -56,6 +68,10 @@ export function campaignSummary(model, record) {
   if (record.summary?.trim() && declared.length && declared.every(valid)) {
     return { text: record.summary, claimIds: [...new Set(declared)], origin: record.origin ?? 'Origin not recorded',
       disposition: record.disposition ?? 'Pending', projected: false };
+  }
+  const projected = PROJECTED_SUMMARIES.get(record.id);
+  if (projected && projected.claimIds.every(valid)) {
+    return { ...projected, origin: 'Agent display projection', disposition: 'Pending', projected: true };
   }
   const paths = (model.corpus.paths ?? []).filter(p => p.caseId === record.id);
   const explicit = [...declared, ...paths.flatMap(p => [...p.nodes, ...p.edges].flatMap(r => r.claimIds ?? [])),

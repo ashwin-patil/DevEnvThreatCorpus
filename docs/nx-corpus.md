@@ -43,6 +43,10 @@ Phase grouping is display organization only; the three canonical paths, twelve
 nodes, seven independently supported relationships and historical routes remain.
 No arrow is added between phases merely to make the picture connected, and the
 number of displayed campaign graphs must not be reported as a path-record count.
+The campaign card's concise incident overview is a Pending display projection
+supported by the cited CI-injection, npm-token-theft, malicious-release and
+attempted-AI-reconnaissance claims. It does not replace the corpus's unrecorded
+summary, establish human acceptance, or rely on the unretained Zscaler article.
 
 Nx and StepSecurity's package availability estimates remain reciprocal conflicts.
 Wiz's repository exposure interval is a different measurement. Attempted CLI use,
@@ -63,14 +67,20 @@ every quotation, preserves its original locator without shortening or inventing
 offsets, and adds bounded claim-linked AI tool labels and source coverage.
 It retains public revision hashes, citations, source-local descriptions and graph
 support references. It omits article bodies, human decisions, private campaign
-run envelopes, research logs, screenshots, and two complete prompt variants.
+run envelopes, research logs and screenshots. A separate `prompts` display
+projection contains two published literal variants across three source occurrences:
+the wallet-inventory prompt reported by StepSecurity and Socket, and Socket's
+authorized-testing inventory variant. The shared variant appears once with both
+source citations. Wiz's retained article discusses AI tools and flags without
+quoting a complete prompt; it has no literal entry.
 
 The draft export conforms to its typed-row schema. It is not an importable
 private corpus: missing source text has no fabricated human passage attestation.
 The browser loads a display projection through a separate adapter rather than
 bypassing private-corpus validation. Public evidence navigation shows the cited
-revision and locator, with explicit quotation limits. Full evidence and prompt
-inspection requires the protected private workbench. Tool aliases use the
+revision and locator, with explicit quotation limits. Published prompt literals
+are shown as inert text, without claim-description substitutes. Full article
+evidence inspection requires the protected private workbench. Tool aliases use the
 existing normalization; q displays as Amazon Q with its original literal.
 
 ## Usage and review

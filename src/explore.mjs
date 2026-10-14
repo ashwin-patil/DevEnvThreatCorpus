@@ -50,13 +50,16 @@ function behaviorLinks(doc, parent, model, claimIds, paths, navigate) {
   parent.append(element(doc, 'h3', 'Behaviors'));
   for (const [kind, label] of [['atomic-behavior', 'Actions'], ['activity-pattern', 'Activity patterns']]) {
     const items = groups.filter(g => g.kind === kind); if (!items.length) continue;
-    const section = element(doc, 'section', null, `behavior-category ${kind}`);
-    section.append(element(doc, 'h4', label));
-    section.append(reviewLegend(doc));
+    const section = element(doc, 'details', null, `behavior-category ${kind}`);
+    section.append(element(doc, 'summary', `${label} · ${items.length}`), reviewLegend(doc));
+    const tiles = element(doc, 'div', null, 'behavior-action-list');
     for (const group of items) {
       const chip = reviewChip(doc, group.name, group.members[0].disposition, () => navigate('behaviors', group.members[0].id));
-      chip.title = group.basis; section.append(chip);
+      chip.title = group.basis; chip.classList?.add('behavior-action-link');
+      if (!chip.classList) chip.setAttribute('class', `${chip.getAttribute('class')} behavior-action-link`);
+      tiles.append(chip);
     }
+    section.append(tiles);
     parent.append(section);
   }
   if (!behaviors.length) parent.append(element(doc, 'p', 'No linked behaviors recorded. Collection alone does not extract behavior.', 'subtle'));
@@ -64,13 +67,13 @@ function behaviorLinks(doc, parent, model, claimIds, paths, navigate) {
 export function renderCaseLibrary(doc, model, records, navigate, filters = {}) {
   const panel = element(doc, 'section', null, 'case-library');
   panel.append(element(doc, 'h2', 'Case library'), element(doc, 'p',
-    'One card per campaign or explicitly selected research group. Expand a card to explore its blogs, behaviors, AI tools and prompts. Shared research does not merge campaigns.', 'subtle'), usageLegend(doc));
+    'One card per campaign or explicitly selected research group. Cards open expanded to show cited context, research and linked views; collapse them for a compact overview. Shared research does not merge campaigns.', 'subtle'), usageLegend(doc));
   const grid = element(doc, 'div', null, 'research-grid');
   for (const record of records) {
     const card = element(doc, 'details', null, 'panel research-card case-card');
+    card.open = true;
     const summary = element(doc, 'summary');
-    const claims = model.corpus.claims.filter(c => c.caseId === record.id);
-    const sourceIds = caseSourceIds(model, record.id), claimIds = new Set(claims.map(c => c.id));
+    const sourceIds = caseSourceIds(model, record.id), claimIds = new Set(model.corpus.claims.filter(c => c.caseId === record.id).map(c => c.id));
     const articles = sourceInventory(sourceIds.map(id => model.sources.get(id)).filter(Boolean));
     const overview = campaignSummary(model, record), paths = list(model, 'paths').filter(p => p.caseId === record.id);
     const heading = element(doc, 'h2'); heading.append(activitySvg(doc, 'graph'), element(doc, 'span', record.name));
@@ -78,13 +81,21 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}) {
       element(doc, 'p', overview.text, 'campaign-summary'),
       element(doc, 'p', originReview(overview), 'subtle'),
       element(doc, 'p', record.limits ?? 'Limits not recorded. Source association does not establish attribution, universal success or chronology.', 'limits'),
-      element(doc, 'p', `${articles.length} research articles · ${sourceIds.length} retained source records · ${claims.length} claims · ${paths.length ? '1 campaign graph' : '0 campaign graphs'} · ${paths.length} retained path record(s)`, 'subtle'),
+      element(doc, 'p', `${articles.length} research articles · ${paths.length ? '1 campaign graph' : '0 campaign graphs'} · ${paths.length} phases`, 'subtle'),
       element(doc, 'span', 'Expand campaign', 'card-expand'));
     card.append(summary);
     const body = element(doc, 'div', null, 'case-card-body');
-    body.append(support(doc, model, overview.claimIds, navigate, record.id),
-      element(doc, 'p', overview.projected ? 'Summary is a source-linked display projection, not a new accepted case statement. Supporting classifications and conflicts remain independent.' : 'Summary retains its recorded claim support; inspect each source classification.'),
-      action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
+    body.append(action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
+    appendAiLinks(doc, body, model, record.id, navigate);
+    if (overview.claimIds.length) {
+      const citations = element(doc, 'details', null, 'campaign-summary-citations');
+      citations.append(element(doc, 'summary', `Summary citations · ${overview.claimIds.length}`));
+      for (const id of overview.claimIds) {
+        const claim = model.claims.get(id);
+        if (claim) citations.append(action(doc, claim.description, () => navigate('claims', id)));
+      }
+      body.append(citations);
+    }
     body.append(element(doc, 'h3', 'Unified attack graph'));
     if (paths.length) body.append(action(doc, `${record.name} · campaign graph`, () => navigate('paths', paths[0].id)),
       element(doc, 'p', `${paths.length} underlying phase path record(s). Only recorded relationships are drawn; unconnected phases stay disconnected.`, 'subtle'));
@@ -98,13 +109,10 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}) {
     for (const article of articles) totals.set(article.publisher.name, (totals.get(article.publisher.name) ?? 0) + 1);
     for (const article of articles) {
       const source = article.source, display = article.publisher; index.set(display.name, (index.get(display.name) ?? 0) + 1);
-      const chip = action(doc, `${display.name}${totals.get(display.name) > 1 ? ` · ${index.get(display.name)}` : ''} ↗`, () => navigate('sources', source.id));
+      const chip = action(doc, `${display.name}${totals.get(display.name) > 1 ? ` · ${index.get(display.name)}` : ''}`, () => navigate('sources', source.id));
       chip.title = `${metadata(source, 'title')} · ${display.basis}`; chip.setAttribute('aria-label', `${display.name}: ${metadata(source, 'title')}`); body.append(chip);
-      if (article.canonicalUrl) body.append(reference(doc, article.canonicalUrl, `${display.name} published research ↗`));
     }
     behaviorLinks(doc, body, model, claimIds, paths, navigate);
-    appendAiLinks(doc, body, model, record.id, navigate);
-    if (model.publicDraft) body.append(element(doc, 'p', 'Public draft: complete prompts and article quotations are withheld, not established absent. Use authorized private inspection for full passages and prompt-library entries.', 'limits'));
     card.append(body); grid.append(card);
   }
   panel.append(grid); return panel;
@@ -114,7 +122,8 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
   panel.append(element(doc, 'h2', 'Research library'), element(doc, 'p',
     'One card per blog or research source. Campaign tags open the associated case; one blog can support several cases without combining their attribution. Open a blog to inspect exact revisions and claims.', 'subtle'), usageLegend(doc));
   const grid = element(doc, 'div', null, 'research-grid');
-  for (const article of sourceInventory(sources)) {
+  const catalogSources = new Set(list(model, 'frameworks').map(framework => framework.sourceId).filter(Boolean));
+  for (const article of sourceInventory(sources.filter(source => !catalogSources.has(source.id)))) {
     const source = article.source, memberIds = new Set(article.members.map(s => s.id));
     const card = element(doc, 'article', null, 'panel research-card blog-card');
     const cases = model.corpus.cases.filter(c => caseSourceIds(model, c.id).some(id => memberIds.has(id)) && (!filters.cases?.length || filters.cases.includes(c.id)));
@@ -126,7 +135,6 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
       element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', revisions.size
         ? `${source.collectionState} · ${revisions.size} retained revision(s)` : 'No retained article revision · source metadata only', 'subtle'),
       action(doc, 'Open research source', () => navigate('sources', source.id)));
-    if (article.canonicalUrl) card.append(reference(doc, article.canonicalUrl, 'Published research ↗'));
     if (article.members.length > 1) {
       const history = element(doc, 'details'); history.append(element(doc, 'summary', `Article aliases & source history · ${article.members.length} retained identities`));
       for (const member of article.members) history.append(action(doc, `Inspect historical source: ${member.id}`, () => navigate('sources', member.id)),
@@ -168,9 +176,7 @@ function appendAiLinks(doc, parent, model, caseId, navigate, sourceIds) {
     const entries = aiLibrary(model, view, new Set([caseId])).filter(r => !sourceIds || r.annotations.some(a => sourceIds.has(a.sourceId)));
     parent.append(element(doc, 'h3', label));
     for (const r of entries) parent.append(aiChip(doc, r, navigate, view, r.annotations.filter(a => !sourceIds || sourceIds.has(a.sourceId))));
-    if (!entries.length) parent.append(element(doc, 'p', model.publicDraft && view === 'prompts'
-      ? 'Complete prompts withheld from the public draft; inspect privately. Withholding does not imply absence.'
-      : 'No grounded entries recorded.', 'subtle'));
+    if (!entries.length) parent.append(element(doc, 'p', 'No grounded entries recorded.', 'subtle'));
   }
 }
 
@@ -223,13 +229,14 @@ function mappingCard(doc, model, mapping, navigate, caseId, scope) {
   if (mapping.techniqueId) card.append(action(doc, 'Inspect recorded framework candidate', () => navigate('frameworks', mapping.techniqueId)));
   return card;
 }
-function annotationCard(doc, model, annotation, navigate) {
+function annotationCard(doc, model, annotation, navigate, showLiteral = true) {
   const card = element(doc, 'article', null, 'claim-card');
   if (annotation.type === 'commands-ai-artifacts') {
     const usage = usageOf([annotation]); card.className += ` usage-${usage}`;
     card.title = USAGE[usage][0]; card.setAttribute('aria-label', `Source artifact: ${USAGE[usage][0]}`);
   }
-  card.append(element(doc, 'pre', annotation.value, 'artifact-value'), provenance(doc, annotation));
+  if (showLiteral) card.append(element(doc, 'pre', annotation.value, 'artifact-value'));
+  card.append(provenance(doc, annotation));
   if (annotation.normalizedValue) row(doc, card, 'Normalized value', annotation.normalizedValue);
   for (const [key, value] of Object.entries(annotation.context ?? {})) {
     if (key !== 'artifactUsage') row(doc, card, key, value);
@@ -250,7 +257,7 @@ function annotationCard(doc, model, annotation, navigate) {
 export function renderEvidencePanel(doc, model, record, navigate, download) {
   const panel = element(doc, 'section', null, 'panel research-evidence');
   panel.append(element(doc, 'h2', 'Campaign research & talk evidence'),
-    element(doc, 'p', model.publicDraft ? 'Public draft tool labels are pending. Full quotations and literal prompts remain private; use the cited article and retained locators for review.' : 'Private annotations are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
+    element(doc, 'p', model.publicDraft ? 'Public draft tools and extracted prompts are pending. Full article quotations remain omitted; source citations and prompt locators remain available for review.' : 'Private annotations are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
   if (model.annotationError) panel.append(element(doc, 'p', model.annotationError, 'enrichment-warning'));
   if (download && !model.publicDraft) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
     () => download(format, format === 'md' ? talkMarkdown(talkBundle(model, record.id)) : talkBundle(model, record.id))));
@@ -426,6 +433,16 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   let positions = graphLayout(path), box = fittedBox(), dragging = null, suppressClick = false, selected = null;
   const fit = fittedBox();
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const focusGroup = group => {
+    const points = group.nodeIds.map(id => positions[id]).filter(Boolean);
+    if (!points.length) return fittedBox();
+    const left = Math.min(...points.map(p => p.x)), right = Math.max(...points.map(p => p.x + NODE_WIDTH));
+    const top = Math.min(...points.map(p => p.y)), bottom = Math.max(...points.map(p => p.y + NODE_HEIGHT));
+    const rect = svg.getBoundingClientRect?.(), aspect = rect?.width && rect?.height ? rect.width / rect.height : 1.6;
+    const height = Math.max(bottom - top + 100, (rect?.height ?? 500) * .82);
+    const width = Math.max(right - left + 100, height * aspect);
+    return { x: (left + right - width) / 2, y: (top + bottom - height) / 2, w: width, h: height };
+  };
   const boundedPosition = position => ({
     x: clamp(position.x, fit.x - fit.w, fit.x + 2 * fit.w - NODE_WIDTH),
     y: clamp(position.y, fit.y - fit.h, fit.y + 2 * fit.h - NODE_HEIGHT),
@@ -584,6 +601,26 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   }
   movementPanel.append(action(doc, 'Cancel gesture', () => endGesture()));
   movement.append(movementPanel); toolbar.append(movement);
+  const phaseControls = element(doc, 'div', null, 'campaign-phase-controls');
+  phaseControls.setAttribute('role', 'group');
+  phaseControls.setAttribute('aria-label', 'Campaign graph phases');
+  const setPhase = (group, button) => {
+    box = focusGroup(group); paint();
+    for (const control of phaseControls.children) control.setAttribute('aria-pressed', String(control === button));
+    announcement.textContent = `Focused phase: ${group.name}. Other phases remain in this campaign graph; choose another phase or full overview.`;
+  };
+  for (const [index, group] of path.groups.entries()) {
+    const control = action(doc, `${index + 1}. ${group.name}`, () => setPhase(group, control), 'campaign-phase-button');
+    control.setAttribute('aria-pressed', 'false');
+    phaseControls.append(control);
+  }
+  const overviewControl = action(doc, 'Full campaign overview', () => {
+    box = fittedBox(); paint();
+    for (const control of phaseControls.children) control.setAttribute('aria-pressed', 'false');
+    announcement.textContent = 'Showing the full campaign overview. Select a phase to enlarge it.';
+  }, 'campaign-phase-button');
+  overviewControl.setAttribute('aria-pressed', 'false');
+  phaseControls.append(overviewControl);
   toolbar.addEventListener('keydown', e => { if (e.key === 'Escape') { endGesture(); movement.open = false; } });
   svg.addEventListener('keydown', e => { if (e.key === 'Escape') endGesture(); });
   function point(event) {
@@ -635,11 +672,17 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     textControls.set(`edge:${edge.id}`, control);
     alternative.append(control, element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate, path.caseId));
   }
-  paint();
   const node = path.nodes.find(n => n.id === selectedEntity), edge = path.edges.find(e => e.id === selectedEntity);
+  const initialGroup = path.groups.find(group => group.path.id === (node ?? edge)?.memberPath.id) ?? path.groups[0];
+  if (initialGroup) {
+    box = focusGroup(initialGroup);
+    const index = path.groups.indexOf(initialGroup);
+    phaseControls.children[index]?.setAttribute('aria-pressed', 'true');
+  }
+  paint();
   if (node) showNode(node, false); else if (edge) showEdge(edge, false); else if (path.nodes.length) showNode(path.nodes[0], false);
   viewport.append(svg, toolbar);
-  panel.append(viewport, alternative, announcement, inspection); return panel;
+  panel.append(phaseControls, viewport, alternative, announcement, inspection); return panel;
 }
 
 export function renderExploration(doc, model, view, filters, navigate, selectedId = '', loadDemo, selectedEntity = '') {
@@ -670,10 +713,11 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       const card = element(doc, 'article', null, `panel research-card usage-${usageOf(record.annotations)}`);
       card.append(element(doc, 'h2', record.name), element(doc, 'p', record.basis, 'subtle'));
       if (!selectedId) card.append(action(doc, 'Open library entry', () => navigate(view, record.id)));
+      if (view === 'prompts') card.append(element(doc, 'pre', record.annotations[0].value, 'artifact-value'));
       for (const a of record.annotations) {
-        const item = annotationCard(doc, model, a, navigate);
-        item.append(action(doc, `Campaign: ${model.cases.get(a.caseId)?.name ?? a.caseId}`, () => navigate('cases', a.caseId)),
-          support(doc, model, a.claimIds, navigate));
+        const item = annotationCard(doc, model, a, navigate, view !== 'prompts');
+        item.append(action(doc, `Campaign: ${model.cases.get(a.caseId)?.name ?? a.caseId}`, () => navigate('cases', a.caseId)));
+        if (view !== 'prompts') item.append(support(doc, model, a.claimIds, navigate));
         // Relationships require common source-local claims, not lexical similarity or article proximity.
         const other = view === 'tools' ? 'prompts' : 'tools';
         for (const related of aiLibrary(model, other, new Set([a.caseId])).filter(r => r.annotations.some(b =>
@@ -694,24 +738,44 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     inventory.append(reviewLegend(doc));
     for (const [kind, label] of [['atomic-behavior', 'Actions'], ['activity-pattern', 'Activity patterns']]) {
       const category = element(doc, 'section', null, `behavior-category ${kind}`);
-      category.append(element(doc, 'h3', label));
-      for (const group of behaviorInventory(selected.records).filter(g => g.kind === kind)) {
-      const item = element(doc, 'article', null, 'claim-card');
-      item.append(element(doc, 'h4', group.name),
-        element(doc, 'p', group.basis, 'subtle'), element(doc, 'p', `${group.members.length} source-specific record(s)${group.members.length > 1 ? ' · possible overlap; inspect evidence before consolidation' : ''}`));
-      for (const member of group.members) item.append(reviewChip(doc, member.name, member.disposition, () => navigate('behaviors', member.id)));
-      category.append(item);
+      const section = element(doc, 'details', null, 'behavior-group');
+      const groups = behaviorInventory(selected.records).filter(group => group.kind === kind);
+      section.append(element(doc, 'summary', `${label} · ${groups.length}`));
+      const tiles = element(doc, 'div', null, 'behavior-tile-grid');
+      for (const group of groups) {
+        const item = element(doc, 'article', null, 'behavior-tile');
+        if (group.members.length === 1) {
+          const member = group.members[0], link = reviewChip(doc, group.name, member.disposition, () => navigate('behaviors', member.id));
+          link.title = group.basis; item.append(link);
+        } else {
+          item.append(element(doc, 'p', group.name), element(doc, 'p', `${group.members.length} source-specific records`, 'subtle'));
+          for (const member of group.members) item.append(reviewChip(doc, member.name, member.disposition, () => navigate('behaviors', member.id)));
+        }
+        tiles.append(item);
       }
-      if (category.children.length > 1) inventory.append(category);
+      if (groups.length) { section.append(tiles); category.append(section); inventory.append(category); }
     }
     inventory.append(element(doc, 'h3', 'Chained activities from recorded paths'), element(doc, 'p',
       'Each transition retains its recorded relationship and evidence basis. A chain is not an atomic behavior, and connecting two nodes does not prove execution or causality.', 'subtle'));
     const chains = selected.paths.flatMap(p => p.edges.map(edge => ({ p, edge })));
-    for (const { p, edge } of chains) {
-      const from = p.nodes.find(n => n.id === edge.from), to = p.nodes.find(n => n.id === edge.to);
-      const item = element(doc, 'details'); item.append(element(doc, 'summary', `${from?.title ?? edge.from} → ${to?.title ?? edge.to} · ${edge.relation}`),
-        element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate, p.caseId),
-        action(doc, 'Open recorded attack path', () => navigate('paths', p.id))); inventory.append(item);
+    const relationLabels = { sequence: 'Sequence', conditional: 'Conditional', propagates: 'Propagation' };
+    for (const relation of ['sequence', 'conditional', 'propagates']) {
+      const members = chains.filter(({ edge }) => edge.relation === relation);
+      if (!members.length) continue;
+      const section = element(doc, 'details', null, `chain-group chain-${relation}`);
+      section.append(element(doc, 'summary', `${relationLabels[relation]} · ${members.length}`));
+      const tiles = element(doc, 'div', null, 'chain-tile-grid');
+      for (const { p, edge } of members) {
+        const from = p.nodes.find(n => n.id === edge.from), to = p.nodes.find(n => n.id === edge.to);
+        const item = element(doc, 'article', null, `chain-tile chain-${relation}`);
+        item.append(element(doc, 'span', relationLabels[relation], 'chain-kind'),
+          element(doc, 'h4', `${from?.title ?? edge.from} → ${to?.title ?? edge.to}`),
+          element(doc, 'p', edge.basis, 'subtle'),
+          support(doc, model, edge.claimIds, navigate, p.caseId),
+          action(doc, 'Inspect recorded relationship', () => navigate('paths', p.id, edge.id)));
+        tiles.append(item);
+      }
+      section.append(tiles); inventory.append(section);
     }
     if (!chains.length) inventory.append(element(doc, 'p', 'No chained activities recorded. Add evidence-supported path relationships through extraction; no chains are inferred from similar behavior names.'));
     panel.append(inventory);

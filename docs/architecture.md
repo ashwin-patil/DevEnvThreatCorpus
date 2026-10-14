@@ -9,11 +9,24 @@ support, evidence status or acceptance. Historical routes identify their origina
 occurrence inside the aggregate, including colliding labels or identifiers. Layout
 is not a timeline: disconnected components receive no invented connecting edges.
 Technical disclosures retain stable IDs rather than putting hashes in selectors.
+Campaign cards keep claim detail in the workspace; library cards use a single
+internal source action, with outbound article navigation available in the source
+detail. Pinned framework catalog sources are excluded from the research-article
+projection. Claims navigation groups, but never merges, records by campaign and
+publisher. Behavior actions and path relationships use collapsible tiles; sequence,
+conditional and propagation labels describe recorded edges only. The graph starts
+focused on one phase and retains explicit phase switching and full-overview controls.
+Campaign cards start expanded, display a short claim-backed summary with
+collapsible citations, and place AI-tool/prompt references before compact inline
+behavior links. The public Prompt library shows complete published prompt
+literals as inert text, with source-local citations rather than activity-claim
+cards. Exact duplicates retain separate source occurrences within one card.
 
 Activity cards expose independent evidence, origin and review axes. Projected
 campaign context comes only from linked same-case claims and retains those citations,
 uncertainty and Pending agent origin; it is not a persistent summary claim or review.
-Public article quotations and full prompt literals remain withheld, not absent.
+Full public article quotations remain omitted; published prompt artifacts are
+an explicit exception and do not grant passage attestation or acceptance.
 The compact graph toolbar and non-drag movement disclosure share deterministic
 layout/reset and movement bounds with pointer controls; they never write a corpus.
 
@@ -71,6 +84,14 @@ extensions; absent values remain unclear. Prompt version 3 requests complete
 literal prompts and distinguishes incident evidence from vendor test examples.
 Private campaign and talk exports retain exact literals, usage and provenance.
 Article-wide product mentions do not establish targeting in the selected case.
+The public adapter accepts a bounded optional `prompts` list beside `tools`.
+Each prompt must close over a same-case claim, source and revision, and its
+code-point locator must be covered by that claim's consecutive cited passages.
+Literal length must match the locator span. This validates linkage and shape,
+not authenticity without retained text; human source review remains required.
+The bundled StepSecurity and Socket literals were checked against live normalized
+article text whose hashes matched the recorded revisions. No Wiz prompt is
+invented from its discussion of flags or general AI-assisted activity.
 
 `src/research-inventory.mjs` is browser-safe presentation normalization shared
 with article publisher normalization. Compact host-derived publisher labels

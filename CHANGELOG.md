@@ -22,6 +22,30 @@
   reset case scope when switching campaigns, and validate summary source/revision
   closure. Separate parallel connectors with nearby label leaders; count logical
   public article coverage without hiding original URL failures.
+- Refine the campaign overview after local visual review: keep full claim details
+  in the workspace, remove duplicate publisher/source links, omit pinned MITRE
+  catalogs from the blog library, group claims by campaign and publisher, and
+  collapse compact action/relationship tiles. Focus the initial graph on a phase
+  with explicit phase and full-overview controls.
+- Expand campaign cards by default, show a concise cited claim summary, place AI
+  tool/prompt references before behavior actions, and render those actions as
+  compact inline links.
+- Replace the Nx campaign card's arbitrary first-two-claims fallback with a
+  concise Pending overview grounded in retained injection, credential-theft,
+  malicious-release and attempted-AI-reconnaissance claims. Leave Zscaler's
+  robots-policy retrieval failure unchanged; no unavailable article content is
+  treated as parsed or retained.
+- Display published literal prompts from StepSecurity and Socket in the Prompt
+  library instead of activity-claim cards. Preserve exact variants, source-local
+  citations, code-point locators and Pending labels; group identical text without
+  discarding either publisher. Validate bounded prompt projection support and
+  render text without execution. Do not invent a Wiz prompt from its AI-tool
+  activity report or change the underlying corpus/export acceptance state.
+- Record the full review/refinement session in the indexed workbench recovery
+  learning: final user decisions, affected implementation/test surfaces, exact
+  prompt provenance, superseded approaches, retrieval-versus-extraction diagnosis
+  and revision-bound validation limits. The note supports selective recovery
+  without treating uncommitted work or historical checks as current acceptance.
 
 ## 2026-10-13 — Nx corpus Pending draft
 

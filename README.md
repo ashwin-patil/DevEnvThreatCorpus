@@ -25,7 +25,8 @@ available even when their alias is displayed once. Start
 `node scripts/server.mjs --port 4181` without private input to inspect it, or serve
 the repository statically and open `src/index.html`. Explicit private `--corpus`
 and `--store` modes keep their existing behavior. The public draft withholds full
-articles, quotations, private run bundles and long literal prompts; it is not a
+articles, other quotations and private run bundles; published prompt literals
+are available as source-attributed, untrusted research artifacts. It is not a
 private corpus import or a reviewed release. See [coverage and evidence
 limits](docs/nx-corpus.md) and the [typed draft export](docs/data/nx-draft.zip).
 
@@ -84,8 +85,10 @@ Zoom, background pan and explicit node grips affect only in-memory presentation.
 The compact icon toolbar has accessible names and tooltips; expand its movement
 controls for **Pan** and **Move selected node** actions without dragging.
 **Focus selection** enlarges the selected activity or relationship for readable
-inspection, including narrow screens. **Reset layout**
-restores a deterministic fit, including disconnected nodes and loops. Enter/Space
+inspection, including narrow screens. A phase selector focuses the initial
+campaign view on one readable phase while keeping the other phases available;
+**Full campaign overview** and **Reset layout** restore the complete deterministic
+fit, including disconnected nodes and loops. Enter/Space
 select named controls; focus survives canvas updates and a short status announces
 inspection. Both themes and narrow screens use the existing workbench shell.
 Pointer and button movement share bounds based on the reset fit: node boxes can
@@ -97,6 +100,24 @@ control; historical member-path links still identify the exact occurrence.
 Parallel relationships retain separate connectors and claim support. Public
 coverage counts logical articles rather than aliases, with original URLs and
 failure reasons available under **Original URLs & coverage history**.
+Campaign cards open expanded with a short cited claim-based summary and defer
+full claim details to the campaign workspace.
+Publisher controls open one internal source view; the outbound article link is
+available from that view rather than duplicated beside each campaign chip.
+Campaign cards list AI tools and prompt references before compact inline behavior
+actions and can be collapsed to a compact overview.
+The Research library excludes pinned MITRE catalog records, which remain in
+**ATLAS & TTPs**. Claims are grouped by campaign and publisher in collapsible
+navigation sections; distinct records and source support are never merged.
+Behavior actions use compact, borderless inline labels and avoid repeating
+single-source group names; recorded relationships use compact collapsible tiles;
+sequence, conditional and propagation relationships have separate visual labels.
+The Prompt library shows extracted prompt text, not prompt-activity claim cards.
+The public draft contains two exact variants from StepSecurity and Socket;
+identical text shares a card while preserving each source citation and revision
+locator. Wiz reports AI-tool use and flags but does not quote a complete prompt
+in the retained article, so no literal is attributed to Wiz. Prompts are displayed
+as inert text for research, never executed or treated as independent confirmation.
 Private case-wide talk JSON/Markdown bundles include paths, independent node/edge
 support, mapping scope labels, catalog provenance and revision hashes with exact
 passages, but omit full article bodies and visual layout state.
@@ -134,9 +155,10 @@ longest matching rule and Allow on ties. Unsupported policies fail explicitly wi
 a supplied-text fallback; collection never silently refetches or impersonates a bot.
 Overview summaries retain linked claim citations and explicit uncertainty. Projected
 claim excerpts are agent-origin Pending presentation, not human-approved summaries.
-Public prompt/quotation withholding is explained; full inspection remains private.
+Published prompt literals are visible; full article and other quotation inspection
+still requires the private archive.
 
-AI tools and Prompt library views project private, grounded `ide-cli` and
+AI tools and Prompt library views project grounded `ide-cli` and
 `prompt-instruction` annotations. Campaign and Research library cards link to
 entries, exact revisions and supporting claims. Known product aliases share a
 display identity; the Amazon Q CLI alias `q` displays as Amazon Q while its

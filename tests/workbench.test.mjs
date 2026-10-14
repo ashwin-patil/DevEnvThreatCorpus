@@ -155,8 +155,8 @@ test('compact research chips retain full accessible titles and disambiguate repe
   for (const s of corpus.sources) { s.publisher = 'StepSecurity'; s.originalUrl = null; s.canonicalUrl = null; }
   const root = renderCaseLibrary(new FakeDocument(), createModel(corpus), corpus.cases, () => {});
   const chips = descendants(root).filter(n => n.tagName === 'BUTTON' && n.title?.includes('reported publisher'));
-  assert.ok(chips.some(n => n.textContent === 'StepSecurity · 1 ↗'));
-  assert.ok(chips.some(n => n.textContent === 'StepSecurity · 2 ↗'));
+  assert.ok(chips.some(n => n.textContent === 'StepSecurity · 1'));
+  assert.ok(chips.some(n => n.textContent === 'StepSecurity · 2'));
   assert.ok(chips.every(n => n.getAttribute('aria-label').includes('Synthetic')));
 });
 
@@ -219,7 +219,7 @@ test('case cards expand per campaign while blog cards retain many-to-many tags',
   const cases = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
   const campaignCards = descendants(cases).filter(n => n.tagName === 'DETAILS' && (n.className ?? '').includes('case-card'));
   assert.equal(campaignCards.length, m.corpus.cases.length);
-  assert.ok(campaignCards.every(n => !n.open));
+  assert.ok(campaignCards.every(n => n.open));
   assert.match(campaignCards[0].textContent, /Expand campaign/);
   await button(campaignCards[0], 'Open campaign workspace').trigger('click');
   assert.deepEqual(calls[0], ['cases', m.corpus.cases[0].id]);
@@ -235,8 +235,8 @@ test('case cards expand per campaign while blog cards retain many-to-many tags',
 test('behavior category labels stay outside normalized behavior titles', () => {
   const m = createModel(structuredClone(researchFixture));
   const content = renderExploration(new FakeDocument(), m, 'behaviors', {}, () => {});
-  const categoryTitles = descendants(content).filter(n => n.tagName === 'H3').map(n => n.textContent);
-  assert.ok(categoryTitles.includes('Actions'));
+  const categoryTitles = descendants(content).filter(n => n.tagName === 'SUMMARY').map(n => n.textContent);
+  assert.ok(categoryTitles.some(title => title.startsWith('Actions ·')));
   assert.ok(descendants(content).filter(n => n.tagName === 'H4').every(n => !/Atomic behavior|Activity pattern/.test(n.textContent)));
 });
 
@@ -310,6 +310,7 @@ test('research views retain optional core-only empty states and synthetic graph 
   await button(content, '→ Benign tool response').trigger('click');
   assert.match(content.textContent, /Synthetic conditional relationship/);
   const svg = descendants(content).find(n => n.tagName === 'SVG');
+  await button(content, 'Full campaign overview').trigger('click');
   const box = svg.getAttribute('viewBox');
   await button(content, 'Zoom in').trigger('click'); assert.notEqual(svg.getAttribute('viewBox'), box);
   await button(content, 'Reset layout').trigger('click'); assert.equal(svg.getAttribute('viewBox'), box);
@@ -726,9 +727,160 @@ test('Issue #51 AC-06 summary projection requires same-case source/revision clos
   m.corpus.paths = []; m.corpus.governance = {}; record.summaryClaimIds = [];
   assert.match(campaignSummary(m, record).text, /No cited campaign summary/);
   const root = renderCaseLibrary(new FakeDocument(), { ...m, publicDraft: {} }, [record], () => {});
-  assert.match(root.textContent, /withheld, not established absent/);
+  assert.match(root.textContent, /No grounded entries recorded/);
   assert.ok(root.textContent.includes(record.limits));
   assert.equal(descendants(root).filter(n => n.className?.includes('case-card') && n.tagName === 'DETAILS').length, 1);
+});
+
+test('Issue #51 follow-up campaign cards keep claim details in the workspace and show one publisher action', async () => {
+  const publicModel = publicDraftModel(JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8')));
+  const record = publicModel.corpus.cases[0];
+  const summary = campaignSummary(publicModel, record);
+  const cases = renderCaseLibrary(new FakeDocument(), publicModel, [record], () => {});
+  const campaignCard = descendants(cases).find(node => node.className?.includes('case-card'));
+  assert.ok(campaignCard.open);
+  assert.equal(summary.text, 'Reports link CI workflow injection and npm token theft to malicious Nx package releases, whose payloads attempted AI-assisted reconnaissance.');
+  assert.equal(summary.projected, true);
+  assert.equal(summary.disposition, 'Pending');
+  assert.equal(summary.claimIds.length, 3);
+  assert.ok(summary.claimIds.every(id => cases.textContent.includes(publicModel.claims.get(id).description)));
+  assert.doesNotMatch(cases.textContent, /Reported: Wiz links later repository disclosure/);
+  assert.doesNotMatch(cases.textContent, /No concise campaign summary has been recorded/);
+  assert.ok(descendants(cases).some(node => node.textContent === '◐ Wallet and secret-path inventory'));
+  assert.doesNotMatch(cases.textContent, /Prompt-related claims/);
+  assert.ok(cases.textContent.indexOf('AI tools') < cases.textContent.indexOf('Behaviors'));
+  assert.ok(descendants(cases).some(node => node.className === 'behavior-action-list'));
+  const privateModel = model(), privateRecord = privateModel.corpus.cases[0];
+  privateModel.annotations = [{
+    id: 'private-prompt', type: 'commands-ai-artifacts', caseId: privateRecord.id,
+    sourceId: privateModel.corpus.sources[0].id, sourceRevisionId: privateModel.corpus.sourceRevisions[0].id,
+    claimIds: [privateModel.corpus.claims.find(claim => claim.caseId === privateRecord.id).id],
+    value: 'Synthetic private prompt', status: 'pending', origin: 'agent',
+    context: { artifactKind: 'prompt-instruction', artifactUsage: 'vendor-example' },
+  }];
+  const privateCalls = [], privateCard = renderCaseLibrary(new FakeDocument(), privateModel,
+    privateModel.corpus.cases, (...args) => privateCalls.push(args));
+  assert.ok(privateCard.textContent.indexOf('Prompts') < privateCard.textContent.indexOf('Behaviors'));
+  const promptLink = descendants(privateCard).find(node => node.tagName === 'BUTTON' && node.textContent === '□ Synthetic private prompt');
+  assert.ok(promptLink);
+  await promptLink.trigger('click');
+  assert.deepEqual(privateCalls.at(-1), ['prompts', 'prompts-private-prompt']);
+  const summaryClaims = campaignSummary(publicModel, record).claimIds;
+  assert.ok(!publicModel.corpus.claims.filter(claim => !summaryClaims.includes(claim.id))
+    .some(claim => cases.textContent.includes(claim.description)));
+  assert.doesNotMatch(cases.textContent, /published research/);
+  const library = renderResearchLibrary(new FakeDocument(), publicModel, publicModel.corpus.sources, () => {});
+  assert.equal(descendants(library).filter(node => node.className?.includes('blog-card')).length, 4);
+  assert.doesNotMatch(library.textContent, /MITRE ATT&CK|MITRE ATLAS/);
+  assert.equal(descendants(library).filter(node => node.tagName === 'A').length, 0);
+});
+
+test('Issue #51 follow-up public prompt library renders exact variants with source citations, not activity claims', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const before = digest(document), publicModel = publicDraftModel(document), calls = [];
+  const entries = aiLibrary(publicModel, 'prompts');
+  assert.equal(entries.length, 2);
+  assert.equal(entries.flatMap(entry => entry.annotations).length, 3);
+  const page = renderExploration(new FakeDocument(), publicModel, 'prompts', {}, (...args) => calls.push(args));
+  assert.match(page.textContent, /Exact vendor-reported prompts for research/);
+  assert.match(page.textContent, /No prompt is executed/);
+  assert.doesNotMatch(page.textContent, /Source-reported prompt activity|Full prompt text remains withheld|Inspect cited claim/);
+  const literals = descendants(page).filter(node => node.className === 'artifact-value');
+  assert.equal(literals.length, 2);
+  assert.deepEqual(literals.map(node => node.textContent), entries.map(entry => entry.annotations[0].value));
+  for (const claim of publicModel.corpus.claims) assert.ok(!page.textContent.includes(claim.description));
+  for (const prompt of document.prompts) {
+    const annotation = publicModel.annotations.find(a => a.id === prompt.id);
+    assert.equal(annotation.value, prompt.literal);
+    assert.equal(annotation.status, 'pending');
+    assert.equal([...annotation.value].length, prompt.locator.end - prompt.locator.start);
+  }
+  const sourceButtons = descendants(page).filter(node => node.tagName === 'BUTTON' && node.textContent.startsWith('Source:'));
+  assert.equal(sourceButtons.length, 3);
+  await sourceButtons[0].trigger('click');
+  assert.deepEqual(calls[0], ['sources', document.prompts[0].sourceId, document.prompts[0].sourceRevisionId]);
+  const socket = renderExploration(new FakeDocument(), publicModel, 'prompts', { sources: [document.prompts[1].sourceId] }, () => {});
+  assert.equal(descendants(socket).filter(node => node.className === 'artifact-value').length, 2);
+  const wizId = document.sourceCoverage.find(source => source.url.includes('wiz.io')).sourceId;
+  const wiz = renderExploration(new FakeDocument(), publicModel, 'prompts', { sources: [wizId] }, () => {});
+  assert.match(wiz.textContent, /No grounded entries/);
+  assert.equal(descendants(wiz).filter(node => node.className === 'artifact-value').length, 0);
+  assert.equal(digest(document), before);
+});
+
+test('Issue #51 public prompt projection rejects missing support, invalid locators, identity collisions and malformed literals', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  for (const alter of [
+    prompt => { prompt.caseId = 'other-case'; },
+    prompt => { prompt.sourceId = 'other-source'; },
+    prompt => { prompt.sourceRevisionId = 'missing-revision'; },
+    prompt => { prompt.claimId = 'missing-claim'; },
+    prompt => { prompt.id = document.tools[0].id; },
+    prompt => { prompt.literal = ''; },
+    prompt => { prompt.literal = 'a'.repeat(16385); },
+    prompt => { prompt.literal = prompt.literal.replace('R', '\0'); },
+    prompt => { prompt.label = ''; },
+    prompt => { prompt.usage = 'invented'; },
+    prompt => { prompt.locator.start += 1; },
+    prompt => { prompt.locator.start = 0; prompt.locator.end = [...prompt.literal].length; },
+  ]) {
+    const invalid = structuredClone(document);
+    alter(invalid.prompts[0]);
+    assert.throws(() => publicDraftModel(invalid), /Invalid public Pending draft projection/);
+  }
+  const duplicate = structuredClone(document);
+  duplicate.prompts.push(structuredClone(duplicate.prompts[0]));
+  assert.throws(() => publicDraftModel(duplicate), /Invalid public/);
+  const gap = structuredClone(document);
+  gap.records.find(row => row.entity.id === 'campaign-passage-5ac9b8203bba17601a5b64b945abe6213a4f3d93efebd062f5d80f7a085d7611').entity.start += 1;
+  assert.throws(() => publicDraftModel(gap), /Invalid public/);
+  const legacy = structuredClone(document); delete legacy.prompts;
+  assert.equal(aiLibrary(publicDraftModel(legacy), 'prompts').length, 0);
+  const synthetic = structuredClone(document);
+  synthetic.prompts = [{ ...synthetic.prompts[1], literal: '<script>synthetic artifact</script> \n',
+    locator: { start: 4163, end: 4163 + '<script>synthetic artifact</script> \n'.length } }];
+  const page = renderExploration(new FakeDocument(), publicDraftModel(synthetic), 'prompts', {}, () => {});
+  assert.equal(descendants(page).find(node => node.className === 'artifact-value').textContent, synthetic.prompts[0].literal);
+  assert.equal(descendants(page).filter(node => node.tagName === 'SCRIPT').length, 0);
+});
+
+test('Issue #51 follow-up claims navigation groups records by campaign and publisher without merging identities', async () => {
+  const corpus = branchingModel().corpus, first = corpus.claims[0];
+  const { content } = await mounted(corpus, routeHash('claims', first.id));
+  const campaigns = descendants(content).filter(node => node.className === 'claim-campaign-group');
+  const publishers = descendants(content).filter(node => node.className === 'claim-publisher-group');
+  assert.ok(campaigns.length > 0);
+  assert.ok(publishers.length > 0);
+  assert.ok(campaigns.some(node => node.open));
+  assert.ok(publishers.some(node => node.open));
+  assert.equal(descendants(content).filter(node => node.className === 'record-card').length, corpus.claims.length);
+});
+
+test('Issue #51 follow-up behavior inventory uses compact collapsible activity and relation cards', () => {
+  const m = multiPhaseModel(), page = renderExploration(new FakeDocument(), m, 'behaviors', {}, () => {});
+  assert.ok(descendants(page).some(node => node.className === 'behavior-tile-grid'));
+  const singletonAction = descendants(page).find(node => node.className === 'behavior-tile' && node.children.length === 1);
+  assert.equal(singletonAction?.children[0].tagName, 'BUTTON');
+  assert.ok(descendants(page).some(node => node.className === 'chain-tile-grid'));
+  for (const relation of ['sequence', 'conditional']) {
+    assert.ok(descendants(page).some(node => node.className === `chain-group chain-${relation}`));
+    assert.ok(descendants(page).some(node => node.className === `chain-tile chain-${relation}`));
+  }
+  assert.ok(descendants(page).filter(node => node.className?.startsWith('behavior-group')).every(node => !node.open));
+});
+
+test('Issue #51 follow-up attack graph focuses its initial phase and offers phase and overview framing', async () => {
+  const m = multiPhaseModel(), page = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
+  const svg = descendants(page).find(node => node.getAttribute('class') === 'research-graph');
+  const initialWidth = Number(svg.getAttribute('viewBox').split(' ')[2]);
+  const controls = descendants(page).filter(node => node.className === 'campaign-phase-button');
+  assert.equal(controls.length, m.corpus.paths.filter(path => path.caseId === m.corpus.cases[0].id).length + 1);
+  assert.equal(controls.filter(node => node.getAttribute('aria-pressed') === 'true').length, 1);
+  assert.ok(controls.at(-1).textContent.includes('Full campaign overview'));
+  await controls.at(-1).trigger('click');
+  const overviewWidth = Number(svg.getAttribute('viewBox').split(' ')[2]);
+  assert.ok(overviewWidth > initialWidth);
+  assert.equal(controls.filter(node => node.getAttribute('aria-pressed') === 'true').length, 0);
 });
 
 test('Issue #51 AC-01 logical public coverage retains alias failures but counts a successful article only once', () => {
@@ -837,6 +989,7 @@ test('Issue #51 AC-04 compact controls focus selection, bound zoom, close moveme
   const m = multiPhaseModel(), before = digest(m.corpus), root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
   const svg = descendants(root).find(n => n.getAttribute('class') === 'research-graph');
   svg.getBoundingClientRect = () => ({ width: 317, height: 420 });
+  await button(root, 'Full campaign overview').trigger('click');
   const initial = svg.getAttribute('viewBox'), fitWidth = Number(initial.split(' ')[2]);
   const control = name => descendants(root).find(n => n.getAttribute('aria-label') === name);
   await control('Focus selection').trigger('click');
@@ -916,6 +1069,7 @@ test('Issue #51 AC-04 compact controls focus selection, bound zoom, close moveme
     const m = branchingModel(), before = digest(m.corpus), root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
     const svg = descendants(root).find(n => n.className === 'research-graph' || n.getAttribute('class') === 'research-graph');
     const nodes = descendants(svg).filter(n => n.getAttribute('data-entity-kind') === 'node');
+    await button(root, 'Full campaign overview').trigger('click');
     const initial = svg.getAttribute('viewBox'), transforms = nodes.map(n => n.getAttribute('transform'));
     await nodes.at(-1).trigger('keydown', { key: ' ' });
     assert.equal(nodes.at(-1).getAttribute('aria-pressed'), 'true');
@@ -1089,6 +1243,7 @@ test('AP-05 extreme pointer and repeated button movement are bounded with captur
   const m = branchingModel(), before = digest(m.corpus), root = renderExploration(new FakeDocument(), m, 'paths', {}, () => {});
   const svg = descendants(root).find(n => n.getAttribute('class') === 'research-graph');
   const node = descendants(svg).find(n => n.getAttribute('data-entity-kind') === 'node');
+  await button(root, 'Full campaign overview').trigger('click');
   node.focus();
   const initial = svg.getAttribute('viewBox').split(' ').map(Number), transform = node.getAttribute('transform');
   const [x, y, w, h] = initial, coordinates = () => node.getAttribute('transform').match(/-?[\d.]+/g).map(Number);
