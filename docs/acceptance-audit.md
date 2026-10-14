@@ -1,5 +1,28 @@
 # Acceptance audit
 
+## Issue #53 Codespaces Workbench
+
+Originating requirements remain [#53](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/53);
+implementation and corrections stay on [PR #55](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/55).
+Prerequisite [PR #57](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/57)
+landed on `main` as `9c555ce9726f64d11c73b1fed0505dcbdd9041c7` and was merged into
+this branch before implementation. No new mapping or evaluator policy is added.
+
+| Criterion | Files and focused checks | Durable evidence / remaining acceptance |
+|---|---|---|
+| AC-01 | `.devcontainer/Dockerfile`, `Dockerfile.dockerignore`, `devcontainer.json`, `workbench.py check`; `tests/test_devcontainer.py` pin/check regressions | Record exact final SHA, image build, fresh Codespace and rebuild version/dependency output on PR #55. Local versions and static checks are partial only; actual Codespaces provisioning remains blocked/unverified without access. |
+| AC-02 | `postStartCommand`, bind-message + HTTP readiness, repeated/concurrent start/restart tests | Record fresh creation, stop/start and rebuild HTTP results on PR #55; human browser and explicit synthetic-demo walkthrough required. Local process checks do not prove forwarding/browser compatibility. |
+| AC-03 | Single labeled forwarded port, no automatic private arguments/credential environment, protected lifecycle files and pin-only build context; unchanged server regression suite | Private is a Codespaces platform default, not enforced by the label. Human signed-in/signed-out access review and ignored/permission-restricted optional store review remain required. No credentials, private research or credential-bearing URLs in evidence. |
+| AC-04 | `workbench.py` lock/process identity, nonzero failures, log and stop/restart recovery; real occupied-port, stale-PID, repeated-start and permissions tests | Final-revision local lifecycle command results go on PR #55; actual Codespaces failure/recovery remains unverified until executed there. |
+| AC-05 | `README.md` creation/preview/lifecycle/troubleshooting/private stores/billing; `docs/setup-and-configuration.md`; root `CHANGELOG.md` | Independent human usage and documentation relevance/accuracy review required; agent self-audit and content-presence checks are not acceptance. |
+| AC-06 | Unchanged server and existing `project_commands`; authoritative `python scripts/verify.py` discovers new Python checks and all seven configured Node suites | Record exact commands, results, final tested full SHA and limitations on PR #55 after the last commit. Any new commit invalidates revision-specific evidence. |
+
+AC-01–AC-06 are not declared complete by this file. The originating PR is the
+durable revision-bound command/evidence record. Fresh Codespace creation,
+stop/start, rebuild, private-access, browser and independent review outcomes stay
+**blocked/unverified** when unavailable, even if every local automated check
+passes. No merge or automated approval is authorized.
+
 ## Issue #51 article aliases and campaign graph
 
 Originating requirements: [#51](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/51).

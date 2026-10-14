@@ -43,7 +43,7 @@ The `.devcontainer/**` mapping is governance, not runtime application code, and
 is also a README trigger because container lifecycle configuration changes setup
 and usage. Future changes under this directory require relevant documentation,
 a substantive root changelog entry, and a content-bearing README update. This
-authorization does not add container configuration or verify Codespaces startup.
+mapping authorization alone does not verify Codespaces startup.
 
 Merge the mapping-only prerequisite with independent human approval before
 refreshing Issue #53's implementation PR #55 from `main`. Hosted PR Policy must
@@ -51,6 +51,73 @@ then evaluate the implementation against a base that contains these mappings;
 head-only authorization remains insufficient. Keep the existing trusted-base
 evaluator and merge gates unchanged. Actual runtime provisioning, automatic
 startup, private port forwarding and live Codespaces evidence belong to #53.
+
+### Codespaces environment and lifecycle
+
+Issue [#53](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/53) uses the
+trusted-base authorization landed by [PR #57](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/57)
+at `9c555ce9726f64d11c73b1fed0505dcbdd9041c7`. Implementation PR #55 incorporates
+that base; the policy evaluator, mappings and merge gates are not changed by the
+implementation. Human approval is still required before merge.
+
+`.devcontainer/devcontainer.json` is the Codespaces entrypoint. Its Dockerfile
+pins the Python 3.12 devcontainer base by digest, downloads the Node archive for
+the version in `scripts/.node-version`, verifies it against the HTTPS Node
+distribution checksums, and installs `requirements-governance.txt`. Supported
+container architectures are amd64 and arm64. The Dockerfile-specific ignore file
+allows only these two pin files into the build context: no source corpus,
+`.private-intake/`, workspace credentials or research files are copied into image
+layers. The workspace is mounted by Codespaces separately. No runtime application
+dependencies, build, secrets, database or cloud resource provisioning are added.
+Rebuild after changing either pin file; failed downloads fail the build.
+
+`postCreateCommand` checks the installed versions and `pip check`.
+`postStartCommand` checks them again, then runs the existing `scripts/server.mjs`
+in its own session with only PATH/HOME/LANG from the lifecycle environment.
+Credential variables, Node options and private store options are not forwarded
+to the default server. The container uses the non-root `vscode` user and an init
+process for reaping children. `waitFor: postStartCommand` waits for readiness,
+including on first creation after setup. There is no second server on attach.
+
+`python .devcontainer/workbench.py check|start|status|stop|restart` provides
+explicit diagnostics and recovery from the repository root (choose one verb).
+An exclusive file lock serializes lifecycle operations. A per-user, per-checkout
+owned mode-0700 `/tmp` directory holds mode-0600 process/lock/log files. Process
+identity includes Linux start time and exact command line, so stale PIDs never
+authorize stopping an unrelated process. Startup requires the server's successful
+bind message and a bounded loopback HTTP check; a foreign listener is not treated
+as a managed success. A failed child is stopped, its record removed, and its log
+printed with nonzero exit status. Repeat start checks the existing process;
+restart stops only a matching managed server. These are Linux devcontainer
+operations, not a new cross-platform application entrypoint or a service manager.
+
+Only `4173` is requested for forwarding, labeled **Research Workbench (private)**,
+using HTTP internally and the authenticated Codespaces HTTPS browser URL
+externally. Other discovered ports are ignored. Codespaces supplies private
+visibility by default; the devcontainer port label cannot enforce visibility
+against a user's later changes. The standard devcontainer schema has no
+port-visibility switch. Keep the Ports panel **Private** and independently test
+signed-in access and signed-out denial. No public port command, tunnel, host
+allowlist, origin rewrite or non-loopback binding is added. A browser-forwarding
+403 must be investigated with actual Codespaces evidence before considering any
+server change; local readiness does not prove forwarded Host/Origin compatibility.
+
+The [README Codespaces guide](../README.md#github-codespaces-automatic-research-workbench)
+covers creation, preview, synthetic demos, stop/start/rebuild, log recovery,
+quota/storage billing, and opt-in private stores. Private collection remains
+explicit under ignored `.private-intake/` directories (0700) and files (0600).
+Automatic startup never supplies `--store` or `--corpus`; it serves only the
+existing bundled public draft and explicit synthetic demos. Keep private
+research off hosted machines unless you intentionally accept that storage model.
+
+`python -m unittest tests.test_devcontainer` executes focused configuration and
+real local-process lifecycle checks, including concurrent starts, restart,
+controlled occupied-port failure/recovery, stale identities and permissions.
+`python scripts/verify.py` discovers those Python tests and runs all seven
+configured application suites. Neither command proves Codespaces creation,
+rebuild, stop/start, private access or browser usability. AC-01–AC-06 evidence and
+the still-required independent reviews are tracked in
+[the acceptance audit](acceptance-audit.md#issue-53-codespaces-workbench).
 
 Manual review requires only the pinned Node runtime, an existing private 0.3.0
 corpus, and a researcher-completed private decision file. Use
