@@ -37,6 +37,21 @@ For a new surface, first land a human-authorized, reviewed mapping/policy prereq
 
 ## Dependencies and extension points
 
+### Codespaces authorization prerequisite
+
+The `.devcontainer/**` mapping is governance, not runtime application code, and
+is also a README trigger because container lifecycle configuration changes setup
+and usage. Future changes under this directory require relevant documentation,
+a substantive root changelog entry, and a content-bearing README update. This
+authorization does not add container configuration or verify Codespaces startup.
+
+Merge the mapping-only prerequisite with independent human approval before
+refreshing Issue #53's implementation PR #55 from `main`. Hosted PR Policy must
+then evaluate the implementation against a base that contains these mappings;
+head-only authorization remains insufficient. Keep the existing trusted-base
+evaluator and merge gates unchanged. Actual runtime provisioning, automatic
+startup, private port forwarding and live Codespaces evidence belong to #53.
+
 Manual review requires only the pinned Node runtime, an existing private 0.3.0
 corpus, and a researcher-completed private decision file. Use
 `node scripts/review.mjs status --file /absolute/private/store/corpus.json` to
