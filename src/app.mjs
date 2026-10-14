@@ -2,11 +2,22 @@ import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, cr
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
+import { publicDraftModel } from './public-profile.mjs';
+export const PUBLIC_DRAFT_URL = new URL('./data/nx-draft.json', import.meta.url).href;
 
 export async function fetchCorpus(fetcher, endpoint) {
   const response = await fetcher(endpoint, { cache: 'no-store' });
+  if (endpoint === '/api/corpus' && (response.status === 404 || response.headers?.get?.('x-corpus-mode') === 'public-draft')) {
+    return fetchCorpus(fetcher, PUBLIC_DRAFT_URL);
+  }
   if (!response.ok) throw new Error(`Local corpus request failed (${response.status}).`);
-  const corpus = await response.json(), model = createModel(corpus);
+  const corpus = await response.json();
+  if (endpoint === PUBLIC_DRAFT_URL) {
+    const model = publicDraftModel(corpus);
+    model.snapshot = await hashText(JSON.stringify(corpus));
+    return model;
+  }
+  const model = createModel(corpus);
   model.snapshot = await hashText(JSON.stringify(corpus));
   model.collectionEnabled = endpoint === '/api/corpus' && response.headers?.get?.('x-collection-enabled') === 'true';
   const stale = response.headers?.get?.('x-stale-reviews');
@@ -121,6 +132,11 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (!sameGraph) { buildFacets(); render(); $('content').focus(); }
   }
   function trustLabel() {
+    if (model?.publicDraft) {
+      const sources = model.publicDraft.sourceCoverage;
+      return `PUBLIC PENDING DRAFT — ${sources.filter(s => s.status === 'collected').length}/${sources.length} source URLs retained. ` +
+        'No human acceptance. Full articles, quotations and literal prompts remain private; evidence locators require the private archive.';
+    }
     return model?.corpus.governance?.synthetic ?
       'SYNTHETIC DEMO — generated benign fixture, not incident evidence.' :
       `Local corpus · ${model?.collectionEnabled ? 'private collection enabled; intake stays pending' : 'read-only snapshot'} · ` +
@@ -210,6 +226,18 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     for (const button of $('views').children) button.setAttribute('aria-current',
       button.dataset.view === route.view ? 'page' : 'false');
     $('content').replaceChildren();
+    if (model.publicDraft) {
+      const note = element(doc, 'details', null, 'panel');
+      note.append(element(doc, 'summary', 'Public draft coverage & evidence limits'));
+      for (const source of model.publicDraft.sourceCoverage) {
+        const line = element(doc, 'p', `${source.status === 'collected' ? 'Retained privately' : `Not retained: ${source.reason}`} · `);
+        const link = element(doc, 'a', source.url); link.href = source.url; link.rel = 'noreferrer';
+        line.append(link); note.append(line);
+      }
+      for (const limit of model.publicDraft.limitations) note.append(element(doc, 'p', limit));
+      $('content').append(note);
+      if (route.view === 'prompts') $('content').append(element(doc, 'p', 'Two literal prompt variants are retained privately and withheld from this public projection. An empty public prompt library does not mean no prompts were reported.', 'panel'));
+    }
     if (pathContext && route.view !== 'paths') $('content').append(action(doc, 'Return to selected path element', () => {
       const context = pathContext;
       filters = structuredClone(context.filters); $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';

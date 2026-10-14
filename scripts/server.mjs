@@ -116,6 +116,8 @@ const assets = new Map([
   ['/src/explore.mjs', ['src/explore.mjs', 'text/javascript']],
   ['/src/research-inventory.mjs', ['src/research-inventory.mjs', 'text/javascript']],
   ['/src/ai-library.mjs', ['src/ai-library.mjs', 'text/javascript']],
+  ['/src/public-profile.mjs', ['src/public-profile.mjs', 'text/javascript']],
+  ['/src/data/nx-draft.json', ['src/data/nx-draft.json', 'application/json']],
   ['/docs/assets/logo.svg', ['docs/assets/logo.svg', 'image/svg+xml']],
   ['/docs/assets/favicon.svg', ['docs/assets/favicon.svg', 'image/svg+xml']],
 ]);
@@ -288,7 +290,8 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
       } catch { return send(404, 'Archive artifact not found.'); }
     }
     if (responses.has(request.url)) return send(200, responses.get(request.url), 'application/json',
-      request.url === '/api/corpus' ? { 'X-Stale-Reviews': String(staleReviews(corpus)) } : {});
+      request.url === '/api/corpus' ? { 'X-Stale-Reviews': String(staleReviews(corpus)),
+        ...(!corpusFile && !store ? { 'X-Corpus-Mode': 'public-draft' } : {}) } : {});
     const asset = assets.get(request.url);
     if (!asset) return send(404, 'Not found.');
     try {
