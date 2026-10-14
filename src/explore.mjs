@@ -158,7 +158,7 @@ function provenance(doc, record) {
 }
 function support(doc, model, ids, navigate, caseId) {
   const section = element(doc, 'details'); section.append(element(doc, 'summary', 'Supporting claims and exact passages'));
-  const scopedClaims = model.corpus.claims.filter(c => !caseId || c.caseId === caseId);
+  const scopedClaims = model.corpus.claims.filter(c => !caseId || (caseId instanceof Set ? caseId.has(c.caseId) : c.caseId === caseId));
   const scopedModel = { ...model, corpus: { ...model.corpus, claims: scopedClaims }, claims: new Map(scopedClaims.map(c => [c.id, c])) };
   for (const id of [...new Set(ids ?? [])]) {
     const claim = scopedModel.claims.get(id);
@@ -489,9 +489,9 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   }
   svg.addEventListener('pointerdown', e => {
     if (dragging || (e.button != null && e.button !== 0)) return;
+    suppressClick = false;
     const id = e.target.getAttribute?.('data-drag-node');
     if (!id && e.target.closest?.('.research-node, .research-edge')) return;
-    suppressClick = false;
     dragging = { id, pointerId: e.pointerId, start: point(e), matrix: svg.getScreenCTM?.()?.inverse(),
       clientX: e.clientX, clientY: e.clientY, origin: id ? { ...positions[id] } : { ...box }, moved: false };
     e.preventDefault(); svg.setPointerCapture?.(e.pointerId);
@@ -509,6 +509,9 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
     else { box.x = dragging.origin.x - dx; box.y = dragging.origin.y - dy; } paint();
   });
   for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) svg.addEventListener(event, endGesture);
+  svg.addEventListener('click', e => {
+    if (suppressClick) { suppressClick = false; e.stopPropagation(); }
+  }, true);
   const alternative = element(doc, 'details'); alternative.append(element(doc, 'summary', 'Text alternative: all nodes and cited relationships'));
   for (const node of path.nodes) {
     const control = action(doc, node.title, () => showNode(node)); textControls.set(`node:${node.id}`, control);
@@ -590,7 +593,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     for (const { p, edge } of chains) {
       const from = p.nodes.find(n => n.id === edge.from), to = p.nodes.find(n => n.id === edge.to);
       const item = element(doc, 'details'); item.append(element(doc, 'summary', `${from?.title ?? edge.from} → ${to?.title ?? edge.to} · ${edge.relation}`),
-        element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate),
+        element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate, p.caseId),
         action(doc, 'Open recorded attack path', () => navigate('paths', p.id))); inventory.append(item);
     }
     if (!chains.length) inventory.append(element(doc, 'p', 'No chained activities recorded. Add evidence-supported path relationships through extraction; no chains are inferred from similar behavior names.'));
@@ -681,7 +684,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
         ...directSupport.map(id => model.claims.get(id)?.caseId).filter(id => selected.caseIds.has(id))]);
       row(doc, card, 'Distinct related cases', caseIds.size);
       for (const id of caseIds) card.append(action(doc, model.cases.get(id)?.name ?? id, () => navigate('cases', id)));
-      card.append(support(doc, model, [...directSupport, ...paths.flatMap(p => p.nodes.filter(n => n.behaviorIds.includes(record.id)).flatMap(n => n.claimIds))], navigate));
+      card.append(support(doc, model, [...directSupport, ...paths.flatMap(p => p.nodes.filter(n => n.behaviorIds.includes(record.id)).flatMap(n => n.claimIds))], navigate, selected.caseIds));
       for (const mapping of selected.mappings.filter(m => m.behaviorId === record.id)) card.append(mappingCard(doc, model, mapping, navigate, mapping.caseId,
         mapping.pathId && mapping.nodeId ? 'Node-scoped candidate' : 'Broader behavior/case candidate'));
       for (const a of (model.annotations ?? []).filter(a => selected.caseIds.has(a.caseId)
