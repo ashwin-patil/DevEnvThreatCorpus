@@ -130,11 +130,13 @@ plan match `a1cd31eef5ebe9dce7cf564e317cf5691a1343dc`, preserving #73's later li
 and disposition updates. Both snapshots are immutable full repository trees;
 `codex/archive-handoff` remains unchanged at the original SHA.
 
-Pre-removal comparison against implementation base
-`3e8c8c61e92b4d5228657b9b29f7276729d92a0c` (tree identical to intake main
-`a1cd31eef5ebe9dce7cf564e317cf5691a1343dc`) passed **22/22** byte, blob and
-SHA-256 comparisons against the respective preservation commits. The inventory
+Comparison against the pre-removal intake base
+`a1cd31eef5ebe9dce7cf564e317cf5691a1343dc` passed **22/22** byte, mode, blob,
+SHA-256 and byte-length comparisons against the respective preservation commits.
+The existing removals were rechecked after the owner's amendment; the recheck
+does not independently attest when the original comparison ran. The inventory
 records actual preservation commit, mode, blob, SHA-256 and byte length per path.
+Its SHA-256 is `0df179f13044441db4c9c67756f14e012d855ef04c34ad9feebd3063e474ef2d`.
 Recover each with `git show PRESERVATION_COMMIT:PATH`, not a mutable branch URL.
 
 This bounded relocation supersedes #59/#63 archive-in-place/path-preservation

@@ -7,6 +7,8 @@
   20 paths at `a29de1822513b77d15b6fcf1c88dff147bf6140c`, two updated documents
   at `a1cd31eef5ebe9dce7cf564e317cf5691a1343dc`. Preserve the original archive
   branch unchanged and record each actual preservation commit/hash in the archive inventory.
+  Recheck all 22 against the pre-removal intake base and record the inventory
+  checksum; regression checks enforce the amended per-document link pins.
 - Redirect active history/evidence links, retain screenshot captions and
   issue-qualified pending obligations in the current acceptance audit, and
   distinguish archived assets from current branding/communication assets.
