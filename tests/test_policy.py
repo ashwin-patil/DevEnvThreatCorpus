@@ -281,6 +281,26 @@ class PolicyTests(unittest.TestCase):
             with self.subTest(message=message), self.assertRaisesRegex(VerificationError, message):
                 evaluate(with_files([files[0], *upkeep]), config)
 
+    def test_handoff_archive_authorization_is_exact_and_trusted_base_bound(self) -> None:
+        config = base_config()
+        archive_paths = [p for p in config["paths"]["documentation"] if p.startswith("handoff/")]
+        self.assertEqual(len(archive_paths), 45)
+        self.assertEqual(len(set(archive_paths)), 45)
+        self.assertTrue(all(not any(c in p for c in "*?[]") for p in archive_paths))
+        for category in ("application", "governance", "readme_triggers"):
+            self.assertFalse(any(p.startswith("handoff/") for p in config["paths"][category]))
+        removals = [changed(p, status="removed", patch=None) for p in archive_paths]
+        self.assertEqual(evaluate(with_files(removals), config)["changed_paths"], 45)
+
+        unmapped = copy.deepcopy(config)
+        unmapped["paths"]["documentation"] = [
+            p for p in unmapped["paths"]["documentation"] if p not in archive_paths
+        ]
+        with self.assertRaisesRegex(VerificationError, "no configured surface"):
+            evaluate(with_files(removals), unmapped)
+        with self.assertRaisesRegex(VerificationError, "no configured surface"):
+            evaluate(with_files([changed("handoff/new-unapproved-file.md", status="added")]), config)
+
     def test_ac05_learning_removal_and_rename_require_surviving_index_update(self) -> None:
         for note in (
             changed("docs/learnings/lesson.md", status="removed"),
