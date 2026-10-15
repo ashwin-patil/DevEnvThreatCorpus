@@ -11,5 +11,6 @@
 ## Development and history
 
 - [Contributor guide](development/README.md) — contribution lifecycle, verification, recovery and merge requirements.
+- [Release-readiness audit](release-readiness.md) — executed evidence, public-artifact boundaries and unresolved owner decisions; not release approval.
 - [Durable principles](decisions/README.md) and [reusable learnings](learnings/README.md).
 - [Historical archive](archive/README.md) — disposition inventory, superseded specifications, frozen handoff and evidence records.
