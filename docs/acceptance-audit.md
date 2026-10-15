@@ -494,11 +494,11 @@ governance and 203 application tests. Those historical results do not validate #
 
 | CSS viewport | Comparison / count context | Typed timeline |
 |---|---|---|
-| 1440×900 | [Comparison](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-1440.png) | [Timeline](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-1440.png) |
-| 1024×768 | [Comparison](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-1024.png) | [Timeline](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-1024.png) |
-| 390×844 | [Comparison](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-390.png) | [Timeline](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-390.png) |
+| 1440×900 | [Comparison](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-1440.png) | [Timeline](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-1440.png) |
+| 1024×768 | [Comparison](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-1024.png) | [Timeline](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-1024.png) |
+| 390×844 | [Comparison](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-390.png) | [Timeline](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-390.png) |
 
-[Conflict evidence](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-conflicts-1440.png) retains both separately
+[Conflict evidence](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-conflicts-1440.png) retains both separately
 cited claims. Installed Chromium/ChromeDriver exercised exact CSS viewports,
 document overflow, same-origin resources, Enter navigation/disclosure/reset/
 citation activation, Space checkbox selection, Tab traversal and visible focus,
