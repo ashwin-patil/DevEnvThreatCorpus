@@ -62,11 +62,9 @@ existing corpus; see [studio boundaries](architecture.md#studio-boundary-and-pro
 
 ## Choose your research route
 
-![Audiences for the research workflow: threat researchers, detection engineers, security architects and platform defenders, and contributors and reviewers.](assets/communication/vision-and-audiences.png)
-
-The project aims to make provenance and uncertainty inspectable, rather than
-turning reports directly into accepted facts. These are intended routes, not
-claims of proven outcomes:
+See the [project vision and audiences](../README.md#vision-and-audiences) and
+[research workflow](workflow.md). Choose a route without treating a report
+directly as accepted fact:
 
 | Audience | Start here | Keep this boundary visible |
 |---|---|---|
@@ -79,8 +77,7 @@ claims of proven outcomes:
 Campaign patterns and Detection hypotheses.** Claims begin as drafts with
 provenance, contradictions and uncertainty; an explicit human decision is needed
 for acceptance. Supported within-case observations come before cross-case
-generalizations. The workflow and audience table are the complete text alternative
-to the image; see [asset provenance](assets/communication/vision-and-audiences.provenance.json).
+generalizations.
 
 The current product is an **early research workbench** with implemented mechanisms,
 not independently validated extraction quality, authenticated hosted review or

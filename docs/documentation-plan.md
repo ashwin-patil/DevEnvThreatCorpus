@@ -4,16 +4,43 @@
 
 This is the reviewable plan for [#59](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/59),
 under human-coordinated [#58](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/58).
-**Status: needs-human-review.** Approval and merge of this plan precede dependent
-assignments; this document neither implements them nor accepts research.
+The original plan was approved and merged in
+[PR #65](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/65).
+The owner-approved [#62 amendment](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/62)
+below supersedes only the listed placement/ownership rows. Neither plan approval
+nor visual appearance approval accepts research; independent implementation review
+remains required.
 
 On 2026-10-15, the remote default branch was confirmed as `main` at
 `53c10b5c4e607c93530c637ec4e7b0d47c05573a`. Its tracked inventory was reinspected:
 README has 964 lines and architecture 1,038. These are observations, not targets.
-Current guidance mixes operating instructions, contracts, issue evidence and
-proposed services. The plan changes only this file and the docs index.
-No bulk moves/deletions, runtime/schema or policy changes, incident acceptance,
-image generation/integration, publication or repository-setting changes are authorized.
+At that inspected baseline, guidance mixed operating instructions, contracts,
+issue evidence and proposed services. The original #59 plan changed only this
+file and the docs index; these statements describe that historical task.
+For #59, no bulk moves/deletions, runtime/schema or policy changes, incident
+acceptance, image generation/integration, publication or repository-setting changes
+were authorized. Later asset integration is bounded by the amendment below.
+
+### Owner-approved #62 placement and ownership amendment
+
+After #60/#61 merged through PRs #66/#67, the owner explicitly authorized #62
+to place **vision/audiences in README**, **pipeline in workflow**, and **system
+architecture in architecture**, removing the duplicate large getting-started
+infographic. The updated rows below supersede #60's earlier visual placement,
+not its acceptance history. Keep the Codespaces button prominent, a concise
+README workflow and a focused launch/first-inspection getting-started guide.
+Preserve exact supplied PNG/SVG/logo bytes from
+`4a5c5cadabf7b1b5f17ff1c4e3ceaedc0e0ffee2`; do not merge the staging commit,
+generate artwork or restore status footers inside images.
+
+The additional #62 write lease is limited to `README.md`, `docs/workflow.md`,
+`docs/getting-started.md`, this plan, and the two existing visual provenance
+files, alongside architecture, four references and architecture assets/provenance.
+Update adjacent alternatives and navigation without rewriting #61 methodology/
+status or unrelated setup guidance. #63 still owns public-document evidence/
+session-note cleanup; displaced architecture evidence remains linked to its
+commit-pinned original and the acceptance ledger for that handoff.
+This amendment does not expand runtime, policy or research acceptance scope.
 
 Requested session model: **GPT-6.1 Sol**. Effective session model: **not exposed
 to this session**; the requested selection cannot be independently confirmed,
@@ -147,10 +174,15 @@ assets/data/notices and historical handoff at the inspected baseline.
 
 | Source document or enumerated group | Disposition → destination | Authoritative topic steward / task | Inbound handling |
 |---|---|---|---|
-| `README.md` | Rewrite at same path; move detailed environment content → `docs/guides/codespaces.md`; task/contract detail → named reference sections | Public-entrypoint editor #60; technical extraction #62 only after #60 merges, without editing README concurrently | S; #60 preserves existing exercise/preview anchors as links while references are staged |
+| `README.md` | Keep #60 first-use routes; #62 replaces temporary exercise links with current references and places vision/audiences here, removing pipeline image | #60 merged; explicit owner handoff to #62 for amended placement/navigation only | S; preserve exercise/preview anchors and Codespaces prominence |
 | `docs/README.md` | Rewrite at same path to current tree, archive secondary | Navigation coordinator; serialized handoffs #60 → #61 → #62 → #63; #59 adds only plan link | K |
-| `docs/documentation-plan.md` (this addition) | Keep as approved disposition/coordination record | Human coordinator #58; corrections on #59 PR before approval | K; later deviations require coordinator review |
+| `docs/documentation-plan.md` | Keep approved disposition record; record owner's superseding #62 visual hierarchy and scoped lease | Human coordinator #58; #62 amendment explicitly authorized | K; preserve historical #59 criteria/evidence |
 | `docs/architecture.md` | Rewrite overview at same path; move detailed mechanics → `docs/reference/{data-model,cli,formats-and-versioning,configuration}.md`; methodology → three #61 pages; historical issue narrative → archive map | Technical maintainer #62; #61 reads but does not edit source; #63 preserves historical context | S; #62 retains contract and issue-section anchors, including evidence tables or precise ledger links |
+| `docs/getting-started.md` | Keep launch/inspection/local routes and concise audience table; #62 removes duplicate large infographic and links README/workflow | #60 merged; owner handoff to #62 for visual/navigation amendment only | K; retain audience and local-mode anchors |
+| `docs/workflow.md` | Keep #61 five-stage narrative; #62 places pipeline image and complete adjacent alternative at overview | #61 merged; owner handoff to #62 for amended visual placement only | K; retain stage and review anchors |
+| `docs/methodology.md`, `docs/status.md` | Keep merged #61 narrative/evidence | #61; read-only for #62 | K; #63 evidence cleanup remains separately owned |
+| `docs/assets/communication/{research-pipeline,vision-and-audiences}.{png,svg,provenance.json}` | Keep image bytes; update per-visual placement/alt/textAlternative metadata for amended locations | #60 copied assets; owner hands metadata-only corrections to #62 | K; preserve source commit, PNG/SVG and logo hashes |
+| `docs/assets/communication/system-architecture.{png,svg,provenance.json}` | Copy approved architecture bytes; scoped provenance/alternative links | #62 | K; compare with pinned source package |
 | `docs/setup-and-configuration.md` | Keep policy/setup authority; link environment operations to #60 guide and runtime mechanics to #62 reference, without changing policy | Governance maintainer #63; #60/#62 request link handoff, do not edit independently | K; policy anchors remain authoritative |
 | `docs/lifecycle.md`, `docs/recovery.md`, `docs/merge-rules.md`, `docs/cloud-assignment-and-models.md` | Move concise explanations → `docs/development/README.md`; retain original policy/detail pages and dated remote-observation limits | Governance maintainer #63; no policy relaxation or remote-setting changes | S; preserve all original paths/anchors and unresolved decisions |
 | `docs/acceptance-audit.md` | Keep ledger intact; archive navigation separates dated records from present status; current status links back | Evidence steward #63; human traceability reviewer | H; do not rewrite failed/pending outcomes as passed |
@@ -207,9 +239,9 @@ from the latest merged default branch after prerequisites are reviewed and merge
 | Task | Exclusive write set / deliverable | Read-only sources / coordination | Observable completion condition |
 |---|---|---|---|
 | #59 (this PR) | `docs/documentation-plan.md`; one `docs/README.md` link | All inventoried sources | Independent AC-01–AC-04 review and merge before dependents |
-| #60 after #59 | `README.md`, `docs/getting-started.md`, `docs/guides/codespaces.md`; pipeline/vision visual files listed below and separate per-visual alt/provenance notes | Read setup/architecture/methodology sources; do not edit them; shared index only under lock | Concise README (roughly 150–220 lines, editorial not mechanical), preserved setup constraints/anchors, direct accessible Codespaces links, exact quickstart/live-test evidence or explicit pending limitations, human rendered/research review |
-| #61 after #59 | `docs/workflow.md`, `docs/methodology.md`, `docs/status.md` | Read architecture/README/Nx public records without editing them; shared index under lock | All five stages documented; one public-safe provenance example; code/evidence-based maturity matrix; independent methodology review |
-| #62 after #61; wait for #60 before replacing its retained README anchor targets | `docs/architecture.md`, four named `docs/reference/*.md` files; architecture visual files/own alt-provenance note | Read #60/#61 pages and runtime/schema sources; no runtime edits; shared index under lock | Component/trust-boundary overview, verified CLI/contracts/config/version references, preserved source anchors, independent technical/visual review |
+| #60 after #59 (merged #66) | Original README/getting-started/Codespaces and pipeline/vision integration; earlier visual locations now superseded by owner's #62 amendment | No concurrent edits; #62 lease below is the explicit subsequent handoff | Original evidence/criteria remain on #66; visual relocation is not retrospective acceptance |
+| #61 after #59 (merged #67) | Workflow/methodology/status narrative; workflow visual placement now handed to #62 | Methodology/status remain read-only for #62; shared index lock unchanged | Original five-stage/evidence criteria remain on #67 |
+| #62 after merged #60/#61 | `docs/architecture.md`, four named `docs/reference/*.md`; system PNG/SVG/provenance; scoped README/workflow/getting-started/plan edits and pipeline/vision provenance metadata | Read current runtime/schema and #61 narrative; no runtime/policy edits; existing image bytes unchanged; shared index only under lock | Current component/contracts/config/version references, all old anchors, final three-image hierarchy and consistent alternatives/provenance; command/link/hash evidence and independent technical/editorial/desktop-mobile review |
 | #63 after #60, #61, #62 | `docs/archive/README.md`, optional `docs/archive/workbench-session-recovery.md`, `docs/development/README.md`, `docs/decisions/README.md`, `docs/case-studies/README.md`; scoped wrappers/links in existing docs/governance/community/learning rows above; final primary index consolidation | No frozen or other `handoff/` edits; no writes to #60–#62 primary pages without explicit handoff | Before/after disposition/link/AC-evidence comparison; unchanged frozen hashes/manifest; policy meaning preserved; human traceability review |
 | #64 after #60–#63 | `docs/release-readiness.md`; narrowly scoped documentation corrections after owner handoff | Read tracked public artifacts, licenses and current code/check evidence; no runtime/policy/settings changes | Revision-bound link/command/artifact audit; each blocker has owner/next action/completion criterion; independent owner readiness decision, not automatic release |
 
@@ -241,8 +273,8 @@ documentation and data views, independently of visual presentation.
 
 | Visual / eventual asset paths | Intended placement and exclusive integration owner | Required alternative and adjacent explanation |
 |---|---|---|
-| `docs/assets/communication/research-pipeline.png`, `research-pipeline.svg` | #60: one compact workflow illustration after README purpose/workflow, before quickstart; avoid duplicating every visual there | Alt describes published reports → source-linked draft claims → human review → patterns/hypotheses. Adjacent text explains drafts, uncertainty, stale review and unevaluated detection hypotheses; preserve the full narrative without the image |
-| `docs/assets/communication/vision-and-audiences.png`, `vision-and-audiences.svg` | #60: getting-started audience/value section, not a second large README infographic | Alt names researchers, detection engineers, architects/platform defenders and contributors/reviewers. Adjacent text gives each audience's route and limits, not a claim of proven user outcomes |
+| `docs/assets/communication/research-pipeline.png`, `research-pipeline.svg` | #62 owner amendment: `docs/workflow.md` overview; supersedes #60 README placement | Alt describes published reports → source-linked draft claims → human review → patterns/hypotheses. Five-stage text explains inputs/actions/outputs, drafts, uncertainty, stale review and unevaluated hypotheses; provenance `textAlternative` targets `docs/workflow.md#research-workflow` |
+| `docs/assets/communication/vision-and-audiences.png`, `vision-and-audiences.svg` | #62 owner amendment: README vision/audiences; supersedes #60 getting-started placement. No duplicate large image in getting started and no pipeline image in README | Alt names researchers, detection engineers, architects/platform defenders and contributors/reviewers. Adjacent audience routes and concise workflow explain intended value/limits; provenance `textAlternative` targets `README.md#vision-and-audiences` |
 | `docs/assets/communication/system-architecture.png`, `system-architecture.svg` | #62: architecture overview after component/trust-boundary text, before detailed-reference links | Alt describes browser, loopback Node server/shared CLI tooling, private files/archives, public projections and explicit researcher-configured chat handoff. Text explains storage is files, not a database dependency; arrows are data/shared-tooling relationships, not guaranteed subprocess calls; no automatic model or acceptance |
 | Existing `docs/assets/logo.svg`, `favicon.svg` | #60 preserves brand header; #62 may reference existing logo in supplied composition | Accessible project-name text for meaningful logo; decorative duplicates have empty alt. No redesign or new runtime asset integration |
 
