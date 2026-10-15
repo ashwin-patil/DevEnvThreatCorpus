@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-15 — Historical handoff relocation (#73)
+
+- Remove only the 45 authorized historical handoff files from the current tree
+  after merging trusted-base prerequisite #76 and independently verifying their
+  unchanged path/mode/blob IDs and SHA-256 bytes on `codex/archive-handoff` at
+  `a29de1822513b77d15b6fcf1c88dff147bf6140c`.
+- Replace active navigation with commit-pinned archive links, retain requirement
+  and AC provenance, and explicitly supersede the earlier archive-in-place
+  disposition. Preserve all 14 manifest mismatches and two missing documents.
+- Record a new revision-bound source-archive candidate and fresh validation on
+  PR #74; earlier release checks do not validate this tree. The archive retains
+  a full public repository snapshot and Git history remains public. No runtime,
+  data/schema, license, visibility, release publication or rights-clearance change;
+  pending research/readiness decisions and independent human approval remain.
+
 ## 2026-10-15 — Historical handoff archival authorization (#75)
 
 - Classify the 45 existing handoff paths individually as historical documentation

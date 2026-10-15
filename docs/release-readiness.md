@@ -5,6 +5,23 @@ checked; independent editorial/research, visual/accessibility, rights, live
 Codespaces and repository-owner decisions remain outstanding. This agent audit
 is not independent approval, legal clearance or a secret-free-history guarantee.
 
+## Post-audit source boundary — Issue #73
+
+The dated #64 results below remain historical and do **not** validate the new
+post-removal candidate. [PR #74](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/74)
+records its full candidate/tested SHA, source-archive inventory and fresh exact
+command results. Every subsequent commit invalidates that evidence.
+The candidate excludes all 45 `handoff/` files; `main` retains them until human
+approval and merge. The [immutable archive](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff)
+and public Git history retain them, within a full repository snapshot.
+The [new disposition and per-file evidence](archive/README.md#handoff-relocation--issue-73)
+supersede archive-in-place/path preservation only, not the original findings.
+All 14 manifest mismatches, two missing historical documents, Pending/research
+limitations, rights/redistribution and public-readiness decisions below remain
+open. Source-tree cleanup is not a release, rights clearance or history erasure.
+Independent human editorial/traceability and release-boundary review, plus human
+merge approval and current hosted Verify/PR Policy, are still required.
+
 Origin: [#64](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/64);
 implementation/evidence: draft [PR #70](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/70).
 Audited 2026-10-15 from merged default branch
@@ -116,7 +133,7 @@ remain authoritative navigation.
 | Three [communication PNG/SVG pairs](assets/communication/): vision, pipeline, architecture | Owner-supplied ImageGen compositions from `4a5c5cadabf7b1b5f17ff1c4e3ceaedc0e0ffee2`; each has a provenance JSON. All six hashes match. SVG wrappers contain raster artwork; not wholly vector-editable. | Supplied appearance approval is not rights, technical or accessibility acceptance. Embedded/standalone logo hashes intentionally differ as documented. Retain unchanged supplied bytes; visual/rights owners must approve actual reuse and final rendering. |
 | Seven `docs/assets/issue-25-*.png` screenshots | Historical synthetic comparison/conflict/timeline evidence at 1440, 1024 and 390 widths; not current responsive acceptance. | Repository authorship context, no separate per-image rights clearance established. Retain historical evidence only; visual/rights owner reviews content and distribution, never substitute private screenshots. |
 | `docs/assets/{logo,favicon}.svg`, six `*-concept-{a,b,c}.svg`, `preview.html`, `attack-path-concept.html` | Current brand assets plus historical design/interactive concepts; concepts are not implemented feature acceptance. Combined with rows above: 21 image files (10 PNG, 11 SVG). | Repository license wording exists, but asset-specific ownership/reuse is not independently attested here. Keep concepts marked historical; owner decides rights and future retention, not destructive cleanup in #64. |
-| [Frozen reference](../handoff/reference/README.md), [manifest](../handoff/REFERENCE-MANIFEST.json), other `handoff/` material | 32 frozen 0.2.0 files: corpus JSON/JSONL/JS, 13 library JSON modules, prototype UI/scripts and reference docs. Selected chat-derived seed with incomplete snapshots/placeholder citations and unreviewed inference; phase plans/prompts are history, not current operating instructions or accepted research. | Imported source/framework content needs separate provenance/rights review. Retain byte-for-byte for traceability; never seed new accepted claims or promise current 0.3.0 import compatibility. Custodian decides separately authorized reconciliation of the defects below. |
+| [Frozen reference](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/reference/README.md), [manifest](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/REFERENCE-MANIFEST.json), other archived `handoff/` material | At the original audit revision: 32 frozen 0.2.0 files: corpus JSON/JSONL/JS, 13 library JSON modules, prototype UI/scripts and reference docs. Selected chat-derived seed with incomplete snapshots/placeholder citations and unreviewed inference; phase plans/prompts are history, not current operating instructions or accepted research. | Retained byte-for-byte in the #73 archive, not the new source candidate. Imported source/framework content still needs separate provenance/rights review; never seed new accepted claims or promise current 0.3.0 import compatibility. Custodian decides separately authorized reconciliation of the defects below. |
 | Nine `tests/fixtures/` files, synthetic demos in `src/`, historical PRDs/session evidence | Benign/synthetic contract exercises and dated implementation records, not independent incident or visual validation. [Archive](archive/README.md) preserves source/revision/AC links. | Repository contribution/license context, not clearance of every embedded external reference. Retain synthetic labels and historical boundaries; contributor/rights reviewer must confirm no private content is exposed. |
 
 **Frozen defects, unresolved:** 18 of 32 recorded SHA-256 values match; 14 do not:

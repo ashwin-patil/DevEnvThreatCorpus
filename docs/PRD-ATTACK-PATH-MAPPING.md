@@ -22,9 +22,9 @@ reported activity. A visually connected graph alone does not establish execution
 causality, chronology, attribution, or a shared campaign.
 
 This PRD preserves the useful interaction model from
-[`app-v2.js`](../handoff/reference/app-v2.js),
-[`REVIEW_AND_PLAN.md`](../handoff/reference/REVIEW_AND_PLAN.md), and
-[`AGENT_CONTRACT.md`](../handoff/reference/AGENT_CONTRACT.md). The current
+[`app-v2.js`](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/reference/app-v2.js),
+[`REVIEW_AND_PLAN.md`](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/reference/REVIEW_AND_PLAN.md), and
+[`AGENT_CONTRACT.md`](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/reference/AGENT_CONTRACT.md). The current
 [`src/explore.mjs`](../src/explore.mjs) already restores an SVG graph, selectable
 nodes/edges, zoom/pan, node drag grips, reset, a text alternative, evidence links,
 and optional research views. This is an incremental specification, not a request

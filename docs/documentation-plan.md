@@ -11,6 +11,15 @@ below supersedes only the listed placement/ownership rows. Neither plan approval
 nor visual appearance approval accepts research; independent implementation review
 remains required.
 
+**Later disposition — Issue #73:** the original plan below is retained as dated
+policy/evidence, including its archive-in-place and path-preservation instructions.
+The separately authorized [handoff relocation](archive/README.md#handoff-relocation--issue-73)
+supersedes only those instructions for `handoff/`: all 45 files now reside
+unchanged in the [immutable archived snapshot](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff),
+not the current tree. The inventory, frozen enumeration and original #59/#63
+criteria below describe their inspected revisions; they are not new commands
+to restore the pack or change its bytes.
+
 On 2026-10-15, the remote default branch was confirmed as `main` at
 `53c10b5c4e607c93530c637ec4e7b0d47c05573a`. Its tracked inventory was reinspected:
 README has 964 lines and architecture 1,038. These are observations, not targets.

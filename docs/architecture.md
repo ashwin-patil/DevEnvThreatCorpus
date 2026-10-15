@@ -97,7 +97,8 @@ implementation authorities; these references explain them, not replace them.
 ## Decision
 
 The current `0.3.0` corpus starts from newly supplied sources. Frozen `0.2.0`
-material in `handoff/reference/` is historical, not an input dataset, migration
+material in the [archived `handoff/reference/`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/reference)
+is historical, not an input dataset, migration
 seed or compatibility target. The older migration proposal remains preserved,
 not revived by the workbench's adapted presentation.
 
