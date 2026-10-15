@@ -45,17 +45,6 @@ service or automatic acceptance is configured.
    and must stay private; separately archived files are not copied into them.
    Neither an export command nor this diagram authorizes public redistribution.
 
-![Browser workbench and loopback Node server share contract, intake, extraction and review tooling over private files; a researcher manually exchanges requests and candidates with chat, and explicit projections and exports expose selected views.](assets/communication/system-architecture.png)
-
-The component table and numbered flow are the complete text alternative.
-The storage symbol means **private files and archives**, not a database dependency.
-Server/CLI arrows describe shared tooling and data flow, **not guaranteed subprocess
-calls**. Chat handoff crosses an explicit researcher-controlled external boundary;
-it is not a runtime model integration. Public projections are narrower views,
-not copies of private storage or evidence of research acceptance.
-The supplied image bytes/logo are unchanged; see
-[asset provenance](assets/communication/system-architecture.provenance.json).
-
 ## Trust boundaries
 
 - **External content → intake:** credential-free public HTTPS only, address and
@@ -79,6 +68,17 @@ The supplied image bytes/logo are unchanged; see
 - **Private corpus → output:** withholding and profile closure are explicit.
   Review eligibility is not copyright clearance, and draft/synthetic outputs are
   not accepted research or evaluated detection rules.
+
+![Browser workbench and loopback Node server share contract, intake, extraction and review tooling over private files; a researcher manually exchanges requests and candidates with chat, and explicit projections and exports expose selected views.](assets/communication/system-architecture.png)
+
+The component table and numbered flow are the complete text alternative.
+The storage symbol means **private files and archives**, not a database dependency.
+Server/CLI arrows describe shared tooling and data flow, **not guaranteed subprocess
+calls**. Chat handoff crosses an explicit researcher-controlled external boundary;
+it is not a runtime model integration. Public projections are narrower views,
+not copies of private storage or evidence of research acceptance.
+The supplied image bytes/logo are unchanged; see
+[asset provenance](assets/communication/system-architecture.provenance.json).
 
 ## Authoritative technical references
 
