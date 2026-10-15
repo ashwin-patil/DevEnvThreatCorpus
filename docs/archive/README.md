@@ -96,13 +96,17 @@ SHA, then merged into PR #74 before deletion. Exact mappings and the trusted-bas
 evaluator are unchanged here. See [#73's acceptance map](../acceptance-audit.md#issue-73-handoff-relocation)
 for final-revision checks and still-required independent human review.
 
-### Open requirement reference replacements
+<a id="open-requirement-reference-replacements"></a>
+### Historical roadmap reference disposition
 
-Only the handoff references in issues #26–#29 may change; scope and all stable
-criteria remain untouched. Issue editing is unavailable in this agent session,
-so these **pending human edits** are not claimed complete:
+The owner retired the proposals in issues #26–#29 as **NOT_PLANNED** after the
+product direction changed. This supersedes the earlier pending reference-update
+step; those edits are no longer outstanding work. Original issue bodies, stable
+criteria and closure rationale remain historical, not implemented outcomes or
+new authorization. The immutable links below retain their requirements context
+for future reference without reviving the roadmap.
 
-| Issue | Replace each original handoff path with the corresponding immutable link |
+| Historical issue | Archived requirements context |
 |---|---|
 | [#26](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/26) | [03-CURATION.md](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/03-CURATION.md), [SHARED-CONTRACT.md](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/SHARED-CONTRACT.md), [02-WORKBENCH-UI.md](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/02-WORKBENCH-UI.md) |
 | [#27](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/27) | [04-INGESTION-ACTIONS.md](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/04-INGESTION-ACTIONS.md), [01-FOUNDATION.md](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/01-FOUNDATION.md), [SHARED-CONTRACT.md](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/SHARED-CONTRACT.md), [03-CURATION.md](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/03-CURATION.md) |

@@ -15,6 +15,8 @@
   Supersede archive-in-place requirements only for the 22 listed paths; no rights,
   research, responsive/accessibility, release or human acceptance is granted.
   Application, data, licenses, runtime assets, workflows and policy are unchanged.
+- Record the owner's retirement of the original roadmap proposals as superseding
+  their pending reference edits; retain immutable requirements links and prior anchors.
 
 ## 2026-10-15 — Historical handoff relocation (#73)
 
