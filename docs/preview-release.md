@@ -5,6 +5,16 @@ Status: reviewable preparation, **not approved for publication**. Origin:
 The [readiness audit](release-readiness.md) remains authoritative for outstanding
 owner decisions. Preparing a preview does not close those decisions.
 
+**Later source-boundary update — #73:** the original #71 preparation base and
+results below are historical, not validation of the post-handoff-removal
+candidate. [PR #74](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/74)
+records the new full candidate SHA and fresh checks. Rebind and rerun release
+checks after any merge/commit; release selection/publication remains unauthorized.
+The new tree/source archive excludes handoff, while the
+[immutable public archive](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff)
+and Git history retain it. This does not settle rights or readiness decisions;
+independent human release-boundary review remains mandatory.
+
 ## Proposed release
 
 - Tag: `v0.3.0-preview.1` (no existing tags/releases observed on October 15, 2026).

@@ -216,8 +216,12 @@ and the [community standards](.github/CODE_OF_CONDUCT.md).
 Report vulnerabilities through [SECURITY.md](.github/SECURITY.md), not public research records.
 
 The [documentation index](docs/README.md) links technical and governance detail.
-The [historical handoff](handoff/00-START-HERE.md) records proposals and design
-history, not a list of shipped features.
+The [historical handoff](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/00-START-HERE.md)
+records proposals and design history, not a list of shipped features. Its public
+archive retains a full repository snapshot, not just the handoff directory;
+[preservation evidence and historical limitations](docs/archive/README.md#handoff-relocation--issue-73)
+explain the authorized relocation out of the current tree.
 Its [archival prerequisite](docs/setup-and-configuration.md#historical-handoff-archival-authorization--issue-75)
 classifies the existing historical paths for a separately reviewed cleanup;
-this authorization leaves the handoff in place and changes no runtime behavior.
+the authorization and subsequent relocation change no runtime behavior and do not
+erase public history or resolve outstanding redistribution/rights questions.

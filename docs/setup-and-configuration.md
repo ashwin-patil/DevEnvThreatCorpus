@@ -39,7 +39,7 @@ For a new surface, first land a human-authorized, reviewed mapping/policy prereq
 
 ### Historical handoff archival authorization — Issue #75
 
-The 45 existing tracked `handoff/` paths are individually classified as
+The 45 historical `handoff/` paths are individually classified as
 **documentation** for the archival cleanup in Issue #73 / PR #74. The historical
 prototype scripts and data are inert reference artifacts, not current runtime
 application or trusted governance code. Exact mappings deliberately exclude new
@@ -48,12 +48,16 @@ approval. Policy does not encode deletion-only permissions: these existing paths
 are classified for any change status, while the originating issue limits the
 authorized operation to archival removal. Independent scope review remains required.
 
-This prerequisite preserves every handoff byte and all evaluator/workflow gates.
-Merge its PR with independent human approval before PR #74 refreshes from `main`;
-head-only configuration cannot authorize that removal. An authorized actor must
-also create and verify the public archive branch before deletion. The cleanup
-must retain immutable archive links, provenance and the existing manifest defects.
-Removing files from `main` does not remove them from public Git history.
+Prerequisite [PR #76](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/76)
+merged at `a29de1822513b77d15b6fcf1c88dff147bf6140c` and was merged into PR #74
+before removal; head-only configuration never authorized deletion. An authorized
+actor created the public `codex/archive-handoff` branch at that SHA, and all 45
+files were independently compared before removal. The
+[immutable archive](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff)
+and [inventory/disposition](archive/README.md#handoff-relocation--issue-73) preserve
+bytes, provenance and defects. Exact mappings and evaluator/workflow gates remain
+unchanged. Removing files from this candidate tree does not remove public Git
+history, clear rights or authorize release; independent human approval is required.
 
 ### Codespaces authorization prerequisite
 

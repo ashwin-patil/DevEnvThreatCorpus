@@ -172,7 +172,7 @@ but without retained text that checks linkage/shape, not authenticity or attesta
 | Core profile exports | Reviewed/draft selection with dependency closure and full bodies stripped; passage excerpts can remain, so publication still needs rights/privacy review |
 | Campaign/presentation talk bundles | Private, Pending-oriented views; protected campaign bundles retain complete revision records, including raw HTML text and normalized bodies, while presentation-only revision provenance omits bodies |
 | Synthetic demos/fixtures | Explicitly synthetic, not incident evidence; demo loading changes display, not a store |
-| Frozen historical `0.2.0` corpus | Unchanged `handoff/reference/` material; no migration/seed import or compatibility promise for `0.3.0` |
+| Frozen historical `0.2.0` corpus | Unchanged [archived `handoff/reference/`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/reference) material; no migration/seed import or compatibility promise for `0.3.0` |
 
 See [Nx coverage and omissions](../nx-corpus.md) and
 [export formats](formats-and-versioning.md#profile-exports). Missing public text

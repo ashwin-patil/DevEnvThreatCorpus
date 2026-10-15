@@ -1,5 +1,27 @@
 # Acceptance audit
 
+## Issue #73 Handoff relocation
+
+Requirements: [#73](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/73);
+implementation/corrections: [PR #74](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/74).
+Prerequisite [#75 / PR #76](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/76)
+merged at `a29de1822513b77d15b6fcf1c88dff147bf6140c` and was merged into this
+branch before deletion. Exact path authorization and evaluator/workflow gates
+are unchanged. This task does not approve a release or remove public history.
+
+| Criterion | Files and executed-check surface | Durable evidence / remaining acceptance |
+|---|---|---|
+| AC-01 | [Inventory](archive/handoff-inventory.tsv), [archive disposition](archive/README.md#handoff-relocation--issue-73); remote ref + per-path mode/blob/byte/SHA-256 comparison | Before removal: 45/45 match both `651bbb38f1372dc159a89073ce27c09cf6472541` and the immutable archive SHA, no differences. Exact commands/results and final SHA on PR #74. Independent preservation review remains required. |
+| AC-02 | Unchanged runtime/CLI/Codespaces; `python -m unittest tests.test_archive tests.test_policy`; `python scripts/verify.py` runs all seven configured application commands; static dependency inventory and bounded public/synthetic browser smoke | PR #74 records final SHA, environment, exact exits/counts and browser evidence/limitations. Static inventory alone is not runtime proof. Live Codespaces/private forwarding and independent human usability review are not established by local smoke. |
+| AC-03 | README, archive, architecture/data-model, attack-path PRD, original disposition-plan annotation; pinned links; `tests/test_archive.py` | Automated inventory verifies pinned targets; original historical text/IDs/outcomes remain dated. Issue #26–#29 edits are **pending human action**: no issue-edit capability in this session; [exact replacement links](archive/README.md#open-requirement-reference-replacements). Independent editorial/traceability/README-relevance review remains required. |
+| AC-04 | Merged trusted base #76; authorized removals only; existing policy regression rejects unmapped/new handoff paths | Current-head hosted Verify and PR Policy results/base/head belong on PR #74. Agent fixture checks are not hosted policy or independent approval. Human approval required before merge. |
+| AC-05 | [Readiness boundary](release-readiness.md#post-audit-source-boundary--issue-73), preview preparation annotation, root changelog; candidate `git archive` inspection | PR #74 records full candidate SHA and zero handoff members versus 45 in archive snapshot. Earlier release checks invalid for the new tree; default branch changes only after human merge. Pending research, rights and readiness decisions remain open; independent human release-boundary review required. |
+
+All final-revision command results must be read with the full tested SHA on
+PR #74 and its [Actions/checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/74/checks).
+Local `/tmp` logs alone are not durable evidence. New commits invalidate previous
+verification. No new learning is warranted for a relocation with unchanged runtime.
+
 ## Issue #53 Codespaces Workbench
 
 Originating requirements remain [#53](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/53);
@@ -563,6 +585,12 @@ Human decisions remain `needs-human-review` until independent review links are a
 ## Issue #1 foundation contract
 
 Originating issue: [#1](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/1).
+Location note added by #73: the following Issue #1 record describes its original
+revision. Its [shared contract](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/SHARED-CONTRACT.md)
+and [foundation requirements](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/ISSUE-001-FOUNDATION-CONTRACT.md)
+are now archived unchanged; relocation supersedes location preservation, not
+requirement IDs, original outcomes or the fresh-input policy.
+
 Governing requirements: `handoff/SHARED-CONTRACT.md` and
 `handoff/ISSUE-001-FOUNDATION-CONTRACT.md`, version 1.1. This implements
 FND-01 as re-scoped by the current clean-start decision, FND-04, the FND-06/07
