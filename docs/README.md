@@ -13,4 +13,4 @@
 - [Contributor guide](development/README.md) — contribution lifecycle, verification, recovery and merge requirements.
 - [Release-readiness audit](release-readiness.md) — executed evidence, public-artifact boundaries and unresolved owner decisions; not release approval.
 - [Durable principles](decisions/README.md) and [reusable learnings](learnings/README.md).
-- [Historical archive](archive/README.md) — disposition inventory, superseded specifications, frozen handoff and evidence records.
+- [Historical archive](archive/README.md) — per-path preservation commits/hashes, superseded specifications, frozen handoff and historical evidence; removed sources are commit-pinned, not live previews.

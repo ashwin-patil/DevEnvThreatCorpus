@@ -216,6 +216,9 @@ and the [community standards](.github/CODE_OF_CONDUCT.md).
 Report vulnerabilities through [SECURITY.md](.github/SECURITY.md), not public research records.
 
 The [documentation index](docs/README.md) links technical and governance detail.
+Superseded planning documents and historical design/evidence assets are reached
+through the [history index](docs/archive/README.md#planning-and-asset-relocation--issue-77),
+with immutable preservation links rather than current operating instructions.
 The [historical handoff](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/00-START-HERE.md)
 records proposals and design history, not a list of shipped features. Its public
 archive retains a full repository snapshot, not just the handoff directory;

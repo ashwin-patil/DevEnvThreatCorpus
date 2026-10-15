@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-15 — Planning and historical asset relocation (#77)
+
+- Remove exactly seven superseded documents and 15 design/evidence assets after
+  byte/blob/SHA-256 verification against owner-authorized immutable snapshots:
+  20 paths at `a29de1822513b77d15b6fcf1c88dff147bf6140c`, two updated documents
+  at `a1cd31eef5ebe9dce7cf564e317cf5691a1343dc`. Preserve the original archive
+  branch unchanged and record each actual preservation commit/hash in the archive inventory.
+  Recheck all 22 against the pre-removal intake base and record the inventory
+  checksum; regression checks enforce the amended per-document link pins.
+- Redirect active history/evidence links, retain screenshot captions and
+  issue-qualified pending obligations in the current acceptance audit, and
+  distinguish archived assets from current branding/communication assets.
+  Supersede archive-in-place requirements only for the 22 listed paths; no rights,
+  research, responsive/accessibility, release or human acceptance is granted.
+  Application, data, licenses, runtime assets, workflows and policy are unchanged.
+- Record the owner's retirement of the original roadmap proposals as superseding
+  their pending reference edits; retain immutable requirements links and prior anchors.
+
 ## 2026-10-15 — Historical handoff relocation (#73)
 
 - Remove only the 45 authorized historical handoff files from the current tree

@@ -13,7 +13,7 @@ mechanisms or records. Links to source/tests explain where a mechanism is
 implemented and checked, not that its tests have run on every later revision.
 
 Revision-bound command results and their **full tested commit SHA** are linked
-from the [verification record](development/documentation-review-evidence.md).
+from the [historical verification record](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md).
 Read each report with its check results; a later commit invalidates earlier test
 evidence. Historical results in
 [the acceptance audit](acceptance-audit.md) or [Nx notes](nx-corpus.md#usage-and-review)
@@ -92,5 +92,9 @@ See [setup and verification policy](setup-and-configuration.md).
 
 ## Issue #61 acceptance evidence
 
-The historical [criterion evidence and unresolved reviews](development/documentation-review-evidence.md#issue-61-acceptance-evidence)
+The historical [criterion evidence and unresolved reviews](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md#issue-61-acceptance-evidence)
 are retained in development history, separate from capability maturity.
+The [current obligation map](acceptance-audit.md#issue-77-retained-obligations)
+keeps the documentation/research reviews open after archival removal, including
+human confirmation of inventory consolidation and deferred durable curation from
+the dated usability review. Archiving a narrative does not complete its outcomes.

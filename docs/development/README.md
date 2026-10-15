@@ -55,7 +55,7 @@ remote settings.
 
 ## Evidence and history
 
-- [Documentation review evidence](documentation-review-evidence.md) — issue-qualified criteria, revisions and outstanding reviews.
+- [Historical documentation review evidence](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md) — original issue-qualified criteria and revisions; [current outstanding obligations](../acceptance-audit.md#issue-77-retained-obligations) remain open.
 - [Acceptance audit](../acceptance-audit.md) — retained implementation evidence, including failures and pending outcomes.
 - [Historical archive](../archive/README.md) — before/after disposition and frozen references.
 - [Durable principles](../decisions/README.md) and [learnings](../learnings/README.md).

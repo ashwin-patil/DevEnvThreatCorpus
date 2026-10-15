@@ -128,5 +128,5 @@ See [visual provenance](assets/communication/research-pipeline.provenance.json).
 
 ## Review of this documentation
 
-Historical [documentation review evidence](development/documentation-review-evidence.md#issue-61-acceptance-evidence)
+Historical [documentation review evidence](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md#issue-61-acceptance-evidence)
 is retained separately from the research workflow.
