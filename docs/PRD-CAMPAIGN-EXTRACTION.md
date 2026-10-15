@@ -1,5 +1,14 @@
 # Campaign extraction and enrichment
 
+> **Historical specification — archived in place on 2026-10-15.**
+> Inspected for consolidation at `f15a8d806c4e2213896da1070dce218c881e5cc5`;
+> the original 2026-10-13 planning base is `a03fb8a`. The draft status and
+> instructions below describe that planning period, not current authorization.
+> Use the current [campaign handoff](reference/cli.md#campaign-requestchatcandidate-handoff),
+> [formats](reference/formats-and-versioning.md#campaign-handoff-and-runs) and
+> [maturity limits](status.md) for implemented versus deferred capabilities.
+> Stable criteria remain below; see the [history inventory](archive/README.md).
+
 Status: Draft for human scope/provider review; implementation issue not yet published.
 Prepared: 2026-10-13. Inspected base: `a03fb8a` (merged PRs #40 and #42).
 Proposed implementation issue title: `[Task] Extract passage-grounded campaign drafts from retained articles`.

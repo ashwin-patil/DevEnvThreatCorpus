@@ -12,11 +12,10 @@ the merged #60 default-branch baseline. This documentation does not change those
 mechanisms or records. Links to source/tests explain where a mechanism is
 implemented and checked, not that its tests have run on every later revision.
 
-Current command results and their **full tested commit SHA** belong to
-[#61's PR #67](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/67);
-its [Checks](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/67/checks)
-and revision-bound verification report must be read together. A later commit
-invalidates earlier test evidence. Historical results in
+Revision-bound command results and their **full tested commit SHA** are linked
+from the [verification record](development/documentation-review-evidence.md).
+Read each report with its check results; a later commit invalidates earlier test
+evidence. Historical results in
 [the acceptance audit](acceptance-audit.md) or [Nx notes](nx-corpus.md#usage-and-review)
 remain historical, not fresh validation or independent acceptance.
 
@@ -93,27 +92,5 @@ See [setup and verification policy](setup-and-configuration.md).
 
 ## Issue #61 acceptance evidence
 
-Originating issue: [#61](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/61);
-tracking/coordinator issue: [#58](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/58).
-Implementation and corrections stay on [PR #67](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/67).
-The approved [plan and ownership lock](documentation-plan.md#downstream-file-ownership-and-dependency-locks)
-assign these three pages and the next sequential index edit after merged #60.
-README/getting-started and the old architecture remain unchanged; no runtime,
-policy, learning or changelog change is warranted for this documentation-only task.
-Independent human README-applicability and documentation-relevance review is
-still required under the upkeep policy.
-
-| Stable criterion | Changed files and check/evidence destination | Required independent review / state |
-|---|---|---|
-| AC-01 | [Workflow](workflow.md): five stage sections, each with inputs/actions/outputs/uncertainty/acceptance boundary and current references; final-revision report on PR #67. | Methodology reviewer to inspect all five stages: **needs-human-review**. |
-| AC-02 | [Methodology worked example](methodology.md#public-safe-nx-worked-example), linked commit-pinned public records and public draft ZIP; provenance comparison reported on PR #67. | Research reviewer to compare linkage, omissions and truthful Pending status: **needs-human-review**. |
-| AC-03 | This capability matrix cites current code/tests and public/historical evidence separately; exact verifier results and tested SHA on PR #67. | Technical/research reviewer to verify status and maturity distinctions: **needs-human-review**. |
-| AC-04 | [Methodology](methodology.md), [workflow](workflow.md) and this page explicitly distinguish identity, stale acceptance, chronology and detection hypotheses. | Independent research/editorial reviewer: **needs-human-review**; self-audit is not approval. |
-| AC-05 | [Docs index](README.md), cross-page/reference links; executed local navigation/link checks reported on PR #67. Existing architecture anchors are retained. | Human rendered navigation, terminology and relevance review: **needs-human-review**. |
-
-The human coordinator (@ashwin-patil) must arrange independent reviewers and
-carry PR URL, current head SHA, check status, blockers and next action to #58.
-Keep the PR draft pending required review and require independent human approval
-before merge. The requested session model is **GPT-6.1 Sol**; effective selection
-is unavailable in the exposed session metadata, so no match or substitution is
-asserted.
+The historical [criterion evidence and unresolved reviews](development/documentation-review-evidence.md#issue-61-acceptance-evidence)
+are retained in development history, separate from capability maturity.

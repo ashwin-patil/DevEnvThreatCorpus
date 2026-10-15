@@ -1,5 +1,14 @@
 # PRD / Copilot issue: Batch article fetching and private campaign corpus
 
+> **Historical specification — archived in place on 2026-10-15.**
+> Inspected for consolidation at `f15a8d806c4e2213896da1070dce218c881e5cc5`;
+> original planning reference: `d404855`. “Ready for implementation” and timing
+> below are historical, not a new assignment or current capability claim.
+> Use [current CLI recipes](reference/cli.md) and
+> [collection/archive contracts](reference/formats-and-versioning.md) instead.
+> The [capability matrix](status.md#capability-and-maturity-matrix) retains live
+> access and review limitations; [history](archive/README.md) preserves this plan.
+
 **Status:** Ready for implementation  
 **Implementation budget:** 2–4 hours  
 **Base:** Latest `main`; planning reference `d404855`  

@@ -102,7 +102,7 @@ allowlist, origin rewrite or non-loopback binding is added. A browser-forwarding
 403 must be investigated with actual Codespaces evidence before considering any
 server change; local readiness does not prove forwarded Host/Origin compatibility.
 
-The [README Codespaces guide](../README.md#github-codespaces-automatic-research-workbench)
+The [Codespaces operations guide](guides/codespaces.md)
 covers creation, preview, synthetic demos, stop/start/rebuild, log recovery,
 quota/storage billing, and opt-in private stores. Private collection remains
 explicit under ignored `.private-intake/` directories (0700) and files (0600).
@@ -126,7 +126,8 @@ obtain the current base digest, then `decide --template /absolute/private/decisi
 --store /absolute/private/store --reviewer your-id`. Protect the directory with
 mode `0700` and both JSON files with mode `0600`; inside the clone use the ignored
 `.private-intake/` tree. No credentials, model, network service, or install/build
-step is required. See the README's executable review exercise and architecture
+step is required. See the [executable review recipe](reference/cli.md#manual-claim-review)
+and [architecture](architecture.md)
 guidance for correction/exclusion input, self-attested identity, append-only
 events, staleness, failure codes, and recovery. The configured review suite is
 executed by `python scripts/verify.py`; passing tests do not replace independent
@@ -156,7 +157,8 @@ required on the final committed revision.
 
 The Comparison & timelines tab uses the same offline server and bundled modules,
 with no additional install/build step. Open `#comparison` after loading the local
-snapshot or explicit synthetic demo; see the README for multi-label/date modes
+snapshot or explicit synthetic demo; see the [comparison model](reference/data-model.md)
+for multi-label/date modes
 and count/review semantics. No browser runner or lint/build command is configured.
 Use browser checks at 1440×900, 1024×768, and 390×844 plus a keyboard walkthrough;
 retain synthetic-only screenshots on the originating PR and record the tested

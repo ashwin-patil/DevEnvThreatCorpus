@@ -1,5 +1,14 @@
 # Attack-path mapping and interactive exploration
 
+> **Historical specification — archived in place on 2026-10-15.**
+> Inspected for consolidation at `f15a8d806c4e2213896da1070dce218c881e5cc5`;
+> original planning base: `a03fb8a` (2026-10-13), with frozen 0.2.0 prototype
+> references. Requirements and the synthetic concept below are not proof of
+> shipped functionality or research acceptance. Use [architecture](architecture.md),
+> [current data model](reference/data-model.md) and [status](status.md) for
+> implemented, partial and unevaluated behavior. Stable criteria and concept
+> links remain intact; see [history](archive/README.md).
+
 Status: Draft baseline for later implementation/enhancement. Prepared 2026-10-13.
 Inspected application base: `a03fb8a`; prototype reference: frozen 0.2.0 handoff.
 Proposed issue title: `[Task] Ground node-scoped attack-path mappings and interactive exploration`.
