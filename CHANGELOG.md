@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-15 — Preview navigation and preparation (#71)
+
+- Add README section navigation, a linked Pending research badge and a short
+  preview callout while retaining coverage, uncertainty and review limitations.
+- Prepare a bounded GitHub preview checklist and release-copy candidate; keep
+  public visibility, asset clearance, human merge approval and publication as
+  explicit owner decisions. No application or deployment behavior changes.
+
 ## 2026-10-14 — Codespaces Research Workbench lifecycle (#53)
 
 - Add a discoverable devcontainer using a digest-pinned Python 3.12 base, the
