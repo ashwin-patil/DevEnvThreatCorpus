@@ -37,6 +37,24 @@ For a new surface, first land a human-authorized, reviewed mapping/policy prereq
 
 ## Dependencies and extension points
 
+### Historical handoff archival authorization — Issue #75
+
+The 45 existing tracked `handoff/` paths are individually classified as
+**documentation** for the archival cleanup in Issue #73 / PR #74. The historical
+prototype scripts and data are inert reference artifacts, not current runtime
+application or trusted governance code. Exact mappings deliberately exclude new
+unlisted handoff files; this classification grants no execution or redistribution
+approval. Policy does not encode deletion-only permissions: these existing paths
+are classified for any change status, while the originating issue limits the
+authorized operation to archival removal. Independent scope review remains required.
+
+This prerequisite preserves every handoff byte and all evaluator/workflow gates.
+Merge its PR with independent human approval before PR #74 refreshes from `main`;
+head-only configuration cannot authorize that removal. An authorized actor must
+also create and verify the public archive branch before deletion. The cleanup
+must retain immutable archive links, provenance and the existing manifest defects.
+Removing files from `main` does not remove them from public Git history.
+
 ### Codespaces authorization prerequisite
 
 The `.devcontainer/**` mapping is governance, not runtime application code, and

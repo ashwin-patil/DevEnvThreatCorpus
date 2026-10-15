@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-15 — Historical handoff archival authorization (#75)
+
+- Classify the 45 existing handoff paths individually as historical documentation
+  so a subsequent archive/removal PR can be checked against a reviewed trusted
+  base. Keep future unlisted paths blocked and preserve runtime classifications.
+- Add regression coverage for allowed historical removals, rejection by the old
+  unmapped base and rejection of new handoff paths. Preserve all historical bytes,
+  workflow permissions and independent review gates; archive creation and actual
+  removal remain in the separate cleanup task.
+
 ## 2026-10-15 — Preview navigation and preparation (#71)
 
 - Add README section navigation, a linked Pending research badge and a short
