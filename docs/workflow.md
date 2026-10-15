@@ -128,7 +128,5 @@ See [visual provenance](assets/communication/research-pipeline.provenance.json).
 
 ## Review of this documentation
 
-[#61 AC-01–AC-05](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/61)
-remain subject to the [criterion evidence and human-review handoff](status.md#issue-61-acceptance-evidence).
-These pages consolidate methodology without retiring the architecture or
-accepting the example's research.
+Historical [documentation review evidence](development/documentation-review-evidence.md#issue-61-acceptance-evidence)
+is retained separately from the research workflow.

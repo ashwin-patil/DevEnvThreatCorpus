@@ -1,5 +1,12 @@
 # Research workbench usability review
 
+> **Historical walkthrough — archived in place on 2026-10-15.**
+> Consolidation inspected `f15a8d806c4e2213896da1070dce218c881e5cc5`.
+> The observations below date to 2026-10-13; the final tested revision and results
+> remain on [PR #47](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/47).
+> They are not a current-revision usability pass. See [current maturity and
+> outstanding review](status.md) and the [history inventory](archive/README.md).
+
 Reviewed 2026-10-13 on the extraction implementation branch. The walkthrough
 covered all eleven research views on the local protected test corpus at desktop,
 1024×768 and 390×844. It checked content rendering, page overflow, visible empty
