@@ -1,5 +1,6 @@
 # Documentation
 
+- [Public documentation plan](documentation-plan.md) — proposed inventory, navigation, downstream ownership and human review gates for the documentation overhaul; not yet approved.
 - [Phased product implementation handoff](../handoff/00-START-HERE.md)
 - [Fresh-start corpus architecture](architecture.md)
 - [Campaign extraction and enrichment draft](PRD-CAMPAIGN-EXTRACTION.md) — proposed provider, scope, and stable implementation criteria; not implemented functionality.
