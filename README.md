@@ -19,11 +19,20 @@ developer-environment threats into source-linked claims, inspectable attack path
 and detection hypotheses. It helps readers ask **what supports this observation,
 what remains uncertain, and what would a defender need to investigate?**
 
+## Vision and audiences
+
 Threat researchers can follow claims back to retained source revisions.
 Detection engineers can connect supported behaviors to telemetry ideas.
 Security architects and platform defenders can inspect trust boundaries.
 Contributors and reviewers can reproduce, correct or exclude research records
 without treating a generated draft as an accepted finding.
+
+![Project vision and intended audiences: threat researchers, detection engineers, security architects and platform defenders, and contributors and reviewers.](docs/assets/communication/vision-and-audiences.png)
+
+The audience routes above and text workflow below are the complete text
+alternative: make provenance, uncertainty and human review inspectable before
+using campaign patterns or detection hypotheses. These are intended uses, not
+proven outcomes. See [visual provenance](docs/assets/communication/vision-and-audiences.provenance.json).
 
 ## Research workflow
 
@@ -42,11 +51,8 @@ Campaign patterns and Detection hypotheses**
 5. **Detection hypotheses:** relate observations to possible telemetry and
    detection ideas. A mapping or hypothesis is not an evaluated detection rule.
 
-![Published reports become source-linked draft claims, pass through human review, and inform campaign patterns and detection hypotheses.](docs/assets/communication/research-pipeline.png)
-
-The steps above are the complete text alternative to the illustration.
-The image describes the intended research process, not completed research
-acceptance. See [visual provenance](docs/assets/communication/research-pipeline.provenance.json).
+See the [research workflow](docs/workflow.md) for stage inputs, actions, outputs
+and limits; the process does not imply completed research acceptance.
 
 <a id="current-implementation"></a>
 ## What you can do
@@ -128,11 +134,12 @@ See [local setup and data modes](docs/getting-started.md#local-alternative).
 
 ## Continue by task
 
-Detailed contracts remain in the existing architecture reference while the
-[approved documentation plan](docs/documentation-plan.md) is implemented.
-These links preserve earlier README destinations without promising future pages.
-Executable exercises are pinned to the pre-rewrite revision until #62 replaces
-them; they are historical instructions, not new validation evidence.
+The [architecture overview](docs/architecture.md) explains components and trust
+boundaries. Current technical references cover the [data model](docs/reference/data-model.md),
+[CLI](docs/reference/cli.md), [formats/versioning](docs/reference/formats-and-versioning.md)
+and [runtime configuration](docs/reference/configuration.md).
+The links below retain earlier README destinations and lead to current contracts
+and benign executable recipes, not historical test evidence.
 
 <a id="github-codespaces-automatic-research-workbench"></a>
 - **Codespaces:** [creation and lifecycle](docs/guides/codespaces.md),
@@ -142,21 +149,21 @@ them; they are historical instructions, not new validation evidence.
 - **Workbench preview:** [first inspection](docs/getting-started.md#inspect-the-workbench)
   and [local data modes](docs/getting-started.md#local-data-modes).
 <a id="manual-intake-offline-exercise"></a>
-- **Manual intake:** [source, retrieval and failure contract](docs/architecture.md#manual-intake-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#manual-intake-offline-exercise).
+- **Manual intake:** [source, retrieval and failure contract](docs/architecture.md#manual-intake-contract); [offline exercise](docs/reference/cli.md#offline-exercise-setup).
 <a id="batch-campaign-collection-cli-and-local-web"></a>
-- **Batch collection:** [private archives, bounds and recovery](docs/architecture.md#batch-collection-and-private-archives); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#batch-campaign-collection-cli-and-local-web).
+- **Batch collection:** [private archives, bounds and recovery](docs/architecture.md#batch-collection-and-private-archives); [authorized command usage](docs/reference/cli.md#batch-collection).
 <a id="research-views-and-talk-preparation"></a>
 - **Research views and talk preparation:** [presentation and private annotations](docs/architecture.md#optional-research-presentation-and-private-annotations).
 <a id="private-talk-enrichment"></a>
-- **Private enrichment:** [templates, validation and Pending annotations](docs/architecture.md#private-talk-enrichment-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#private-talk-enrichment).
+- **Private enrichment:** [templates, validation and Pending annotations](docs/architecture.md#private-talk-enrichment-contract); [offline exercise](docs/reference/cli.md#private-enrichment).
 <a id="campaign-extraction-through-a-configured-codex-chat"></a>
-- **Campaign chat handoff:** [prepare/validate/apply/status/export and limitations](docs/architecture.md#campaign-extraction-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#campaign-extraction-through-a-configured-codex-chat).
+- **Campaign chat handoff:** [prepare/validate/apply/status/export and limitations](docs/architecture.md#campaign-extraction-contract); [offline plumbing and manual handoff](docs/reference/cli.md#campaign-requestchatcandidate-handoff).
 <a id="manual-extraction-offline-exercise"></a>
-- **Manual extraction:** [exact passages and Pending-only results](docs/architecture.md#manual-extraction-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#manual-extraction-offline-exercise).
+- **Manual extraction:** [exact passages and Pending-only results](docs/architecture.md#manual-extraction-contract); [offline exercise](docs/reference/cli.md#manual-extraction).
 <a id="manual-claim-review-offline-exercise"></a>
-- **Human claim review:** [decisions, staleness and failure codes](docs/architecture.md#manual-claim-review-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#manual-claim-review-offline-exercise).
+- **Human claim review:** [decisions, staleness and failure codes](docs/architecture.md#manual-claim-review-contract); [synthetic exercise and human decision procedure](docs/reference/cli.md#manual-claim-review).
 <a id="corpus-exports-and-read-only-queries-offline-exercise"></a>
-- **Exports and queries:** [profiles, dependency closure and reproducibility](docs/architecture.md#reproducible-exports-and-read-only-queries); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#corpus-exports-and-read-only-queries-offline-exercise).
+- **Exports and queries:** [profiles, dependency closure and reproducibility](docs/architecture.md#reproducible-exports-and-read-only-queries); [offline exercise](docs/reference/cli.md#exports-and-read-only-queries).
 <a id="comparison--timelines-filter-collected-observations"></a>
 - **Comparison and timelines:** [filters, typed dates and count semantics](docs/architecture.md#comparison-and-typed-timeline-model).
 <a id="curator-studio-paste-select-draft-download"></a>

@@ -7,8 +7,17 @@ These are five research stages, not an automatic processing or approval pipeline
 The [getting-started guide](getting-started.md) provides the first-use route;
 [methodology](methodology.md) defines evidence and review terminology, and
 [status](status.md) separates implemented mechanisms from evaluated outcomes.
-The existing [architecture reference](architecture.md) retains detailed contracts
-while the approved documentation split proceeds.
+The [architecture overview](architecture.md) explains component responsibilities
+and trust boundaries; its linked technical references own detailed contracts.
+
+![Published reports become source-linked draft claims, pass through human review, and inform campaign patterns and detection hypotheses.](assets/communication/research-pipeline.png)
+
+The five sections below are the complete text alternative: each describes inputs,
+researcher action, outputs, uncertainty and the acceptance boundary. Collection
+does not accept claims; changed evidence can stale review; campaign patterns need
+supported relationships, and detection hypotheses remain unevaluated until tested.
+The image depicts the intended process, not completed research acceptance.
+See [visual provenance](assets/communication/research-pipeline.provenance.json).
 
 ## 1. Published research
 

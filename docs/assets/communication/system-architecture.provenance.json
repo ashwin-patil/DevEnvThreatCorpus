@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "4a5c5cadabf7b1b5f17ff1c4e3ceaedc0e0ffee2",
+  "sourceDirectory": "docs/assets/communication",
+  "files": ["system-architecture.png", "system-architecture.svg"],
+  "pngSha256": "01277ac008850c2ebb920ff766376445cbf3b6c7a980355105b4d4c5a372c00d",
+  "svgSha256": "5a1db51cacbea792aed34d161a3e0f8dde0940e3e2f679789c00f9e5fea76f44",
+  "logoSource": "../logo.svg",
+  "logoSourceSha256": "998968e7b3360eaff0ef466f1179e7db8335c350e72ba29a60923419630824bb",
+  "embeddedLogoSha256": "ee9484cb32f48fab47c0bf29de5e9f61a304f800b0ffeabc5086743a00c46824",
+  "placement": "docs/architecture.md component/data-flow explanation; owner-approved #62 hierarchy",
+  "alt": "Browser workbench and loopback Node server share contract, intake, extraction and review tooling over private files; a researcher manually exchanges requests and candidates with chat, and explicit projections and exports expose selected views.",
+  "textAlternative": "docs/architecture.md#components-and-responsibilities",
+  "provenance": "Owner-supplied revised ImageGen infographic with the existing SVG logo embedded in a composition; PNG rendered from that composition. The infographic is raster, not fully vector-editable. Copied without alteration from sourceCommit, not merged or regenerated.",
+  "logoHashNote": "The embedded SVG bytes match the staged manifest logo hash; that hash differs from the unchanged standalone logo file. Both identities are retained, not normalized.",
+  "interpretation": "Storage means private files/archives, not a database. Server/CLI arrows express shared tooling/data flow, not guaranteed subprocess calls. Chat is an explicit researcher handoff; exports do not imply automatic publication or research acceptance.",
+  "presentation": "Revised package omits concept/review badges, Pending notices and maturity footers inside images. Accurate draft and review status remains in documentation and data views.",
+  "acceptance": "Owner appearance approval is not technical, accessibility or research acceptance; independent desktop/mobile rendered review remains required."
+}
