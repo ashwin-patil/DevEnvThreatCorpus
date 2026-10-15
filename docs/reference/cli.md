@@ -180,7 +180,8 @@ node "$REPO/scripts/extract.mjs" campaign export \
 Expect a Pending run with skipped/failed coverage, **not semantic success**.
 Apply changes the non-review base even for this no-claim run. Real campaigns must
 inspect completed/skipped/failed coverage, absences, exact evidence and limitations.
-Protected campaign bundles can include normalized article text; never publish them.
+Protected campaign bundles include complete revisions with retained raw HTML text
+and normalized bodies; never publish them.
 
 Protected three-revision quality evaluation is separate: copy the authorized store,
 freeze a permission-restricted baseline/hashes and an independent human-authored

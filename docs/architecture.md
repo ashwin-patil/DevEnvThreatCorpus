@@ -41,7 +41,8 @@ service or automatic acceptance is configured.
    They create neither evidence, chronology, attribution nor shared review status.
 5. Explicit exports select reviewed or draft material and close dependencies.
    Core profile exports strip full article bodies but can retain passage excerpts.
-   Campaign talk bundles can contain normalized private text and must stay private.
+   Campaign talk bundles can contain raw HTML text and normalized private bodies
+   and must stay private; separately archived files are not copied into them.
    Neither an export command nor this diagram authorizes public redistribution.
 
 ![Browser workbench and loopback Node server share contract, intake, extraction and review tooling over private files; a researcher manually exchanges requests and candidates with chat, and explicit projections and exports expose selected views.](assets/communication/system-architecture.png)

@@ -26,7 +26,11 @@ plain parser `utf8-text/1`, and normalization `unicode-lf-nfc/1`.
 Credential-free HTTPS URL identity removes fragments and case-insensitive
 `utm_*`, `fbclid`, `gclid` keys, preserving other query parameters and order.
 Unsafe/sensitive URLs are rejected, not sanitized into another source.
-Redirect targets, titles, content equality and similar URLs do not merge sources.
+Successful retrieval derives canonical identity from the final URL and the
+explicit article-alias rules in `canonicalArticleUrl`; it can reuse an existing
+retained source/revision. This is not arbitrary title/content/similarity merging
+and does not establish case membership. Every redirect still passes retrieval
+authorization and address checks.
 
 Source and revision identity are distinct. An exact successful rerun reuses its
 records without refreshing retrieval dates; changed content under the same
@@ -185,8 +189,10 @@ metadata and explicit node scope from broader case/behavior scope.
 
 Protected campaign JSON/Markdown exports close inference/conflict, case/source/
 revision/passage, path/behavior/mapping/framework, telemetry/detection/OTEL and
-run/catalog/review dependencies. They retain private normalized text, not original
-HTML/images, and carry Pending/private/synthetic warnings. Presentation-only
+run/catalog/review dependencies. They retain complete revision records, including
+private `rawContent` (decoded HTML for HTML sources) and normalized text, and carry
+Pending/private/synthetic warnings. Separately archived HTML/image files are not
+copied into the bundle; that does not mean raw HTML text is withheld. Presentation-only
 talk bundles scope shared behavior occurrences/claims to the selected case and
 omit full normalized bodies from revision provenance. Neither is a reviewed
 release, selected-path-only campaign export or automatic public publisher.

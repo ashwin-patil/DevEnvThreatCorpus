@@ -45,7 +45,7 @@ denial. Local readiness is not evidence of forwarded Host/Origin compatibility.
 
 | Surface | Availability / action |
 |---|---|
-| `GET /api/corpus` | Empty default, validated snapshot, or dynamically loaded store; stale reviews are exposed as effective Pending with warnings |
+| `GET /api/corpus` | Empty default, validated snapshot, or dynamically loaded store; JSON preserves recorded dispositions, with aggregate `X-Stale-Reviews` warning header. Use review status/profile commands for effective eligibility |
 | `GET /api/demo`, `/api/demo-research` | Separate benign synthetic fixtures; browser demo mode does not write a store |
 | `POST /api/intake` | Store only: bounded explicit batch input, not a client-selected filesystem path |
 | `POST /api/campaign/prepare`, `/api/campaign/import`, `/api/campaign/export` | Store only: shared campaign helpers, no model request; import validates/applies an explicit candidate; export returns private case-scoped JSON/Markdown for browser download |

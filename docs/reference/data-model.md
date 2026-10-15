@@ -170,7 +170,7 @@ but without retained text that checks linkage/shape, not authenticity or attesta
 | Private corpus/archive/run data | Entire store and external request/candidate/decision bundles remain protected; article archives are not canonical schema records |
 | Bundled public Nx draft | Purpose-built [public adapter](../../src/public-profile.mjs) and [projection](../../src/data/nx-draft.json); Pending, with full articles/other quotations/private run bundles withheld. Published prompt literals are an explicit inert source-attributed exception, not acceptance |
 | Core profile exports | Reviewed/draft selection with dependency closure and full bodies stripped; passage excerpts can remain, so publication still needs rights/privacy review |
-| Campaign/presentation talk bundles | Private, Pending-oriented views; protected campaign bundles can retain normalized article text while presentation-only revision provenance omits bodies |
+| Campaign/presentation talk bundles | Private, Pending-oriented views; protected campaign bundles retain complete revision records, including raw HTML text and normalized bodies, while presentation-only revision provenance omits bodies |
 | Synthetic demos/fixtures | Explicitly synthetic, not incident evidence; demo loading changes display, not a store |
 | Frozen historical `0.2.0` corpus | Unchanged `handoff/reference/` material; no migration/seed import or compatibility promise for `0.3.0` |
 
