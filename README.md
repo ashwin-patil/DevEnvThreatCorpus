@@ -218,3 +218,6 @@ Report vulnerabilities through [SECURITY.md](.github/SECURITY.md), not public re
 The [documentation index](docs/README.md) links technical and governance detail.
 The [historical handoff](handoff/00-START-HERE.md) records proposals and design
 history, not a list of shipped features.
+Its [archival prerequisite](docs/setup-and-configuration.md#historical-handoff-archival-authorization--issue-75)
+classifies the existing historical paths for a separately reviewed cleanup;
+this authorization leaves the handoff in place and changes no runtime behavior.
