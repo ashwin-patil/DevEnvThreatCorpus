@@ -15,6 +15,12 @@ The new tree/source archive excludes handoff, while the
 and Git history retain it. This does not settle rights or readiness decisions;
 independent human release-boundary review remains mandatory.
 
+**Later bounded relocation — #77:** [PR #78](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/78)
+also removes the [22 inventoried planning/evidence paths](archive/README.md#planning-and-asset-relocation--issue-77).
+This creates another source candidate requiring fresh final-SHA checks and
+post-merge SHA recording; no earlier release evidence validates it. Publication,
+visibility changes and tags remain unauthorized, and rights/review blockers persist.
+
 ## Proposed release
 
 - Tag: `v0.3.0-preview.1` (no existing tags/releases observed on October 15, 2026).

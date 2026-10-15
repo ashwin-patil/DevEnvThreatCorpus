@@ -22,15 +22,27 @@ open. Source-tree cleanup is not a release, rights clearance or history erasure.
 Independent human editorial/traceability and release-boundary review, plus human
 merge approval and current hosted Verify/PR Policy, are still required.
 
+Issue #77 additionally relocates seven historical documents and 15 assets;
+[its disposition/inventory](archive/README.md#planning-and-asset-relocation--issue-77)
+records two owner-authorized preservation commits and exact hashes.
+[PR #78](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/78) owns the new
+candidate SHA and fresh evidence; #64/#73 results below do not validate it.
+Only current logo/favicon and communication images remain in the current asset
+tree. Archived design sources and synthetic screenshots remain public history,
+not current responsive/accessibility acceptance or a hosted HTML preview.
+All rights/provenance, research and release decisions below remain open for
+both current-tree and archived assets.
+
 Origin: [#64](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/64);
 implementation/evidence: draft [PR #70](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/70).
 Audited 2026-10-15 from merged default branch
 [`729ee522c34c9de727705c6b2ce9c3245896ae73`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/729ee522c34c9de727705c6b2ce9c3245896ae73)
 (#60–#63 / PRs #66–#69), confirmed with `git ls-remote origin refs/heads/main`.
-The [approved plan](documentation-plan.md#downstream-file-ownership-and-dependency-locks)
+The [approved plan](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a1cd31eef5ebe9dce7cf564e317cf5691a1343dc/docs/documentation-plan.md#downstream-file-ownership-and-dependency-locks)
 assigns this report here. The human handoff authorized this audit after those
 merges; a merge alone does not close the pending subjective outcomes in the
-[documentation evidence ledger](development/documentation-review-evidence.md).
+[documentation evidence ledger](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md)
+and [retained current obligations](acceptance-audit.md#issue-77-retained-obligations).
 Requested model: **GPT-6.1 Sol**. Effective model: **not exposed in session
 metadata**; availability, matching selection or substitution cannot be confirmed.
 
@@ -79,7 +91,7 @@ permissions/symlinks/hardlinks/size and ignored paths` at
 Reproduction reports `missing config key GIT_CONFIG_KEY_0`: filtering removes
 the injected key but leaves its configuration count. Direct extraction passes.
 The same local failure was recorded for #60–#62 in
-the [historical ledger](development/documentation-review-evidence.md).
+the [historical ledger](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md).
 Classify this as a **pre-existing local environment/verification limitation**,
 not a documentation regression or a waived failure. No workaround or runtime fix
 is authorized here. Other platform/product failures must not be inferred from it.
@@ -121,7 +133,7 @@ not all Git history, deleted/unreachable objects, private stores, remote release
 LFS payloads or a comprehensive secret/malware/rights scan. No research prompt,
 prototype command or imported instruction was executed. “Public” describes the
 tracked publication surface, not a claim about current repository visibility.
-The [plan's exact asset enumeration](documentation-plan.md#complete-disposition-inventory)
+The [plan's historical asset enumeration](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a1cd31eef5ebe9dce7cf564e317cf5691a1343dc/docs/documentation-plan.md#complete-disposition-inventory)
 and [archive disposition](archive/README.md#beforeafter-disposition-and-inbound-links)
 remain authoritative navigation.
 
@@ -131,8 +143,8 @@ remain authoritative navigation.
 | `prompts` in the Nx JSON: inspect attempted-abuse artifacts | Two exact literal variants / three source occurrences, attributed to StepSecurity and Socket; untrusted/inert, not executed. Not reproduced in this report. | Exact literals are an exception to general quotation withholding. Source attribution is not permission; rights/research owner must review necessity, quotation rights and continued retention. Do not reconstruct withheld passages. |
 | [ATLAS catalog](../src/atlas-catalog.json), [framework resolver](../src/framework-catalog.mjs): reference resolution | ATLAS 2026.09: 208 techniques, upstream revision `3259f388d19cbcca11bacf12a0ef97f4198f711b`. ATT&CK 19.2: T1059-only projection, revision `6cda5ad8462c79e14fbb872f4e09059b18e0cfc4`. Retrieved 2026-10-13; not incident evidence. | [ATLAS notice](licenses/ATLAS-NOTICE.txt) and [Apache text](licenses/Apache-2.0.txt) retained; ATT&CK terms linked at its pinned revision in resolver metadata. Attribution owner must check adaptation/redistribution obligations and distinct upstream terms; repository license is not blanket clearance. |
 | Three [communication PNG/SVG pairs](assets/communication/): vision, pipeline, architecture | Owner-supplied ImageGen compositions from `4a5c5cadabf7b1b5f17ff1c4e3ceaedc0e0ffee2`; each has a provenance JSON. All six hashes match. SVG wrappers contain raster artwork; not wholly vector-editable. | Supplied appearance approval is not rights, technical or accessibility acceptance. Embedded/standalone logo hashes intentionally differ as documented. Retain unchanged supplied bytes; visual/rights owners must approve actual reuse and final rendering. |
-| Seven `docs/assets/issue-25-*.png` screenshots | Historical synthetic comparison/conflict/timeline evidence at 1440, 1024 and 390 widths; not current responsive acceptance. | Repository authorship context, no separate per-image rights clearance established. Retain historical evidence only; visual/rights owner reviews content and distribution, never substitute private screenshots. |
-| `docs/assets/{logo,favicon}.svg`, six `*-concept-{a,b,c}.svg`, `preview.html`, `attack-path-concept.html` | Current brand assets plus historical design/interactive concepts; concepts are not implemented feature acceptance. Combined with rows above: 21 image files (10 PNG, 11 SVG). | Repository license wording exists, but asset-specific ownership/reuse is not independently attested here. Keep concepts marked historical; owner decides rights and future retention, not destructive cleanup in #64. |
+| Seven archived `docs/assets/issue-25-*.png` screenshots | Immutable #77 inventory/acceptance-audit links preserve synthetic comparison/conflict/timeline evidence at 1440, 1024 and 390 widths; not current responsive acceptance. | Repository authorship context, no separate per-image rights clearance established. Retain historical evidence only; visual/rights owner reviews content and distribution, never substitute private screenshots. |
+| Current `docs/assets/{logo,favicon}.svg`; archived six `*-concept-{a,b,c}.svg`, `preview.html`, `attack-path-concept.html` | Current brand assets unchanged; historical concepts relocated under #77, not implemented feature acceptance. Original inventory: 21 images (10 PNG, 11 SVG). Current tree: eight images (three communication PNG, three communication SVG, logo and favicon); archive: seven screenshot PNG and six concept SVG plus two HTML sources. | Repository license wording exists, but asset-specific ownership/reuse is not independently attested here. Concepts remain historical; authorized relocation grants no rights clearance or acceptance. Owner must still decide reuse/retention for both trees. |
 | [Frozen reference](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/reference/README.md), [manifest](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/handoff/REFERENCE-MANIFEST.json), other archived `handoff/` material | At the original audit revision: 32 frozen 0.2.0 files: corpus JSON/JSONL/JS, 13 library JSON modules, prototype UI/scripts and reference docs. Selected chat-derived seed with incomplete snapshots/placeholder citations and unreviewed inference; phase plans/prompts are history, not current operating instructions or accepted research. | Retained byte-for-byte in the #73 archive, not the new source candidate. Imported source/framework content still needs separate provenance/rights review; never seed new accepted claims or promise current 0.3.0 import compatibility. Custodian decides separately authorized reconciliation of the defects below. |
 | Nine `tests/fixtures/` files, synthetic demos in `src/`, historical PRDs/session evidence | Benign/synthetic contract exercises and dated implementation records, not independent incident or visual validation. [Archive](archive/README.md) preserves source/revision/AC links. | Repository contribution/license context, not clearance of every embedded external reference. Retain synthetic labels and historical boundaries; contributor/rights reviewer must confirm no private content is exposed. |
 

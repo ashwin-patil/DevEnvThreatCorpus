@@ -1,5 +1,54 @@
 # Acceptance audit
 
+## Issue #77 Planning and historical asset relocation
+
+Originating issue: [#77](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/77);
+implementation and corrections: [PR #78](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/78).
+The owner's explicit mixed-snapshot amendment preserves 20 files at
+`a29de1822513b77d15b6fcf1c88dff147bf6140c` and two updated documents at
+`a1cd31eef5ebe9dce7cf564e317cf5691a1343dc`; no archival branch edit is authorized.
+
+| Criterion | Changed files / executed-check surface | Durable evidence / remaining acceptance |
+|---|---|---|
+| #77 AC-01 | [22-path inventory](archive/planning-assets-inventory.tsv), [disposition](archive/README.md#planning-and-asset-relocation--issue-77); remote ref and implementation-base bytes/blob/SHA-256 comparison | Pre-removal 22/22 match their actual preservation commits; base `3e8c8c61e92b4d5228657b9b29f7276729d92a0c` has the same tree as intake main. Exact inventory and final scope recheck on PR #78. Independent preservation review required. |
+| #77 AC-02 | README/docs navigation, pinned source links and immutable Issue #25 image targets; Markdown/HTML target/fragment inventory against current and archived Git objects | Final-revision inventory/results on PR #78; no archived script execution or broad external-link claim. Independent rendered navigation/editorial/README-applicability review: **needs-human-review**. |
+| #77 AC-03 | Before/after obligation map below; status and readiness retain Pending, rights, verification and historical limitations | Original issue-qualified criteria, revisions and failed/pending outcomes remain pinned; human traceability review: **needs-human-review**. |
+| #77 AC-04 | Documentation-only diff, static runtime/config/workflow dependency inspection; `python scripts/verify.py` executes all seven configured application commands | Exact final SHA, environment, command exits/counts and latest hosted Verify/PR Policy belong on PR #78, not a stale self-certification here. No runtime, evaluator, config or policy changes. |
+| #77 AC-05 | Archive index, root CHANGELOG and navigation; one originating issue/PR | Independent scope/docs/README review and human approval required before merge. Record resulting full source/release candidate SHA after merge; release publication remains unauthorized. |
+
+### Issue #77 retained obligations
+
+Before/after inventory of the seven removed narratives: the linked originals
+remain evidence authorities, while the following current homes keep outcomes
+visible. No merged PR or relocated narrative promotes a pending result.
+
+| Removed source / original evidence | Current home and retained outcome |
+|---|---|
+| [Attack-path PRD](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a1cd31eef5ebe9dce7cf564e317cf5691a1343dc/docs/PRD-ATTACK-PATH-MAPPING.md#stable-acceptance-criteria) | [#46](#issue-46-node-scoped-attack-path-exploration) keeps #46 AC-01–AC-09 / AP-01–AP-09: supported graph/mappings, interaction, accessibility, evidence traversal, export closure, final checks and independent review. Original planning base `a03fb8a`, consolidation `f15a8d806c4e2213896da1070dce218c881e5cc5`; the synthetic concept is not acceptance. |
+| [Batch PRD](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/PRD-BATCH-WEB-INTAKE.md#acceptance-criteria) | [#39](#issue-39-batch-article-intake-and-private-campaign-corpus) retains #39 AC-01–AC-07, planning base `d404855`, successful live CLI **and** browser requirements, ignored/private archives, inert HTML and Pending sidecars. Historical WSL retries and failed cloud/DNS attempts remain distinct, not universal publisher success. |
+| [Campaign PRD](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/PRD-CAMPAIGN-EXTRACTION.md#initial-evaluation-set) | [#45](#issue-45-passage-grounded-campaign-extraction) keeps #45 AC-01–AC-11; **AC-10 remains fail**. Protect the original three revisions and frozen human-authored gold (including explicit absences), compare per-revision coverage/exact quotations/discrepancies, and obtain independent semantic review before talk use. Original hashes/code-point counts remain in the pinned evaluation table; no refetch substitution. Mixed Shai-Hulud/s1ngularity grouping is not one campaign or permission to merge/relabel cases. Raw text and evaluation outputs remain private. |
+| [Documentation plan](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a1cd31eef5ebe9dce7cf564e317cf5691a1343dc/docs/documentation-plan.md#59-stable-acceptance-and-durable-evidence), PR #65, inspected main `53c10b5c4e607c93530c637ec4e7b0d47c05573a` | #59 AC-01 inventory/destinations/stewards, AC-02 talk-workflow navigation and Pending distinctions, AC-03 IDs/evidence/privacy/frozen integrity, AC-04 ownership/sequence/visual placement all retain independent inventory/editorial/research/traceability/coordinator review requirements. Historical assignment locks are not current authorization; #62 visual placement and #73 handoff disposition remain superseding decisions. |
+| [Usability review](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/usability-review.md#remaining-researchproduct-boundaries), 2026-10-13 / PR #47 | [Current status](status.md) retains human confirmation of inventory consolidation, deferred durable curation and lexical-grouping limits. Partial private-corpus walkthrough is not current capability, extraction completeness, independent accessibility or deployment acceptance. Original tested revision/results remain on PR #47; do not copy dated missing-feature observations into current claims. |
+| [Documentation evidence ledger](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md) | Issue-qualified pending documentation criteria and original check outcomes are retained immediately below. [Readiness](release-readiness.md#mandatory-owner-decisions-and-observable-completion) keeps current review/rights/release roles and completion conditions. |
+| [PR #52 session narrative](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/archive/workbench-session-recovery.md#recovery-procedure-and-validation-limits), 2026-10-14 | [#51](#issue-51-article-aliases-and-campaign-graph) and #46 below retain #51 AC-01–AC-07 / AP-01–AP-09, failed collection, literal provenance, no inferred chronology/merging and uncommitted-work limitations. Windows `9ae064127434f9bd0740befeb1fedb17c8ee462c` **plus uncommitted work**, Node 22.15.0 vs pin 22.23.3: six focused tests passed, full verifier failed. The later AP-01 diagnosis was an ambiguous substring test lookup, not permission to change valid graph behavior or weaken assertions. |
+
+The archived [documentation ledger](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/development/documentation-review-evidence.md#other-preserved-documentation-evidence)
+retains complete historical evidence, not fresh #77 test results:
+
+| Origin / current unresolved criteria | Original revision-bound results and evidence |
+|---|---|
+| #61 AC-01 five workflow stages, AC-02 worked-example provenance, AC-03 capability maturity, AC-04 research boundaries, AC-05 navigation | [PR #67](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/67), `33eca1fd7928023bc71d824d026ee01df03efef7`: 93 link/anchor/provenance checks; local verifier exit 1 (46 Python, 371/372 application), direct extraction 97/97. Hosted Verify/PR Policy subsequently passed at the same SHA (46 Python/372 Node, zero failures/skips). Independent methodology, research, technical/editorial and rendered navigation/README relevance decisions remain **needs-human-review**. |
+| #60 AC-01–AC-07 first-use/README/navigation/visual/verification criteria | [PR #66](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/66): initial `cc601575eb11a7d7672862bb176a3c139471e1cd` local launch/navigation/assets checks plus Git-filtering verifier failure; final corrected `6638c7f10d94090fda2db9340d75b7e908e00df9` hosted Verify 46 Python/372 Node, zero failures/skips, and PR Policy passed. Live Codespaces, desktop/mobile rendering and independent review remain outstanding. Later visual placement superseded, not accepted retrospectively. |
+| #62 AC-01–AC-08 visual hierarchy, technical recipes, accessibility/editorial and README review | [PR #68](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/68), `6bc27a11ec1024b4b457c336a89bc918e86004e3`: hosted Verify 46 Python/372 Node, zero failures/skips, and PR Policy passed. Earlier local Git-filtering failure and recipe-retest limits remain; independent technical/editorial/accessibility/visual/README review is **needs-human-review**. |
+| #63 AC-01 navigation, AC-02 before/after traceability, AC-03 AC/revision/failure/pending evidence, AC-04 frozen integrity, AC-05 governance/editorial/links, AC-06 compatibility anchors | [PR #69](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/69) owns original final-SHA checks; the removed ledger does not supply a final tested SHA. Independent navigation/README, traceability and governance/editorial decisions remain **needs-human-review**. Fourteen manifest mismatches and two unavailable documents remain unresolved. #77 supersedes location preservation only for its 22 paths. |
+| #30 AC-01–AC-03 and #31 AC-01–AC-04 architecture criteria | [Pinned pre-split architecture](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a741924a776bff0a0ea17b7920a7282320d2caaf/docs/architecture.md#retrieval-trust-boundary-and-finite-bounds) and [studio formats](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a741924a776bff0a0ea17b7920a7282320d2caaf/docs/architecture.md#studio-boundary-and-proposal-formats) retain original evidence and limitations, not new acceptance. |
+
+The original #58 coordinator handoffs, model-request/unknown-effective-model
+metadata and review destinations remain in the pinned originals. A human must
+carry current PR/SHA/checks/blockers/next actions forward; agent self-audit is not
+independent proof. Pending research, protected evaluation, rights, missing frozen
+references, platform limits and release gates remain open after removal.
+
 ## Issue #73 Handoff relocation
 
 Requirements: [#73](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/73);
@@ -132,7 +181,7 @@ horizontal overflow. This agent smoke check is not independent human review.
 ## Issue #46 node-scoped attack-path exploration
 
 Originating implementation requirements: [#46](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/46);
-the merged [PRD](PRD-ATTACK-PATH-MAPPING.md) remains context. Extraction and grounded
+the merged [PRD](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a1cd31eef5ebe9dce7cf564e317cf5691a1343dc/docs/PRD-ATTACK-PATH-MAPPING.md) remains context. Extraction and grounded
 mapping contracts are reused from merged #45/#48 work; no provider, catalog
 resolution, persistence, review workflow or public publication is introduced.
 Corrections stay on the originating implementation PR. Its revision-bound
@@ -435,15 +484,21 @@ must be recorded on the originating implementation PR after the final commit.
 | AC-04 | `src/index.html`, `src/style.css`, `src/app.mjs`; `Issue #25 AC-01/04` exercises semantic controls, navigation focus, reset and read-only requests; existing server suite retains CSP/offline asset boundaries | `needs-human-review`: target-viewport screenshots, executed browser/keyboard results, independent visual/accessibility review. Fake-DOM tests are not browser QA |
 | AC-05 | README comparison guide, architecture model semantics, setup/browser applicability, root CHANGELOG and this mapping; configured workbench/server commands and `python scripts/verify.py` | `needs-human-review`: exact final-revision commands and limitations on PR; independent documentation relevance/accuracy and README-applicability decision |
 
-Synthetic rendered evidence attached to this implementation:
+Historical synthetic rendered evidence attached to the Issue #25 implementation
+([original record and revision context](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/acceptance-audit.md#issue-25-comparison-and-timelines)):
+the viewport labels, captions and original PR's tested revision remain historical.
+These images do not establish current responsive or accessibility acceptance.
+The original implementation is [PR #36](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/36),
+final head `ef4d9a17fd7877b4163ed853d5d7eb0e048c79f7`; its report records 35
+governance and 203 application tests. Those historical results do not validate #77.
 
 | CSS viewport | Comparison / count context | Typed timeline |
 |---|---|---|
-| 1440×900 | [Comparison](assets/issue-25-comparison-1440.png) | [Timeline](assets/issue-25-timeline-1440.png) |
-| 1024×768 | [Comparison](assets/issue-25-comparison-1024.png) | [Timeline](assets/issue-25-timeline-1024.png) |
-| 390×844 | [Comparison](assets/issue-25-comparison-390.png) | [Timeline](assets/issue-25-timeline-390.png) |
+| 1440×900 | [Comparison](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-1440.png) | [Timeline](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-1440.png) |
+| 1024×768 | [Comparison](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-1024.png) | [Timeline](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-1024.png) |
+| 390×844 | [Comparison](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-comparison-390.png) | [Timeline](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-timeline-390.png) |
 
-[Conflict evidence](assets/issue-25-conflicts-1440.png) retains both separately
+[Conflict evidence](https://raw.githubusercontent.com/ashwin-patil/DevEnvThreatCorpus/a29de1822513b77d15b6fcf1c88dff147bf6140c/docs/assets/issue-25-conflicts-1440.png) retains both separately
 cited claims. Installed Chromium/ChromeDriver exercised exact CSS viewports,
 document overflow, same-origin resources, Enter navigation/disclosure/reset/
 citation activation, Space checkbox selection, Tab traversal and visible focus,
