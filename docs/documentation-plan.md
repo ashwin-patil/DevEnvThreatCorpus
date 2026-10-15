@@ -228,12 +228,16 @@ after all previous tasks have merged. Stop rather than silently widen ownership.
 
 The owner creates/reviews imagery in ChatGPT. This task generates no images and
 does not require image tooling. The tracker supplies a later-task
-[staged package](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/fa4cc71f86199163e18879200ba26a9b8ed54d33/docs/assets/communication)
-at `fa4cc71f86199163e18879200ba26a9b8ed54d33`, outside the inspected default-branch
+[staged package](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/4a5c5cadabf7b1b5f17ff1c4e3ceaedc0e0ffee2/docs/assets/communication)
+at `4a5c5cadabf7b1b5f17ff1c4e3ceaedc0e0ffee2`, outside the inspected default-branch
 inventory. Do not merge/cherry-pick that staging commit or copy assets in #59.
 Later authorized tasks copy only their relevant files, verify supplied hashes
 and provenance, and use local relative references. Concept/appearance approval
 does not establish technical, accessibility or research acceptance.
+This revised package supersedes the earlier staging revision. Its presentation
+omits concept/review badges, Pending notices and maturity footers inside images;
+do not restore them there. Keep accurate draft/review/maturity status in adjacent
+documentation and data views, independently of visual presentation.
 
 | Visual / eventual asset paths | Intended placement and exclusive integration owner | Required alternative and adjacent explanation |
 |---|---|---|
