@@ -131,6 +131,8 @@ See [local setup and data modes](docs/getting-started.md#local-alternative).
 Detailed contracts remain in the existing architecture reference while the
 [approved documentation plan](docs/documentation-plan.md) is implemented.
 These links preserve earlier README destinations without promising future pages.
+Executable exercises are pinned to the pre-rewrite revision until #62 replaces
+them; they are historical instructions, not new validation evidence.
 
 <a id="github-codespaces-automatic-research-workbench"></a>
 - **Codespaces:** [creation and lifecycle](docs/guides/codespaces.md),
@@ -140,21 +142,21 @@ These links preserve earlier README destinations without promising future pages.
 - **Workbench preview:** [first inspection](docs/getting-started.md#inspect-the-workbench)
   and [local data modes](docs/getting-started.md#local-data-modes).
 <a id="manual-intake-offline-exercise"></a>
-- **Manual intake:** [source, retrieval and failure contract](docs/architecture.md#manual-intake-contract).
+- **Manual intake:** [source, retrieval and failure contract](docs/architecture.md#manual-intake-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#manual-intake-offline-exercise).
 <a id="batch-campaign-collection-cli-and-local-web"></a>
-- **Batch collection:** [private archives, bounds and recovery](docs/architecture.md#batch-collection-and-private-archives).
+- **Batch collection:** [private archives, bounds and recovery](docs/architecture.md#batch-collection-and-private-archives); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#batch-campaign-collection-cli-and-local-web).
 <a id="research-views-and-talk-preparation"></a>
 - **Research views and talk preparation:** [presentation and private annotations](docs/architecture.md#optional-research-presentation-and-private-annotations).
 <a id="private-talk-enrichment"></a>
-- **Private enrichment:** [templates, validation and Pending annotations](docs/architecture.md#private-talk-enrichment-contract).
+- **Private enrichment:** [templates, validation and Pending annotations](docs/architecture.md#private-talk-enrichment-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#private-talk-enrichment).
 <a id="campaign-extraction-through-a-configured-codex-chat"></a>
-- **Campaign chat handoff:** [prepare/validate/apply/status/export and limitations](docs/architecture.md#campaign-extraction-contract).
+- **Campaign chat handoff:** [prepare/validate/apply/status/export and limitations](docs/architecture.md#campaign-extraction-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#campaign-extraction-through-a-configured-codex-chat).
 <a id="manual-extraction-offline-exercise"></a>
-- **Manual extraction:** [exact passages and Pending-only results](docs/architecture.md#manual-extraction-contract).
+- **Manual extraction:** [exact passages and Pending-only results](docs/architecture.md#manual-extraction-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#manual-extraction-offline-exercise).
 <a id="manual-claim-review-offline-exercise"></a>
-- **Human claim review:** [decisions, staleness and failure codes](docs/architecture.md#manual-claim-review-contract).
+- **Human claim review:** [decisions, staleness and failure codes](docs/architecture.md#manual-claim-review-contract); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#manual-claim-review-offline-exercise).
 <a id="corpus-exports-and-read-only-queries-offline-exercise"></a>
-- **Exports and queries:** [profiles, dependency closure and reproducibility](docs/architecture.md#reproducible-exports-and-read-only-queries).
+- **Exports and queries:** [profiles, dependency closure and reproducibility](docs/architecture.md#reproducible-exports-and-read-only-queries); [earlier executable exercise](https://github.com/ashwin-patil/DevEnvThreatCorpus/blob/0024daf1478760716f7aa068e43f93290e53b21b/README.md#corpus-exports-and-read-only-queries-offline-exercise).
 <a id="comparison--timelines-filter-collected-observations"></a>
 - **Comparison and timelines:** [filters, typed dates and count semantics](docs/architecture.md#comparison-and-typed-timeline-model).
 <a id="curator-studio-paste-select-draft-download"></a>
