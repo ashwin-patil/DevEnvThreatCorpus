@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { privateStoreTest } from './platform.mjs';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { gzipSync, deflateSync, brotliCompressSync } from 'node:zlib';
@@ -137,7 +138,7 @@ test('Issue #51 AC-01 robots leading wildcards retain agent selection, longest m
   ]) assert.equal(robotsAllows(policy, address), expected, policy);
 });
 
-test('Issue #51 AC-01 unsupported robots reasons are bounded, actionable and preserve attributed text fallback', async t => {
+privateStoreTest('Issue #51 AC-01 unsupported robots reasons are bounded, actionable and preserve attributed text fallback', async t => {
   const directory = await workspace(t);
   for (const [name, policy, reason] of [
     ['agent', 'User-agent: Bad Agent\nAllow: /', 'invalid-agent-token'],
@@ -180,7 +181,7 @@ function aliasTransport(options = {}) {
   });
 }
 
-test('Issue #51 AC-01 alias retries retain both failures and independently authorize each article origin', async t => {
+privateStoreTest('Issue #51 AC-01 alias retries retain both failures and independently authorize each article origin', async t => {
   const directory = await workspace(t), store = path.join(directory, 'history');
   for (const address of [aliasUrl, finalArticleUrl]) {
     const failed = await intakeSource({ ...urlInput(store), url: address },
@@ -221,7 +222,7 @@ test('Issue #51 AC-01 alias retries retain both failures and independently autho
   assert.ok(!denied.calls.some(request => request.url === finalArticleUrl));
 });
 
-test('Issue #51 AC-01 canonical-first and alias-first batches share one successful source, revision and manual claim', async t => {
+privateStoreTest('Issue #51 AC-01 canonical-first and alias-first batches share one successful source, revision and manual claim', async t => {
   const directory = await workspace(t);
   for (const addresses of [[finalArticleUrl, aliasUrl], [aliasUrl, finalArticleUrl]]) {
     const store = path.join(directory, `batch-${addresses[0] === aliasUrl ? 'alias' : 'canonical'}`);
@@ -258,7 +259,7 @@ test('Issue #51 AC-01 canonical-first and alias-first batches share one successf
   }
 });
 
-test('Issue #51 AC-01 retained legacy source IDs, claims, revisions and manifests survive canonical retries', async t => {
+privateStoreTest('Issue #51 AC-01 retained legacy source IDs, claims, revisions and manifests survive canonical retries', async t => {
   const directory = await workspace(t), store = path.join(directory, 'legacy');
   await fs.mkdir(store, { mode: 0o700 });
   const corpus = JSON.parse(await fs.readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
@@ -288,7 +289,7 @@ test('Issue #51 AC-01 retained legacy source IDs, claims, revisions and manifest
   assert.equal(await fs.readFile(path.join(store, 'corpus.json'), 'utf8'), stable);
 });
 
-test('Issue #51 AC-01 alias failures after canonical success append failure history without losing retained coverage', async t => {
+privateStoreTest('Issue #51 AC-01 alias failures after canonical success append failure history without losing retained coverage', async t => {
   const directory = await workspace(t), store = path.join(directory, 'post-success-failure');
   const first = await intakeSource({ ...urlInput(store), url: finalArticleUrl }, aliasTransport());
   assert.equal((await intakeSource({ ...urlInput(store), url: aliasUrl }, aliasTransport())).status, 'succeeded');
@@ -308,7 +309,7 @@ test('Issue #51 AC-01 alias failures after canonical success append failure hist
   assert.equal(after.sourceRevisions[0].sourceId, first.sourceId);
 });
 
-test('AC-01 CLI text/file/validation and injected HTTPS create valid private source-only records', async t => {
+privateStoreTest('AC-01 CLI text/file/validation and injected HTTPS create valid private source-only records', async t => {
   const directory = await workspace(t);
   const textStore = path.join(directory, 'text');
   const text = cli(['intake', 'text', '--text', 'Synthetic cafe\u0301\r\n🌿', '--supplied-by', operator, '--store', textStore]);
@@ -331,7 +332,7 @@ test('AC-01 CLI text/file/validation and injected HTTPS create valid private sou
   assert.equal((await corpusAt(urlStore)).sourceRevisions[0].retention, 'private');
 });
 
-test('AC-02 missing metadata/date fields remain honest; successful URL alone records retrieval day', async t => {
+privateStoreTest('AC-02 missing metadata/date fields remain honest; successful URL alone records retrieval day', async t => {
   const directory = await workspace(t);
   for (const kind of ['text', 'url']) {
     const store = path.join(directory, kind);
@@ -353,7 +354,7 @@ test('AC-02 missing metadata/date fields remain honest; successful URL alone rec
   assert.equal(failed.sources[0].retrievalDate.precision, 'unknown');
 });
 
-test('AC-03 exact reruns are byte-identical; URL changes preserve revisions and unrelated data', async t => {
+privateStoreTest('AC-03 exact reruns are byte-identical; URL changes preserve revisions and unrelated data', async t => {
   const directory = await workspace(t), store = path.join(directory, 'store');
   const first = await intakeSource(urlInput(store), fake(() => response('Version one')));
   const before = await fs.readFile(path.join(store, 'corpus.json'), 'utf8');
@@ -387,7 +388,7 @@ test('AC-03 exact reruns are byte-identical; URL changes preserve revisions and 
   }
 });
 
-test('AC-03 raw text/file identities do not merge changed bytes, and collision guards reject reused identities', async t => {
+privateStoreTest('AC-03 raw text/file identities do not merge changed bytes, and collision guards reject reused identities', async t => {
   const directory = await workspace(t), store = path.join(directory, 'store');
   const first = await intakeSource(supplied(store, 'a\r\nb'));
   assert.deepEqual(await intakeSource(supplied(store, 'a\r\nb')), first);
@@ -402,7 +403,7 @@ test('AC-03 raw text/file identities do not merge changed bytes, and collision g
   assert.equal((await intakeSource(supplied(store, corpus.sourceRevisions.find(r => r.sourceId === corpus.sources[0].id).rawContent))).code, 'IDENTITY_COLLISION');
 });
 
-test('AC-04 streaming exact limit succeeds; missing/misleading lengths and over-limit chunks fail', async t => {
+privateStoreTest('AC-04 streaming exact limit succeeds; missing/misleading lengths and over-limit chunks fail', async t => {
   const directory = await workspace(t);
   assert.deepEqual(INTAKE_LIMITS, { bytes: 2097152, deadlineMs: 20000, retries: 2, redirects: 3 });
   const exactStore = path.join(directory, 'exact');
@@ -422,7 +423,7 @@ test('AC-04 streaming exact limit succeeds; missing/misleading lengths and over-
   await checkFailure(mismatch, urlInput(mismatch), fake(() => response('abc', { headers: { 'content-type': 'text/plain; charset=utf-8', 'content-length': '4' } })), 'HTTP_STATUS');
 });
 
-test('AC-04 shared deadline bounds DNS, robots, reads and retries; only transient errors retry twice', async t => {
+privateStoreTest('AC-04 shared deadline bounds DNS, robots, reads and retries; only transient errors retry twice', async t => {
   const directory = await workspace(t);
   let attempts = 0;
   const eventual = fake(() => response('Recovered', { status: ++attempts < 3 ? 503 : 200 }));
@@ -449,7 +450,7 @@ test('AC-04 shared deadline bounds DNS, robots, reads and retries; only transien
   assert.ok(Date.now() - start < 1000);
 });
 
-test('AC-04 supplied UTF-8 bytes are bounded and concurrently invoked intake is rejected', async t => {
+privateStoreTest('AC-04 supplied UTF-8 bytes are bounded and concurrently invoked intake is rejected', async t => {
   const directory = await workspace(t);
   const tooLarge = '🌿'.repeat(INTAKE_LIMITS.bytes / 4 + 1);
   const pastedStore = path.join(directory, 'paste');
@@ -471,7 +472,7 @@ test('AC-04 supplied UTF-8 bytes are bounded and concurrently invoked intake is 
   assert.equal((await corpusAt(store)).sourceRevisions.length, 1);
 });
 
-test('AC-04/05 redirects are bounded and each target gets robots/DNS/peer validation', async t => {
+privateStoreTest('AC-04/05 redirects are bounded and each target gets robots/DNS/peer validation', async t => {
   const directory = await workspace(t);
   const safeStore = path.join(directory, 'safe');
   const safe = fake(request => new URL(request.url).hostname === 'articles.example'
@@ -492,7 +493,7 @@ test('AC-04/05 redirects are bounded and each target gets robots/DNS/peer valida
   await checkFailure(malformedStore, urlInput(malformedStore), fake(() => response('', { status: 302, headers: {} })), 'HTTP_STATUS');
 });
 
-test('AC-05 prohibited IPv4/IPv6, mixed DNS answers, rebinding and peer mismatches never pass', async t => {
+test('AC-05 prohibited IPv4/IPv6 addresses are rejected without filesystem access', () => {
   const prohibited = [
     '0.0.0.0', '0.1.2.3', '10.0.0.1', '100.64.1.1', '127.0.0.1', '169.254.169.254', '172.16.0.1',
     '172.31.255.255', '192.0.0.9', '192.0.2.1', '192.88.99.1', '192.168.1.1', '198.18.0.1',
@@ -503,6 +504,9 @@ test('AC-05 prohibited IPv4/IPv6, mixed DNS answers, rebinding and peer mismatch
   ];
   for (const ip of prohibited) assert.equal(isPublicAddress(ip), false, ip);
   for (const ip of [publicIP, '8.8.8.8', '1.1.1.1', '2606:4700:4700::1111', '2001:4860:4860::8888']) assert.equal(isPublicAddress(ip), true, ip);
+});
+
+privateStoreTest('AC-05 mixed DNS answers, rebinding and peer mismatches never pass', async t => {
   const directory = await workspace(t);
   for (const [name, deps] of [
     ['mix', fake(undefined, { resolve: async () => [{ address: publicIP, family: 4 }, { address: '10.0.0.1', family: 4 }] })],
@@ -535,13 +539,20 @@ test('AC-05 prohibited IPv4/IPv6, mixed DNS answers, rebinding and peer mismatch
   assert.equal((await intakeSource(urlInput(ipv6Store), ipv6Deps)).status, 'succeeded');
 });
 
-test('AC-05 credential/sensitive query/executable URLs fail safely; meaningful parameters survive', async t => {
+const unsafeUrls = [
+  'https://synthetic-user@articles.example/', 'https://articles.example/?access_token=SECRET',
+  'https://articles.example/?api_key=SECRET', 'https://articles.example/?signature=SECRET',
+  'javascript:globalThis.bad=true', 'https://articles.example:8443/', 'https://articles.example/\\x',
+];
+test('AC-05 URL validation rejects credentials and executable URLs while preserving meaningful parameters', () => {
+  for (const inputUrl of unsafeUrls) assert.throws(() => intakeUrl(inputUrl), { code: 'UNSAFE_URL' });
+  assert.equal(intakeUrl('https://articles.example/read?id=7&utm_source=x#frag'), 'https://articles.example/read?id=7');
+  assert.notEqual(intakeUrl('https://articles.example/read?id=7'), intakeUrl('https://articles.example/read?id=8'));
+});
+
+privateStoreTest('AC-05 credential/sensitive query/executable URLs fail safely without persisting secrets', async t => {
   const directory = await workspace(t);
-  for (const inputUrl of [
-    'https://synthetic-user@articles.example/', 'https://articles.example/?access_token=SECRET',
-    'https://articles.example/?api_key=SECRET', 'https://articles.example/?signature=SECRET',
-    'javascript:globalThis.bad=true', 'https://articles.example:8443/', 'https://articles.example/\\x',
-  ]) {
+  for (const inputUrl of unsafeUrls) {
     const store = path.join(directory, `bad-${randomUUID()}`), transport = fake();
     const result = await intakeSource({ ...urlInput(store), url: inputUrl }, transport);
     assert.equal(result.code, 'UNSAFE_URL');
@@ -551,11 +562,9 @@ test('AC-05 credential/sensitive query/executable URLs fail safely; meaningful p
     assert.ok(!JSON.stringify(corpus.collectionManifests).includes('SECRET'));
     assert.ok(!JSON.stringify(result).includes(inputUrl));
   }
-  assert.equal(intakeUrl('https://articles.example/read?id=7&utm_source=x#frag'), 'https://articles.example/read?id=7');
-  assert.notEqual(intakeUrl('https://articles.example/read?id=7'), intakeUrl('https://articles.example/read?id=8'));
 });
 
-test('Issue #30 AC-01 robots informational directives allow otherwise permitted intake', async t => {
+privateStoreTest('Issue #30 AC-01 robots informational directives allow otherwise permitted intake', async t => {
   const directory = await workspace(t);
   for (const [name, policy] of [
     ['host', 'Host: other.example\nUser-agent: *\nAllow: /synthetic'],
@@ -571,7 +580,7 @@ test('Issue #30 AC-01 robots informational directives allow otherwise permitted 
   }
 });
 
-test('AC-05 robots honor explicit denials and reject unparseable agents and access restrictions', async t => {
+privateStoreTest('AC-05 robots honor explicit denials and reject unparseable agents and access restrictions', async t => {
   const directory = await workspace(t);
   for (const [name, robots, expected] of [
     ['deny', response('User-agent: *\nDisallow: /synthetic'), 'ROBOTS_DENIED'],
@@ -602,7 +611,7 @@ test('AC-05 robots honor explicit denials and reject unparseable agents and acce
   }
 });
 
-test('AC-06 text/HTML Unicode normalization and raw hashes are deterministic, with no script execution', async t => {
+privateStoreTest('AC-06 text/HTML Unicode normalization and raw hashes are deterministic, with no script execution', async t => {
   const directory = await workspace(t), store = path.join(directory, 'html');
   const raw = await fs.readFile(fixture('article.html'), 'utf8');
   assert.equal((await intakeSource(urlInput(store), fake(() => response(raw, { headers: { 'content-type': 'text/html; charset=utf-8' } })))).status, 'succeeded');
@@ -629,7 +638,7 @@ test('AC-06 text/HTML Unicode normalization and raw hashes are deterministic, wi
   assert.equal(splitRevision.normalizedContent, '\ufeffcafé\n🌿');
 });
 
-test('AC-06 malformed UTF-8/text/HTML and unsupported encodings/types fail explicitly', async t => {
+privateStoreTest('AC-06 malformed UTF-8/text/HTML and unsupported encodings/types fail explicitly', async t => {
   const directory = await workspace(t);
   for (const [name, article, expected] of [
     ['invalid-utf8', () => response('', { body: (async function* () { yield Buffer.from([0xc3, 0x28]); })() }), 'MALFORMED_TEXT'],
@@ -655,7 +664,7 @@ test('AC-06 malformed UTF-8/text/HTML and unsupported encodings/types fail expli
   }
 });
 
-test('AC-07 each failed attempt remains inspectable; CLI supplied-text fallback links URL without network', async t => {
+privateStoreTest('AC-07 each failed attempt remains inspectable; CLI supplied-text fallback links URL without network', async t => {
   const directory = await workspace(t), store = path.join(directory, 'store');
   const deps = fake(() => response('', { status: 403 }));
   const one = await intakeSource(urlInput(store), deps), two = await intakeSource(urlInput(store), deps);
@@ -682,7 +691,7 @@ test('AC-07 each failed attempt remains inspectable; CLI supplied-text fallback 
   assert.ok(!failureCli.stdout.includes('invalid.example'));
 });
 
-test('AC-08 private modes, safe paths, symlinks/hardlinks, public files and busy locks are enforced', async t => {
+privateStoreTest('AC-08 private modes, safe paths, symlinks/hardlinks, public files and busy locks are enforced', async t => {
   const directory = await workspace(t), store = path.join(directory, 'store');
   await intakeSource(supplied(store));
   assert.equal((await fs.stat(store)).mode & 0o777, 0o700);
@@ -713,7 +722,7 @@ test('AC-08 private modes, safe paths, symlinks/hardlinks, public files and busy
   assert.equal((await intakeSource({ kind: 'file', file: directory, suppliedBy: operator, store: path.join(directory, 'directory-input') })).code, 'UNSAFE_PATH');
 });
 
-test('AC-08 corrupt states and persistence failures never overwrite data or leave success records', async t => {
+privateStoreTest('AC-08 corrupt states and persistence failures never overwrite data or leave success records', async t => {
   const directory = await workspace(t), store = path.join(directory, 'corrupt');
   await fs.mkdir(store, { mode: 0o700 });
   await fs.writeFile(path.join(store, 'corpus.json'), '{"broken":true}', { mode: 0o600 });
@@ -753,7 +762,7 @@ test('AC-08 corrupt states and persistence failures never overwrite data or leav
   assert.deepEqual(await fs.readdir(alteredStore), ['corpus.json']);
 });
 
-test('AC-08 output and manifests never disclose paths, URLs, input content or raw transport errors', async t => {
+privateStoreTest('AC-08 output and manifests never disclose paths, URLs, input content or raw transport errors', async t => {
   const directory = await workspace(t), store = path.join(directory, 'store');
   const sensitive = 'SYNTHETIC_CONTENT_NOT_FOR_LOGS';
   const result = await intakeSource(supplied(store, sensitive));
@@ -790,7 +799,7 @@ test('Issue #39 AC-03 extraction ignores hidden article roots and their images',
   }
 });
 
-test('Issue #39 AC-03 parser versions preserve previously retained hidden-root evidence', async t => {
+privateStoreTest('Issue #39 AC-03 parser versions preserve previously retained hidden-root evidence', async t => {
   const directory = await workspace(t), store = path.join(directory, 'parser-versions');
   const raw = '<template><article>Placeholder</article></template><main>Actual report</main>';
   await intakeSource(supplied(store, raw));
@@ -810,7 +819,7 @@ test('Issue #39 AC-03 parser versions preserve previously retained hidden-root e
   assert.deepEqual(validateCorpus(corpus), [], 'previously retained /3 revisions keep their original transformation');
 });
 
-test('metadata parser /5 preserves /4 HTML transformations and rejects altered retained text', async t => {
+privateStoreTest('metadata parser /5 preserves /4 HTML transformations and rejects altered retained text', async t => {
   const directory = await workspace(t), store = path.join(directory, 'retained-parser-v4');
   const collected = await collectBatch(batchInput(store, [url]), fake(() => htmlResponse('<article><h1>Benign retained report</h1><p>Before\0after</p></article>')));
   assert.equal(collected.results[0].status, 'collected');
@@ -823,7 +832,7 @@ test('metadata parser /5 preserves /4 HTML transformations and rejects altered r
   assert.ok(validateCorpus(corpus).some(error => error.includes('transformation mismatch')));
 });
 
-test('HTML NUL handling retains original bytes, creates readable text and leaves plain-text rejection intact', async t => {
+privateStoreTest('HTML NUL handling retains original bytes, creates readable text and leaves plain-text rejection intact', async t => {
   const directory = await workspace(t);
   const raw = '<html><head><script>bootstrap\0payload</script></head><body><article><h1>Synthetic report</h1><p>Before\0after</p><pre>tool --flag</pre></article></body></html>';
   for (const charset of ['utf-8', 'us-ascii', 'windows-1252']) {
@@ -846,7 +855,7 @@ test('HTML NUL handling retains original bytes, creates readable text and leaves
   assert.equal((await intakeSource(supplied(path.join(directory, 'plain'), 'Before\0after'))).code, 'MALFORMED_TEXT');
 });
 
-test('Issue #39 AC-02/03 expanded legacy text archives remain readable and idempotent', async t => {
+privateStoreTest('Issue #39 AC-02/03 expanded legacy text archives remain readable and idempotent', async t => {
   const directory = await workspace(t), store = path.join(directory, 'expanded');
   const text = 'é'.repeat(1_200_000), bytes = Buffer.from(`<article>${text}</article>`, 'latin1');
   const transport = fake(() => htmlResponse('', {
@@ -861,7 +870,7 @@ test('Issue #39 AC-02/03 expanded legacy text archives remain readable and idemp
   assert.equal((await corpusAt(store)).sourceRevisions.length, 1);
 });
 
-test('Issue #39 AC-01/02 three successes, durable partial failure and per-input deduplication link one pending campaign', async t => {
+privateStoreTest('Issue #39 AC-01/02 three successes, durable partial failure and per-input deduplication link one pending campaign', async t => {
   const directory = await workspace(t), store = path.join(directory, 'batch');
   const urls = ['https://articles.example/one', 'https://articles.example/two', 'https://articles.example/three', 'https://articles.example/denied', 'https://articles.example/one'];
   const transport = fake(request => new URL(request.url).pathname === '/denied'
@@ -897,7 +906,7 @@ test('Issue #39 AC-01/02 three successes, durable partial failure and per-input 
   assert.equal((await corpusAt(store)).cases.length, 2);
 });
 
-test('Issue #39 AC-03/04 archive preserves HTML and metadata, mapped publishers and exact preformatted commands', async t => {
+privateStoreTest('Issue #39 AC-03/04 archive preserves HTML and metadata, mapped publishers and exact preformatted commands', async t => {
   const directory = await workspace(t), store = path.join(directory, 'metadata');
   const html = '<!doctype html><html><head><title>Reported title</title><meta property="og:site_name" content="Page publisher">'
     + '<meta name="author" content="Reported author"><meta property="article:published_time" content="2026-10-11T13:00:00Z">'
@@ -945,7 +954,7 @@ test('Issue #39 AC-03/04 archive preserves HTML and metadata, mapped publishers 
   }
 });
 
-test('Issue #39 AC-03 common compression, optional charsets, meta charset and decoded-byte limits', async t => {
+privateStoreTest('Issue #39 AC-03 common compression, optional charsets, meta charset and decoded-byte limits', async t => {
   const directory = await workspace(t);
   for (const [name, compress] of [['gzip', gzipSync], ['deflate', deflateSync], ['br', brotliCompressSync]]) {
     const store = path.join(directory, name), raw = '<article><h1>Café</h1><p>Compressed static article';
@@ -975,7 +984,7 @@ test('Issue #39 AC-03 common compression, optional charsets, meta charset and de
   })), 'TOO_LARGE');
 });
 
-test('Issue #39 AC-03/07 images reuse DNS/peer/HTTPS/redirect/robots boundaries without discarding text', async t => {
+privateStoreTest('Issue #39 AC-03/07 images reuse DNS/peer/HTTPS/redirect/robots boundaries without discarding text', async t => {
   const directory = await workspace(t), store = path.join(directory, 'images');
   const html = '<article><p>Usable article text<img src="/good.png"><img src="https://127.0.0.1/private">'
     + '<img src="http://other.example/unsafe"><img src="/redirect.png"><img src="/denied.png"><img src="/not-image.png">'
@@ -1000,7 +1009,7 @@ test('Issue #39 AC-03/07 images reuse DNS/peer/HTTPS/redirect/robots boundaries 
   assert.equal((await artifact(store, collected.results[0], 'article.txt')).toString(), 'Usable article text');
 });
 
-test('Issue #39 AC-03/07 bounded configurable count/individual/total image work and deadline', async t => {
+privateStoreTest('Issue #39 AC-03/07 bounded configurable count/individual/total image work and deadline', async t => {
   const directory = await workspace(t);
   assert.deepEqual(IMAGE_LIMITS, { images: 20, bytes: 5242880, totalBytes: 52428800 });
   for (const [name, limits, expected] of [
@@ -1029,7 +1038,7 @@ test('Issue #39 AC-03/07 bounded configurable count/individual/total image work 
   assert.equal(result.results[0].warnings[0].code, 'TIMEOUT');
 });
 
-test('Issue #39 AC-05/07 archive reader rejects traversal, links and nonprivate artifacts; archive failures persist no successful revision', async t => {
+privateStoreTest('Issue #39 AC-05/07 archive reader rejects traversal, links and nonprivate artifacts; archive failures persist no successful revision', async t => {
   const directory = await workspace(t), store = path.join(directory, 'reader');
   const collected = await collectBatch(batchInput(store, [url]), fake(() => htmlResponse('<article><p>Private')));
   assert.equal(collected.status, 'succeeded');
@@ -1066,7 +1075,7 @@ test('Issue #39 AC-05/07 archive reader rejects traversal, links and nonprivate 
   assert.deepEqual(corpus.cases, []);
 });
 
-test('Issue #39 AC-01/02 batch input limit applies before deduplication and CLI UTF-8 URL file persists per-input failures', async t => {
+privateStoreTest('Issue #39 AC-01/02 batch input limit applies before deduplication and CLI UTF-8 URL file persists per-input failures', async t => {
   const directory = await workspace(t);
   assert.equal(BATCH_LIMIT, 20);
   const transport = fake();

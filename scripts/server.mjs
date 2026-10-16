@@ -109,6 +109,7 @@ const assets = new Map([
   ['/', ['src/index.html', 'text/html']],
   ['/src/index.html', ['src/index.html', 'text/html']],
   ['/src/style.css', ['src/style.css', 'text/css']],
+  ['/src/theme.js', ['src/theme.js', 'text/javascript']],
   ['/src/app.mjs', ['src/app.mjs', 'text/javascript']],
   ['/src/model.mjs', ['src/model.mjs', 'text/javascript']],
   ['/src/render.mjs', ['src/render.mjs', 'text/javascript']],
@@ -121,6 +122,7 @@ const assets = new Map([
   ['/src/public-profile.mjs', ['src/public-profile.mjs', 'text/javascript']],
   ['/src/data/nx-draft.json', ['src/data/nx-draft.json', 'application/json']],
   ['/docs/assets/logo.svg', ['docs/assets/logo.svg', 'image/svg+xml']],
+  ['/docs/assets/logo-dark.svg', ['docs/assets/logo-dark.svg', 'image/svg+xml']],
   ['/docs/assets/favicon.svg', ['docs/assets/favicon.svg', 'image/svg+xml']],
 ]);
 
@@ -134,6 +136,11 @@ export function emptyCorpus() {
 
 export async function createPreviewServer({ corpusFile, store, intakeDeps = {} } = {}) {
   if (corpusFile && store) throw new Error('Choose a read-only corpus snapshot or a private collection store, not both.');
+  if (process.platform === 'win32' && (corpusFile || store)) {
+    throw Object.assign(new Error('Private --corpus and --store modes require POSIX filesystem permissions. On Windows, use WSL2 with Linux filesystem storage or Codespaces; omit both options for the public preview.'), {
+      code: 'UNSUPPORTED_PLATFORM',
+    });
+  }
   if (store && (!path.isAbsolute(store) || path.normalize(store) !== store || store.includes('\0'))) throw new Error('Store path must be absolute and normalized.');
   const corpus = corpusFile ? await validatePrivateCorpus(corpusFile, { reviewAware: true }) : assertValid(emptyCorpus());
   const demo = assertValid(JSON.parse(await readFile(new URL('tests/fixtures/benign/core-only.json', root), 'utf8')));
@@ -344,8 +351,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         'Read-only startup snapshot; restart to reload. Collection requires --store.');
       console.log('Loopback only. Do not expose or tunnel private content.');
     });
-  } catch {
-    console.error('Preview startup failed. Use --port 1..65535 and either an absolute private --store or a valid private 0.3.0 --corpus file.');
+  } catch (error) {
+    console.error(error.code === 'UNSUPPORTED_PLATFORM' ? error.message :
+      'Preview startup failed. Use --port 1..65535 and either an absolute private --store or a valid private 0.3.0 --corpus file.');
     process.exitCode = 1;
   }
 }

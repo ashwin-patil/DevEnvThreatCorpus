@@ -9,15 +9,18 @@ from pathlib import Path
 import socket
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("workbench_lifecycle", ROOT / ".devcontainer/workbench.py")
-lifecycle = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(lifecycle)
+LINUX = sys.platform == "linux"
+if LINUX:
+    SPEC = importlib.util.spec_from_file_location("workbench_lifecycle", ROOT / ".devcontainer/workbench.py")
+    lifecycle = importlib.util.module_from_spec(SPEC)
+    SPEC.loader.exec_module(lifecycle)
 
 
 class DevcontainerConfigurationTests(unittest.TestCase):
@@ -51,16 +54,21 @@ class DevcontainerConfigurationTests(unittest.TestCase):
         self.assertEqual((ROOT / ".devcontainer/Dockerfile.dockerignore").read_text().splitlines(), [
             "**", "!scripts/", "!scripts/.node-version", "!requirements-governance.txt",
         ])
+
+    @unittest.skipUnless(LINUX, "Linux-only devcontainer lifecycle environment")
+    def test_ac03_lifecycle_environment_excludes_credentials_and_node_options(self) -> None:
         with patch.dict(os.environ, {"GITHUB_TOKEN": "synthetic", "NODE_OPTIONS": "--inspect", "PRIVATE_STORE": "synthetic"}):
             environment = lifecycle.server_environment()
         self.assertLessEqual(set(environment), {"PATH", "HOME", "LANG"})
         self.assertNotIn("NODE_OPTIONS", environment)
 
+    @unittest.skipUnless(LINUX, "Linux-only devcontainer lifecycle runtime")
     def test_ac01_runtime_mismatch_fails_visibly_before_start(self) -> None:
         with patch.object(lifecycle.subprocess, "check_output", return_value="v0.0.0\n"):
             with self.assertRaisesRegex(RuntimeError, "Node differs.*rebuild"):
                 lifecycle.check()
 
+    @unittest.skipUnless(LINUX, "Linux-only devcontainer lifecycle dependencies")
     def test_ac01_dependency_mismatch_fails_visibly(self) -> None:
         version = (ROOT / "scripts/.node-version").read_text().strip()
         with patch.object(lifecycle.subprocess, "check_output", return_value=f"v{version}\n"):
@@ -68,6 +76,7 @@ class DevcontainerConfigurationTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "requirements-governance.txt.*rebuild"):
                     lifecycle.check()
 
+    @unittest.skipUnless(LINUX, "Linux-only devcontainer lifecycle CLI")
     def test_ac04_invalid_command_exits_nonzero(self) -> None:
         result = subprocess.run(
             ["python", str(ROOT / ".devcontainer/workbench.py"), "invalid"],
@@ -77,7 +86,7 @@ class DevcontainerConfigurationTests(unittest.TestCase):
         self.assertIn("Usage:", result.stderr)
 
 
-@unittest.skipUnless(os.name == "posix" and Path("/proc").is_dir(), "Linux devcontainer lifecycle")
+@unittest.skipUnless(LINUX, "Linux-only devcontainer lifecycle; not validated on this platform")
 class DevcontainerLifecycleTests(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = tempfile.TemporaryDirectory(prefix="workbench lifecycle ")

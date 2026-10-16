@@ -54,6 +54,23 @@ prompt literals remain untrusted research artifacts. Read the
 4. Choose **Reload local corpus** to leave the demo. Without private input, the
    UI returns to the bundled public draft; no private collection is opened.
 
+### Light and dark themes
+
+Light is the default when no valid preference has been saved, regardless of
+your browser or operating-system theme. The compact **sun/moon toggle** at the top
+switches the whole workbench, including controls, evidence highlights, review
+badges, graph labels and the wordmark. The outlined sun or moon shows the current
+theme. The control is announced as **Dark mode**, pressed when dark is active;
+use Tab to reach it and Space or Enter to switch.
+
+Only the explicit `light`/`dark` preference is stored in browser local storage
+under `devenv-threat-corpus.theme`. It is local to that origin: another forwarded
+hostname or local port has its own preference. Switching or reloading the corpus
+does not change the theme, and changing the theme does not discard in-memory
+drafts or reset filters, navigation or graph state. If preference storage cannot
+be read or written, the header shows a notice and switching remains available
+for that page. Clearing site storage restores the light default.
+
 Do not run commands or prompts found in research content. The workbench displays
 them as inert artifacts, not operational instructions. Curator drafts are held
 in memory, not automatically persisted: download authorized private proposals
@@ -86,11 +103,11 @@ See the [acceptance ledger](acceptance-audit.md) for evidence and outstanding re
 
 ## Local alternative
 
-Use a POSIX environment and the exact Node version in
+Use the exact Node version in
 [`scripts/.node-version`](../scripts/.node-version) (`22.23.3`).
-Codespaces provides the supported Linux environment; native Windows permission
-and file-URL behavior is not validated. Do not interpret alternative platform
-instructions or historical tests as native-Windows acceptance.
+The public preview runs in POSIX environments and on native Windows. Private
+storage operations remain POSIX-only; the Linux devcontainer lifecycle is not a
+native Windows service manager.
 
 Obtain a local clone of this repository and install the pinned Node runtime using
 your normal trusted tooling. In a terminal, replace the example path with your
@@ -108,6 +125,34 @@ Ctrl+C stops the server. After obtaining the clone/runtime, the default preview
 needs no application install/build, model, CDN or network connection.
 Do not run a second server on `4173` alongside a managed Codespaces preview.
 
+### Windows public preview
+
+From PowerShell in your clone, with the pinned Node runtime on `PATH`:
+
+```powershell
+node --version
+node .\scripts\server.mjs
+```
+
+Expect `v22.23.3`; open `http://127.0.0.1:4173/` in an external browser.
+The bundled public draft, synthetic demos and in-memory browser proposals need
+no private store. Ctrl+C stops the server. Do not pass `--corpus` or `--store`:
+the server rejects those modes on native Windows with a POSIX-permissions
+message before reading or creating private storage.
+
+For private collection, persisted review and file-based exports from Windows,
+use WSL2 or Codespaces. In WSL2, keep both your clone and private store in the
+Linux filesystem, such as `~/source/DevEnvThreatCorpus`, rather than `/mnt/c`
+or another mounted Windows drive. Use Linux Node/Python installations and the
+POSIX commands in this guide from the WSL terminal. Merely launching a Windows
+executable from WSL does not provide POSIX permission guarantees. WSL2 is a way
+to use the POSIX workflow, not native-Windows private-store support or evidence
+that a particular WSL installation has been validated.
+
+Windows ACLs are not equivalent to POSIX mode `0700`/`0600`. Do not remove
+permission, link or ownership-related protections to make private operations
+work. The Codespaces lifecycle commands remain Linux-only.
+
 ### Local data modes
 
 Default preview uses neither `--corpus` nor `--store`: the local corpus API is
@@ -119,7 +164,8 @@ mode only when needed:
 | `node "$PWD/scripts/server.mjs" --corpus /absolute/private/store/corpus.json --port 4173` | Validates and serves a read-only startup snapshot; restart to read changed files |
 | `node "$PWD/scripts/server.mjs" --store /absolute/private/store --port 4173` | Enables explicit collection and dynamic reload of that store; requires authorized public HTTPS/DNS/TLS access for collection |
 
-The options are mutually exclusive. Use absolute paths, directory mode `0700`
+Both private modes require a POSIX filesystem; neither is supported on native
+Windows. The options are mutually exclusive. Use absolute paths, directory mode `0700`
 and file mode `0600`; within a clone use ignored `.private-intake/`.
 Keep research local if you do not accept hosted-machine storage. Ignoring files
 is neither access control nor a backup. Never deploy or publicly tunnel this
@@ -146,6 +192,13 @@ python scripts/verify.py
 ```
 
 The verifier runs scaffold checks and all seven configured application commands.
+On native Windows, use Python 3.12 with the pinned dependencies and Node on
+`PATH`; the same verification commands work in PowerShell. Portable configuration,
+schema, model, rendering, proposal, export-projection and public-server checks
+run there. Private-store integration tests and Linux lifecycle execution tests
+explicitly report platform skips. These skips are not passing private-store
+tests; the separate Linux job retains that coverage. A green Windows run does
+not establish POSIX storage safety, WSL2 acceptance or independent browser UX.
 Record the exact command, result, full tested commit SHA and limitations on the
 originating PR. New commits invalidate previous revision evidence. Local and
 synthetic checks do not prove live Codespaces sign-in/creation, private forwarding,

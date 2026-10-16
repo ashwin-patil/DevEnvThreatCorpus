@@ -45,14 +45,14 @@
   <!-- Typography Lockup -->
   <!-- Kicker / Tagline -->
   <text x="124" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
-        font-size="10.5" font-weight="700" letter-spacing="2.8" fill="#cb572d">DEVELOPER ENVIRONMENT THREAT CORPUS</text>
+        font-size="10.5" font-weight="700" letter-spacing="2.8" fill="#b04a26">DEVELOPER ENVIRONMENT THREAT CORPUS</text>
 
   <!-- Main Wordmark: DevEnv (bold ink) + Threat (#cb572d terracotta) + Corpus (slate) -->
   <text x="124" y="73" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-weight="700" letter-spacing="-0.5" fill="#1b2926">
-    DevEnv<tspan font-weight="700" fill="#cb572d">Threat</tspan><tspan font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="400" font-size="31" fill="#44544c">Corpus</tspan>
+    DevEnv<tspan font-weight="700" fill="#b04a26">Threat</tspan><tspan font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="400" font-size="31" fill="#44544c">Corpus</tspan>
   </text>
 
   <!-- Secondary Descriptor -->
   <text x="126" y="93" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
-        font-size="11.5" font-weight="500" letter-spacing="0.4" fill="#68746b">Evidence-grounded threat intelligence · Attack paths · Telemetry</text>
+        font-size="11.5" font-weight="500" letter-spacing="0.4" fill="#59675d">Evidence-grounded threat intelligence · Attack paths · Telemetry</text>
 </svg>

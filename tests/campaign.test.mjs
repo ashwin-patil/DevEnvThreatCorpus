@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chmod, link, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { privateStoreTest } from './platform.mjs';
 import { spawnSync } from 'node:child_process';
 import {
   canonicalSerialize, digest, reviewBaseDigest, reviewEligibleCorpus, sha256, validateCorpus, validatePrivateCorpus,
@@ -13,7 +15,7 @@ import {
 } from '../src/campaign.mjs';
 
 const fixture = async () => JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
-const privateRoot = new URL('../.private-intake/', import.meta.url).pathname;
+const privateRoot = fileURLToPath(new URL('../.private-intake/', import.meta.url));
 async function storeFor(t, corpus) {
   await mkdir(privateRoot, { mode: 0o700, recursive: true });
   const store = await mkdtemp(path.join(privateRoot, 'campaign-test-'));
@@ -68,7 +70,7 @@ function groundedCandidate(request) {
   return candidate;
 }
 
-test('issue48 AC-01/03/05 grounded loops and unresolved metadata survive atomic apply, status, projection and export', async t => {
+privateStoreTest('issue48 AC-01/03/05 grounded loops and unresolved metadata survive atomic apply, status, projection and export', async t => {
   const corpus = await fixture(), original = structuredClone(corpus), store = await storeFor(t, corpus);
   const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = groundedCandidate(request);
   const { run: validated } = validateCampaignCandidate(corpus, request, candidate);
@@ -129,7 +131,7 @@ test('issue48 AC-01/03/05 grounded loops and unresolved metadata survive atomic 
   assert.equal(await readFile(file, 'utf8'), bytes);
 });
 
-test('issue48 AC-02/05 invalid unresolved scopes and unsupported loops make no private writes', async t => {
+privateStoreTest('issue48 AC-02/05 invalid unresolved scopes and unsupported loops make no private writes', async t => {
   const corpus = await fixture(), store = await storeFor(t, corpus);
   const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
   const file = path.join(store, 'corpus.json'), before = await readFile(file, 'utf8');
@@ -205,7 +207,7 @@ test('issue48 AC-02/05 new resolved run snapshots use the same all-claim scope v
   assert.throws(() => validateCampaignSnapshot(corpus), /INVALID_SNAPSHOT/);
 });
 
-test('issue48 AC-04 actual baseline run stays immutable, unavailable metadata stays broad, and new identities supersede it', async t => {
+privateStoreTest('issue48 AC-04 actual baseline run stays immutable, unavailable metadata stays broad, and new identities supersede it', async t => {
   const corpus = await fixture(), legacy = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
   const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
   body.extractionVersion = 'campaign-extraction/1';
@@ -334,7 +336,7 @@ for (const [name, change] of [
   ['missing null reason', (q, c) => { delete c.claims[0].nullReasons.uncertainty; }],
   ['review injection', (q, c) => { c.claims[0].disposition = 'Accepted'; }],
 ]) {
-  test(`issue45 AC-02/03/04/08 ${name} rejects atomically`, async t => {
+  privateStoreTest(`issue45 AC-02/03/04/08 ${name} rejects atomically`, async t => {
     const corpus = await fixture(), store = await storeFor(t, corpus), before = await readFile(path.join(store, 'corpus.json'), 'utf8');
     const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = candidateFor(request);
     change(request, candidate);
@@ -364,7 +366,7 @@ test('issue45 AC-04/05 reciprocal conflicts, agent inference and unordered groun
   assert.deepEqual(claims[1].conflictsWith, [claims[0].id]);
 });
 
-test('issue45 AC-08 apply is pending/idempotent, retains manual/history and changes provider snapshots into superseding runs', async t => {
+privateStoreTest('issue45 AC-08 apply is pending/idempotent, retains manual/history and changes provider snapshots into superseding runs', async t => {
   const corpus = await fixture();
   applyReview(corpus, { schemaVersion: 'manual-review/1', claimId: 'synthetic-claim-c',
     action: 'accept', baseDigest: reviewBaseDigest(corpus), rationale: 'Synthetic test attestation, not real evaluation.' }, 'synthetic-reviewer');
@@ -391,7 +393,7 @@ test('issue45 AC-08 apply is pending/idempotent, retains manual/history and chan
   assert.deepEqual(all[1].supersedes, [all[0].id]);
 });
 
-test('issue45 AC-08 stale/tampered request, busy lock and interrupted pending file leave original usable', async t => {
+privateStoreTest('issue45 AC-08 stale/tampered request, busy lock and interrupted pending file leave original usable', async t => {
   const corpus = await fixture(), store = await storeFor(t, corpus);
   const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = candidateFor(request);
   const staleCorpus = structuredClone(corpus); staleCorpus.name += ' changed';
@@ -437,7 +439,7 @@ test('issue45 AC-08 snapshot tampering and changed content under a generated ID 
   assert.throws(() => campaignStatus(corpus), /INVALID_SNAPSHOT/);
 });
 
-test('issue45 AC-08 private outputs enforce permissions/symlinks/hardlinks/size and ignored paths', async t => {
+privateStoreTest('issue45 AC-08 private outputs enforce permissions/symlinks/hardlinks/size and ignored paths', async t => {
   const corpus = await fixture(), store = await storeFor(t, corpus);
   const requestFile = path.join(store, 'request.json');
   assert.equal((await runCampaign({ command: 'prepare', store, caseId: 'synthetic-case-a', outputFile: requestFile })).status, 'succeeded');
@@ -477,9 +479,9 @@ test('issue45 AC-09 exports include citations, complete revision/support closure
   assert.equal(campaignAnnotations(corpus).every(a => a.status === 'pending'), true);
 });
 
-test('issue45 AC-01/02/08/09 CLI prepare/validate/apply/status/export uses safe summaries and strict options', async t => {
+privateStoreTest('issue45 AC-01/02/08/09 CLI prepare/validate/apply/status/export uses safe summaries and strict options', async t => {
   const corpus = await fixture(), store = await storeFor(t, corpus);
-  const entry = new URL('../scripts/extract.mjs', import.meta.url).pathname;
+  const entry = fileURLToPath(new URL('../scripts/extract.mjs', import.meta.url));
   const invoke = (command, flags = []) => spawnSync(process.execPath, [entry, 'campaign', command, '--store', store, ...flags], { encoding: 'utf8' });
   const requestFile = path.join(store, 'request.json'), inputFile = path.join(store, 'candidate.json');
   let child = invoke('prepare', ['--case', 'synthetic-case-a', '--output', requestFile]);

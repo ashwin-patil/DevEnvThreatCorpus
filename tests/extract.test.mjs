@@ -6,6 +6,7 @@ import { chmod, link, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } f
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { privateStoreTest } from './platform.mjs';
 import { canonicalSerialize, reviewBaseDigest, sha256, validateCorpus } from '../scripts/contract.mjs';
 import { applyReview } from '../scripts/review.mjs';
 import {
@@ -16,7 +17,7 @@ import {
 const readJson = async file => JSON.parse(await readFile(file, 'utf8'));
 const fixture = async file => readJson(new URL(file, import.meta.url));
 const makeStore = async corpus => {
-  const root = new URL('../.private-intake/', import.meta.url).pathname;
+  const root = fileURLToPath(new URL('../.private-intake/', import.meta.url));
   await mkdir(root, { mode: 0o700, recursive: true });
   const directory = await mkdtemp(path.join(root, 'extract-test-'));
   const corpusFile = path.join(directory, 'corpus.json');
@@ -30,12 +31,12 @@ const writeTemplate = async (directory, template) => {
   return file;
 };
 const invoke = (directory, template) => spawnSync(process.execPath, [
-  new URL('../scripts/extract.mjs', import.meta.url).pathname,
+  fileURLToPath(new URL('../scripts/extract.mjs', import.meta.url)),
   '--template', template, '--store', directory, '--supplied-by', 'synthetic-researcher',
 ], { encoding: 'utf8' });
 const result = child => JSON.parse(child.stdout);
 
-test('AC-01 manual CLI creates pending claims, passages, links, manifest, and safely deduplicates reruns', async t => {
+privateStoreTest('AC-01 manual CLI creates pending claims, passages, links, manifest, and safely deduplicates reruns', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const templateFile = await writeTemplate(directory, await fixture('./fixtures/extraction/manual.json'));
@@ -60,7 +61,7 @@ test('AC-01 manual CLI creates pending claims, passages, links, manifest, and sa
   assert.equal(await readFile(corpusFile, 'utf8'), firstBytes);
 });
 
-test('AC-02 code-point slices preserve emoji and NFC-composed text from the exact hashed revision', async t => {
+privateStoreTest('AC-02 code-point slices preserve emoji and NFC-composed text from the exact hashed revision', async t => {
   const base = await fixture('./fixtures/benign/core-only.json');
   const revision = base.sourceRevisions.find(item => item.id === 'synthetic-revision-a');
   revision.rawContent = '😀 Cafe\u0301\r\nA tool was used in a benign exercise.';
@@ -94,7 +95,7 @@ for (const [name, mutate] of [
   ['cyclic inference support', template => { template.claims[3].inference.supportingClaimIds = ['extracted-inference']; }],
   ['inference with passage evidence', template => { template.claims[3].passages = [{ id: 'inference-passage', locator: 'line 1', start: 0, end: 1, text: '😀' }]; }],
 ]) {
-  test(`AC-02/05/06 invalid ${name} fails without modifying corpus`, async t => {
+  privateStoreTest(`AC-02/05/06 invalid ${name} fails without modifying corpus`, async t => {
     const { directory, corpusFile } = await makeStore();
     t.after(() => rm(directory, { recursive: true, force: true }));
     const original = await readFile(corpusFile, 'utf8');
@@ -107,7 +108,7 @@ for (const [name, mutate] of [
   });
 }
 
-test('AC-04/05/06 one source may support claims in multiple cases; inferences and contradictions stay distinct', async t => {
+privateStoreTest('AC-04/05/06 one source may support claims in multiple cases; inferences and contradictions stay distinct', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const base = await readJson(corpusFile);
@@ -129,7 +130,7 @@ test('AC-04/05/06 one source may support claims in multiple cases; inferences an
   assert.deepEqual(corpus.cases.find(item => item.id === 'synthetic-case-b').sourceIds, ['synthetic-source-a', 'synthetic-source-b']);
 });
 
-test('AC-01 malformed template and invalid CLI arguments return explicit failure outcomes', async t => {
+privateStoreTest('AC-01 malformed template and invalid CLI arguments return explicit failure outcomes', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const templateFile = await writeTemplate(directory, '{');
@@ -142,7 +143,7 @@ test('AC-01 malformed template and invalid CLI arguments return explicit failure
   assert.equal((await readJson(corpusFile)).claims.length, 4);
 });
 
-test('AC-01 conflicting reuse of an existing claim ID fails rather than replacing records', async t => {
+privateStoreTest('AC-01 conflicting reuse of an existing claim ID fails rather than replacing records', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const template = await fixture('./fixtures/extraction/manual.json');
@@ -160,10 +161,10 @@ const enrichmentTemplate = corpus => createEnrichmentTemplate({
   corpus, caseId: 'synthetic-case-a', sourceId: 'synthetic-source-a', sourceRevisionId: 'synthetic-revision-a',
 });
 const enrichmentInvoke = (command, directory, args = []) => spawnSync(process.execPath, [
-  new URL('../scripts/extract.mjs', import.meta.url).pathname, 'enrichment', command, '--store', directory, ...args,
+  fileURLToPath(new URL('../scripts/extract.mjs', import.meta.url)), 'enrichment', command, '--store', directory, ...args,
 ], { encoding: 'utf8' });
 
-test('issue39 AC-06 enrichment preserves the core colon and long reference ID contract', async t => {
+privateStoreTest('issue39 AC-06 enrichment preserves the core colon and long reference ID contract', async t => {
   const caseId = `case:${'x'.repeat(140)}`, sourceId = 'source:article', sourceRevisionId = 'revision:article';
   let input = JSON.stringify(await fixture('./fixtures/benign/core-only.json'));
   for (const [oldId, newId] of [['synthetic-case-a', caseId], ['synthetic-source-a', sourceId], ['synthetic-revision-a', sourceRevisionId]]) {
@@ -180,7 +181,7 @@ test('issue39 AC-06 enrichment preserves the core colon and long reference ID co
   assert.equal(await readFile(corpusFile, 'utf8'), before);
 });
 
-test('issue39 AC-06 enrichment template, validation, import, and export retain all eight pending types privately', async t => {
+privateStoreTest('issue39 AC-06 enrichment template, validation, import, and export retain all eight pending types privately', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const corpusBefore = await readFile(corpusFile, 'utf8');
@@ -227,7 +228,7 @@ test('issue39 AC-06 enrichment template, validation, import, and export retain a
   assert.equal(ignored.stdout.trim().split('\n').length, 3);
 });
 
-test('issue39 AC-06 all types resolve exact Unicode quotes, with code-point half-open locators and separate contexts', async t => {
+privateStoreTest('issue39 AC-06 all types resolve exact Unicode quotes, with code-point half-open locators and separate contexts', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const template = enrichmentTemplate(await readJson(corpusFile));
@@ -258,7 +259,7 @@ test('issue39 AC-06 all types resolve exact Unicode quotes, with code-point half
   assert.deepEqual(stored.annotations.find(item => item.type === 'role-context').context.roles, template.annotations[0].context.roles);
 });
 
-test('issue39 AC-06 reference-scoped template IDs accumulate more than 20 annotations across campaigns and articles', async t => {
+privateStoreTest('issue39 AC-06 reference-scoped template IDs accumulate more than 20 annotations across campaigns and articles', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const corpus = await readJson(corpusFile);
@@ -282,7 +283,7 @@ test('issue39 AC-06 reference-scoped template IDs accumulate more than 20 annota
   assert.equal(await readFile(corpusFile, 'utf8'), original);
 });
 
-test('issue39 AC-06 repeated or missing quotes stay explicitly unresolved; locators disambiguate repeated Unicode', async t => {
+privateStoreTest('issue39 AC-06 repeated or missing quotes stay explicitly unresolved; locators disambiguate repeated Unicode', async t => {
   const corpus = await fixture('./fixtures/benign/core-only.json');
   const revision = corpus.sourceRevisions[0];
   revision.rawContent += '\n😀 Café';
@@ -333,7 +334,7 @@ for (const [name, mutate] of [
   ['credentialed external reference', item => { item.externalReferenceUrl = '******example.invalid/'; }],
   ['fabricated date field', item => { item.publicationDate = '2026-10-13'; }],
 ]) {
-  test(`issue39 AC-06 enrichment rejects ${name} without corpus or sidecar mutation`, async t => {
+  privateStoreTest(`issue39 AC-06 enrichment rejects ${name} without corpus or sidecar mutation`, async t => {
     const { directory, corpusFile } = await makeStore();
     t.after(() => rm(directory, { recursive: true, force: true }));
     const original = await readFile(corpusFile, 'utf8');
@@ -347,7 +348,7 @@ for (const [name, mutate] of [
   });
 }
 
-test('issue39 AC-06 agent annotations retain model/prompt attribution and never alter existing human reviews', async t => {
+privateStoreTest('issue39 AC-06 agent annotations retain model/prompt attribution and never alter existing human reviews', async t => {
   const corpus = await fixture('./fixtures/benign/core-only.json');
   applyReview(corpus, {
     schemaVersion: 'manual-review/1', claimId: 'synthetic-claim-a', action: 'accept',
@@ -367,7 +368,7 @@ test('issue39 AC-06 agent annotations retain model/prompt attribution and never 
     && item.promptVersion === 'synthetic-prompt/1' && item.status === 'pending'));
 });
 
-test('issue39 AC-06 conflicting annotation ID imports fail atomically', async t => {
+privateStoreTest('issue39 AC-06 conflicting annotation ID imports fail atomically', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const template = enrichmentTemplate(await readJson(corpusFile));
@@ -412,7 +413,7 @@ test('issue39 AC-06 missing revision links, unavailable evidence, duplicate IDs,
   }
 });
 
-test('issue39 AC-06 tampered sidecar status and busy intake locks do not publish or alter private records', async t => {
+privateStoreTest('issue39 AC-06 tampered sidecar status and busy intake locks do not publish or alter private records', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = await writeTemplate(directory, enrichmentTemplate(await readJson(corpusFile)));
@@ -431,7 +432,7 @@ test('issue39 AC-06 tampered sidecar status and busy intake locks do not publish
   assert.equal(await readFile(corpusFile, 'utf8'), original);
 });
 
-test('issue39 AC-06 strict annotation and byte limits and CLI argument validation', async t => {
+privateStoreTest('issue39 AC-06 strict annotation and byte limits and CLI argument validation', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const corpus = await readJson(corpusFile);
@@ -451,7 +452,7 @@ test('issue39 AC-06 strict annotation and byte limits and CLI argument validatio
   }
 });
 
-test('issue39 AC-06 private path boundaries reject public files, links, unsafe output, and symlinked enrichment', async t => {
+privateStoreTest('issue39 AC-06 private path boundaries reject public files, links, unsafe output, and symlinked enrichment', async t => {
   const { directory, corpusFile } = await makeStore();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const template = enrichmentTemplate(await readJson(corpusFile));

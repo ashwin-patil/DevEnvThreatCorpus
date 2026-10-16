@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-10-15 — Explicit light/dark workbench themes (#79 scope extension)
+
+- Default first visits to light independently of the system preference; add a
+  keyboard-accessible header toggle and remember explicit choices per browser
+  origin. Restore preferences before styles load without inline scripts or CSP
+  changes. Report invalid preferences and storage failures visibly while keeping
+  page-local switching available.
+- Use a compact icon-only sun/moon header control with an outlined active segment,
+  a stable screen-reader name, action tooltip and native keyboard activation;
+  retain a minimum 44px control height for coarse-pointer touch input.
+- Replace fixed component backgrounds and semantic badge colors with light/dark
+  tokens so selected records, evidence quotes/highlights, status panels, behavior
+  groups, graph labels and controls remain readable. Preserve the visual identity,
+  add a dark wordmark and improve light wordmark/accent contrast.
+- Keep theme changes independent of corpus loading, navigation, filters and
+  in-memory drafts. Add exact contrast, startup, persistence and storage-failure
+  regressions to the existing workbench suite, and allowlist both new runtime
+  assets in the preview server. Independent human UX/accessibility approval is
+  still required.
+
+## 2026-10-15 — Windows public preview and portable verification (#79)
+
+- Support the data-free public preview on native Windows while rejecting private
+  `--corpus` and `--store` server modes with an explicit POSIX-storage diagnostic
+  before storage access. Preserve loopback binding, Host/Origin guards and all
+  private filesystem permission/link checks.
+- Replace affected test filesystem URL pathname conversions with `fileURLToPath`.
+  Keep schema, model, proposal and export-projection checks portable; explicitly
+  report private-store and Linux lifecycle execution tests as unsupported-platform
+  skips on Windows. Retain the corresponding Linux coverage and split mixed tests
+  so portable assertions continue to execute.
+- Add public-draft/demo loader checks from a working directory containing spaces,
+  `#` and `%`, Windows private-mode rejection regressions, and a separate pinned-runtime
+  Windows CI job without changing the existing Linux check name or PR Policy.
+  Document PowerShell startup, WSL2 Linux-filesystem placement and platform evidence
+  limits; this does not implement native Windows ACLs or establish human UX approval.
+
 ## 2026-10-15 — Planning and historical asset relocation (#77)
 
 - Remove exactly seven superseded documents and 15 design/evidence assets after

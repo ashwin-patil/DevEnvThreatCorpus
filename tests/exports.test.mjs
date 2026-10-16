@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { privateStoreTest } from './platform.mjs';
 import { spawnSync } from 'node:child_process';
 import {
   canonicalSerialize, parseCsv, profileFiles, profileRecords, queryProfile, reviewBaseDigest, sha256, validateCorpus,
@@ -82,12 +83,7 @@ test('AP-02/08 standalone shared behavior exports project every claim and occurr
   assert.equal(canonicalSerialize(corpus), before);
 });
 
-async function setup(t, { accepted = false, optional = false, standalone = false } = {}) {
-  const privateRoot = path.join(root, '.private-intake');
-  await mkdir(privateRoot, { recursive: true, mode: 0o700 });
-  const directory = await mkdtemp(path.join(privateRoot, 'exports-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  const corpusFile = path.join(directory, 'corpus.json');
+async function exportFixture({ accepted = false, optional = false, standalone = false } = {}) {
   const corpus = JSON.parse(await readFile(fixture, 'utf8'));
   if (optional) {
     corpus.behaviors = [{
@@ -199,12 +195,11 @@ async function setup(t, { accepted = false, optional = false, standalone = false
     }
     assert.deepEqual(validateCorpus(corpus), []);
   }
-  await writeFile(corpusFile, canonicalSerialize(corpus), { mode: 0o600 });
-  return { directory, corpusFile, corpus };
+  return corpus;
 }
 
-test('Issue #24 AC-01/05 reviewed zero-eligible profile is deterministic and excludes private snapshots', async t => {
-  const { corpus } = await setup(t);
+test('Issue #24 AC-01/05 reviewed zero-eligible profile is deterministic and excludes private snapshots', async () => {
+  const corpus = await exportFixture();
   const snapshot = profileRecords(corpus);
   const firstFiles = profileFiles(snapshot), secondFiles = profileFiles(profileRecords(corpus));
   assert.equal(snapshot.snapshotDigest, profileRecords(corpus).snapshotDigest);
@@ -221,8 +216,8 @@ test('Issue #24 AC-01/05 reviewed zero-eligible profile is deterministic and exc
   for (const [name, hash] of Object.entries(manifest.files)) assert.equal(hash, sha256(firstFiles[name]));
 });
 
-test('Issue #24 AC-01/03/04 reviewed profile and bundle retain accepted closure and applicable optional context', async t => {
-  const { corpus } = await setup(t, { accepted: true, optional: true });
+test('Issue #24 AC-01/03/04 reviewed profile and bundle retain accepted closure and applicable optional context', async () => {
+  const corpus = await exportFixture({ accepted: true, optional: true });
   const snapshot = profileRecords(corpus);
   const listed = queryProfile(snapshot, 'list', { entity: 'claims' });
   assert.deepEqual(snapshot.coverage.units, { cases: 1, sources: 2, claims: 2 });
@@ -249,8 +244,8 @@ test('Issue #24 AC-01/03/04 reviewed profile and bundle retain accepted closure 
   assert.doesNotMatch(files['records.jsonl'], /A tool was used in a benign exercise\./);
 });
 
-test('Issue #45 standalone behaviors retain exact support and complete case-scoped enrichment closure', async t => {
-  const { corpus } = await setup(t, { accepted: true, standalone: true });
+test('Issue #45 standalone behaviors retain exact support and complete case-scoped enrichment closure', async () => {
+  const corpus = await exportFixture({ accepted: true, standalone: true });
   const reviewed = profileRecords(corpus);
   const draft = profileRecords(corpus, 'draft');
   const reviewedIds = new Set(reviewed.records.map(record => `${record.entityType}:${record.entity.id}`));
@@ -303,8 +298,8 @@ test('Issue #45 standalone behaviors retain exact support and complete case-scop
   assert.ok(!otherIds.has('behaviors:standalone-behavior-a'));
 });
 
-test('Issue #45 case bundles close every selected source revision reference', async t => {
-  const { corpus } = await setup(t);
+test('Issue #45 case bundles close every selected source revision reference', async () => {
+  const corpus = await exportFixture();
   const latestRevision = structuredClone(
     corpus.sourceRevisions.find(revision => revision.id === 'synthetic-revision-a'),
   );
@@ -337,8 +332,8 @@ test('Issue #45 case bundles close every selected source revision reference', as
   }
 });
 
-test('Issue #24 AC-02 CSV preserves null reasons, labels, date precision, and safe formula-like values', async t => {
-  const { corpus } = await setup(t);
+test('Issue #24 AC-02 CSV preserves null reasons, labels, date precision, and safe formula-like values', async () => {
+  const corpus = await exportFixture();
   corpus.cases[0].name = '=SUM(1,1)';
   corpus.cases[0].summary = 'Line 1, "quoted"\nline 2';
   const files = profileFiles(profileRecords(corpus, 'draft'));
@@ -362,8 +357,8 @@ test('Issue #24 AC-02 CSV preserves null reasons, labels, date precision, and sa
   assert.match(files['cases.csv'], /"'=SUM\(1,1\)"/);
 });
 
-test('Issue #24 AC-01/03 unsupported versions and unknown entity IDs fail explicitly', async t => {
-  const { corpus } = await setup(t);
+test('Issue #24 AC-01/03 unsupported versions and unknown entity IDs fail explicitly', async () => {
+  const corpus = await exportFixture();
   assert.throws(() => profileRecords({ ...corpus, schemaVersion: '1.0.0' }), /unsupported schema version/);
   const dangling = structuredClone(corpus);
   dangling.claims[0].sourceId = 'missing-source';
@@ -372,14 +367,14 @@ test('Issue #24 AC-01/03 unsupported versions and unknown entity IDs fail explic
   assert.throws(() => queryProfile(profileRecords(corpus), 'list', { entity: 'telemetry' }), /entity must be/);
 });
 
-test('Issue #24 AC-04 stale decisions and missing conflict dependency never enter reviewed profile', async t => {
-  const { corpus: stale } = await setup(t, { accepted: true });
+test('Issue #24 AC-04 stale decisions and missing conflict dependency never enter reviewed profile', async () => {
+  const stale = await exportFixture({ accepted: true });
   stale.claims.find(item => item.id === 'synthetic-claim-a').description = 'Changed synthetic claim; prior decision is stale.';
   const staleProfile = profileRecords(stale);
   assert.deepEqual(staleProfile.coverage.units, { cases: 0, sources: 0, claims: 0 });
   assert.equal(staleProfile.coverage.reviewCoverage.claims.staleAcceptance, 2);
 
-  const { corpus: excluded } = await setup(t, { accepted: true });
+  const excluded = await exportFixture({ accepted: true });
   applyReview(excluded, {
     schemaVersion: 'manual-review/1',
     claimId: 'synthetic-claim-b',
@@ -390,10 +385,13 @@ test('Issue #24 AC-04 stale decisions and missing conflict dependency never ente
   assert.deepEqual(profileRecords(excluded).coverage.units, { cases: 0, sources: 0, claims: 0 });
 });
 
-test('Issue #24 AC-01/03 CLI writes deterministic allowlisted profiles and fails closed', {
-  skip: process.platform === 'win32' ? 'existing private corpus mode checks require POSIX permissions' : false,
-}, async t => {
-  const { directory, corpusFile } = await setup(t);
+privateStoreTest('Issue #24 AC-01/03 CLI writes deterministic allowlisted profiles and fails closed', async t => {
+  const privateRoot = path.join(root, '.private-intake');
+  await mkdir(privateRoot, { recursive: true, mode: 0o700 });
+  const directory = await mkdtemp(path.join(privateRoot, 'exports-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const corpusFile = path.join(directory, 'corpus.json');
+  await writeFile(corpusFile, canonicalSerialize(await exportFixture()), { mode: 0o600 });
   const first = path.join(directory, 'reviewed-a'), second = path.join(directory, 'reviewed-b');
   const one = run(['export', '--file', corpusFile, '--profile', 'reviewed', '--out', first]);
   const two = run(['export', '--file', corpusFile, '--profile', 'reviewed', '--out', second]);
