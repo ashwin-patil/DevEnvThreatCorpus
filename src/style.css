@@ -59,3 +59,11 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}input{acce
 @media(max-width:700px){.campaign-phase-controls{gap:5px}.campaign-phase-button{max-width:100%;overflow-wrap:anywhere}.behavior-tile-grid,.chain-tile-grid{grid-template-columns:minmax(0,1fr)}}
 .campaign-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}.campaign-summary-citations{margin:8px 0}.behavior-action-list{display:flex;flex-wrap:wrap;align-items:center;gap:1px 4px;margin-top:6px}.behavior-action-link.chip{margin:0;padding:2px 4px;border-color:transparent;background:transparent;font-size:12px;line-height:1.35}.behavior-action-link.chip:hover{border-color:var(--divider);background:var(--soft)}.behavior-category{padding:7px 10px;margin:6px 0}.behavior-category>details>summary,.behavior-category>summary{padding:2px 0}.campaign-prompt-context{margin:4px 0}
 .behavior-group .behavior-tile-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:3px 6px}.behavior-group .behavior-tile{padding:4px 6px;border:0;border-radius:3px;background:transparent}.behavior-group .behavior-tile>p{margin:2px 0}.behavior-group .behavior-tile .chip{margin:0;padding:1px 3px;border-color:transparent;background:transparent;font-size:11px}.behavior-group .behavior-tile .chip:hover{border-color:var(--divider);background:var(--soft)}
+/* Review content is untrusted text, including prompt literals. */
+.review-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+.review-page label { display: block; margin-block: .6rem; }
+.review-page input:not([type="checkbox"]), .review-page textarea, .review-page select { max-width: 100%; }
+.review-page textarea { width: 100%; min-height: 5rem; }
+.review-page .workspace > * { min-width: 0; }
+.review-progress { border-block-start: 1px solid var(--divider); margin-block: 1rem; padding-block: .5rem; }
+.review-page textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--control-border); }

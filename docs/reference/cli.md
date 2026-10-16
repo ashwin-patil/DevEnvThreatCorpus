@@ -192,6 +192,24 @@ is not that evaluation or evidence of extraction quality.
 
 ## Manual claim review
 
+Compatibility note for issue #81: `manual-review/1` remains a legacy audit
+interface, but these events alone no longer qualify a reviewed export. Use the
+Workbench **Review** page and its [guide](../researcher-review-guide.md), or inspect
+the `itemReview` object now included in `status`. For an item template, supply
+`snapshot`, `itemKey`, `action`, `selfAttested: true`, `guideVersion:
+"researcher-review/1"` and rationale; Accept additionally supplies `checks` with
+`evidence`, `fidelity`, `scope` and `type`, each `{ "result": "pass" }` only after
+the human personally checks it. A documented non-applicability uses
+`{ "result": "not-applicable", "reason": "..." }`. Run the same `decide --template
+... --store ... --reviewer ...` command; the reviewer flag supplies the identifier.
+Modify uses an allowlisted `patch` or `researcherTags`, Exclude uses
+`exclusionReason` and optional `replacementKeys`, and Unsure requires rationale.
+Provenance correction uses `action: "provenance"`, `contentOrigin`,
+`labelAuthorship` and `provenanceEvidence` plus rationale. Every action is a
+separate snapshot-bound write. `validate` retains its legacy claim-only output;
+use `status.itemReview` for full current eligibility. File-only status/exports
+cannot load private sidecars; the Workbench API includes them.
+
 First inspect current state:
 
 ```sh

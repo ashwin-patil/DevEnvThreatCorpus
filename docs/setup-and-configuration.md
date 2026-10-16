@@ -198,6 +198,34 @@ The configured workbench and server Node tests join the existing
 application commands in `python scripts/verify.py`; independent human UX and
 documentation relevance review is still necessary.
 
+### Private item-level HITL review
+
+In `--store` mode, open **Review** after loading the private corpus. No install,
+new dependency, provider, authentication or network call is needed for review.
+Keep one active self-attested reviewer. `GET /api/review` returns revision-bound
+items/progress and `POST /api/review` writes one explicit decision using the existing
+private transaction/lock and a current snapshot. A stale tab/write returns 409;
+reload and inspect again, never blindly replay acceptance. The server keeps the
+same Host/Origin/Fetch-Metadata/CSP boundary and request-size/time limits.
+No-store, public draft, synthetic demo and `--corpus` views cannot persist decisions.
+
+Use the [versioned guide](researcher-review-guide.md) embedded in the item panel.
+Required common/type checks start unchecked. Navigation and Next item do not decide.
+Review filters and selection persist separately from decisions; browser storage
+failure is reported, while durable decisions remain in the private corpus.
+Do not use browser storage as a backup. Preserve `corpus.json`, source archives,
+sidecars and request/candidate files with their permissions for a private backup.
+
+Compatibility: reviewed CLI exports now require item-level acceptance and no
+longer include pending enrichments or unaccepted summary content. Legacy claim
+decisions remain readable and auditable but need explicit checklist-based re-review.
+Reviewed output strips retained bodies/passages and annotation content. The local
+`/api/review/export` projection includes accepted sidecar annotation metadata;
+file-based CLI exports cannot discover sidecars. Private campaign/talk draft
+exports retain their existing private-content warnings. Neither route publishes.
+The configured review suite includes the synthetic HITL tests; these executed
+application checks do not establish human semantic/UX/accessibility approval.
+
 ### Explicit workbench themes
 
 `src/theme.js` is an allowlisted same-origin classic script loaded before the

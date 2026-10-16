@@ -80,8 +80,40 @@ and limits; the process does not imply completed research acceptance.
   supply text/files; collection is not claim acceptance.
 - Draft claims manually or use an explicit request/chat/candidate handoff.
   The repository does not call a runtime model or automatically approve output.
-- Record local human claim decisions and produce reproducible reviewed/draft
+- Record local item-level human decisions and produce reproducible reviewed/draft
   exports with read-only queries, subject to current eligibility checks.
+
+### Private local review
+
+Start `node scripts/server.mjs --store /absolute/private/store` on POSIX (store
+directory `0700`, `corpus.json` `0600`; inside this clone use ignored
+`.private-intake/`). Open **Review**, select a campaign and inspect items grouped
+by blog or artifact category. Both views use the same stable items and decisions.
+Use the [versioned researcher guide](docs/researcher-review-guide.md): personally
+complete the checks, self-attest your reviewer identifier and decide one item.
+Modify never accepts; Exclude retains provenance/history; Unsure records a reason,
+while Next item only navigates. Navigation/filter selection resumes in this browser.
+
+Claims, behavior definitions/occurrences, annotations (including prompt/tool usage),
+categories, timelines, summaries, path nodes/edges, mappings and proposals require
+their own approval. Supporting changes block affected approvals without approving
+anything downstream. Content origin, label authorship and human review are shown
+separately. Cards show denominators for extraction, populated labels, current
+human review and eligibility—not a quality score.
+
+**Compatibility:** `--profile reviewed` now requires current item-level HITL
+acceptance for every reviewable record; legacy `manual-review/1` claim acceptance
+and pending optional enrichment no longer qualify. Re-review through this page.
+`GET /api/review/export` downloads a reviewed JSON projection including accepted
+private sidecar annotation metadata; CLI `review.mjs status` adds `itemReview`,
+and `decide` also accepts item templates using its snapshot and guide version.
+File-based CLI exports cannot discover sidecars and withhold those annotations.
+Reviewed outputs omit article bodies, passage quotations and annotation content;
+they are projections, not importable private audit backups. Existing draft and
+private campaign/talk exports keep their explicit private-draft semantics.
+No button publishes; the bundled Nx/s1ngularity preview snapshot is unchanged.
+Independent human semantic, UX/accessibility and documentation review is still
+required before merge; this feature does not establish campaign acceptance.
 
 <a id="project-status-and-next-work"></a>
 ## What the examples mean

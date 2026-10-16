@@ -1,4 +1,4 @@
-export const VIEWS = { cases: 'Case library', sources: 'Research library', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
+export const VIEWS = { cases: 'Case library', sources: 'Research library', review: 'Review', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
 import { publisherDisplay } from './research-inventory.mjs';
 export const FACETS = ['cases', 'sources', 'publishers', 'tags', 'disposition'];
 export const COMPARISON_DIMENSIONS = {

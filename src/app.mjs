@@ -4,6 +4,7 @@ import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, 
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
 import { publicDraftModel } from './public-profile.mjs';
 import { articleCoverage, publisherDisplay } from './research-inventory.mjs';
+import { renderReview, reviewWindowNavigation } from './review-ui.mjs';
 export const PUBLIC_DRAFT_URL = new URL('./data/nx-draft.json', import.meta.url).href;
 
 export async function fetchCorpus(fetcher, endpoint) {
@@ -26,6 +27,13 @@ export async function fetchCorpus(fetcher, endpoint) {
   model.annotations = [];
   model.campaignStatus = {};
   if (model.collectionEnabled) {
+    try {
+      const response = await fetcher('/api/review', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Unavailable review');
+      const state = await response.json();
+      if (state.schemaVersion !== 'local-hitl/1' || !Array.isArray(state.units)) throw new Error('Invalid review');
+      model.itemReview = state;
+    } catch { model.reviewError = 'Private review could not be loaded. No acceptance or progress is inferred; reload before deciding.'; }
     try {
       const annotations = await fetcher('/api/enrichment', { cache: 'no-store' });
       if (!annotations.ok) throw new Error('Unavailable enrichment');
@@ -52,6 +60,30 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   const $ = id => doc.getElementById(id);
   let model = null, filters = {}, route = parseRoute(win.location.hash), activePassages = [], request = 0;
   let studio = null;
+  let reviewNav = reviewWindowNavigation(win);
+  function changeReview(update) {
+    reviewNav = { ...reviewNav, ...update };
+    const saved = reviewWindowNavigation(win, reviewNav);
+    if (saved.notice) reviewNav.notice = saved.notice;
+    render();
+  }
+  function openReview(caseId, sourceId = '', filter = 'All') {
+    reviewNav = { caseId, sourceId, filter, group: 'blog', itemKey: '', type: '' };
+    reviewWindowNavigation(win, reviewNav);
+    navigate('review', caseId);
+  }
+  async function decideReview(input) {
+    reviewNav.itemKey = input.itemKey;
+    reviewWindowNavigation(win, reviewNav);
+    const response = await fetcher('/api/review', { method: 'POST', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(`Review not saved (${result.code ?? response.status}); reload before explicit retry. Your entered values remain here.`);
+    try { model = await fetchCorpus(fetcher, '/api/corpus'); }
+    catch { throw new Error('Decision saved, but refresh failed. Reload before making another decision; do not resubmit blindly.'); }
+    studio.base = model.corpus;
+    render();
+  }
   let pathContext = null;
   const pathCase = () => model?.corpus.paths?.find(p => p.id === pathContext?.pathId)?.caseId;
   function savedFilters(value, caseId) {
@@ -254,7 +286,19 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       filters = structuredClone(context.filters); $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
       relatedNavigate('paths', context.pathId, context.entityId);
     }));
-    $('toolbar').hidden = ['method', 'studio'].includes(route.view);
+    $('toolbar').hidden = ['method', 'studio', 'review'].includes(route.view);
+    if (route.view === 'review') {
+      $('result').textContent = 'Private item-level review · no bulk approval or publication';
+      const nav = { ...reviewNav, caseId: route.id || reviewNav.caseId };
+      $('content').append(renderReview(doc, model, model.itemReview, nav, {
+        change: update => {
+          if (update.caseId) route.id = update.caseId;
+          win.history.replaceState(null, '', routeHash('review', route.id));
+          changeReview(update);
+        }, decide: decideReview, navigate,
+      }));
+      return;
+    }
     if (route.view === 'studio') {
       $('result').textContent = 'Private curator drafts · no canonical writes or approval';
       if (route.id && (studio.sourceId !== route.id || studio.revisionId !== route.revisionId)) {
@@ -321,10 +365,10 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         action(doc, `Return to ${VIEWS[route.view]}`, () => navigate(route.view))); return;
     }
     if (route.view === 'cases' && !route.id) {
-      $('content').append(renderCaseLibrary(doc, model, records, navigate, filters)); return;
+      $('content').append(renderCaseLibrary(doc, model, records, navigate, filters, openReview)); return;
     }
     if (route.view === 'sources' && !route.id) {
-      $('content').append(renderResearchLibrary(doc, model, records, navigate, filters)); return;
+      $('content').append(renderResearchLibrary(doc, model, records, navigate, filters, openReview)); return;
     }
     const workspace = element(doc, 'div', null, 'workspace'), list = element(doc, 'aside', null, 'record-list');
     list.setAttribute('aria-label', `Matching ${route.view}`);

@@ -9,11 +9,21 @@ import {
   canonicalSerialize, parseCsv, profileFiles, profileRecords, queryProfile, reviewBaseDigest, sha256, validateCorpus,
 } from '../scripts/contract.mjs';
 import { applyReview } from '../scripts/review.mjs';
+import { applyItemReview, reviewSnapshot } from '../src/hitl.mjs';
+import { GUIDE_VERSION, checksFor } from '../src/review-guide.mjs';
 import { createModel } from '../src/model.mjs';
 import { talkBundle, talkMarkdown } from '../src/explore.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixture = new URL('./fixtures/benign/core-only.json', import.meta.url);
+function acceptItem(corpus, itemKey, action = 'accept') {
+  const type = itemKey.split(':')[0];
+  applyItemReview(corpus, { itemKey, action, snapshot: reviewSnapshot(corpus).snapshot,
+    reviewer: 'synthetic-human-reviewer', selfAttested: true, guideVersion: GUIDE_VERSION,
+    rationale: 'Synthetic offline export fixture; not a research decision.',
+    ...(action === 'accept' ? { checks: Object.fromEntries(Object.keys(checksFor(type)).map(k => [k, { result: 'pass' }])) } :
+      { exclusionReason: 'outside scope' }) });
+}
 const run = args => {
   const child = spawnSync(process.execPath, [path.join(root, 'scripts/contract.mjs'), ...args], { encoding: 'utf8' });
   assert.equal(child.error, undefined);
@@ -89,6 +99,7 @@ async function exportFixture({ accepted = false, optional = false, standalone = 
     corpus.behaviors = [{
       id: 'synthetic-behavior-a', namespace: 'synthetic', name: 'Synthetic behavior',
       boundary: 'No real behavior or incident.', description: 'Optional synthetic enrichment fixture.',
+      claimIds: ['synthetic-claim-a'], caseId: 'synthetic-case-a',
       signalIds: [], detectionIds: [], otelIds: [], origin: 'Human authored', disposition: 'Pending',
     }];
     corpus.paths = [{
@@ -185,13 +196,15 @@ async function exportFixture({ accepted = false, optional = false, standalone = 
   }
   if (accepted) {
     for (const claimId of ['synthetic-claim-a', 'synthetic-claim-b']) {
-      applyReview(corpus, {
-        schemaVersion: 'manual-review/1',
-        claimId,
-        action: 'accept',
-        baseDigest: reviewBaseDigest(corpus),
-        rationale: 'Synthetic offline export fixture; not a research decision.',
-      }, 'synthetic-human-reviewer');
+      acceptItem(corpus, `claims:${claimId}`);
+    }
+    acceptItem(corpus, 'cases:synthetic-case-a');
+    // Explicit synthetic decisions replace the old automatic optional-enrichment inclusion.
+    for (;;) {
+      const next = reviewSnapshot(corpus).units.find(u => u.caseIds.includes('synthetic-case-a') &&
+        u.type !== 'claims' && !u.eligible && !u.blockers.length && u.labels.state === 'complete');
+      if (!next) break;
+      acceptItem(corpus, next.itemKey);
     }
     assert.deepEqual(validateCorpus(corpus), []);
   }
@@ -234,7 +247,7 @@ test('Issue #24 AC-01/03/04 reviewed profile and bundle retain accepted closure 
   }
   assert.ok(bundle.records.every(record => !record.entity.rawContent && !record.entity.normalizedContent));
   assert.ok(bundle.records.some(record => record.entityType === 'paths'));
-  assert.ok(bundle.records.some(record => record.entityType === 'behaviors' && record.warnings.some(warning => warning.includes('Optional enrichment'))));
+  assert.ok(bundle.records.some(record => record.entityType === 'behaviors' && record.reviewStatus.currentAcceptance));
   assert.equal(bundle.digest, snapshot.snapshotDigest);
   const files = profileFiles(snapshot);
   const jsonLines = files['records.jsonl'].trimEnd().split('\n').map(line => JSON.parse(line));
@@ -375,14 +388,9 @@ test('Issue #24 AC-04 stale decisions and missing conflict dependency never ente
   assert.equal(staleProfile.coverage.reviewCoverage.claims.staleAcceptance, 2);
 
   const excluded = await exportFixture({ accepted: true });
-  applyReview(excluded, {
-    schemaVersion: 'manual-review/1',
-    claimId: 'synthetic-claim-b',
-    action: 'exclude',
-    baseDigest: reviewBaseDigest(excluded),
-    rationale: 'Synthetic exclusion fixture; not a research decision.',
-  }, 'synthetic-human-reviewer');
-  assert.deepEqual(profileRecords(excluded).coverage.units, { cases: 0, sources: 0, claims: 0 });
+  acceptItem(excluded, 'claims:synthetic-claim-b', 'exclude');
+  assert.deepEqual(profileRecords(excluded).coverage.units, { cases: 0, sources: 1, claims: 1 });
+  assert.equal(profileRecords(excluded).records.find(r => r.entityType === 'claims').entity.conflictsWithheld, true);
 });
 
 privateStoreTest('Issue #24 AC-01/03 CLI writes deterministic allowlisted profiles and fails closed', async t => {

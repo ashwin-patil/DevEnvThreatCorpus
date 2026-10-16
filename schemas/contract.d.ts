@@ -98,7 +98,22 @@ export interface OtelAction {
 }
 export interface Governance {
   controlledAliases?: Record<string, string[]>;
+  localReview?: { schemaVersion: 'local-hitl/1'; events: ItemReviewEvent[] };
   [extension: string]: unknown;
+}
+export type ItemReviewType = ReviewEntityType | 'behaviors' | 'occurrences' | 'paths' | 'nodes' | 'edges'
+  | 'mappings' | 'telemetry' | 'detections' | 'otel' | 'annotations';
+export interface ItemReviewEvent {
+  id: ID; itemKey: string; action: 'accept' | 'modify' | 'exclude' | 'unsure' | 'provenance';
+  reviewer: string; reviewerKind: 'self-attested-human'; timestamp: string; rationale: string;
+  guideVersion: string; binding: SHA256; originalHash: SHA256; original: Record<string, unknown>;
+  supportBindings: Record<string, { revision: SHA256; decisionId: ID | null; state: string }>;
+  contentOrigin: string; labelAuthorship: string; sourceIds: ID[]; claimIds: ID[];
+  runMetadata: Record<string, unknown>[]; previous: SHA256 | null; eventHash: SHA256;
+  checks?: Record<'evidence' | 'fidelity' | 'scope' | 'type', { result: 'pass' | 'not-applicable'; reason?: string }>;
+  patch?: Record<string, unknown>; researcherTags?: string[]; labelEdited?: boolean;
+  provenanceEvidence?: string; previousOrigin?: string; previousLabelAuthorship?: string;
+  exclusionReason?: string; replacementKeys?: string[];
 }
 export interface Corpus {
   schemaVersion: '0.3.0'; name: string; sources: Source[]; sourceRevisions: SourceRevision[]; passages: Passage[]; cases: Case[]; claims: Claim[];

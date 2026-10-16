@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { runItemReview, reviewSnapshot } from '../src/hitl.mjs';
 import {
   assertValid, dependencyHashes, entityContentHash, readPrivateTemplate, reviewBaseDigest,
   reviewEligibleCorpus, updatePrivateCorpus, validateCorpus, validatePrivateCorpus, validateShape,
@@ -85,6 +86,7 @@ export async function runReview({ templateFile, store, reviewer }) {
     let decision;
     try { decision = JSON.parse(await readPrivateTemplate(templateFile)); }
     catch (error) { if (error.code) throw error; throw fail('INVALID_REVIEW'); }
+    if (decision?.itemKey) return runItemReview(store, { ...decision, reviewer });
     return await updatePrivateCorpus(store, corpus => applyReview(corpus, decision, reviewer), { reviewAware: true });
   } catch (error) {
     return { status: 'failed', code: error.code ?? 'INVALID_REVIEW' };
@@ -96,6 +98,7 @@ export async function reviewStatus(file) {
   const eligible = reviewEligibleCorpus(corpus);
   return {
     status: 'succeeded', baseDigest: reviewBaseDigest(corpus),
+    itemReview: reviewSnapshot(corpus),
     claims: corpus.claims.map(claim => {
       const disposition = eligible.claims.find(item => item.id === claim.id).disposition;
       return {

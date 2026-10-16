@@ -11,6 +11,7 @@ import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';
 import { Readable } from 'node:stream';
 import { ARTICLE_PARSER_VERSION, parseArticle, PUBLISHERS } from '../src/article.mjs';
 import { canonicalArticleUrl, sourceInventory } from '../src/research-inventory.mjs';
+import { reviewedProfile, assertReviewHistory } from '../src/hitl.mjs';
 export { PUBLISHERS };
 
 export const schema = JSON.parse(readFileSync(new URL('../schemas/corpus.schema.json', import.meta.url), 'utf8'));
@@ -291,6 +292,7 @@ function behaviorCaseIds(behavior) {
 export function profileRecords(input, profile = 'reviewed') {
   if (!['reviewed', 'draft'].includes(profile)) throw new Error('profile must be reviewed or draft');
   if (input?.schemaVersion !== CONTRACT_VERSION) throw new Error(`unsupported schema version ${JSON.stringify(input?.schemaVersion)}; expected ${CONTRACT_VERSION}`);
+  if (profile === 'reviewed') return reviewedProfile(input);
 
   const corpus = reviewEligibleCorpus(input);
   assertValid(corpus);
@@ -1600,8 +1602,10 @@ export function assertAppendOnlyReviews(previous, next) {
       }
       const corpus = await validatePrivateCorpus(store.file, { reviewAware });
       const previousReviews = structuredClone(corpus.reviews);
+      const previousItemReviews = structuredClone(corpus.governance.localReview);
       result = await update(corpus);
       assertAppendOnlyReviews(previousReviews, corpus.reviews);
+      assertReviewHistory(previousItemReviews, corpus.governance.localReview);
       await persist(store, corpus);
     } catch (error) {
       failure = { status: 'failed', code: safeCode(error), ...(error?.errors ? { errors: error.errors } : {}) };

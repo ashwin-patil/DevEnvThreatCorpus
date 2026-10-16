@@ -5,6 +5,7 @@ import path from 'node:path';
 import { assertValid, canonicalSerialize, validatePrivateCorpus, collectBatch, readArchiveArtifact, reviewEligibleCorpus } from './contract.mjs';
 import { readEnrichmentSnapshot } from '../src/enrichment.mjs';
 import { runCampaign, campaignAnnotations, campaignStatus, campaignExport } from '../src/campaign.mjs';
+import { reviewSnapshot, runItemReview, progressSummary, reviewedProfile } from '../src/hitl.mjs';
 
 export const WEB_INTAKE_LIMITS = Object.freeze({ bodyBytes: 192 * 1024, bodyTimeoutMs: 10_000, urls: 20 });
 export const CAMPAIGN_LIMITS = Object.freeze({ itemBytes: 2 * 1024 * 1024, bodyBytes: 4 * 1024 * 1024 + 64 * 1024 });
@@ -120,6 +121,9 @@ const assets = new Map([
   ['/src/research-inventory.mjs', ['src/research-inventory.mjs', 'text/javascript']],
   ['/src/ai-library.mjs', ['src/ai-library.mjs', 'text/javascript']],
   ['/src/public-profile.mjs', ['src/public-profile.mjs', 'text/javascript']],
+  ['/src/review-ui.mjs', ['src/review-ui.mjs', 'text/javascript']],
+  ['/src/review-guide.mjs', ['src/review-guide.mjs', 'text/javascript']],
+  ['/docs/researcher-review-guide.md', ['docs/researcher-review-guide.md', 'text/plain']],
   ['/src/data/nx-draft.json', ['src/data/nx-draft.json', 'application/json']],
   ['/docs/assets/logo.svg', ['docs/assets/logo.svg', 'image/svg+xml']],
   ['/docs/assets/logo-dark.svg', ['docs/assets/logo-dark.svg', 'image/svg+xml']],
@@ -248,7 +252,35 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
           message: error.status ? error.message : 'Campaign operation could not complete. Reload before explicit retry.' }), 'application/json');
       } finally { writing = false; }
     }
-    if (!['GET', 'HEAD'].includes(request.method)) return send(405, 'Collection requires --store and POST /api/intake; all other routes are read-only.');
+    if (request.method === 'POST' && request.url === '/api/review' && store) {
+      if (request.headers.origin !== `http://${request.headers.host}` ||
+        (request.headers['sec-fetch-site'] && request.headers['sec-fetch-site'] !== 'same-origin')) return send(403, 'Review requires the exact same origin.');
+      if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(request.headers['content-type'] ?? '') ||
+        request.headers['content-encoding']) return send(415, 'Expected uncompressed application/json.');
+      if (writing) return send(409, 'Another private-store operation is in progress.');
+      writing = true;
+      try {
+        const input = await intakeBody(request);
+        const result = await runItemReview(store, input);
+        return send(result.status === 'succeeded' ? 200 : ['STALE_REVIEW', 'STORE_BUSY'].includes(result.code) ? 409 : 400,
+          JSON.stringify(result), 'application/json');
+      } catch (error) { return send(error.status ?? 400, 'Review failed; reload before retrying.'); }
+      finally { writing = false; }
+    }
+    if (!['GET', 'HEAD'].includes(request.method)) return send(405, 'Writes require explicit private-store mode and a supported POST route.');
+    if (store && ['/api/review', '/api/review/export'].includes(request.url)) {
+      try {
+        const current = await currentCorpus();
+        const manual = await readEnrichmentSnapshot(store, current);
+        if (request.url === '/api/review/export') {
+          return send(200, canonicalSerialize(reviewedProfile(current, manual.annotations)), 'application/json');
+        }
+        const state = reviewSnapshot(current, manual.annotations);
+        const campaigns = Object.fromEntries(current.cases.map(c => [c.id, progressSummary(current, state, c.id)]));
+        const sources = Object.fromEntries(current.sources.map(s => [s.id, progressSummary(current, state, null, [s.id])]));
+        return send(200, canonicalSerialize({ ...state, campaigns, sources }), 'application/json');
+      } catch { return send(500, 'Private review state could not be validated. No decisions were changed.'); }
+    }
     if (store && request.url?.startsWith('/api/campaign/status')) {
       try {
         const url = new URL(request.url, `http://${request.headers.host}`);

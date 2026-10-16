@@ -383,7 +383,7 @@ test('private annotation reads fail visibly while preserving the loaded corpus a
   const loaded = await fetchCorpus(async endpoint => {
     requests.push(endpoint); return endpoint === '/api/enrichment' ? response(null, 500) : response(fresh(), 200, true);
   }, '/api/corpus');
-  assert.deepEqual(requests, ['/api/corpus', '/api/enrichment']);
+  assert.deepEqual(requests, ['/api/corpus', '/api/review', '/api/enrichment']);
   assert.equal(loaded.corpus.claims.length, fixture.claims.length); assert.deepEqual(loaded.annotations, []);
   assert.match(loaded.annotationError, /could not be loaded/);
   const demoRequests = [];
@@ -2056,11 +2056,11 @@ test('Issue #39 AC-01/02/05 studio fetch shows waiting and partial outcomes, ref
   assert.equal(button(content, 'Fetching articles').disabled, true);
   assert.equal(doc.getElementById('reload-corpus').disabled, true);
   await app.load('/api/demo');
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   release(); await collection;
-  assert.deepEqual(calls.map(item => item[0]), ['/api/corpus', '/api/enrichment', '/api/intake', '/api/corpus', '/api/enrichment']);
-  assert.equal(calls[2][1].method, 'POST');
-  assert.deepEqual(JSON.parse(calls[2][1].body), { urls: outcomes.results.map(item => item.url), operator: 'operator', caseId: 'synthetic-case-a' });
+  assert.deepEqual(calls.map(item => item[0]), ['/api/corpus', '/api/review', '/api/enrichment', '/api/intake', '/api/corpus', '/api/review', '/api/enrichment']);
+  assert.equal(calls[3][1].method, 'POST');
+  assert.deepEqual(JSON.parse(calls[3][1].body), { urls: outcomes.results.map(item => item.url), operator: 'operator', caseId: 'synthetic-case-a' });
   assert.match(content.textContent, /collected with image warnings.*OK/);
   assert.match(content.textContent, /Image denied: ACCESS_DENIED/);
   assert.match(content.textContent, /failed.*ACCESS_DENIED/);
