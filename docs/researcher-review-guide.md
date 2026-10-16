@@ -1,5 +1,73 @@
 # Researcher decision guide
 
+## Current guide: researcher-review/2
+
+Version **researcher-review/2** retains the exact evidence, fidelity, scope and
+type-specific checks printed below, but replaces four separate check inputs with
+one explicit human attestation. Historical v1 decisions and the original v1 guide
+below remain unchanged; a newer guide never upgrades an older decision.
+
+Set your reviewer identifier and self-attestation once per tab/session (editable
+at the top of Review). This is not authenticated identity. Session storage retains
+that identifier through reload, not in the navigation bookmark; each saved
+decision separately records identity, time, guide, item/evidence/support bindings.
+Coordinate one active human reviewer locally.
+
+Start with AI/coding tools, behaviors/occurrences or prompt literals, grouped by
+artifact category; blog grouping covers the same distinct records. Claims remain
+supporting evidence in the advanced/evidence queue, never deleted or bulk rejected.
+An actionable priority item deterministically has a supported category, an exact
+retained passage and no missing, cyclic, unresolved or mismatching required support.
+Pending supporting claims are visible in a short, explicit support-review step:
+review and accept each separately, then return to the candidate. No hidden support
+is approved by accepting a derived item. Exceptions remain visible in their queue.
+
+Read the candidate, literal/citation, usage/context and compact supporting claims.
+**Accept item — I confirm** is one explicit human action confirming:
+
+> I personally checked evidence, fidelity and scope. [Applicable category/type
+> rule.] Reported is not confirmed; attempted is not successful.
+
+For tools the rule is “The tool identity, extracted literal and usage are supported.”
+For prompts it is “The prompt literal is exact and its usage/context are supported.”
+Other types use their exact type-specific check below. This action records each
+applicable check as personally confirmed; no LLM suggestion completes a check.
+The collapsed guide lists the checks; documented non-applicability is contextual,
+requires a reason and cannot waive evidence or dependencies.
+
+Reject offers unsupported, inaccurate, duplicate, outside scope, misattributed
+or insufficient evidence; the choice itself supplies canonical rationale, optional
+prose adds detail. Other requires prose. Unsure also requires a reason. Navigation
+alone records nothing. Original candidates, LLM contributions and history remain.
+
+Modify reveals prefilled friendly fields: tool identity/usage; prompt literal,
+context/usage; behavior name/description/boundary. Save changes is **not** acceptance:
+inspect and explicitly accept afterward. A changed literal absent from its exact
+passage is flagged and blocked; exclude/regenerate instead of inventing grounding.
+After a decision the next actionable item is offered with confirmation and a
+previous-item/history link. Supporting-item review returns to its candidate.
+
+Priority progress shows separate per-type denominators and discloses hidden
+evidence, exceptions and deferred advanced records. N/A records are excluded from
+label denominators, not counted as labeled. Extraction unions retained segment
+identities across runs without double counting. Historical partial runs without
+identities provide only a conservative maximum lower bound, disclosed separately.
+
+Reviewed exports include minimal, explicitly **context-only** case identity rows
+when an accepted item needs its case but the summary is unreviewed. These rows have
+no summary and no acceptance. Case summaries never become claim prerequisites.
+Private views display effective edits/review state while original proposals remain
+inspectable in Review. The published preview is unchanged.
+
+Advanced mappings, timelines, summaries, path structures, telemetry/detection and
+instrumentation retain generic review/withholding but polished fast workflow and
+semantic acceptance are deferred. They remain Pending/withheld unless explicitly
+accepted with their own prerequisites. Human review is not operational validation.
+Independent researcher, documentation and keyboard/narrow-screen/accessibility
+review remain required before merge.
+
+## Historical guide: researcher-review/1 (immutable)
+
 Version: **researcher-review/1**. This version is immutable. Publish a new named
 version and retain this text and its checks when rules change; never reinterpret
 historical decisions with a newer guide. The Workbench embeds these exact checks.

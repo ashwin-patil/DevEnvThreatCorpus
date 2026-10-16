@@ -1,13 +1,16 @@
 import { element, action } from './render.mjs';
-import { GUIDE_VERSION, checksFor, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
+import { GUIDE_VERSION, checksFor, confirmationFor, priorityCategory, PRIORITY_LABELS, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
 
 export const REVIEW_FILTERS = ['All', 'Needs review', 'Accepted', 'Excluded', 'Unsure', 'Blocked/support changed'];
 const STORAGE_KEY = 'devenv-threat-corpus.review-navigation';
-export function reviewGroups(units, { caseId, sourceId = '', type = '', filter = 'All', group = 'blog' }) {
+export function reviewGroups(units, { caseId, sourceId = '', type = '', filter = 'All', group = 'category', queue = 'all', category = '' }) {
   const records = units.filter(u => u.caseIds.includes(caseId) && (!sourceId || u.sourceIds.includes(sourceId))
-    && (!type || u.type === type) && (filter === 'All' || u.state === filter));
+    && (!type || u.type === type) && (!category || priorityCategory(u) === category)
+    && (queue === 'priority' ? u.actionable : queue === 'exceptions' ? !!priorityCategory(u) && !u.actionable :
+      queue === 'evidence' ? u.type === 'claims' : true)
+    && (filter === 'All' || u.state === filter));
   const groups = new Map();
-  for (const unit of records) for (const key of group === 'category' ? [unit.type] : unit.sourceIds.length ? unit.sourceIds : ['Supporting records / no direct source']) {
+  for (const unit of records) for (const key of group === 'category' ? [PRIORITY_LABELS[priorityCategory(unit)] ?? unit.type] : unit.sourceIds.length ? unit.sourceIds : ['Supporting records / no direct source']) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(unit);
   }
@@ -15,29 +18,43 @@ export function reviewGroups(units, { caseId, sourceId = '', type = '', filter =
 }
 export function reviewNavigation(storage, update) {
   try {
-    if (update) { storage.setItem(STORAGE_KEY, JSON.stringify(update)); return { ...update }; }
-    const value = JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}');
-    return Object.fromEntries(['caseId', 'sourceId', 'type', 'filter', 'group', 'itemKey']
+    const value = update ?? JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}');
+    const safe = Object.fromEntries(['caseId', 'sourceId', 'type', 'filter', 'group', 'itemKey', 'queue', 'category', 'returnItemKey', 'mode']
       .filter(k => typeof value?.[k] === 'string').map(k => [k, value[k]]));
+    if (update) storage.setItem(STORAGE_KEY, JSON.stringify(safe));
+    return safe;
   } catch { return { notice: 'Review navigation could not be saved/restored. Decisions remain in private storage.' }; }
 }
 export function reviewWindowNavigation(win, update) {
   try { return reviewNavigation(win.localStorage, update); }
   catch { return { notice: 'Review navigation storage unavailable; decisions remain in private storage.' }; }
 }
+export function reviewSession(win, update) {
+  try {
+    const key = 'devenv-threat-corpus.review-session';
+    if (update) win.sessionStorage.setItem(key, JSON.stringify({ reviewer: update.reviewer, selfAttested: update.selfAttested }));
+    const value = update ?? JSON.parse(win.sessionStorage.getItem(key) ?? '{}');
+    return { reviewer: typeof value.reviewer === 'string' ? value.reviewer : '', selfAttested: value.selfAttested === true };
+  } catch { return { ...(update ?? { reviewer: '', selfAttested: false }), notice: 'Session identity could not be saved; it remains in memory until reload.' }; }
+}
 const ratio = (n, d) => d ? `${n}/${d}` : 'No eligible items / N/A';
 export function renderProgress(doc, summary, openQueue) {
   const root = element(doc, 'section', null, 'review-progress');
   const totals = (target, title, counts) => {
-    target.append(element(doc, 'p', `${title}: labels complete ${ratio(counts.labelsComplete, counts.total)} · current human review ${ratio(counts.reviewed, counts.total)} · release-ready ${ratio(counts.ready, counts.total)} stable review units.`));
+    target.append(element(doc, 'p', `${title}: labels complete ${ratio(counts.labelsComplete, counts.labelsApplicable)} (${counts.labelsNA ?? 0} N/A) · current human review ${ratio(counts.reviewed, counts.total)} · release-ready ${ratio(counts.ready, counts.total)} stable review units.`));
   };
-  totals(root, 'Review coverage', summary);
+  totals(root, 'Actionable priority artifacts', summary.priority ?? summary);
   const e = summary.extraction;
   root.append(element(doc, 'p', `Extraction ${ratio(e.completed, e.eligible)} eligible retained source segments; ${e.unavailable} unavailable source(s), ${e.unprocessed} unprocessed source(s). Not all incident facts.`),
-    element(doc, 'p', 'Labels populated ≠ approval. Accept + Exclude complete current review; Unsure/stale do not. Source counts overlap: do not sum. No quality score.', 'subtle'));
+    element(doc, 'p', `Hidden supporting claims: ${summary.hiddenEvidence ?? 0}; deferred advanced records: ${summary.deferred ?? 0}; priority exceptions: ${summary.exceptions ?? 0}. These are not approvals.`),
+    element(doc, 'p', 'Labels populated ≠ approval. N/A is excluded from label denominators. Accept + Exclude complete current review; Unsure/stale do not. Source counts overlap: do not sum. No quality score.', 'subtle'));
+  if (e.legacyUnlocated) root.append(element(doc, 'p', `${e.legacyUnlocated} source(s) have historical partial coverage without segment identities; completion is a conservative lower bound, not a summed estimate.`));
   for (const filter of REVIEW_FILTERS.slice(1)) root.append(action(doc, filter, () => openQueue(filter)));
   const detail = element(doc, 'details'); detail.append(element(doc, 'summary', 'Expand by artifact type'));
-  for (const [type, counts] of Object.entries(summary.byType)) totals(detail, type, counts);
+  for (const [type, counts] of Object.entries(summary.priority?.byType ?? summary.byType)) totals(detail, PRIORITY_LABELS[type] ?? type, counts);
+  const advanced = element(doc, 'details'); advanced.append(element(doc, 'summary', 'Whole corpus / evidence and deferred type counts'));
+  for (const [type, counts] of Object.entries(summary.byType)) totals(advanced, type, counts);
+  detail.append(advanced);
   root.append(detail); return root;
 }
 function field(doc, parent, label, tag = 'input') {
@@ -51,27 +68,50 @@ function choose(doc, parent, label, values, selected, change) {
   }
   input.value = selected; input.addEventListener('change', () => change(input.value)); return input;
 }
-export function renderReview(doc, model, state, nav, { change, decide, navigate }) {
+export function renderReview(doc, model, state, nav, { change, decide, navigate, session = {}, setSession = () => {}, loadDemo }) {
   const root = element(doc, 'section', null, 'review-page');
   root.append(element(doc, 'h2', 'Campaign review — one item at a time'),
     element(doc, 'p', 'Local, single active reviewer; identity is self-attested, not authenticated. Source/category selection is navigation, never approval. Exclusion is not falsehood or a negative training label.'));
-  if (!state) { root.append(element(doc, 'p', model.reviewError ?? 'Review requires explicit private --store mode. Public preview and read-only snapshots cannot record decisions.')); return root; }
+  if (!state) {
+    root.append(element(doc, 'p', model.reviewError ?? 'Review requires explicit private --store mode. Public preview and read-only snapshots cannot record decisions.'));
+    if (loadDemo) root.append(action(doc, 'Start synthetic review exercise (isolated, not Nx)', loadDemo),
+      element(doc, 'p', 'The synthetic exercise writes only server-memory fixture decisions. Reload retains them; server restart clears them. No public Nx writes or private-store changes.'));
+    return root;
+  }
   if (state.guideVersion !== GUIDE_VERSION) { root.append(element(doc, 'p', 'Guide mismatch: reload the application before reviewing.')); return root; }
   const caseId = nav.caseId || model.corpus.cases[0]?.id || '';
+  if (model.reviewDemo) root.append(element(doc, 'p', 'SYNTHETIC REVIEW EXERCISE — benign fixtures, not incident evidence. Decisions live in this server process only; restart clears them.', 'limits'));
+  const identity = element(doc, 'details'); identity.open = !session.selfAttested;
+  identity.append(element(doc, 'summary', `Reviewer session: ${session.selfAttested ? session.reviewer : 'set identity once'} (self-attested, not authenticated)`));
+  const reviewer = field(doc, identity, 'Reviewer identifier'); reviewer.value = session.reviewer ?? '';
+  const attested = field(doc, identity, 'I am the active human reviewer; this identifier is self-attested'); attested.type = 'checkbox'; attested.checked = session.selfAttested === true;
+  identity.append(action(doc, 'Set / correct session identity', () => setSession({ reviewer: reviewer.value.trim(), selfAttested: attested.checked })));
+  if (session.notice) identity.append(element(doc, 'p', session.notice));
+  root.append(identity);
   choose(doc, root, 'Campaign', model.corpus.cases.map(c => [c.id, c.name]), caseId,
     value => change({ caseId: value, sourceId: '', itemKey: '' }));
-  choose(doc, root, 'Group by', [['blog', 'Blog / source'], ['category', 'Artifact category']], nav.group ?? 'blog', value => change({ group: value }));
+  const queue = nav.queue ?? 'priority';
+  choose(doc, root, 'Review workload', [['priority', 'Grounded priority candidates'], ['exceptions', 'Priority exceptions / missing support'],
+    ['evidence', 'Supporting claims (advanced)'], ['all', 'All records / later pass']], queue,
+  value => change({ queue: value, itemKey: '', category: '', returnItemKey: '' }));
+  for (const [category, name] of Object.entries(PRIORITY_LABELS)) root.append(action(doc, name,
+    () => change({ category, queue: 'priority', group: 'category', type: '', itemKey: '', returnItemKey: '' })));
+  root.append(action(doc, 'All priority categories', () => change({ category: '', queue: 'priority', itemKey: '', returnItemKey: '' })));
+  choose(doc, root, 'Group by', [['category', 'Artifact category'], ['blog', 'Blog / source']], nav.group ?? 'category', value => change({ group: value }));
   choose(doc, root, 'Queue', REVIEW_FILTERS.map(v => [v, v]), nav.filter ?? 'All', value => change({ filter: value, itemKey: '' }));
   choose(doc, root, 'Source', [['', 'All sources'], ...model.corpus.sources.map(s => [s.id, s.title ?? s.id])],
     nav.sourceId ?? '', value => change({ sourceId: value, itemKey: '' }));
-  choose(doc, root, 'Artifact type', [['', 'All types'], ...[...new Set(state.units.map(u => u.type))].map(t => [t, t])],
-    nav.type ?? '', value => change({ type: value, itemKey: '' }));
   if (nav.notice) root.append(element(doc, 'p', nav.notice));
   if (state.campaigns[caseId]) root.append(renderProgress(doc, state.campaigns[caseId], filter => change({ filter, itemKey: '' })));
-  const selection = reviewGroups(state.units, { ...nav, caseId });
-  const selected = selection.records.find(u => u.itemKey === nav.itemKey) ?? (!nav.itemKey ? selection.records[0] : null);
-  const workspace = element(doc, 'div', null, 'workspace'), queue = element(doc, 'aside', null, 'record-list');
-  queue.setAttribute('aria-label', 'Review queue');
+  const selection = reviewGroups(state.units, { ...nav, queue, caseId });
+  const selected = state.units.find(u => u.itemKey === nav.itemKey && u.caseIds.includes(caseId)) ??
+    (!nav.itemKey ? selection.records.find(u => !['Accepted', 'Excluded'].includes(u.state)) ?? selection.records[0] : null);
+  const workspace = element(doc, 'div', null, 'workspace'), list = element(doc, 'aside', null, 'record-list');
+  list.setAttribute('aria-label', 'Review queue');
+  if (nav.confirmation) {
+    const confirmed = element(doc, 'p', nav.confirmation); confirmed.setAttribute('role', 'status'); root.append(confirmed);
+    if (nav.previousItemKey) root.append(action(doc, 'Previous item / history', () => change({ queue: 'all', category: '', filter: 'All', itemKey: nav.previousItemKey })));
+  }
   for (const [name, items] of selection.groups) {
     const group = element(doc, 'details'); group.open = true;
     group.append(element(doc, 'summary', `${model.sources.get(name)?.title ?? name} · ${items.length} occurrences`));
@@ -82,9 +122,9 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate 
       button.title = 'Similar wording may be inspected together; identities and source occurrences are never merged.';
       group.append(button);
     }
-    queue.append(group);
+    list.append(group);
   }
-  workspace.append(queue);
+  workspace.append(list);
   const detail = element(doc, 'article', null, 'panel review-detail');
   if (!selected) detail.append(element(doc, 'p', nav.itemKey ? 'Selected item is hidden/unavailable. Clear selection or change filters; no other item substituted.' : 'No eligible items / N/A'),
     action(doc, 'Clear selection', () => change({ itemKey: '' })));
@@ -94,78 +134,136 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate 
       element(doc, 'p', `${u.state} · labels ${u.labels.state}${u.labels.applicable ? '' : ' (no label applies)'}`),
       element(doc, 'p', `Content origin: ${u.contentOrigin} · Label authorship: ${u.labelAuthorship}`),
       element(doc, 'p', `${/LLM|agent/.test(u.originalOrigin) ? 'LLM-derived (original contribution retained)' : `Original origin: ${u.originalOrigin}`} · ${u.editor ? `Human-edited by ${u.editor}` : 'No human content edit'} · ${u.state === 'Accepted' ? 'Human-reviewed' : 'Not currently human-reviewed'}`),
-      element(doc, 'h4', 'Proposed content'), element(doc, 'pre', JSON.stringify(u.record, null, 2)),
+      element(doc, 'h4', 'Candidate'),
+      element(doc, u.priorityCategory === 'prompts' ? 'pre' : 'p',
+        u.record.value ?? u.record.name ?? u.record.description ?? u.record.summary ?? u.record.title ?? u.id, 'review-candidate'),
       element(doc, 'p', `Uncertainty: ${u.record.uncertainty ?? 'Not reported; inspect supporting records.'}`),
       element(doc, 'p', `Conflicts: ${(u.record.conflictsWith ?? []).join(', ') || 'None recorded; this is not proof of no conflict.'}`));
+    for (const [label, value] of [['Identity', u.record.normalizedValue], ['Description', u.record.description],
+      ['Category / boundary', u.record.boundary], ['Usage', u.record.context?.artifactUsage],
+      ['Context', u.record.context?.notes], ['Evidence class', u.record.evidenceStatus]]) {
+      if (value) detail.append(element(doc, 'p', `${label}: ${value}`));
+    }
+    if (u.groundingLost) detail.append(element(doc, 'p', 'Exact grounding lost: edited literal is not in the retained passage. Acceptance and release are blocked.', 'limits'));
     const original = element(doc, 'details'); original.append(element(doc, 'summary', 'Original candidate, extraction provenance and revision binding'),
       element(doc, 'pre', JSON.stringify({ original: u.original, runMetadata: u.runMetadata, revision: u.binding }, null, 2)));
     detail.append(original, element(doc, 'h4', 'Exact evidence and available context'));
     if (!u.evidence.length) detail.append(element(doc, 'p', 'No direct passage on this item. Inspect supporting records below; unavailable/private passages are not invented.'));
     for (const e of u.evidence) {
-      detail.append(element(doc, 'p', `Source revision: ${e.revisionId ?? 'unavailable'}`),
-        element(doc, 'blockquote', e.quote ?? e.explanation), element(doc, 'pre', e.context ?? 'Surrounding context unavailable.'));
+      detail.append(element(doc, 'blockquote', e.quote ?? e.explanation, 'review-quote'));
       const r = model.corpus.sourceRevisions.find(r => r.id === e.revisionId);
+      const source = model.sources.get(r?.sourceId);
+      detail.append(element(doc, 'p', `${source?.title ?? 'Source unavailable'} · ${source?.publisher ?? 'Publisher not recorded'} · ${source?.originalUrl ?? 'No public URL'} · revision ${e.revisionId ?? 'unavailable'}`, 'subtle'));
       if (r) detail.append(action(doc, 'Open exact source revision', () => navigate('sources', r.sourceId, r.id)));
+      const context = element(doc, 'details'); context.append(element(doc, 'summary', 'Surrounding source context'), element(doc, 'pre', e.context ?? 'Surrounding context unavailable.')); detail.append(context);
     }
-    for (const key of u.dependencies) detail.append(action(doc, `Supporting record: ${key}`,
-      () => change({ filter: 'All', sourceId: '', type: '', itemKey: key })));
+    for (const key of u.dependencies) {
+      const support = state.units.find(s => s.itemKey === key);
+      const box = element(doc, 'section', null, 'claim-card');
+      box.append(element(doc, 'p', `Required support · ${support?.state ?? 'Missing'}`),
+        element(doc, 'p', support?.record.description ?? support?.record.name ?? key));
+      if (support?.evidence[0]) box.append(element(doc, 'blockquote', support.evidence[0].quote ?? support.evidence[0].explanation, 'review-quote'));
+      box.append(action(doc, `Review supporting item: ${key}`, () => change({ queue: 'all', category: '', filter: 'All',
+        sourceId: '', type: '', itemKey: key, returnItemKey: u.itemKey })));
+      detail.append(box);
+    }
     for (const id of u.record.conflictsWith ?? []) detail.append(action(doc, `Conflicting claim: ${id}`,
-      () => change({ filter: 'All', sourceId: '', type: '', itemKey: `claims:${id}` })));
+      () => change({ queue: 'all', category: '', filter: 'All', sourceId: '', type: '', itemKey: `claims:${id}`, returnItemKey: u.itemKey })));
     for (const blocker of u.blockers) detail.append(action(doc, blocker.reason,
-      () => change({ filter: 'All', sourceId: '', type: '', itemKey: blocker.itemKey })));
-    const guide = element(doc, 'details'); guide.open = true;
+      () => change({ queue: 'all', category: '', filter: 'All', sourceId: '', type: '', itemKey: blocker.itemKey, returnItemKey: u.itemKey })));
+    if (nav.returnItemKey) detail.append(action(doc, 'Return to candidate after support review',
+      () => change({ queue: 'all', category: '', filter: 'All', itemKey: nav.returnItemKey, returnItemKey: '' })));
+    const guide = element(doc, 'details');
     const link = element(doc, 'a', 'Full researcher decision guide'); link.href = '/docs/researcher-review-guide.md';
     guide.append(element(doc, 'summary', `Decision guide ${GUIDE_VERSION}`), link,
       element(doc, 'p', 'Accept only after personally checking evidence, fidelity, scope and the type rule. Reported ≠ confirmed; attempted ≠ successful; inference is explicit. Unsure is preferable to guessing. Modify creates a new revision and never accepts it. Exclude retains the candidate. Proposals remain untested proposals.'));
-    const checkInputs = {};
-    for (const [key, text] of Object.entries(checksFor(u.type))) {
-      const row = element(doc, 'div');
-      const result = choose(doc, row, text, [['', 'Not checked'], ['pass', 'Pass — personally checked'], ['not-applicable', 'Not applicable — reason required']], '', () => {});
-      const reason = field(doc, row, 'Non-applicability reason');
-      checkInputs[key] = { result, reason }; guide.append(row);
-    }
+    for (const text of Object.values(checksFor(u.type))) guide.append(element(doc, 'p', text));
     detail.append(guide);
-    const reviewer = field(doc, detail, 'Reviewer identifier (self-attested)');
-    const attested = field(doc, detail, 'I am the active human reviewer; this identity is self-attested'); attested.type = 'checkbox';
-    const rationale = field(doc, detail, 'Decision / correction reason', 'textarea');
-    const exclusionReason = choose(doc, detail, 'Exclusion reason', EXCLUSION_REASONS.map(r => [r, r]), EXCLUSION_REASONS[0], () => {});
-    const patch = field(doc, detail, 'Simple content/label correction (JSON object; structural corrections must be excluded/regenerated)', 'textarea'); patch.value = '{}';
-    const tags = field(doc, detail, 'Researcher tags (comma separated)');
-    const origin = choose(doc, detail, 'Correct content origin', CONTENT_ORIGINS.map(v => [v, v]), 'unknown', () => {});
-    const authorship = choose(doc, detail, 'Correct label authorship', ['LLM-derived', 'Human authored', 'Human-edited', 'unknown'].map(v => [v, v]), 'unknown', () => {});
-    const evidence = field(doc, detail, 'Provenance correction evidence / reference');
-    const replacements = field(doc, detail, 'Replacement item keys for exclusion (comma separated, optional)');
     const notice = element(doc, 'p'); notice.setAttribute('role', 'status'); detail.append(notice);
-    for (const [actionName, label] of [['accept', 'Accept item'], ['modify', 'Modify — requires separate acceptance'],
-      ['exclude', 'Reject / Exclude item'], ['unsure', 'Unsure / Skip with reason'], ['provenance', 'Correct provenance (audited)']]) {
-      const button = action(doc, label, async () => {
-        const input = { snapshot: state.snapshot, itemKey: u.itemKey, reviewer: reviewer.value,
-          selfAttested: attested.checked, guideVersion: GUIDE_VERSION, action: actionName, rationale: rationale.value };
-        if (actionName === 'accept') input.checks = Object.fromEntries(Object.entries(checkInputs).map(([key, c]) => [key, { result: c.result.value, reason: c.reason.value }]));
-        if (actionName === 'modify') {
-          try { input.patch = JSON.parse(patch.value); } catch { notice.textContent = 'Correction must be valid JSON.'; return; }
-          if (tags.value.trim()) input.researcherTags = tags.value.split(',').map(t => t.trim()).filter(Boolean);
-        }
-        if (actionName === 'exclude') {
-          input.exclusionReason = exclusionReason.value;
-          input.replacementKeys = replacements.value.split(',').map(k => k.trim()).filter(Boolean);
-        }
-        if (actionName === 'provenance') Object.assign(input, { contentOrigin: origin.value, labelAuthorship: authorship.value, provenanceEvidence: evidence.value });
-        button.disabled = true;
-        try { await decide(input); } catch (error) { notice.textContent = error.message; button.disabled = false; }
-      });
-      detail.append(button);
+    let saving = false;
+    async function submit(actionName, extra = {}) {
+      if (saving) return;
+      if (!session.selfAttested || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(session.reviewer ?? '')) {
+        notice.textContent = 'Set your self-attested session identity first.'; identity.open = true; return;
+      }
+      saving = true;
+      try { await decide({ snapshot: state.snapshot, itemKey: u.itemKey, reviewer: session.reviewer,
+        selfAttested: true, guideVersion: GUIDE_VERSION, action: actionName, ...extra }); }
+      catch (error) { notice.textContent = error.message; saving = false; }
     }
+    const acceptance = confirmationFor(u);
+    detail.append(element(doc, 'p', `Accept confirms: ${acceptance}`, 'review-attestation'));
+    const accept = action(doc, 'Accept item — I confirm', () => submit('accept', { confirmation: acceptance }));
+    accept.disabled = u.blockers.some(b => b.reason !== 'Decision binding/support changed; explicit re-review required') || u.labels.state !== 'complete';
+    detail.append(accept);
+    const rejection = element(doc, 'details');
+    rejection.append(element(doc, 'summary', 'Reject item'));
+    const exclusionReason = choose(doc, rejection, 'Reason', [...EXCLUSION_REASONS, 'other'].map(r => [r, r]), EXCLUSION_REASONS[0], () => {});
+    const rationale = field(doc, rejection, 'Optional detail (required for Other)', 'textarea');
+    const links = element(doc, 'details'); links.append(element(doc, 'summary', 'Replacement links'));
+    const replacements = field(doc, links, 'Replacement item keys (comma separated)'); rejection.append(links);
+    rejection.append(action(doc, 'Confirm rejection', () => submit('exclude', { exclusionReason: exclusionReason.value,
+      rationale: rationale.value, replacementKeys: replacements.value.split(',').map(k => k.trim()).filter(Boolean) })));
+    detail.append(rejection);
+    const modify = element(doc, 'details'); modify.append(element(doc, 'summary', 'Modify item'));
+    const controls = [];
+    const edit = (name, key, value, tag = 'input') => {
+      const control = field(doc, modify, name, tag); control.value = value ?? ''; controls.push({ key, control, before: value ?? '' });
+    };
+    const category = priorityCategory(u);
+    if (category === 'tools') edit('Tool identity', 'normalizedValue', u.record.normalizedValue ?? u.record.value);
+    if (category === 'prompts') edit('Exact prompt literal', 'value', u.record.value, 'textarea');
+    if (['tools', 'prompts'].includes(category)) {
+      const usage = choose(doc, modify, 'Usage', ['targeted', 'attempted-abuse', 'reported-abuse', 'vendor-example', 'general-mention', 'unclear'].map(v => [v, v]), u.record.context?.artifactUsage ?? 'unclear', () => {});
+      controls.push({ key: 'context.artifactUsage', control: usage, before: u.record.context?.artifactUsage ?? '' });
+      edit('Use context', 'context.notes', u.record.context?.notes, 'textarea');
+    } else if (u.type === 'behaviors') {
+      edit('Behavior name', 'name', u.record.name); edit('Behavior description', 'description', u.record.description, 'textarea');
+      edit('Category / trust boundary', 'boundary', u.record.boundary);
+    } else if (u.type !== 'occurrences') {
+      // Advanced records retain simple text correction; structural editors are deferred.
+      const key = ['description', 'summary', 'value', 'detail', 'basis', 'rationale', 'limitations', 'hypothesis', 'action'].find(k => typeof u.record[k] === 'string');
+      if (key) edit('Content correction', key, u.record[key], 'textarea');
+    }
+    const tags = field(doc, modify, 'Researcher tags (optional, comma separated)'); tags.value = (u.researcherTags ?? []).join(', ');
+    const editReason = field(doc, modify, 'Change reason', 'textarea');
+    modify.append(action(doc, 'Save changes (not acceptance)', () => {
+      const patch = {};
+      for (const { key, control, before } of controls) if (control.value !== before) {
+        if (key.startsWith('context.')) { patch.context ??= { ...u.record.context }; patch.context[key.slice(8)] = control.value; }
+        else patch[key] = control.value;
+      }
+      submit('modify', { patch, researcherTags: tags.value.split(',').map(t => t.trim()).filter(Boolean), rationale: editReason.value });
+    }));
+    detail.append(modify);
+    const unsure = element(doc, 'details'); unsure.append(element(doc, 'summary', 'Unsure / Skip'));
+    const unsureReason = field(doc, unsure, 'Why unsure?', 'textarea');
+    unsure.append(action(doc, 'Save Unsure', () => submit('unsure', { rationale: unsureReason.value }))); detail.append(unsure);
+    const advanced = element(doc, 'details'); advanced.append(element(doc, 'summary', 'Provenance correction / non-applicability'));
+    const origin = choose(doc, advanced, 'Correct content origin', CONTENT_ORIGINS.map(v => [v, v]), CONTENT_ORIGINS.includes(u.contentOrigin) ? u.contentOrigin : 'unknown', () => {});
+    const authorship = choose(doc, advanced, 'Correct label authorship', ['LLM-derived', 'Human authored', 'Human-edited', 'unknown'].map(v => [v, v]), u.labelAuthorship, () => {});
+    const provenanceReason = field(doc, advanced, 'Provenance correction reason', 'textarea');
+    const evidence = field(doc, advanced, 'Available provenance evidence / reference');
+    advanced.append(action(doc, 'Save provenance correction', () => submit('provenance', { contentOrigin: origin.value,
+      labelAuthorship: authorship.value, rationale: provenanceReason.value, provenanceEvidence: evidence.value })));
+    const nonApplicable = choose(doc, advanced, 'Non-applicable check', Object.keys(checksFor(u.type)).map(k => [k, k]), 'type', () => {});
+    const naReason = field(doc, advanced, 'Non-applicability explanation');
+    advanced.append(action(doc, 'Accept with documented non-applicability', () => submit('accept', { confirmation: acceptance,
+      nonApplicability: { [nonApplicable.value]: naReason.value } })));
+    detail.append(advanced);
     const next = selection.records[selection.records.indexOf(u) + 1];
     detail.append(action(doc, 'Next item (navigation only; no decision)', () => change({ itemKey: next?.itemKey ?? u.itemKey })));
     const history = element(doc, 'details'); history.append(element(doc, 'summary', `Retained audit history · ${u.history.length}`),
-      element(doc, 'pre', JSON.stringify(u.history, null, 2))); detail.append(history);
+      element(doc, 'pre', JSON.stringify(u.history, null, 2)));
+    const originalDetails = element(doc, 'details'); originalDetails.append(element(doc, 'summary', 'Original proposal / extraction metadata'),
+      element(doc, 'pre', JSON.stringify({ original: u.original, runMetadata: u.runMetadata, binding: u.binding }, null, 2)));
+    detail.append(originalDetails, history);
   }
   workspace.append(detail); root.append(workspace);
   const eligibility = element(doc, 'details'); eligibility.append(element(doc, 'summary', 'Case release eligibility / withheld reasons'));
   for (const u of state.units.filter(u => u.caseIds.includes(caseId))) eligibility.append(action(doc,
     `${u.itemKey}: ${u.eligible ? 'Eligible' : `Withheld — ${u.state}; ${u.blockers.map(b => b.reason).join('; ')}`}`,
-    () => change({ filter: 'All', type: '', sourceId: '', itemKey: u.itemKey })));
+    () => change({ queue: 'all', category: '', filter: 'All', type: '', sourceId: '', itemKey: u.itemKey })));
   root.append(eligibility);
   return root;
 }

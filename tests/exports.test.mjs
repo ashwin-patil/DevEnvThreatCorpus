@@ -389,7 +389,8 @@ test('Issue #24 AC-04 stale decisions and missing conflict dependency never ente
 
   const excluded = await exportFixture({ accepted: true });
   acceptItem(excluded, 'claims:synthetic-claim-b', 'exclude');
-  assert.deepEqual(profileRecords(excluded).coverage.units, { cases: 0, sources: 1, claims: 1 });
+  assert.deepEqual(profileRecords(excluded).coverage.units, { cases: 1, sources: 1, claims: 1 });
+  assert.equal(profileRecords(excluded).records.find(r => r.entityType === 'cases').entity.contextOnly, true);
   assert.equal(profileRecords(excluded).records.find(r => r.entityType === 'claims').entity.conflictsWithheld, true);
 });
 

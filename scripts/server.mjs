@@ -5,7 +5,7 @@ import path from 'node:path';
 import { assertValid, canonicalSerialize, validatePrivateCorpus, collectBatch, readArchiveArtifact, reviewEligibleCorpus } from './contract.mjs';
 import { readEnrichmentSnapshot } from '../src/enrichment.mjs';
 import { runCampaign, campaignAnnotations, campaignStatus, campaignExport } from '../src/campaign.mjs';
-import { reviewSnapshot, runItemReview, progressSummary, reviewedProfile } from '../src/hitl.mjs';
+import { applyItemReview, reviewSnapshot, runItemReview, progressSummary, reviewedProfile } from '../src/hitl.mjs';
 
 export const WEB_INTAKE_LIMITS = Object.freeze({ bodyBytes: 192 * 1024, bodyTimeoutMs: 10_000, urls: 20 });
 export const CAMPAIGN_LIMITS = Object.freeze({ itemBytes: 2 * 1024 * 1024, bodyBytes: 4 * 1024 * 1024 + 64 * 1024 });
@@ -149,6 +149,27 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
   const corpus = corpusFile ? await validatePrivateCorpus(corpusFile, { reviewAware: true }) : assertValid(emptyCorpus());
   const demo = assertValid(JSON.parse(await readFile(new URL('tests/fixtures/benign/core-only.json', root), 'utf8')));
   const researchDemo = assertValid(JSON.parse(await readFile(new URL('tests/fixtures/benign/research-views.json', root), 'utf8')));
+  // This explicitly selected exercise never shares mutable data with any corpus/store.
+  let reviewDemo = structuredClone(researchDemo), demoWriting = false;
+  reviewDemo.name = 'SYNTHETIC — isolated HITL review exercise';
+  reviewDemo.behaviors[0].claimIds = ['synthetic-claim-a'];
+  reviewDemo.behaviors[0].caseId = 'synthetic-case-a';
+  reviewDemo.behaviors[0].occurrences = [{ caseId: 'synthetic-case-a', claimIds: ['synthetic-claim-a'], origin: 'LLM source paraphrase' }];
+  const passage = reviewDemo.passages[0];
+  const demoAnnotations = ['ide-cli', 'prompt-instruction'].map((artifactKind, index) => ({
+    id: `synthetic-review-annotation-${index}`, type: 'commands-ai-artifacts',
+    caseId: 'synthetic-case-a', sourceId: reviewDemo.claims[0].sourceId, sourceRevisionId: passage.sourceRevisionId,
+    value: passage.text, normalizedValue: index ? passage.text : 'Synthetic coding tool',
+    evidenceStatus: 'evidence-backed', origin: 'agent', modelVersion: 'synthetic-fixture', promptVersion: 'synthetic-fixture',
+    status: 'pending', claimIds: ['synthetic-claim-a'],
+    support: { quote: passage.text, locator: { start: passage.start, end: passage.end } },
+    context: { artifactKind, artifactUsage: 'general-mention', notes: 'Benign synthetic exercise, not incident evidence.' },
+  }));
+  const demoState = () => {
+    const state = reviewSnapshot(reviewDemo, demoAnnotations);
+    return { ...state, campaigns: Object.fromEntries(reviewDemo.cases.map(c => [c.id, progressSummary(reviewDemo, state, c.id)])),
+      sources: Object.fromEntries(reviewDemo.sources.map(s => [s.id, progressSummary(reviewDemo, state, null, [s.id])])) };
+  };
   const responses = new Map([
     ['/api/corpus', canonicalSerialize(corpus)],
     ['/api/demo', canonicalSerialize(demo)],
@@ -252,22 +273,33 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
           message: error.status ? error.message : 'Campaign operation could not complete. Reload before explicit retry.' }), 'application/json');
       } finally { writing = false; }
     }
-    if (request.method === 'POST' && request.url === '/api/review' && store) {
+    const isDemoReview = request.url === '/api/review-demo';
+    if (request.method === 'POST' && (isDemoReview || request.url === '/api/review' && store)) {
       if (request.headers.origin !== `http://${request.headers.host}` ||
         (request.headers['sec-fetch-site'] && request.headers['sec-fetch-site'] !== 'same-origin')) return send(403, 'Review requires the exact same origin.');
       if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(request.headers['content-type'] ?? '') ||
         request.headers['content-encoding']) return send(415, 'Expected uncompressed application/json.');
-      if (writing) return send(409, 'Another private-store operation is in progress.');
-      writing = true;
+      if (isDemoReview ? demoWriting : writing) return send(409, JSON.stringify({ code: 'STORE_BUSY' }), 'application/json');
+      if (isDemoReview) demoWriting = true; else writing = true;
       try {
         const input = await intakeBody(request);
-        const result = await runItemReview(store, input);
+        let result;
+        if (isDemoReview) {
+          const next = structuredClone(reviewDemo);
+          const event = applyItemReview(next, input, demoAnnotations);
+          reviewDemo = next;
+          result = { status: 'succeeded', eventId: event.id };
+        } else result = await runItemReview(store, input);
         return send(result.status === 'succeeded' ? 200 : ['STALE_REVIEW', 'STORE_BUSY'].includes(result.code) ? 409 : 400,
           JSON.stringify(result), 'application/json');
-      } catch (error) { return send(error.status ?? 400, 'Review failed; reload before retrying.'); }
-      finally { writing = false; }
+      } catch (error) { return send(error.code === 'STALE_REVIEW' ? 409 : error.status ?? 400,
+        JSON.stringify({ status: 'failed', code: error.code ?? 'INVALID_REVIEW' }), 'application/json'); }
+      finally { if (isDemoReview) demoWriting = false; else writing = false; }
     }
     if (!['GET', 'HEAD'].includes(request.method)) return send(405, 'Writes require explicit private-store mode and a supported POST route.');
+    if (request.url === '/api/review-demo/corpus') return send(200, canonicalSerialize(reviewDemo), 'application/json');
+    if (isDemoReview) return send(200, canonicalSerialize(demoState()), 'application/json');
+    if (request.url === '/api/review-demo/export') return send(200, canonicalSerialize(reviewedProfile(reviewDemo, demoAnnotations)), 'application/json');
     if (store && ['/api/review', '/api/review/export'].includes(request.url)) {
       try {
         const current = await currentCorpus();

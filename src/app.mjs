@@ -1,10 +1,10 @@
-import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
+import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, applyReviewProjection, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
 import { publicDraftModel } from './public-profile.mjs';
 import { articleCoverage, publisherDisplay } from './research-inventory.mjs';
-import { renderReview, reviewWindowNavigation } from './review-ui.mjs';
+import { renderReview, reviewWindowNavigation, reviewSession, reviewGroups } from './review-ui.mjs';
 export const PUBLIC_DRAFT_URL = new URL('./data/nx-draft.json', import.meta.url).href;
 
 export async function fetchCorpus(fetcher, endpoint) {
@@ -22,19 +22,20 @@ export async function fetchCorpus(fetcher, endpoint) {
   const model = createModel(corpus);
   model.snapshot = await hashText(JSON.stringify(corpus));
   model.collectionEnabled = endpoint === '/api/corpus' && response.headers?.get?.('x-collection-enabled') === 'true';
+  model.reviewDemo = endpoint === '/api/review-demo/corpus';
   const stale = response.headers?.get?.('x-stale-reviews');
   model.staleReviewCount = /^\d+$/.test(stale ?? '') ? Number(stale) : 0;
   model.annotations = [];
   model.campaignStatus = {};
-  if (model.collectionEnabled) {
+  if (model.collectionEnabled || model.reviewDemo) {
     try {
-      const response = await fetcher('/api/review', { cache: 'no-store' });
+      const response = await fetcher(model.reviewDemo ? '/api/review-demo' : '/api/review', { cache: 'no-store' });
       if (!response.ok) throw new Error('Unavailable review');
       const state = await response.json();
       if (state.schemaVersion !== 'local-hitl/1' || !Array.isArray(state.units)) throw new Error('Invalid review');
       model.itemReview = state;
     } catch { model.reviewError = 'Private review could not be loaded. No acceptance or progress is inferred; reload before deciding.'; }
-    try {
+    if (model.collectionEnabled) try {
       const annotations = await fetcher('/api/enrichment', { cache: 'no-store' });
       if (!annotations.ok) throw new Error('Unavailable enrichment');
       const document = await annotations.json();
@@ -53,7 +54,7 @@ export async function fetchCorpus(fetcher, endpoint) {
       if (statuses.some(([, value]) => !value)) model.campaignStatusError = 'Some campaign run status could not be loaded. Reload before relying on displayed coverage.';
     }
   }
-  return model;
+  return applyReviewProjection(model);
 }
 
 export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
@@ -61,6 +62,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   let model = null, filters = {}, route = parseRoute(win.location.hash), activePassages = [], request = 0;
   let studio = null;
   let reviewNav = reviewWindowNavigation(win);
+  let reviewerSession = reviewSession(win);
   function changeReview(update) {
     reviewNav = { ...reviewNav, ...update };
     const saved = reviewWindowNavigation(win, reviewNav);
@@ -68,20 +70,34 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     render();
   }
   function openReview(caseId, sourceId = '', filter = 'All') {
-    reviewNav = { caseId, sourceId, filter, group: 'blog', itemKey: '', type: '' };
+    reviewNav = { caseId, sourceId, filter, group: 'category', queue: 'priority', itemKey: '', type: '',
+      mode: model?.reviewDemo ? 'synthetic' : '' };
     reviewWindowNavigation(win, reviewNav);
     navigate('review', caseId);
   }
   async function decideReview(input) {
     reviewNav.itemKey = input.itemKey;
     reviewWindowNavigation(win, reviewNav);
-    const response = await fetcher('/api/review', { method: 'POST', cache: 'no-store',
+    const response = await fetcher(model.reviewDemo ? '/api/review-demo' : '/api/review', { method: 'POST', cache: 'no-store',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
     const result = await response.json();
     if (!response.ok) throw new Error(`Review not saved (${result.code ?? response.status}); reload before explicit retry. Your entered values remain here.`);
-    try { model = await fetchCorpus(fetcher, '/api/corpus'); }
+    const endpoint = model.reviewDemo ? '/api/review-demo/corpus' : '/api/corpus';
+    try { model = await fetchCorpus(fetcher, endpoint); }
     catch { throw new Error('Decision saved, but refresh failed. Reload before making another decision; do not resubmit blindly.'); }
-    studio.base = model.corpus;
+    studio.base = model.originalCorpus ?? model.corpus;
+    reviewNav.previousItemKey = input.itemKey;
+    reviewNav.confirmation = `${input.action === 'modify' ? 'Changes saved; separate acceptance is still required' : `Saved ${input.action}`} · ${input.itemKey}`;
+    if (reviewNav.returnItemKey && !['modify', 'provenance'].includes(input.action)) {
+      reviewNav.itemKey = reviewNav.returnItemKey; reviewNav.returnItemKey = '';
+    } else if (input.action !== 'modify' && input.action !== 'provenance') {
+      const candidates = reviewGroups(model.itemReview.units, { ...reviewNav, caseId: reviewNav.caseId || route.id,
+        queue: reviewNav.queue ?? 'priority' }).records;
+      const index = candidates.findIndex(u => u.itemKey === input.itemKey);
+      const ordered = [...candidates.slice(index + 1), ...candidates.slice(0, index + 1)];
+      reviewNav.itemKey = ordered.find(u => u.itemKey !== input.itemKey && !['Accepted', 'Excluded', 'Unsure'].includes(u.state))?.itemKey ?? input.itemKey;
+    }
+    reviewWindowNavigation(win, reviewNav);
     render();
   }
   let pathContext = null;
@@ -295,7 +311,13 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
           if (update.caseId) route.id = update.caseId;
           win.history.replaceState(null, '', routeHash('review', route.id));
           changeReview(update);
-        }, decide: decideReview, navigate,
+        }, decide: decideReview, navigate, session: reviewerSession,
+        setSession: value => { reviewerSession = reviewSession(win, value); render(); },
+        loadDemo: async () => {
+          reviewNav = { caseId: 'synthetic-case-a', queue: 'priority', group: 'category', mode: 'synthetic' };
+          reviewWindowNavigation(win, reviewNav);
+          await load('/api/review-demo/corpus'); navigate('review', 'synthetic-case-a');
+        },
       }));
       return;
     }
@@ -482,7 +504,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       if (result.caseId) { batch.caseId = result.caseId; batch.caseName = ''; }
       try {
         const loaded = await fetchCorpus(fetcher, '/api/corpus');
-        model = loaded; studio.base = model.corpus;
+        model = loaded; studio.base = model.originalCorpus ?? model.corpus;
         reset(); renderStats();
         status(`${trustLabel()} Collection finished; inspect per-URL outcomes and campaign citations.`);
       } catch {
@@ -510,7 +532,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   async function importCampaign(input) {
     const result = await campaignRequest('import', input);
     const loaded = await fetchCorpus(fetcher, '/api/corpus');
-    model = loaded; studio.base = loaded.corpus;
+    model = loaded; studio.base = loaded.originalCorpus ?? loaded.corpus;
     reset(); renderStats();
     status(`${trustLabel()} Campaign candidate imported as pending research; inspect coverage and limitations.`);
     return result;
@@ -526,7 +548,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     try {
       const loaded = await fetchCorpus(fetcher, endpoint);
       if (token !== request) return;
-      model = loaded; studio = createStudio(model.corpus); pathContext = null; reset();
+      model = loaded; studio = createStudio(model.originalCorpus ?? model.corpus); pathContext = null; reset();
+      reviewNav.mode = model.reviewDemo ? 'synthetic' : '';
+      reviewWindowNavigation(win, reviewNav);
       const notice = endpoint === '/api/corpus' ? restoreNavigation() : '';
       renderStats();
       status(`${notice}${trustLabel()} ${model.corpus.name}`, model.corpus.governance?.synthetic ? 'synthetic' : '');
@@ -549,7 +573,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   $('tag-mode').addEventListener('change', () => { filters.tagMode = $('tag-mode').value; activePassages = []; render(); });
   $('reset').addEventListener('click', () => { reset(); render(); });
   $('demo').addEventListener('click', () => load('/api/demo'));
-  $('reload-corpus').addEventListener('click', () => load('/api/corpus'));
+  $('reload-corpus').addEventListener('click', () => load(model?.reviewDemo ? '/api/review-demo/corpus' : '/api/corpus'));
   $('skip-content')?.addEventListener('click', event => {
     event.preventDefault(); $('content').focus();
   });
@@ -570,7 +594,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       event.preventDefault(); event.returnValue = '';
     }
   });
-  return { ready: load('/api/corpus'), navigate, load, getModel: () => model };
+  return { ready: load(reviewNav.mode === 'synthetic' ? '/api/review-demo/corpus' : '/api/corpus'), navigate, load, getModel: () => model };
 }
 
 if (typeof document !== 'undefined') mountWorkbench(document, window);

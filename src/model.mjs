@@ -20,6 +20,28 @@ export function createModel(corpus) {
   return model;
 }
 
+export function applyReviewProjection(model) {
+  if (!model.itemReview || model.publicDraft) return model;
+  const originalCorpus = model.originalCorpus ?? model.corpus, corpus = structuredClone(originalCorpus);
+  const annotations = new Map((model.annotations ?? []).map(a => [a.id, structuredClone(a)]));
+  for (const u of [...model.itemReview.units].sort((a, b) => Number(!!a.parent) - Number(!!b.parent))) {
+    let record;
+    if (u.type === 'annotations') { record = structuredClone(u.record); annotations.set(u.id, record); }
+    else if (u.parent) {
+      const parent = corpus[u.parent.type]?.find(r => r.id === u.parent.id);
+      record = u.type === 'occurrences' ? parent?.occurrences?.[u.index] :
+        parent?.[u.type]?.find(r => r.id === u.original.id);
+    } else record = corpus[u.type]?.find(r => r.id === u.id);
+    if (!record) continue;
+    Object.assign(record, structuredClone(u.record));
+    if (Object.hasOwn(record, 'disposition')) record.disposition = u.state === 'Accepted' ? 'Accepted' :
+      u.state === 'Excluded' ? 'Excluded' : 'Pending';
+    record.itemReview = { itemKey: u.itemKey, state: u.state, editor: u.editor ?? null,
+      contentOrigin: u.contentOrigin, labelAuthorship: u.labelAuthorship };
+  }
+  return { ...model, ...createModel(corpus), originalCorpus, annotations: [...annotations.values()] };
+}
+
 export function metadata(record, key) {
   return record?.[key] ?? `Not available (${record?.nullReasons?.[key] ?? 'unknown'})`;
 }

@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  canonicalSerialize, digest, assertValid, reviewEligibleCorpus, updatePrivateCorpus,
+  canonicalSerialize, digest, stableId, assertValid, reviewEligibleCorpus, updatePrivateCorpus,
 } from '../scripts/contract.mjs';
 import { readEnrichmentSnapshot, validateEnrichment } from './enrichment.mjs';
-import { GUIDE_VERSION, checksFor, labelCompleteness, labelFields, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
+import { GUIDE_VERSION, GUIDE_VERSIONS, checksFor, confirmationFor, priorityCategory, labelCompleteness, labelFields, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
 
 export const HITL_VERSION = 'local-hitl/1';
 const coreTypes = ['claims', 'cases', 'categorizations', 'timelines'];
@@ -39,7 +39,7 @@ function eventsOf(corpus) {
       || event.reviewerKind !== 'self-attested-human' || !nonempty(event.reviewer)
       || !Number.isFinite(Date.parse(event.timestamp)) || !nonempty(event.itemKey)
       || !['accept', 'exclude', 'unsure', 'modify', 'provenance'].includes(event.action)
-      || event.guideVersion !== GUIDE_VERSION) fail('INVALID_REVIEW_LOG');
+      || !GUIDE_VERSIONS.includes(event.guideVersion)) fail('INVALID_REVIEW_LOG');
     ids.add(event.id); previous = eventHash;
   }
 
@@ -179,6 +179,10 @@ export function reviewUnits(corpus, annotations = []) {
         context: exact ? [...text].slice(Math.max(0, locator.start - 200), locator.end + 200).join('') : null,
         explanation: exact ? null : 'Annotation evidence unavailable/private; no passage fabricated.' });
     }
+    if (u.type === 'annotations' && u.record.type === 'commands-ai-artifacts') {
+      const literal = u.record.value;
+      u.groundingLost = !u.evidence.some(e => e.quote !== null && e.quote.includes(literal));
+    }
     u.binding = digest({ record: clean(u.record), originalHash, contentOrigin: u.contentOrigin,
       labelAuthorship: u.labelAuthorship, editor: u.editor ?? null, tags: u.researcherTags ?? [],
       edits: u.history.filter(e => ['modify', 'provenance'].includes(e.action)).map(e => e.eventHash),
@@ -219,7 +223,10 @@ export function reviewSnapshot(corpus, annotations = []) {
     const direct = u.type === 'claims' ? !u.record.inference : u.type === 'annotations' && !u.dependencies.length;
     if (direct && !u.evidence.some(e => e.quote !== null)) blockers.push({ itemKey: u.itemKey, reason: 'Exact retained evidence is unavailable' });
     if (u.type === 'annotations' && u.record.evidenceStatus === 'unresolved') blockers.push({ itemKey: u.itemKey, reason: 'Unresolved annotation evidence' });
+    if (u.groundingLost) blockers.push({ itemKey: u.itemKey, reason: 'Extracted literal no longer matches exact evidence; correct or regenerate before acceptance' });
     if (!['claims', 'annotations'].includes(u.type) && !u.dependencies.length) blockers.push({ itemKey: u.itemKey, reason: 'No independently supported record; regenerate or exclude' });
+    u.structurallyBlocked = blockers.some(b => /Missing|Cyclic|Unresolvable|unavailable|Unresolved|no longer matches|No independently/.test(b.reason))
+      || u.dependencies.some(key => byKey.get(key)?.structurallyBlocked);
     u.stale = !!event && (!current || (event.action === 'accept' && blockers.length > 0));
     u.state = current && event.action === 'exclude' ? 'Excluded' :
       u.stale || blockers.length ? 'Blocked/support changed' :
@@ -231,13 +238,22 @@ export function reviewSnapshot(corpus, annotations = []) {
     active.delete(u.itemKey); done.add(u.itemKey);
   }
   units.forEach(resolve);
+  for (const u of units) {
+    u.priorityCategory = priorityCategory(u);
+    // Deterministic triage, not a model judgment: exact evidence and resolvable,
+    // source-local support are required; pending human support review is allowed.
+    u.actionable = !!u.priorityCategory && !u.structurallyBlocked && u.evidence.some(e => e.quote !== null);
+    u.triageReason = !u.priorityCategory ? 'Evidence/advanced record; not a priority annotation' :
+      u.actionable ? 'Grounded priority candidate; required support still needs explicit human decisions' :
+        'Exception: missing/mismatching exact evidence or unresolved required support';
+  }
   return { schemaVersion: HITL_VERSION, guideVersion: GUIDE_VERSION, snapshot: digest({ corpus, annotations }), units };
 }
 
 export function applyItemReview(corpus, input, annotations = []) {
   if (!input || Object.keys(input).some(k => !['snapshot', 'itemKey', 'reviewer', 'selfAttested', 'action', 'rationale',
     'checks', 'guideVersion', 'patch', 'researcherTags', 'contentOrigin', 'labelAuthorship', 'provenanceEvidence',
-    'exclusionReason', 'replacementKeys'].includes(k))
+    'exclusionReason', 'replacementKeys', 'confirmation', 'nonApplicability'].includes(k))
     || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(input.reviewer ?? '')
     || input.selfAttested !== true || input.guideVersion !== GUIDE_VERSION
     || !['accept', 'modify', 'exclude', 'unsure', 'provenance'].includes(input.action)) fail('INVALID_REVIEW');
@@ -245,18 +261,23 @@ export function applyItemReview(corpus, input, annotations = []) {
   if (input.snapshot !== state.snapshot) fail('STALE_REVIEW');
   const u = state.units.find(u => u.itemKey === input.itemKey);
   if (!u) fail('UNKNOWN_REVIEW_ITEM');
-  if (input.action !== 'accept' && !nonempty(input.rationale)) fail('REASON_REQUIRED');
+  if (!['accept', 'exclude'].includes(input.action) && !nonempty(input.rationale)) fail('REASON_REQUIRED');
   if (input.action === 'accept') {
     if (u.blockers.some(b => b.reason !== 'Decision binding/support changed; explicit re-review required')
       || u.labels.state !== 'complete') fail('BLOCKED_REVIEW');
     const required = checksFor(u.type);
-    if (!input.checks || Object.keys(input.checks).length !== Object.keys(required).length
+    if (input.confirmation !== undefined && input.confirmation !== confirmationFor(u)) fail('CHECKLIST_REQUIRED');
+    if (input.confirmation === undefined && (!input.checks || Object.keys(input.checks).length !== Object.keys(required).length
       || Object.keys(required).some(key => {
         const check = input.checks[key];
         return check?.result !== 'pass' && !(check?.result === 'not-applicable' && nonempty(check.reason));
-      })) fail('CHECKLIST_REQUIRED');
+      }))) fail('CHECKLIST_REQUIRED');
+    if (input.nonApplicability !== undefined && (!input.nonApplicability || typeof input.nonApplicability !== 'object'
+      || Array.isArray(input.nonApplicability) || Object.entries(input.nonApplicability)
+        .some(([key, reason]) => !Object.hasOwn(required, key) || !nonempty(reason)))) fail('CHECKLIST_REQUIRED');
   }
-  if (input.action === 'exclude' && !EXCLUSION_REASONS.includes(input.exclusionReason)) fail('EXCLUSION_REASON_REQUIRED');
+  if (input.action === 'exclude' && ![...EXCLUSION_REASONS, 'other'].includes(input.exclusionReason)) fail('EXCLUSION_REASON_REQUIRED');
+  if (input.action === 'exclude' && input.exclusionReason === 'other' && !nonempty(input.rationale)) fail('REASON_REQUIRED');
   const event = { id: `hitl-${randomUUID()}`, itemKey: u.itemKey, action: input.action,
     reviewer: input.reviewer, reviewerKind: 'self-attested-human', timestamp: new Date().toISOString(),
     rationale: input.rationale ?? '', guideVersion: GUIDE_VERSION, binding: u.binding,
@@ -264,7 +285,12 @@ export function applyItemReview(corpus, input, annotations = []) {
     contentOrigin: u.contentOrigin, labelAuthorship: u.labelAuthorship,
     runMetadata: u.runMetadata, sourceIds: u.sourceIds, claimIds: u.claimIds,
     previous: eventsOf(corpus).at(-1)?.eventHash ?? null };
-  if (input.action === 'accept') event.checks = structuredClone(input.checks);
+  if (input.action === 'accept') {
+    event.checks = input.confirmation ? Object.fromEntries(Object.keys(checksFor(u.type)).map(key => [key,
+      input.nonApplicability?.[key] ? { result: 'not-applicable', reason: input.nonApplicability[key] } : { result: 'pass' }])) :
+      structuredClone(input.checks);
+    if (input.confirmation) event.confirmation = input.confirmation;
+  }
   if (input.action === 'modify') {
     const patch = input.patch ?? {};
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)
@@ -307,6 +333,8 @@ export function applyItemReview(corpus, input, annotations = []) {
     if (input.replacementKeys !== undefined && (!Array.isArray(input.replacementKeys)
       || input.replacementKeys.some(key => !state.units.some(item => item.itemKey === key && key !== u.itemKey)))) fail('INVALID_REPLACEMENT');
     event.exclusionReason = input.exclusionReason; event.replacementKeys = input.replacementKeys ?? [];
+    event.rationale = input.exclusionReason === 'other' ? input.rationale.trim() :
+      `Excluded: ${input.exclusionReason}.${nonempty(input.rationale) ? ` ${input.rationale.trim()}` : ''}`;
   }
   event.eventHash = digest(event);
   corpus.governance.localReview ??= { schemaVersion: HITL_VERSION, events: [] };
@@ -329,24 +357,47 @@ export function progressSummary(corpus, snapshot, caseId, sourceIds) {
   const units = snapshot.units.filter(u => (!caseId || u.caseIds.includes(caseId))
     && (!sourceIds || u.sourceIds.some(id => sourceIds.includes(id))));
   const count = items => ({ total: items.length,
-    labelsComplete: items.filter(u => u.labels.state === 'complete').length,
+    labelsApplicable: items.filter(u => u.labels.applicable).length,
+    labelsNA: items.filter(u => !u.labels.applicable).length,
+    labelsComplete: items.filter(u => u.labels.applicable && u.labels.state === 'complete').length,
     reviewed: items.filter(u => u.currentHumanReview).length, ready: items.filter(u => u.eligible).length });
   const sources = corpus.sources.filter(s => (!caseId || corpus.cases.find(c => c.id === caseId)?.sourceIds.includes(s.id))
     && (!sourceIds || sourceIds.includes(s.id)));
-  let eligible = 0, completed = 0, unavailable = 0, unprocessed = 0;
+  let eligible = 0, completed = 0, unavailable = 0, unprocessed = 0, legacyUnlocated = 0;
   for (const source of sources) {
     const revision = source.revisionIds.map(id => corpus.sourceRevisions.find(r => r.id === id))
       .filter(r => typeof r?.normalizedContent === 'string' && r.normalizedContent.length).at(-1);
     if (!revision) { unavailable++; continue; }
     const segments = Math.ceil([...revision.normalizedContent].length / 2400);
     eligible += segments;
-    const coverage = (corpus.governance?.campaignExtraction?.runs ?? []).filter(r => !caseId || r.caseId === caseId)
-      .flatMap(r => r.coverage ?? []).filter(c => c.sourceRevisionId === revision.id && c.normalizedHash === revision.normalizedHash).at(-1);
-    completed += Math.min(segments, coverage?.completed ?? 0);
-    if (!coverage) unprocessed++;
+    const identities = Array.from({ length: segments }, (_, i) => {
+      const start = i * 2400, end = Math.min([...revision.normalizedContent].length, start + 2400);
+      return stableId('segment', `${revision.id}\n${revision.normalizedHash}\n${start}\n${end}`);
+    });
+    const completedIds = new Set();
+    let attempted = false, legacyLowerBound = 0;
+    for (const run of corpus.governance?.campaignExtraction?.runs ?? []) {
+      if (caseId && run.caseId !== caseId) continue;
+      const coverage = run.coverage?.find(c => c.sourceRevisionId === revision.id && c.normalizedHash === revision.normalizedHash);
+      if (!coverage) continue;
+      attempted = true;
+      if (Array.isArray(run.segmentCoverage)) {
+        for (const s of run.segmentCoverage) if (s.status === 'completed' && identities.includes(s.segmentId)) completedIds.add(s.segmentId);
+      } else if (coverage.completed === segments && coverage.segments === segments) identities.forEach(id => completedIds.add(id));
+      else legacyLowerBound = Math.max(legacyLowerBound, Math.min(segments, coverage.completed ?? 0));
+    }
+    completed += Math.max(completedIds.size, legacyLowerBound);
+    if (legacyLowerBound > completedIds.size) legacyUnlocated++;
+    if (!attempted) unprocessed++;
   }
+  const priority = units.filter(u => u.actionable);
   return { ...count(units), byType: Object.fromEntries(unique(units.map(u => u.type)).map(type => [type, count(units.filter(u => u.type === type))])),
-    extraction: { completed, eligible, unavailable, unprocessed } };
+    priority: { ...count(priority), byType: Object.fromEntries(['tools', 'behaviors', 'prompts'].map(type => [type,
+      count(priority.filter(u => u.priorityCategory === type))])) },
+    hiddenEvidence: units.filter(u => u.type === 'claims').length,
+    deferred: units.filter(u => !u.priorityCategory && u.type !== 'claims').length,
+    exceptions: units.filter(u => u.priorityCategory && !u.actionable).length,
+    extraction: { completed, eligible, unavailable, unprocessed, legacyUnlocated } };
 }
 
 // Reviewed records are a projection, not a private audit log or an importable corpus.
@@ -356,14 +407,19 @@ export function reviewedProfile(corpus, annotations = []) {
   const accepted = state.units.filter(u => u.eligible);
   const byKey = new Map(accepted.map(u => [u.itemKey, u]));
   const sourceIds = new Set(), revisionIds = new Set(), passageIds = new Set(), frameworkIds = new Set();
+  const caseIds = new Set();
   const add = (entityType, entity, reviewStatus = null, warnings = []) => records.push({
     schemaVersion: corpus.schemaVersion, entityType, entity, reviewStatus, warnings,
   });
   for (const u of accepted) {
     const entity = structuredClone(u.record);
-    if (u.parent) { entity.id = u.id; entity.parent = u.parent; }
+    u.caseIds.forEach(id => caseIds.add(id));
+    if (u.parent) { entity.id = stableId('review-unit', u.itemKey); entity.localId = u.record.id ?? String(u.index); entity.parent = u.parent; }
     if (u.type === 'behaviors') {
-      entity.occurrences = (entity.occurrences ?? []).filter((o, i) => byKey.has(keyFor('occurrences', `${u.id}/${i}`)));
+      entity.occurrences = (entity.occurrences ?? []).flatMap((o, i) => {
+        const occurrence = byKey.get(keyFor('occurrences', `${u.id}/${i}`));
+        return occurrence ? [structuredClone(occurrence.record)] : [];
+      });
       for (const [field, type] of [['signalIds', 'telemetry'], ['detectionIds', 'detections'], ['otelIds', 'otel']]) {
         if (entity[field]) entity[field] = entity[field].filter(id => byKey.has(keyFor(type, id)));
       }
@@ -377,6 +433,7 @@ export function reviewedProfile(corpus, annotations = []) {
       // exports include classification metadata only, not article-derived values.
       for (const field of ['value', 'normalizedValue', 'support', 'context', 'modelVersion', 'promptVersion']) delete entity[field];
       entity.contentOmitted = 'Private annotation content retained locally; classification is not a public quotation license.';
+      if (entity.sourceRevisionId) revisionIds.add(entity.sourceRevisionId);
     }
     if (u.type === 'cases' && entity.pathIds) entity.pathIds = entity.pathIds.filter(id => byKey.has(keyFor('paths', id)));
     if (u.type === 'mappings') frameworkIds.add(entity.techniqueId);
@@ -388,11 +445,16 @@ export function reviewedProfile(corpus, annotations = []) {
     (entity.sourceRevisionIds ?? []).forEach(id => revisionIds.add(id));
     (entity.standardSourceIds ?? []).forEach(id => sourceIds.add(id));
     u.sourceIds.forEach(id => sourceIds.add(id));
-    delete entity.history;
+    if (entity.history) entity.history = [];
     if (Object.hasOwn(entity, 'disposition')) entity.disposition = 'Accepted';
-    add(u.type, entity, { currentAcceptance: true, guideVersion: GUIDE_VERSION,
+    add(u.type, entity, { currentAcceptance: true, guideVersion: u.history.at(-1).guideVersion, caseIds: u.caseIds,
       contentOrigin: u.contentOrigin, labelAuthorship: u.labelAuthorship, humanReviewed: true,
       binding: u.binding }, u.type === 'detections' || u.type === 'otel' ? ['Reviewed proposal; not operational validation.'] : []);
+  }
+  for (const id of caseIds) if (!byKey.has(keyFor('cases', id))) {
+    const record = corpus.cases.find(c => c.id === id);
+    if (record) add('cases', { id, name: record.name, sourceIds: record.sourceIds.filter(id => sourceIds.has(id)), contextOnly: true },
+      null, ['Case identity context only; summary withheld pending its independent review.']);
   }
   // Framework definitions are pinned reference metadata, not incident review units.
   let changed;
