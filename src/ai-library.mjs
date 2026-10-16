@@ -21,9 +21,13 @@ export function aiLibrary(model, view, caseIds = new Set(model.corpus.cases.map(
     if (a.type !== 'commands-ai-artifacts' || !caseIds.has(a.caseId)) continue;
     const kind = a.context?.artifactKind;
     if (view === 'tools' ? kind !== 'ide-cli' : kind !== 'prompt-instruction') continue;
-    const identity = view === 'tools' ? toolIdentity(a.value) : null;
+    const displayIdentity = view === 'tools' && a.itemReview?.editor ? a.itemReview.displayIdentity : null;
+    const identity = view === 'tools' ? displayIdentity ? {
+      id: null, name: displayIdentity,
+      basis: 'Human-edited display identity; original extracted literal retained. Separate source occurrence; no automatic product merge.',
+    } : toolIdentity(a.value) : null;
     // Exact prompt equality only: whitespace, case and code points retain detection significance.
-    const key = identity?.id ?? `${kind}:${a.value}`;
+    const key = displayIdentity ? JSON.stringify(['edited-tool', a.id]) : identity?.id ?? `${kind}:${a.value}`;
     if (!groups.has(key)) groups.set(key, { id: identity?.id ?? `${view}-${a.id}`,
       name: identity?.name ?? (view === 'prompts' ? a.normalizedValue ?? `${a.value.slice(0, 72)}${a.value.length > 72 ? '…' : ''}` : a.value),
       basis: identity?.basis ?? 'Exact literal equality; similar prompts remain separate variants', annotations: [], caseIds: [] });

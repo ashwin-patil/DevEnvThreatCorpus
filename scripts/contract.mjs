@@ -11,6 +11,7 @@ import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';
 import { Readable } from 'node:stream';
 import { ARTICLE_PARSER_VERSION, parseArticle, PUBLISHERS } from '../src/article.mjs';
 import { canonicalArticleUrl, sourceInventory } from '../src/research-inventory.mjs';
+import { reviewedProfile, assertReviewHistory } from '../src/hitl.mjs';
 export { PUBLISHERS };
 
 export const schema = JSON.parse(readFileSync(new URL('../schemas/corpus.schema.json', import.meta.url), 'utf8'));
@@ -66,21 +67,25 @@ export function canonicalUrl(input) {
 
 export const URL_NORMALIZATION_VERSION = 'https-tracking/1';
 
-function structural(value, definition, path, errors) {
-  if (definition.$ref) return structural(value, schema.$defs[definition.$ref.split('/').at(-1)], path, errors);
+function structural(value, definition, path, errors, rootSchema = schema) {
+  if (definition.$ref) return structural(value, rootSchema.$defs[definition.$ref.split('/').at(-1)], path, errors, rootSchema);
   const fail = message => errors.push(`${path}: ${message}`);
   if (definition.anyOf) {
-    if (!definition.anyOf.some(branch => { const trial = []; structural(value, branch, path, trial); return trial.length === 0; })) fail('does not match any allowed shape');
+    if (!definition.anyOf.some(branch => { const trial = []; structural(value, branch, path, trial, rootSchema); return trial.length === 0; })) fail('does not match any allowed shape');
     return;
+  }
+  if (definition.oneOf) {
+    const matches = definition.oneOf.filter(branch => { const trial = []; structural(value, branch, path, trial, rootSchema); return !trial.length; });
+    if (matches.length !== 1) fail('must match exactly one typed profile shape');
   }
   if ('const' in definition && value !== definition.const) fail(`must equal ${JSON.stringify(definition.const)}`);
   if (definition.enum && !definition.enum.includes(value)) fail(`invalid enum ${JSON.stringify(value)}`);
-  if (definition.allOf) for (const branch of definition.allOf) structural(value, branch, path, errors);
+  if (definition.allOf) for (const branch of definition.allOf) structural(value, branch, path, errors, rootSchema);
   if (definition.if) {
     const trial = [];
-    structural(value, definition.if, path, trial);
+    structural(value, definition.if, path, trial, rootSchema);
     const branch = trial.length === 0 ? definition.then : definition.else;
-    if (branch) structural(value, branch, path, errors);
+    if (branch) structural(value, branch, path, errors, rootSchema);
   }
   if (definition.type) {
     const matches = definition.type === 'null' ? value === null
@@ -98,14 +103,14 @@ function structural(value, definition, path, errors) {
   if (Array.isArray(value)) {
     if (definition.minItems && value.length < definition.minItems) fail(`requires at least ${definition.minItems} items`);
     if (definition.uniqueItems && new Set(value.map(item => JSON.stringify(item))).size !== value.length) fail('duplicate array item');
-    if (definition.items) value.forEach((item, index) => structural(item, definition.items, `${path}[${index}]`, errors));
+    if (definition.items) value.forEach((item, index) => structural(item, definition.items, `${path}[${index}]`, errors, rootSchema));
   }
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     for (const key of definition.required ?? []) if (!Object.hasOwn(value, key)) fail(`missing ${key}`);
     for (const [key, item] of Object.entries(value)) {
-      if (definition.properties?.[key]) structural(item, definition.properties[key], `${path}.${key}`, errors);
+      if (definition.properties?.[key]) structural(item, definition.properties[key], `${path}.${key}`, errors, rootSchema);
       else if (definition.additionalProperties === false) fail(`unknown field ${key}`);
-      else if (typeof definition.additionalProperties === 'object') structural(item, definition.additionalProperties, `${path}.${key}`, errors);
+      else if (typeof definition.additionalProperties === 'object') structural(item, definition.additionalProperties, `${path}.${key}`, errors, rootSchema);
     }
   }
 }
@@ -291,6 +296,7 @@ function behaviorCaseIds(behavior) {
 export function profileRecords(input, profile = 'reviewed') {
   if (!['reviewed', 'draft'].includes(profile)) throw new Error('profile must be reviewed or draft');
   if (input?.schemaVersion !== CONTRACT_VERSION) throw new Error(`unsupported schema version ${JSON.stringify(input?.schemaVersion)}; expected ${CONTRACT_VERSION}`);
+  if (profile === 'reviewed') return reviewedProfile(input);
 
   const corpus = reviewEligibleCorpus(input);
   assertValid(corpus);
@@ -566,7 +572,7 @@ function csvFile(type, records, profile) {
   return `${rows.map(row => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
 }
 
-function profileSchema() {
+export function profileSchema() {
   const reviewStatusSchema = {
     type: 'object',
     additionalProperties: false,
@@ -579,24 +585,76 @@ function profileSchema() {
       projected: { type: 'boolean' },
     },
   };
+  const hitlStatus = {
+    type: 'object', additionalProperties: false,
+    required: ['currentAcceptance', 'guideVersion', 'contentOrigin', 'labelAuthorship', 'humanReviewed', 'binding', 'caseIds'],
+    properties: {
+      currentAcceptance: { const: true }, humanReviewed: { const: true },
+      guideVersion: { type: 'string', minLength: 1 }, contentOrigin: { type: 'string', minLength: 1 },
+      labelAuthorship: { type: 'string', minLength: 1 }, binding: { $ref: '#/$defs/hash' },
+      caseIds: { $ref: '#/$defs/ids' },
+    },
+  };
+  const defs = structuredClone(schema.$defs);
+  defs.claim.properties.conflictsWithheld = { type: 'boolean' };
+  const parent = { type: 'object', additionalProperties: false, required: ['type', 'id'],
+    properties: { type: { enum: ['paths', 'behaviors'] }, id: { $ref: '#/$defs/id' } } };
+  const child = type => ({ allOf: [{ $ref: `#/$defs/${type}` }, { type: 'object', required: ['parent', 'localId'],
+    properties: { parent, localId: { type: 'string' } } }] });
+  const occurrence = {
+    type: 'object', required: ['id', 'parent', 'localId', 'claimIds'],
+    properties: { id: { $ref: '#/$defs/id' }, parent, localId: { type: 'string' },
+      claimIds: { $ref: '#/$defs/supportIds' }, caseId: { $ref: '#/$defs/id' },
+      origin: { $ref: '#/$defs/origin' }, disposition: { const: 'Accepted' } },
+  };
+  const annotation = {
+    type: 'object', additionalProperties: false,
+    required: ['id', 'caseId', 'sourceId', 'sourceRevisionId', 'type', 'evidenceStatus', 'origin', 'status', 'contentOmitted'],
+    properties: {
+      id: { $ref: '#/$defs/id' }, caseId: { $ref: '#/$defs/id' }, sourceId: { $ref: '#/$defs/id' },
+      sourceRevisionId: { $ref: '#/$defs/id' }, type: { type: 'string', minLength: 1 },
+      evidenceStatus: { enum: ['evidence-backed', 'inference', 'unresolved'] },
+      origin: { enum: ['agent', 'manual'] }, status: { const: 'pending' },
+      claimIds: { $ref: '#/$defs/ids' }, runId: { $ref: '#/$defs/id' },
+      externalReferenceUrl: { type: 'string' }, contentOmitted: { type: 'string', minLength: 1 },
+    },
+  };
+  const contextCase = {
+    type: 'object', additionalProperties: false, required: ['id', 'name', 'sourceIds', 'contextOnly'],
+    properties: { id: { $ref: '#/$defs/id' }, name: { $ref: '#/$defs/text' },
+      sourceIds: { $ref: '#/$defs/ids' }, contextOnly: { const: true } },
+  };
+  const extraTypes = { nodes: child('node'), edges: child('edge'), occurrences: occurrence, annotations: annotation };
+  const reviewedTypes = [...reviewableEntityTypes, ...optionalEntityTypes.filter(t => t !== 'frameworks'), ...Object.keys(extraTypes)];
   return {
     $schema: schema.$schema,
     title: 'DevEnvThreatCorpus profile JSONL record',
     description: 'One allowlisted typed entity from a reviewed or draft profile export.',
-    oneOf: profileEntityTypes.map(type => ({
+    oneOf: [...profileEntityTypes, ...Object.keys(extraTypes)].map(type => ({
       type: 'object',
       additionalProperties: false,
       required: ['schemaVersion', 'entityType', 'entity', 'reviewStatus', 'warnings'],
       properties: {
         schemaVersion: { const: CONTRACT_VERSION },
         entityType: { const: type },
-        entity: schema.properties[type].items,
-        reviewStatus: reviewableEntityTypes.includes(type) ? reviewStatusSchema : { type: 'null' },
+        entity: type === 'cases' ? { anyOf: [{ $ref: '#/$defs/case' }, contextCase] } :
+          extraTypes[type] ?? schema.properties[type].items,
+        reviewStatus: { anyOf: [
+          ...(reviewedTypes.includes(type) ? [hitlStatus] : []),
+          ...(reviewableEntityTypes.includes(type) ? [reviewStatusSchema] : []),
+          ...(!reviewableEntityTypes.includes(type) || type === 'cases' ? [{ type: 'null' }] : []),
+        ] },
         warnings: { type: 'array', items: { type: 'string' } },
       },
     })),
-    $defs: schema.$defs,
+    $defs: defs,
   };
+}
+
+export function validateProfileRow(row) {
+  const definition = profileSchema(), errors = [];
+  structural(row, definition, 'profile', errors, definition);
+  return errors;
 }
 
 export function parseCsv(text) {
@@ -634,6 +692,10 @@ function decodeSpreadsheet(value) {
 }
 
 export function profileFiles(profile) {
+  for (const row of profile.records) {
+    const errors = validateProfileRow(row);
+    if (errors.length) throw new Error(errors.join('\n'));
+  }
   const files = {
     'schema.json': canonicalSerialize(profileSchema()),
     'records.jsonl': profile.records.map(record => JSON.stringify(record)).join('\n') + (profile.records.length ? '\n' : ''),
@@ -743,7 +805,9 @@ export function queryProfile(profile, operation, options = {}) {
       || item.entityType === 'frameworks' && techniqueIds.has(item.entity.id)
       || item.entityType === 'telemetry' && telemetryIds.has(item.entity.id)
       || item.entityType === 'detections' && detectionIds.has(item.entity.id)
-      || item.entityType === 'otel' && otelIds.has(item.entity.id));
+      || item.entityType === 'otel' && otelIds.has(item.entity.id)
+      || ['nodes', 'edges', 'occurrences', 'annotations'].includes(item.entityType)
+        && item.reviewStatus?.caseIds.some(id => caseIds.has(id)));
     return {
       status: 'succeeded', operation, profile: profile.profile, digest: profile.snapshotDigest,
       unit: 'case bundle', caseId: options.caseId, coverage: profile.coverage, records: bundleRecords,
@@ -1600,8 +1664,10 @@ export function assertAppendOnlyReviews(previous, next) {
       }
       const corpus = await validatePrivateCorpus(store.file, { reviewAware });
       const previousReviews = structuredClone(corpus.reviews);
+      const previousItemReviews = structuredClone(corpus.governance.localReview);
       result = await update(corpus);
       assertAppendOnlyReviews(previousReviews, corpus.reviews);
+      assertReviewHistory(previousItemReviews, corpus.governance.localReview);
       await persist(store, corpus);
     } catch (error) {
       failure = { status: 'failed', code: safeCode(error), ...(error?.errors ? { errors: error.errors } : {}) };

@@ -67,7 +67,7 @@ export function campaignSummary(model, record) {
   const declared = record.summaryClaimIds ?? [];
   if (record.summary?.trim() && declared.length && declared.every(valid)) {
     return { text: record.summary, claimIds: [...new Set(declared)], origin: record.origin ?? 'Origin not recorded',
-      disposition: record.disposition ?? 'Pending', projected: false };
+      disposition: record.disposition ?? 'Pending', projected: false, ...(record.itemReview ? { itemReview: record.itemReview } : {}) };
   }
   const projected = PROJECTED_SUMMARIES.get(record.id);
   if (projected && projected.claimIds.every(valid)) {
@@ -93,6 +93,8 @@ export function evidenceLabel(status) {
   })[status] ?? 'Evidence not classified';
 }
 export function originReview(record) {
+  const r = record.itemReview;
+  if (r) return `${r.contentOrigin}${r.editor ? ` · Human-edited by ${r.editor}` : ''} · ${r.state === 'Accepted' ? 'Human-reviewed' : r.state}`;
   const origin = ({ 'LLM source paraphrase': 'LLM paraphrase', 'LLM synthesis': 'LLM synthesis' })[record.origin]
     ?? record.origin ?? 'Origin not recorded';
   const review = record.disposition ?? 'Pending';

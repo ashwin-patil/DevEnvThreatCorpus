@@ -4,6 +4,7 @@ import { publisherDisplay, behaviorInventory, sourceInventory } from './research
 import { aiLibrary } from './ai-library.mjs';
 import { campaignGraph, campaignSummary, pathDisplayName, evidenceLabel, originReview, activityIcon, ICON_PATHS } from './campaign-presentation.mjs';
 import { graphLayout, graphRouter, NODE_WIDTH, NODE_HEIGHT } from './graph-geometry.mjs';
+import { renderProgress } from './review-ui.mjs';
 export { graphLayout } from './graph-geometry.mjs';
 
 export const EXPLORE_VIEWS = { paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry' };
@@ -64,7 +65,7 @@ function behaviorLinks(doc, parent, model, claimIds, paths, navigate) {
   }
   if (!behaviors.length) parent.append(element(doc, 'p', 'No linked behaviors recorded. Collection alone does not extract behavior.', 'subtle'));
 }
-export function renderCaseLibrary(doc, model, records, navigate, filters = {}) {
+export function renderCaseLibrary(doc, model, records, navigate, filters = {}, openReview) {
   const panel = element(doc, 'section', null, 'case-library');
   panel.append(element(doc, 'h2', 'Case library'), element(doc, 'p',
     'One card per campaign or explicitly selected research group. Cards open expanded to show cited context, research and linked views; collapse them for a compact overview. Shared research does not merge campaigns.', 'subtle'), usageLegend(doc));
@@ -86,6 +87,9 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}) {
     card.append(summary);
     const body = element(doc, 'div', null, 'case-card-body');
     body.append(action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
+    if (model.itemReview?.campaigns[record.id] && openReview) body.append(renderProgress(doc,
+      model.itemReview.campaigns[record.id], filter => openReview(record.id, '', filter)));
+    else if (model.collectionEnabled) body.append(element(doc, 'p', model.reviewError ?? 'Review coverage unavailable; no approval inferred.'));
     appendAiLinks(doc, body, model, record.id, navigate);
     if (overview.claimIds.length) {
       const citations = element(doc, 'details', null, 'campaign-summary-citations');
@@ -117,7 +121,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}) {
   }
   panel.append(grid); return panel;
 }
-export function renderResearchLibrary(doc, model, sources, navigate, filters = {}) {
+export function renderResearchLibrary(doc, model, sources, navigate, filters = {}, openReview) {
   const panel = element(doc, 'section', null, 'research-library');
   panel.append(element(doc, 'h2', 'Research library'), element(doc, 'p',
     'One card per blog or research source. Campaign tags open the associated case; one blog can support several cases without combining their attribution. Open a blog to inspect exact revisions and claims.', 'subtle'), usageLegend(doc));
@@ -142,6 +146,9 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
       card.append(history);
     }
     card.append(element(doc, 'h3', 'Campaigns / cases'));
+    if (model.itemReview?.sources[source.id] && openReview) card.append(renderProgress(doc,
+      model.itemReview.sources[source.id], filter => openReview(cases[0]?.id ?? '', source.id, filter)));
+    else if (model.collectionEnabled) card.append(element(doc, 'p', model.reviewError ?? 'Review coverage unavailable; no approval inferred.'));
     for (const record of cases) card.append(action(doc, record.name, () => navigate('cases', record.id), 'chip campaign-tag'));
     if (!cases.length) card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'));
     if (!revisions.size && model.corpus.collectionManifests.some(m => m.outcome === 'Failed' && m.inputSourceIds.some(id => memberIds.has(id)))) card.append(element(doc, 'p', 'Failed intake attempt · article unavailable for extraction.', 'limits'));
@@ -186,6 +193,10 @@ function row(doc, parent, label, value) {
     element(doc, 'span', Array.isArray(value) ? value.join(', ') : value)); parent.append(p);
 }
 function provenance(doc, record) {
+  if (record.itemReview) {
+    const r = record.itemReview;
+    return element(doc, 'p', `Content origin: ${r.contentOrigin} · Labels: ${r.labelAuthorship} · ${r.editor ? `Human-edited by ${r.editor} · ` : ''}Review: ${r.state}${r.state === 'Accepted' ? ' (Human-reviewed)' : ''}`, 'subtle');
+  }
   return element(doc, 'p', [record.origin, record.evidenceStatus, record.disposition ?? record.status ?? 'Pending',
     record.mappingStatus].filter(Boolean).join(' · '), 'subtle');
 }
@@ -257,7 +268,7 @@ function annotationCard(doc, model, annotation, navigate, showLiteral = true) {
 export function renderEvidencePanel(doc, model, record, navigate, download) {
   const panel = element(doc, 'section', null, 'panel research-evidence');
   panel.append(element(doc, 'h2', 'Campaign research & talk evidence'),
-    element(doc, 'p', model.publicDraft ? 'Public draft tools and extracted prompts are pending. Full article quotations remain omitted; source citations and prompt locators remain available for review.' : 'Private annotations are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
+    element(doc, 'p', model.publicDraft ? 'Public draft tools and extracted prompts are pending. Full article quotations remain omitted; source citations and prompt locators remain available for review.' : 'Private annotations show their current item-review state when available; otherwise they are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
   if (model.annotationError) panel.append(element(doc, 'p', model.annotationError, 'enrichment-warning'));
   if (download && !model.publicDraft) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
     () => download(format, format === 'md' ? talkMarkdown(talkBundle(model, record.id)) : talkBundle(model, record.id))));

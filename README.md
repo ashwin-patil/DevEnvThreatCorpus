@@ -80,8 +80,71 @@ and limits; the process does not imply completed research acceptance.
   supply text/files; collection is not claim acceptance.
 - Draft claims manually or use an explicit request/chat/candidate handoff.
   The repository does not call a runtime model or automatically approve output.
-- Record local human claim decisions and produce reproducible reviewed/draft
+- Record local item-level human decisions and produce reproducible reviewed/draft
   exports with read-only queries, subject to current eligibility checks.
+
+### Private local review
+
+Start `node scripts/server.mjs --store /absolute/private/store` on POSIX (store
+directory `0700`, `corpus.json` `0600`; inside this clone use ignored
+`.private-intake/`). Open **Review**: grounded AI/coding tools, behaviors/occurrences
+and prompt literals are the first-class category queues; blog grouping remains
+available over the same stable items/decisions. Claims are supporting evidence,
+accessible separately with exceptions and later-pass records, never deleted.
+Set your self-attested identity once per tab/session, visibly editable (not
+authenticated). Use the [researcher-review/2 guide](docs/researcher-review-guide.md):
+read the compact candidate, evidence/citation and category checklist, then choose
+**Accept item — I confirm** as one explicit personal attestation. Review each
+required support item separately; accepting a candidate never approves a claim.
+Modify never accepts; Exclude retains provenance/history; Unsure records a reason,
+while Next item only navigates. Navigation/filter selection resumes in this browser.
+Modify exposes prefilled friendly fields, not JSON; Save changes is separate from
+Accept. Reject has canonical reason choices; only Other needs extra prose. After
+deciding, confirmation and previous/history access remain while the queue advances.
+Advanced mapping/path/proposal UX is deferred, not approved: these records stay
+Pending/withheld unless independently reviewed. N/A labels are outside label
+denominators; priority counts disclose hidden evidence/deferred records.
+Support review restores the original workload, category, grouping, source and
+filter rather than leaving the advanced queue active. Current exclusions show
+**Human-reviewed · Excluded**, distinct from acceptance and stale review. Identical
+exact passages are displayed once with their separate provenance links retained.
+Human-edited tool display identities are shared by Review, library and campaign/blog
+cards; literal source values stay visible and corrected identities do not silently
+merge products. See the [AC evidence ledger](docs/acceptance-audit.md#issue-81-local-hitl-review)
+for deferred coverage and the independent human decisions still required.
+
+To try review without a private store, open **Review → Start synthetic review
+exercise (isolated, not Nx)**. It loads benign tool, behavior/occurrence, prompt
+and supporting-claim fixtures into server memory. Exercise support review, edits,
+accept/reject/unsure, category/blog grouping, reload and history. Browser reload
+retains this session; server restart resets it. It never writes the public Nx
+draft, a read-only corpus or a private store. **Load synthetic demo** remains the
+older inspect-only example; **Reload local corpus** refreshes the selected review
+exercise while it is active, not an implicit switch to private data.
+
+Claims, behavior definitions/occurrences, annotations (including prompt/tool usage),
+categories, timelines, summaries, path nodes/edges, mappings and proposals require
+their own approval. Supporting changes block affected approvals without approving
+anything downstream. Content origin, label authorship and human review are shown
+separately. Cards show denominators for extraction, populated labels, current
+human review and eligibility—not a quality score.
+
+**Compatibility:** `--profile reviewed` now requires current item-level HITL
+acceptance for every reviewable record; legacy `manual-review/1` claim acceptance
+and pending optional enrichment no longer qualify. Re-review through this page.
+`GET /api/review/export` downloads a reviewed JSON projection including accepted
+private sidecar annotation metadata; CLI `review.mjs status` adds `itemReview`,
+and `decide` also accepts item templates using its snapshot and guide version.
+File-based CLI exports cannot discover sidecars and withhold those annotations.
+Reviewed outputs omit article bodies, passage quotations and annotation content;
+minimal case identity context can accompany an accepted claim without approving
+or exposing the unreviewed summary; context rows have `contextOnly: true` and no
+acceptance. Generated profile schema covers accepted optional/nested units.
+they are projections, not importable private audit backups. Existing draft and
+private campaign/talk exports keep their explicit private-draft semantics.
+No button publishes; the bundled Nx/s1ngularity preview snapshot is unchanged.
+Independent human semantic, UX/accessibility and documentation review is still
+required before merge; this feature does not establish campaign acceptance.
 
 <a id="project-status-and-next-work"></a>
 ## What the examples mean
@@ -120,7 +183,8 @@ No local clone or installation is required for this path.
    if a tab does not open. Use an external browser tab, not an embedded preview.
 4. Start with the public Pending draft. For a benign exercise choose **Load
    synthetic demo**, or **Load synthetic research demo** in a research view.
-   **Reload local corpus** leaves demo mode; demos do not populate a store.
+   The inspect-only demos do not populate a store. For writable benign review,
+   choose **Review → Start synthetic review exercise (isolated, not Nx)**.
 
 The workbench starts in **light mode** on a first visit, even if your system
 prefers dark mode. Use the compact **sun/moon toggle** in the header to switch
@@ -216,7 +280,7 @@ python -m pip install --requirement requirements-governance.txt
 python scripts/verify.py
 ```
 
-The verifier runs scaffold checks and the seven application commands in
+The verifier runs scaffold checks and the eight application commands in
 [`project.config.json`](project.config.json). Synthetic/offline checks are not
 live Codespaces, real-extraction quality or independent research acceptance.
 See [setup and verification](docs/setup-and-configuration.md).

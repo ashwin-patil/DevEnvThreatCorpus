@@ -15,7 +15,7 @@ service or automatic acceptance is configured.
 | Loopback Node server | [server.mjs](../scripts/server.mjs) serves allowlisted assets and bounded APIs at `127.0.0.1:4173`; explicit store mode enables collection and campaign handoff, not arbitrary filesystem access |
 | Contract and intake tooling | [contract.mjs](../scripts/contract.mjs) owns validation, canonical identity/hashes, private persistence, single/batch intake, reviewed/draft exports and queries. Server and CLI share helpers; the server need not spawn a CLI process |
 | Extraction tooling | [extract.mjs](../scripts/extract.mjs) applies manual templates and exposes enrichment/campaign commands; [campaign.mjs](../src/campaign.mjs) binds requests, validates untrusted candidates and applies Pending records |
-| Human review tooling | [review.mjs](../scripts/review.mjs) records explicit local claim decisions and reports current eligibility; identity is self-attested |
+| Human review tooling | [review.mjs](../scripts/review.mjs) retains legacy claim decisions; [hitl.mjs](../src/hitl.mjs) owns item-level review/eligibility and [review-ui.mjs](../src/review-ui.mjs) extends the Workbench; identity is self-attested |
 | Private storage | Protected `corpus.json`, article archives, annotation sidecars and operator-held request/candidate/decision/export files. Immutable campaign run snapshots live inside corpus governance, not a database |
 | Public views | The bundled [Nx draft projection](../src/data/nx-draft.json), explicit synthetic demos and separately generated profile exports have different withholding/review semantics; none is the private archive |
 
@@ -33,19 +33,96 @@ service or automatic acceptance is configured.
    No repository code contacts a model provider, discovers credentials or silently
    refetches missing text.
 3. Claims and optional derived records remain Pending. A human inspects wording,
-   evidence, inference and conflicts before recording claim decisions.
-   Acceptance depends on the whole current non-review corpus base as well as
-   entity/dependency hashes; a later content edit can stale earlier decisions.
-4. Browser projections inspect these records without accepting them. Graph layout,
+   evidence, inference and conflicts before recording explicit item decisions.
+   Legacy claim events bind the whole non-review base. New HITL events bind the
+   selected content/provenance, source evidence and required support revisions.
+4. The private Review page records decisions through a bounded same-origin API.
+   Other browser projections remain inspect-only. Graph layout,
    article/product/prompt grouping and comparison facets are presentation only.
    They create neither evidence, chronology, attribution nor shared review status.
 5. Explicit exports select reviewed or draft material and close dependencies.
-   Core profile exports strip full article bodies but can retain passage excerpts.
+   Reviewed profile exports strip full article bodies, passage excerpts and
+   annotation content; draft profile behavior is unchanged.
    Campaign talk bundles can contain raw HTML text and normalized private bodies
    and must stay private; separately archived files are not copied into them.
    Neither an export command nor this diagram authorizes public redistribution.
 
 ## Trust boundaries
+
+### Item-level local HITL contract (issue #81)
+
+`governance.localReview` is an append-only `local-hitl/1` log in the existing private
+corpus transaction. Extraction proposals and campaign run envelopes remain untouched.
+Events retain original candidates, extraction metadata, self-attested reviewer,
+time, action/reason, guide/checks, item binding, support revision/decision bindings,
+patches, provenance corrections and replacement keys. A hash chain detects accidental
+history edits; it is not authentication, a signature or protection from a malicious
+local filesystem owner. The existing store lock, baseline comparison, file modes,
+atomic rename and fsync protect writes. A snapshot CAS rejects stale tabs and
+concurrent decisions; no reviewer assignment or shared-user service is added.
+
+Stable review keys are type plus record ID. Nested nodes/edges use path ID plus
+their own ID; occurrences use behavior ID plus immutable proposal-array position.
+An insertion/reordering is a changed proposal, not a way to inherit acceptance.
+Shared campaign definitions have one key; source counts may overlap. Blog and
+artifact-category grouping never merge distinct occurrences. Local storage holds
+only navigation keys, including a bounded support-return trail; returning after
+an explicit support decision restores workload/category/group/source/filter.
+Per-tab session storage separately holds the editable self-attested identifier.
+Every durable decision records that identifier; neither storage authenticates it.
+
+Dependencies flow from claims to definitions, occurrences/nodes, edges, paths,
+mappings and proposal dependencies. Case summaries depend on claims but claims
+do not depend on summary acceptance. Definitions do not depend on their optional
+telemetry/detections: this avoids inventing a cycle. Relationship evidence and
+mapping definitions bind independently. Missing/cyclic support remains blocked.
+Conflicts bind content but are not reciprocal acceptance prerequisites. When a
+conflicting claim is withheld, the reviewed projection marks `conflictsWithheld`;
+it does not represent the remaining assertion as a resolved contradiction.
+Content/provenance edits invalidate affected downstream decisions, never unrelated
+records. A support's exclusion or re-review changes its decision binding.
+
+Corrections overlay frozen candidates and need separate acceptance. Null-reason
+cleanup is validated with the effective corrected record. Simple text/label edits
+are allowlisted; structural corrections need exclusion/regeneration. Provenance is
+a separate audited action, including human-to-LLM corrections with reason/evidence.
+Authorship is never inferred from acceptance/exclusion. Unretained or mismatching
+evidence is explained and cannot be replaced with invented quotations.
+Private models project effective edits and review state over a copy; curator
+transactions and frozen originals retain the canonical corpus. A human-corrected
+tool display identity appears consistently in Review, library and campaign/blog
+cards while the extracted literal remains visible. Corrected identities do not
+automatically merge product groups or source occurrences. Current exclusions are
+human-reviewed, not accepted; changed decisions are not current review. Identical
+exact passages are displayed once per revision/code-point span, retaining each
+passage/direct-support attribution and supporting-record navigation.
+
+`profileRecords(..., 'reviewed')` selects only currently HITL-accepted records.
+Framework definitions and source/revision provenance are reference metadata, not
+incident approvals. Pending enrichment is withheld. Nested items may be exported
+independently as typed review records; parent paths require all their nodes/edges.
+Accepted case summaries are independent records; accepted claims can be listed
+with minimal `contextOnly: true` case identity rows, not an unaccepted case summary.
+Those rows have null review status and cannot imply summary approval. The generated
+profile schema validates accepted optional/nested units and redacted annotation
+metadata, independently of the importable corpus schema. Reviewed projections are not
+round-trippable private corpus/audit backups. Campaign/talk exports remain private
+drafts and preserve exclusions and LLM metadata. No publication or operational
+detection validation is implied. See the [decision guide](researcher-review-guide.md).
+
+Priority triage is deterministic: tool/prompt/behavior category, exact retained
+evidence and no structurally unresolved required support. Pending claims require
+their own short human review step. Missing support remains an exception, not
+permission to waive acceptance. N/A units are outside label denominators; retained
+segment identities are unioned across extraction runs. Historical partial counts
+without identities provide only a disclosed conservative lower bound.
+
+The explicitly selected `/api/review-demo` exercise uses per-server in-memory
+synthetic state and the same decision contract, never the public Nx snapshot or
+private store. Reload retains it; restart resets it. Only explicit `--store`
+review has filesystem durability. The owner-authorized first pass prioritizes
+tools, behaviors/occurrences and prompts; polished advanced-artifact UX and
+independent semantic acceptance remain deferred, with pending records withheld.
 
 - **External content → intake:** credential-free public HTTPS only, address and
   redirect checks, DNS pinning, TLS/peer verification, robots policy and finite

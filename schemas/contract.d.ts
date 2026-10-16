@@ -98,7 +98,46 @@ export interface OtelAction {
 }
 export interface Governance {
   controlledAliases?: Record<string, string[]>;
+  localReview?: { schemaVersion: 'local-hitl/1'; events: ItemReviewEvent[] };
   [extension: string]: unknown;
+}
+export type ItemReviewType = ReviewEntityType | 'behaviors' | 'occurrences' | 'paths' | 'nodes' | 'edges'
+  | 'mappings' | 'telemetry' | 'detections' | 'otel' | 'annotations';
+export interface ItemReviewEvent {
+  id: ID; itemKey: string; action: 'accept' | 'modify' | 'exclude' | 'unsure' | 'provenance';
+  reviewer: string; reviewerKind: 'self-attested-human'; timestamp: string; rationale: string;
+  guideVersion: string; binding: SHA256; originalHash: SHA256; original: Record<string, unknown>;
+  supportBindings: Record<string, { revision: SHA256; decisionId: ID | null; state: string }>;
+  contentOrigin: string; labelAuthorship: string; sourceIds: ID[]; claimIds: ID[];
+  runMetadata: Record<string, unknown>[]; previous: SHA256 | null; eventHash: SHA256;
+  checks?: Record<'evidence' | 'fidelity' | 'scope' | 'type', { result: 'pass' | 'not-applicable'; reason?: string }>;
+  confirmation?: string;
+  patch?: Record<string, unknown>; researcherTags?: string[]; labelEdited?: boolean;
+  provenanceEvidence?: string; previousOrigin?: string; previousLabelAuthorship?: string;
+  exclusionReason?: string; replacementKeys?: string[];
+}
+export interface ProfileAcceptance {
+  currentAcceptance: true; guideVersion: string; contentOrigin: string; labelAuthorship: string;
+  humanReviewed: true; binding: SHA256; caseIds: ID[];
+}
+export interface ProfileCaseContext { id: ID; name: string; sourceIds: ID[]; contextOnly: true }
+export interface ProfileChild {
+  id: ID; localId: string; parent: { type: 'paths' | 'behaviors'; id: ID };
+  [field: string]: unknown;
+}
+export interface ProfileAnnotation {
+  id: ID; caseId: ID; sourceId: ID; sourceRevisionId: ID; type: string;
+  evidenceStatus: 'evidence-backed' | 'inference' | 'unresolved'; origin: 'agent' | 'manual';
+  status: 'pending'; contentOmitted: string; claimIds?: ID[]; runId?: ID; externalReferenceUrl?: string;
+}
+export interface ProfileRow {
+  schemaVersion: '0.3.0';
+  entityType: ItemReviewType | 'sources' | 'sourceRevisions' | 'passages' | 'frameworks';
+  entity: Source | SourceRevision | Passage | Case | ProfileCaseContext | Claim | Categorization | Timeline
+    | Behavior | Path | Mapping | SecurityTelemetry | Detection | OtelAction | Technique | ProfileChild | ProfileAnnotation;
+  reviewStatus: ProfileAcceptance | { recordedDisposition: Disposition; effectiveDisposition: Disposition;
+    currentAcceptance: boolean; stale: boolean; projected: boolean } | null;
+  warnings: string[];
 }
 export interface Corpus {
   schemaVersion: '0.3.0'; name: string; sources: Source[]; sourceRevisions: SourceRevision[]; passages: Passage[]; cases: Case[]; claims: Claim[];

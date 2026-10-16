@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-10-16 — Private item-level HITL review and release eligibility (#81)
+
+- Extend the existing Workbench with campaign review grouped by blog or artifact
+  category, exact evidence/context and support navigation, resume/filter controls,
+  retained audit history and explicit single-item decisions. Embed versioned human
+  checklists and keep LLM-derived content, human edits and current review separate.
+- Preserve immutable extraction proposals and original attribution in an append-only
+  private review overlay. Bind decisions to item/evidence/support revisions, reject
+  stale/concurrent writes, retain excluded samples/reasons/replacements and audit
+  provenance corrections without implying falsehood or negative training labels.
+- Require independently accepted prerequisites and invalidate affected dependents,
+  exposing missing/cyclic support. Show extraction, label, current-review and
+  release-ready counts with explicit denominators; no aggregate quality score.
+- Tighten reviewed CLI/profile exports: legacy claim acceptance and pending
+  optional enrichment no longer qualify. Require explicit item review, retain
+  dependency closure and withhold private bodies/passages/annotation content.
+  Keep draft/private campaign exports and the published Nx preview unchanged.
+- Add synthetic contract, persistence, privacy, UI and server regression coverage.
+  Independent researcher, semantic, UX/accessibility and documentation review
+  remain required; review of a proposal is not operational validation.
+- Refine #81 to category-first tool, behavior/occurrence and prompt review with
+  per-tab self-attested identity, one explicit guide-v2 acceptance, canonical
+  rejection reasons and friendly edits followed by separate acceptance. Preserve
+  original literals/proposals; show corrected tool identities consistently without
+  automatic product merging, current exclusions as reviewed but not accepted,
+  and distinct provenance links for deduplicated exact evidence.
+- Restore priority workload/category/group/source/filter after explicit support
+  review, including reload and nested dependencies. Add a clearly isolated
+  server-memory synthetic exercise; it neither writes Nx nor proves private-store
+  durability. Advanced-artifact UX/semantic acceptance is deferred, not approved.
+- Validate typed reviewed export rows, retain minimal non-approved case identity
+  closure, exclude N/A units from label denominators and union retained extraction
+  segments across runs. Wire HITL as the eighth authoritative application suite
+  and update the command-contract assertion without removing coverage.
+
 ## 2026-10-15 — Explicit light/dark workbench themes (#79 scope extension)
 
 - Default first visits to light independently of the system preference; add a

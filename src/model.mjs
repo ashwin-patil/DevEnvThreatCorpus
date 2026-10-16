@@ -1,4 +1,4 @@
-export const VIEWS = { cases: 'Case library', sources: 'Research library', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
+export const VIEWS = { cases: 'Case library', sources: 'Research library', review: 'Review', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
 import { publisherDisplay } from './research-inventory.mjs';
 export const FACETS = ['cases', 'sources', 'publishers', 'tags', 'disposition'];
 export const COMPARISON_DIMENSIONS = {
@@ -18,6 +18,30 @@ export function createModel(corpus) {
     model[key] = new Map(corpus[key].map(record => [record.id, record]));
   }
   return model;
+}
+
+export function applyReviewProjection(model) {
+  if (!model.itemReview || model.publicDraft) return model;
+  const originalCorpus = model.originalCorpus ?? model.corpus, corpus = structuredClone(originalCorpus);
+  const annotations = new Map((model.annotations ?? []).map(a => [a.id, structuredClone(a)]));
+  for (const u of [...model.itemReview.units].sort((a, b) => Number(!!a.parent) - Number(!!b.parent))) {
+    let record;
+    if (u.type === 'annotations') { record = structuredClone(u.record); annotations.set(u.id, record); }
+    else if (u.parent) {
+      const parent = corpus[u.parent.type]?.find(r => r.id === u.parent.id);
+      record = u.type === 'occurrences' ? parent?.occurrences?.[u.index] :
+        parent?.[u.type]?.find(r => r.id === u.original.id);
+    } else record = corpus[u.type]?.find(r => r.id === u.id);
+    if (!record) continue;
+    Object.assign(record, structuredClone(u.record));
+    if (Object.hasOwn(record, 'disposition')) record.disposition = u.state === 'Accepted' ? 'Accepted' :
+      u.state === 'Excluded' ? 'Excluded' : 'Pending';
+    record.itemReview = { itemKey: u.itemKey, state: u.state, editor: u.editor ?? null,
+      contentOrigin: u.contentOrigin, labelAuthorship: u.labelAuthorship,
+      displayIdentity: u.editor && u.record.normalizedValue !== u.original.normalizedValue
+        ? u.record.normalizedValue : null };
+  }
+  return { ...model, ...createModel(corpus), originalCorpus, annotations: [...annotations.values()] };
 }
 
 export function metadata(record, key) {

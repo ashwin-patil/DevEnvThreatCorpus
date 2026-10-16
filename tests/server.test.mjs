@@ -10,6 +10,8 @@ import { privateStoreTest } from './platform.mjs';
 import { CAMPAIGN_LIMITS, createPreviewServer, emptyCorpus, parseArguments, WEB_INTAKE_LIMITS } from '../scripts/server.mjs';
 import { canonicalSerialize, validateCorpus } from '../scripts/contract.mjs';
 import { createEnrichmentTemplate } from '../src/enrichment.mjs';
+import { confirmationFor, GUIDE_VERSION } from '../src/review-guide.mjs';
+import { validateProfileRow } from '../scripts/contract.mjs';
 
 async function start(t, options) {
   const server = await createPreviewServer(options);
@@ -53,6 +55,74 @@ test('bundled default advertises public projection and serves only allowlisted p
   assert.equal((await request(port, '/src/public-profile.mjs')).status, 200);
   assert.equal((await request(port, '/.private-intake/candidate.json')).status, 404);
   assert.equal((await request(port, '/docs/data/nx-draft/records.jsonl')).status, 404);
+});
+
+test('Issue #81 AC-03/07/09/10 isolated synthetic review works from public mode, persists through refresh, rejects stale/cross-origin writes', async t => {
+  const port = await start(t), publicBefore = await request(port, '/src/data/nx-draft.json');
+  const get = async () => JSON.parse((await request(port, '/api/review-demo')).body);
+  const state = await get();
+  assert.ok(state.units.some(u => u.priorityCategory === 'tools'));
+  assert.ok(state.units.some(u => u.priorityCategory === 'prompts'));
+  assert.ok(state.units.some(u => u.type === 'occurrences'));
+  assert.ok(state.campaigns['synthetic-case-a'].priority.total >= 4);
+  const claim = state.units.find(u => u.itemKey === 'claims:synthetic-claim-a');
+  const input = { snapshot: state.snapshot, itemKey: claim.itemKey, action: 'accept',
+    reviewer: 'synthetic-human', selfAttested: true, guideVersion: GUIDE_VERSION, confirmation: confirmationFor(claim) };
+  const send = (value, headers = sameOrigin(port)) => request(port, '/api/review-demo', headers, 'POST', JSON.stringify(value));
+  assert.equal((await send(input, { 'Content-Type': 'application/json' })).status, 403);
+  assert.equal((await send(input, { ...sameOrigin(port), Origin: 'https://example.invalid' })).status, 403);
+  assert.equal((await send(input)).status, 200);
+  assert.equal((await send(input)).status, 409);
+  const loaded = await get(), accepted = loaded.units.find(u => u.itemKey === claim.itemKey);
+  assert.equal(accepted.state, 'Accepted');
+  assert.equal(accepted.history.length, 1);
+  assert.equal(accepted.history[0].reviewer, 'synthetic-human');
+  const tool = loaded.units.find(u => u.priorityCategory === 'tools');
+  const changed = { snapshot: loaded.snapshot, itemKey: tool.itemKey, action: 'modify', reviewer: 'synthetic-human',
+    selfAttested: true, guideVersion: GUIDE_VERSION, patch: { normalizedValue: 'Synthetic edited identity' },
+    rationale: 'Synthetic correction, not incident evidence.' };
+  assert.equal((await send(changed)).status, 200);
+  const updated = await get(), edited = updated.units.find(u => u.itemKey === tool.itemKey);
+  assert.equal(edited.record.normalizedValue, 'Synthetic edited identity');
+  assert.equal(edited.eligible, false);
+  assert.equal(edited.original.normalizedValue, 'Synthetic coding tool');
+  assert.equal((await send({ ...input, snapshot: updated.snapshot, itemKey: edited.itemKey, confirmation: confirmationFor(edited) })).status, 200);
+  const final = await get();
+  assert.equal(final.units.find(u => u.itemKey === edited.itemKey).history.length, 2);
+  const profile = JSON.parse((await request(port, '/api/review-demo/export')).body);
+  assert.ok(profile.records.some(r => r.entityType === 'annotations'));
+  assert.ok(profile.records.find(r => r.entityType === 'cases').entity.contextOnly);
+  for (const row of profile.records) assert.deepEqual(validateProfileRow(row), []);
+  assert.equal((await request(port, '/src/data/nx-draft.json')).body, publicBefore.body);
+  assert.equal((await request(port, '/api/corpus')).headers['x-collection-enabled'], undefined);
+  assert.equal((await request(port, '/api/review', sameOrigin(port), 'POST', JSON.stringify(input))).status, 405);
+});
+
+privateStoreTest('Issue #81 AC-07 private HTTP review persists to disk across server instances and rejects stale/concurrent writes', async t => {
+  const store = await workspace(t);
+  const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
+  const file = path.join(store, 'corpus.json');
+  await writeFile(file, canonicalSerialize(corpus), { mode: 0o600 });
+  const port = await start(t, { store });
+  const before = JSON.parse((await request(port, '/api/review')).body);
+  const unit = before.units.find(u => u.itemKey === 'claims:synthetic-claim-a');
+  const input = { snapshot: before.snapshot, itemKey: unit.itemKey, action: 'accept',
+    reviewer: 'synthetic-disk-reviewer', selfAttested: true, guideVersion: GUIDE_VERSION, confirmation: confirmationFor(unit) };
+  const send = (p, value) => request(p, '/api/review', sameOrigin(p), 'POST', JSON.stringify(value));
+  const results = await Promise.all([send(port, input), send(port, input)]);
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+  const persisted = await readFile(file, 'utf8'), stored = JSON.parse(persisted);
+  assert.equal(stored.governance.localReview.events.length, 1);
+  assert.equal(stored.governance.localReview.events[0].reviewer, input.reviewer);
+  assert.equal((await lstat(file)).mode & 0o777, 0o600);
+  const restarted = await start(t, { store });
+  const loaded = JSON.parse((await request(restarted, '/api/review')).body);
+  const accepted = loaded.units.find(u => u.itemKey === unit.itemKey);
+  assert.equal(accepted.state, 'Accepted');
+  assert.equal(accepted.history.length, 1);
+  assert.equal((await send(restarted, input)).status, 409);
+  assert.equal(await readFile(file, 'utf8'), persisted);
+  assert.deepEqual(JSON.parse((await request(restarted, '/api/corpus')).body).claims, corpus.claims);
 });
 
 test('browser normalization helper is explicitly served without exposing private implementation modules', async t => {
