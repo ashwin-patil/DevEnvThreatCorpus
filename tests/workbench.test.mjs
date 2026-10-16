@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './theme.test.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
@@ -22,6 +23,8 @@ import { applyReview } from '../scripts/review.mjs';
 import { emptyCorpus } from '../scripts/server.mjs';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { privateStoreTest } from './platform.mjs';
 import { publisherDisplay, behaviorInventory, articleCoverage } from '../src/research-inventory.mjs';
 import { campaignGraph, campaignSummary, pathDisplayName, evidenceLabel, originReview, activityIcon } from '../src/campaign-presentation.mjs';
 import { graphRouter, segmentClear, NODE_WIDTH, NODE_HEIGHT } from '../src/graph-geometry.mjs';
@@ -1731,14 +1734,14 @@ test('DOM controls are semantic buttons / labels, highlights have accessible nam
 });
 test('bundled entrypoint uses only permitted local assets and no external requests or unsafe HTML sinks', async () => {
   const html = await readFile(new URL('../src/index.html', import.meta.url), 'utf8');
-  for (const path of ['/src/app.mjs', '/src/style.css', '/docs/assets/logo.svg', '/docs/assets/favicon.svg']) assert.ok(html.includes(path));
+  for (const path of ['/src/app.mjs', '/src/theme.js', '/src/style.css', '/docs/assets/logo.svg', '/docs/assets/logo-dark.svg', '/docs/assets/favicon.svg']) assert.ok(html.includes(path));
   assert.ok(!/https?:\/\/|cdn|<iframe/i.test(html));
   for (const file of ['app.mjs', 'render.mjs', 'model.mjs', 'studio.mjs']) {
     const text = await readFile(new URL(`../src/${file}`, import.meta.url), 'utf8');
     assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|eval\(|localStorage|sessionStorage/.test(text), file);
   }
   const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
-  for (const color of ['#f6f3eb', '#fffdf7', '#25352f', '#68746b', '#dcded2', '#cb572d', '#2c5e50']) assert.ok(css.includes(color));
+  for (const color of ['#f6f3eb', '#fffdf7', '#25352f', '#59675d', '#dcded2', '#b04a26', '#2c5e50']) assert.ok(css.includes(color));
   assert.ok(css.includes(':focus-visible'));
   assert.ok(css.includes('@media(max-width:700px)'));
 });
@@ -1825,7 +1828,7 @@ test('Issue #31 AC-02 generated extraction JSON applies to the existing CLI cont
   assert.ok(!JSON.stringify(exported).includes('candidateTechniques'));
 });
 
-test('Issue #31 AC-02 pasted fixture generates a standalone schema-valid private proposal and CLI-compatible identities', async t => {
+test('Issue #31 AC-02 pasted fixture generates a standalone schema-valid private proposal', async () => {
   const input = JSON.parse(await readFile(new URL('./fixtures/extraction/studio-input.json', import.meta.url), 'utf8'));
   const state = createStudio(emptyCorpus()), before = canonicalSerialize(state.base);
   const revision = await pasteArticle(state, input);
@@ -1844,9 +1847,19 @@ test('Issue #31 AC-02 pasted fixture generates a standalone schema-valid private
   assert.equal(proposal.sources[0].publicationDate.precision, 'unknown');
   assert.throws(() => extractionProposal(state), /New intake\/cases/);
   assert.equal(canonicalSerialize(state.base), before);
-  const root = new URL('../.private-intake/', import.meta.url);
+});
+
+privateStoreTest('Issue #31 AC-02 pasted proposal identities match POSIX private CLI intake', async t => {
+  const input = JSON.parse(await readFile(new URL('./fixtures/extraction/studio-input.json', import.meta.url), 'utf8'));
+  const state = createStudio(emptyCorpus());
+  const revision = await pasteArticle(state, input);
+  const record = addStudioCase(state, 'Synthetic studio exercise; not incident evidence', 'Research exercise');
+  choosePassage(state, 0, [...revision.normalizedContent].length);
+  saveDraft(state, { ...claimInput(), caseId: record.id, ...input.annotation });
+  const proposal = await corpusProposal(state);
+  const root = fileURLToPath(new URL('../.private-intake/', import.meta.url));
   await mkdir(root, { recursive: true, mode: 0o700 });
-  const store = await mkdtemp(path.join(root.pathname, 'studio-intake-'));
+  const store = await mkdtemp(path.join(root, 'studio-intake-'));
   t.after(() => rm(store, { recursive: true, force: true }));
   const result = await intakeSource({ kind: 'text', text: input.text, sourceUrl: input.url, suppliedBy: input.suppliedBy, store });
   assert.equal(result.status, 'succeeded');

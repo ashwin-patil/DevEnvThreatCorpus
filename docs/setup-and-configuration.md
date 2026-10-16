@@ -6,6 +6,35 @@ Edit the versioned `project.config.json` using `schemas/project-config.schema.js
 
 `project_commands` are argument arrays executed by `scripts/verify.py` using `subprocess` with `shell=False`, a repository-root working directory, a 30-minute per-command timeout, and sensitive token/secret/password/credential/key/auth/connection environment variables removed. Shell `-c`/`-command` text is rejected. The `Verify` GitHub Actions job has a 30-minute overall timeout, including setup and dependency installation. The workflow grants only `contents: read` and does not pass secrets. A consuming project should add tests in `tests/` and configure the commands it actually uses. An empty list reports **scaffold-only** validation. The read-only PR policy and Copilot setup workflow never execute these commands.
 
+### Platform scope and Windows validation
+
+The existing `Verify` job remains on Linux, including private-store and real
+devcontainer lifecycle checks. A separate `Verify Windows public preview` job
+runs the same verifier on `windows-latest`. Both jobs install Python 3.12,
+the pinned YAML dependency and Node from `scripts/.node-version`; neither job
+executes with secrets or changes the trusted-base PR Policy workflow.
+
+Native Windows supports the data-free public preview, not private `--corpus`
+or `--store` server modes. Those modes fail explicitly before private storage
+is touched. Private CLI collection/review/export workflows remain POSIX-only.
+Windows ACL support is not implemented, and POSIX permission/link checks remain
+unchanged. Use the [Windows/WSL2 guidance](getting-started.md#windows-public-preview)
+for local operation.
+
+Portable configuration checks must not import the Linux lifecycle manager on
+other platforms: it depends on `fcntl`, `/proc`, Unix identities and signals.
+Only its execution checks are Linux-scoped. `tests/platform.mjs` marks actual
+private-store integration tests as unsupported on native Windows; it does not
+skip pure corpus validation, in-memory transformations or public-server tests.
+Mixed proposal/export tests keep their portable assertions separate from private
+disk persistence. Record skipped counts and reasons; a passing Windows run is
+not evidence for the skipped workflows.
+
+For filesystem paths, convert `file:` URLs with Node's `fileURLToPath`, or pass a
+URL directly to a filesystem API that accepts it. Do not use `URL.pathname` as
+a native filesystem path: Windows drive prefixes and percent-encoded spaces,
+`#` and `%` require decoding. HTTP URL pathnames remain appropriate for routing.
+
 The `paths` mappings classify application, documentation, tests, changelog, learnings, and governance surfaces. Application paths must be explicit and cannot overlap other surfaces: runtime `scripts/contract.mjs`, `scripts/extract.mjs`, `scripts/review.mjs`, `scripts/server.mjs`, the client-side workbench UI tree (`src/**`), and its corpus schema/types are application, not governance. Governance mappings cover the evaluator, verifier, workflows, and tooling/configuration; they are not a runtime-code catch-all. Empty application mappings are allowed for governance-only consumers. `paths.readme_triggers` is a separate, possibly empty list of known entrypoint/setup/usage paths covered by implementation mappings. Safe exact paths and directory `/**` suffixes are supported; arbitrary wildcards, traversal, and contradictory duplicate mappings are rejected. Policy uses the complete GitHub changed-file inventory (including rename origins and deletions), not PR declarations.
 
 The `scripts/review.mjs` mapping was authorized by Issue #20 before Issue #21's
@@ -168,6 +197,37 @@ private retained text through a public host or tunnel.
 The configured workbench and server Node tests join the existing
 application commands in `python scripts/verify.py`; independent human UX and
 documentation relevance review is still necessary.
+
+### Explicit workbench themes
+
+`src/theme.js` is an allowlisted same-origin classic script loaded before the
+stylesheet. It restores only a valid explicit `light`/`dark` preference, defaulting
+to light even on a dark-preferring system, before the page styles are applied.
+The header's compact sun/moon button retains the accessible name **Dark mode**,
+exposes its state through `aria-pressed` and supports native keyboard activation.
+Its outlined segment indicates the current theme; the control expands to at
+least 44px high for coarse-pointer touch input. The existing Content Security Policy
+remains unchanged: no inline script, third-party dependency or unsafe-inline
+exception is needed.
+
+Both palettes define semantic surface, text, highlight, control and status tokens
+in `src/style.css`; an explicit root `data-theme` selects dark. Avoid introducing
+fixed light backgrounds into components or automatic system-theme overrides.
+The light/dark wordmark assets preserve the same geometry and use text colors
+appropriate to their surrounding surfaces.
+
+Preference storage is limited to `devenv-threat-corpus.theme` in browser
+`localStorage`, never research content. Theme changes only update presentation
+and the toggle state; they do not rerender the workbench, fetch a corpus or mutate
+drafts. Invalid stored values and storage access failures produce a visible
+header notice. A failed write still changes the current page's theme without
+claiming it was saved.
+
+`tests/theme.test.mjs` joins the configured workbench suite and checks explicit
+defaults, persistence, storage failures, startup order and normal-text contrast
+of at least 4.5:1 for the declared theme combinations, plus 3:1 control boundaries.
+Retain browser evidence for both themes and the documented viewport sizes;
+token arithmetic does not replace independent visual/accessibility review.
 
 The batch endpoint is enabled only in explicit store mode. Browser collection
 uses a bounded same-origin JSON POST, never arbitrary client-selected storage

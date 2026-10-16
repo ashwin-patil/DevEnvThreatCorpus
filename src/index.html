@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>DevEnvThreatCorpus · Research workbench</title>
+  <script src="/src/theme.js"></script>
   <link rel="icon" href="/docs/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/src/style.css">
   <script type="module" src="/src/app.mjs"></script>
@@ -11,8 +12,17 @@
 <body>
   <a id="skip-content" class="skip-link" href="#content">Skip to research content</a>
   <header>
-    <a class="brand" href="#cases"><img src="/docs/assets/logo.svg" alt="DevEnvThreatCorpus" width="360" height="80"></a>
-    <div class="header-right"><span>Local · collection ≠ acceptance</span><button id="demo" type="button">Load synthetic demo</button><button id="reload-corpus" type="button">Reload local corpus</button></div>
+    <a class="brand" href="#cases"><img class="brand-light" src="/docs/assets/logo.svg" alt="DevEnvThreatCorpus" width="360" height="80"><img class="brand-dark" src="/docs/assets/logo-dark.svg" alt="DevEnvThreatCorpus" width="360" height="80"></a>
+    <div class="header-right">
+      <span>Local · collection ≠ acceptance</span>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
+        <span class="theme-option theme-sun" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></span>
+        <span class="theme-option theme-moon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/></svg></span>
+      </button>
+      <button id="demo" type="button">Load synthetic demo</button>
+      <button id="reload-corpus" type="button">Reload local corpus</button>
+      <span id="theme-notice" class="theme-notice" role="status" hidden></span>
+    </div>
   </header>
   <main>
     <section class="hero"><div><p class="eyebrow">SOURCE → CLAIM → UNDERSTANDING</p><h1>Follow the evidence.<br><span>Keep the uncertainty.</span></h1><p class="intro">A source-linked workbench for developer environment threat research. Assertions, inferences and contradictions stay distinct.</p></div><aside class="hero-note"><span class="eyebrow">RESEARCH WORKBENCH / 0.3.0</span><p>Start with the source.<br>Understand what it supports.</p><small>Explicit private article collection with --store. Pending drafts & citation downloads; no automatic acceptance.</small></aside></section>

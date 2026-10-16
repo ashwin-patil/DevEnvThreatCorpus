@@ -122,6 +122,14 @@ No local clone or installation is required for this path.
    synthetic demo**, or **Load synthetic research demo** in a research view.
    **Reload local corpus** leaves demo mode; demos do not populate a store.
 
+The workbench starts in **light mode** on a first visit, even if your system
+prefers dark mode. Use the compact **sun/moon toggle** in the header to switch
+themes (accessible name: **Dark mode**). The selected icon is outlined. Your explicit
+choice is remembered for that browser origin across reloads; it does not alter
+corpus records or reset research state. If browser storage is unavailable, a
+header notice explains that the choice cannot be restored or saved, and the
+toggle still works for the current page.
+
 Keep port `4173` **Private**. Do not publish the port or use public tunnels.
 Before private research, verify signed-in access and signed-out denial; a port
 label or local readiness check does not establish access control.
@@ -143,8 +151,16 @@ node "$PWD/scripts/server.mjs"
 
 Open `http://127.0.0.1:4173/`; stop with Ctrl+C. No application install/build,
 model, CDN or network connection is needed for this preview after obtaining the
-repository and runtime. Native Windows is not a validated research workflow;
-use Codespaces rather than assuming permission/file-URL compatibility.
+repository and runtime.
+
+For the **public preview on native Windows**, use the same pinned Node runtime
+and run `node .\scripts\server.mjs` from PowerShell in your clone. The public
+draft and synthetic demos do not need private filesystem permissions.
+Native Windows `--corpus` and `--store` server modes are explicitly unsupported;
+private collection, review and file-based exports remain POSIX-only. For those
+operations, use Codespaces or WSL2 with the clone and store in the Linux
+filesystem, not under `/mnt/c`. Windows verification reports these private-store
+and Linux lifecycle tests as skipped, not passed.
 See [local setup and data modes](docs/getting-started.md#local-alternative).
 
 ## Continue by task

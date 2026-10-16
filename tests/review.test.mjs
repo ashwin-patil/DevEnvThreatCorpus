@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { privateStoreTest } from './platform.mjs';
 import { spawnSync } from 'node:child_process';
 import {
   assertAppendOnlyReviews, assertValid, canonicalSerialize, dependencyHashes, entityContentHash,
@@ -10,7 +12,7 @@ import {
 } from '../scripts/contract.mjs';
 import { applyReview } from '../scripts/review.mjs';
 
-const root = new URL('../', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../', import.meta.url));
 const readJson = async file => JSON.parse(await readFile(file, 'utf8'));
 const fixture = () => readJson(new URL('./fixtures/benign/core-only.json', import.meta.url));
 const invoke = args => {
@@ -34,7 +36,7 @@ const setup = async t => {
 };
 
 for (const [action, disposition] of [['accept', 'Accepted'], ['correct', 'Needs correction'], ['exclude', 'Excluded']]) {
-  test(`AC-01/02/04 ${action} CLI records explicit decision and preserves independent status axes`, async t => {
+  privateStoreTest(`AC-01/02/04 ${action} CLI records explicit decision and preserves independent status axes`, async t => {
     const { file, decision, decide } = await setup(t);
     const before = await readJson(file);
     before.claims[0].origin = 'LLM source paraphrase';
@@ -105,7 +107,7 @@ for (const [name, mutate, code = 'INVALID_REVIEW'] of [
   ['invalid null reasons', d => { d.action = 'correct'; d.correction = { uncertainty: null, nullReasons: {} }; }],
   ['unsupported inference acceptance', d => { d.claimId = 'synthetic-claim-inference'; }],
 ]) {
-  test(`AC-01 invalid ${name} fails without modifying canonical corpus`, async t => {
+  privateStoreTest(`AC-01 invalid ${name} fails without modifying canonical corpus`, async t => {
     const { file, decision, decide } = await setup(t);
     const bytes = await readFile(file, 'utf8');
     mutate(decision);
@@ -116,7 +118,7 @@ for (const [name, mutate, code = 'INVALID_REVIEW'] of [
   });
 }
 
-test('AC-01 malformed JSON, invalid CLI and reviewer identity fail explicitly', async t => {
+privateStoreTest('AC-01 malformed JSON, invalid CLI and reviewer identity fail explicitly', async t => {
   const { directory, file, template, decision, decide } = await setup(t);
   const before = await readFile(file, 'utf8');
   await writeFile(template, '{', { mode: 0o600 });
@@ -130,7 +132,7 @@ test('AC-01 malformed JSON, invalid CLI and reviewer identity fail explicitly', 
   assert.equal(await readFile(file, 'utf8'), before);
 });
 
-test('AC-02 correction and subsequent acceptance append decisions without implicit approval or audit loss', async t => {
+privateStoreTest('AC-02 correction and subsequent acceptance append decisions without implicit approval or audit loss', async t => {
   const { file, decision, decide } = await setup(t);
   assert.equal((await decide()).exit, 0);
   const accepted = await readJson(file);
@@ -172,7 +174,7 @@ for (const [name, mutate] of [
     c.sources[0].revisionIds.push(revision.id);
   }],
 ]) {
-  test(`AC-03 changed ${name} is pending in read-only status/validation and can be explicitly re-reviewed`, async t => {
+  privateStoreTest(`AC-03 changed ${name} is pending in read-only status/validation and can be explicitly re-reviewed`, async t => {
     const { file, decision, decide } = await setup(t);
     assert.equal((await decide()).exit, 0);
     const corpus = await readJson(file), priorEvents = structuredClone(corpus.reviews);
@@ -201,7 +203,7 @@ for (const [name, mutate] of [
   });
 }
 
-test('AC-03 unchanged decisions coexist; correction invalidates other acceptance without altering events', async t => {
+privateStoreTest('AC-03 unchanged decisions coexist; correction invalidates other acceptance without altering events', async t => {
   const { file, decision, decide } = await setup(t);
   assert.equal((await decide()).exit, 0);
   decision.claimId = 'synthetic-claim-b';
@@ -237,7 +239,7 @@ test('AC-03 eligibility propagates through inference support without mutating it
   assert.notEqual(canonicalSerialize(corpus), before);
 });
 
-test('AC-01/02 private persistence rejects unsafe paths, locks and rewritten events', async t => {
+privateStoreTest('AC-01/02 private persistence rejects unsafe paths, locks and rewritten events', async t => {
   const { directory, file, template, decision, decide } = await setup(t);
   assert.equal((await decide()).exit, 0);
   const before = await readFile(file, 'utf8');
@@ -255,7 +257,7 @@ test('AC-01/02 private persistence rejects unsafe paths, locks and rewritten eve
   assert.equal(await readFile(file, 'utf8'), before);
 });
 
-test('AC-03 review-aware validation does not conceal malformed evidence or agent acceptance', async t => {
+privateStoreTest('AC-03 review-aware validation does not conceal malformed evidence or agent acceptance', async t => {
   const { file, decide } = await setup(t);
   assert.equal((await decide()).exit, 0);
   const corpus = await readJson(file);

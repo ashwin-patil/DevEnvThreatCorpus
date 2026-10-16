@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { privateStoreTest } from './platform.mjs';
 import { CAMPAIGN_LIMITS, createPreviewServer, emptyCorpus, parseArguments, WEB_INTAKE_LIMITS } from '../scripts/server.mjs';
 import { canonicalSerialize, validateCorpus } from '../scripts/contract.mjs';
 import { createEnrichmentTemplate } from '../src/enrichment.mjs';
@@ -28,9 +32,9 @@ function request(port, url, headers = {}, method = 'GET', body) {
 }
 
 async function workspace(t) {
-  const root = new URL('../.private-intake/', import.meta.url);
+  const root = fileURLToPath(new URL('../.private-intake/', import.meta.url));
   await mkdir(root, { recursive: true, mode: 0o700 });
-  const directory = await mkdtemp(path.join(root.pathname, 'web-server-'));
+  const directory = await mkdtemp(path.join(root, 'web-server-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   return directory;
 }
@@ -58,6 +62,45 @@ test('browser normalization helper is explicitly served without exposing private
   assert.match(response.headers['content-type'], /javascript/);
   assert.match(response.body, /publisherDisplay/);
   assert.equal((await request(port, '/src/campaign.mjs')).status, 404);
+});
+
+test('Issue #79 AC-01/02 public preview loads real corpora from a working directory containing spaces, # and %', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'workbench path #%-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directoryUrl = pathToFileURL(directory);
+  assert.match(directoryUrl.href, /%20/);
+  assert.match(directoryUrl.href, /%23%25/);
+  const program = `
+    import { createPreviewServer } from ${JSON.stringify(new URL('../scripts/server.mjs', import.meta.url).href)};
+    import { fetchCorpus, PUBLIC_DRAFT_URL } from ${JSON.stringify(new URL('../src/app.mjs', import.meta.url).href)};
+    const server = await createPreviewServer();
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const base = 'http://127.0.0.1:' + server.address().port;
+      const fetcher = (endpoint, options) => fetch(new URL(endpoint === PUBLIC_DRAFT_URL ? '/src/data/nx-draft.json' : endpoint, base), options);
+      const results = [];
+      for (const endpoint of ['/api/corpus', '/api/demo', '/api/demo-research']) {
+        const model = await fetchCorpus(fetcher, endpoint);
+        results.push({ publicDraft: !!model.publicDraft, synthetic: !!model.corpus.governance?.synthetic,
+          cases: model.corpus.cases.length, collectionEnabled: !!model.collectionEnabled });
+      }
+      console.log(JSON.stringify(results));
+    } finally { await new Promise(resolve => server.close(resolve)); }
+  `;
+  const child = spawnSync(process.execPath, ['--input-type=module', '--eval', program], {
+    cwd: fileURLToPath(directoryUrl), encoding: 'utf8', timeout: 15_000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stderr, '');
+  const [draft, ...demos] = JSON.parse(child.stdout);
+  assert.equal(draft.publicDraft, true);
+  assert.equal(draft.synthetic, false);
+  assert.ok(draft.cases > 0);
+  assert.equal(draft.collectionEnabled, false);
+  for (const demo of demos) assert.deepEqual(demo, {
+    publicDraft: false, synthetic: true, cases: 2, collectionEnabled: false,
+  });
 });
 const articleUrls = ['https://www.stepsecurity.io/blog/one', 'https://socket.dev/blog/two', 'https://redcanary.com/blog/three'];
 function transport(article) {
@@ -93,7 +136,7 @@ test('AC-05 preview starts with a valid empty corpus and offers explicitly synth
   assert.match(demo.headers['content-security-policy'], /frame-ancestors 'none'/);
 });
 
-test('AC-05 private source records are validated and held as a read-only startup snapshot', async t => {
+privateStoreTest('AC-05 private source records are validated and held as a read-only startup snapshot', async t => {
   const directory = await workspace(t);
   const corpusFile = path.join(directory, 'corpus.json');
   const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
@@ -134,11 +177,12 @@ test('AC-05 server rejects writes, path traversal, repository/private files, for
 });
 
 test('AC-05 CLI accepts only explicit port and absolute mutually exclusive private options', () => {
+  const corpusFile = path.resolve('private', 'corpus.json'), store = path.resolve('private', 'store');
   assert.deepEqual(parseArguments([]), { port: 4173 });
-  assert.deepEqual(parseArguments(['--port', '1234', '--corpus', '/tmp/private/corpus.json']), {
-    port: 1234, corpusFile: '/tmp/private/corpus.json',
+  assert.deepEqual(parseArguments(['--port', '1234', '--corpus', corpusFile]), {
+    port: 1234, corpusFile,
   });
-  assert.deepEqual(parseArguments(['--store', '/private/store']), { port: 4173, store: '/private/store' });
+  assert.deepEqual(parseArguments(['--store', store]), { port: 4173, store });
   for (const args of [['--port'], ['--port', '0'], ['--port', '65536'], ['--port', '1.5'],
     ['--port', '1234', '--port', '1235'], ['--host', '0.0.0.0'], ['--corpus', 'relative.json'],
     ['--store', 'relative'], ['--store', '/private/../store'], ['--corpus', '/private/corpus.json', '--store', '/private/store']]) {
@@ -146,7 +190,28 @@ test('AC-05 CLI accepts only explicit port and absolute mutually exclusive priva
   }
 });
 
-test('Issue #39 AC-01/02/05 web collects three articles with partial failure, pending links, idempotency and reload persistence', async t => {
+for (const option of ['--corpus', '--store']) {
+  test(`Issue #79 AC-03 Windows rejects ${option} before touching private storage`, {
+    skip: process.platform !== 'win32' ? 'Native Windows rejection boundary' : false,
+  }, async t => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'workbench #%-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const privatePath = path.join(directory, 'not-created');
+    await assert.rejects(createPreviewServer(option === '--store' ? { store: privatePath } : { corpusFile: privatePath }), {
+      code: 'UNSUPPORTED_PLATFORM',
+    });
+    const child = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/server.mjs', import.meta.url)), option, privatePath], {
+      cwd: directory, encoding: 'utf8', timeout: 10_000,
+    });
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /require POSIX filesystem permissions.*WSL2/);
+    assert.equal(child.stdout, '');
+    await assert.rejects(lstat(privatePath), { code: 'ENOENT' });
+  });
+}
+
+privateStoreTest('Issue #39 AC-01/02/05 web collects three articles with partial failure, pending links, idempotency and reload persistence', async t => {
   const directory = await workspace(t), store = path.join(directory, 'store');
   const port = await start(t, { store, intakeDeps: transport() });
   const empty = await request(port, '/api/corpus');
@@ -179,7 +244,7 @@ test('Issue #39 AC-01/02/05 web collects three articles with partial failure, pe
   assert.equal((await request(snapshot, '/api/corpus')).headers['x-collection-enabled'], undefined);
 });
 
-test('Issue #39 AC-05 intake enforces exact host/origin, fetch metadata, JSON fields, body bounds and no concurrent writes', async t => {
+privateStoreTest('Issue #39 AC-05 intake enforces exact host/origin, fetch metadata, JSON fields, body bounds and no concurrent writes', async t => {
   const store = path.join(await workspace(t), 'store');
   let entered, release;
   const started = new Promise(resolve => { entered = resolve; });
@@ -224,7 +289,7 @@ test('Issue #39 AC-05 intake enforces exact host/origin, fetch metadata, JSON fi
   assert.equal(server.keepAliveTimeout, 5_000);
 });
 
-test('Issue #39 AC-05 incomplete JSON body times out and releases the write guard', async t => {
+privateStoreTest('Issue #39 AC-05 incomplete JSON body times out and releases the write guard', async t => {
   const store = path.join(await workspace(t), 'store'), port = await start(t, { store, intakeDeps: transport() });
   const timed = await new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port, path: '/api/intake', method: 'POST',
@@ -240,7 +305,7 @@ test('Issue #39 AC-05 incomplete JSON body times out and releases the write guar
   assert.equal(collected.status, 200); assert.equal(JSON.parse(collected.body).results[0].status, 'collected');
 });
 
-test('Issue #39 AC-03/05 archive artifacts are allowlisted attachments, never executable HTML or arbitrary files', async t => {
+privateStoreTest('Issue #39 AC-03/05 archive artifacts are allowlisted attachments, never executable HTML or arbitrary files', async t => {
   const store = path.join(await workspace(t), 'store');
   const port = await start(t, { store, intakeDeps: transport() });
   const batch = JSON.parse((await request(port, '/api/intake', sameOrigin(port), 'POST',
@@ -269,11 +334,11 @@ test('Issue #39 AC-03/05 archive artifacts are allowlisted attachments, never ex
 test('AC-04/05 preview serves every required offline entrypoint, module and brand asset with correct MIME types', async t => {
   const port = await start(t);
   for (const [url, mime] of [
-    ['/', 'text/html'], ['/src/index.html', 'text/html'], ['/src/style.css', 'text/css'],
+    ['/', 'text/html'], ['/src/index.html', 'text/html'], ['/src/style.css', 'text/css'], ['/src/theme.js', 'text/javascript'],
     ['/src/app.mjs', 'text/javascript'], ['/src/model.mjs', 'text/javascript'],
     ['/src/render.mjs', 'text/javascript'], ['/src/studio.mjs', 'text/javascript'], ['/src/explore.mjs', 'text/javascript'], ['/docs/assets/logo.svg', 'image/svg+xml'],
     ['/src/campaign-presentation.mjs', 'text/javascript'], ['/src/graph-geometry.mjs', 'text/javascript'],
-    ['/docs/assets/favicon.svg', 'image/svg+xml'],
+    ['/docs/assets/favicon.svg', 'image/svg+xml'], ['/docs/assets/logo-dark.svg', 'image/svg+xml'],
   ]) {
     const response = await request(port, url);
     assert.equal(response.status, 200, url);
@@ -286,7 +351,7 @@ test('AC-04/05 preview serves every required offline entrypoint, module and bran
   }
 });
 
-test('private enrichment endpoint validates pending sidecars, fails closed and never changes canonical records', async t => {
+privateStoreTest('private enrichment endpoint validates pending sidecars, fails closed and never changes canonical records', async t => {
   const store = await workspace(t);
   const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
   const corpusFile = path.join(store, 'corpus.json'), original = canonicalSerialize(corpus);
@@ -315,7 +380,7 @@ test('synthetic research demo is schema-valid, visibly synthetic, and never enab
   assert.equal(corpus.paths.length, 1); assert.equal(result.headers['x-collection-enabled'], undefined);
 });
 
-test('Issue #45 campaign routes use the shared prepare/apply/status/export API with bounded same-origin JSON only', async t => {
+privateStoreTest('Issue #45 campaign routes use the shared prepare/apply/status/export API with bounded same-origin JSON only', async t => {
   const store = path.join(await workspace(t), 'store');
   await mkdir(store, { mode: 0o700 });
   const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));

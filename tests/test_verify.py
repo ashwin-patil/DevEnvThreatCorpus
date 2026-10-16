@@ -238,6 +238,40 @@ class CommandExecutionTests(unittest.TestCase):
 
 
 class WorkflowValidationTests(unittest.TestCase):
+    def test_issue79_windows_preview_ci_preserves_linux_verification_and_pinned_runtimes(self) -> None:
+        workflow = yaml.load(
+            (ROOT / ".github/workflows/verify.yml").read_text(encoding="utf-8"),
+            Loader=yaml.BaseLoader,
+        )
+        self.assertEqual(workflow["permissions"], {"contents": "read"})
+        for job_id, runner, name in [
+            ("verify", "ubuntu-latest", "Verify"),
+            ("windows", "windows-latest", "Verify Windows public preview"),
+        ]:
+            job = workflow["jobs"][job_id]
+            self.assertEqual(job["runs-on"], runner)
+            self.assertEqual(job["name"], name)
+            self.assertEqual(job["timeout-minutes"], "30")
+            self.assertNotIn("continue-on-error", job)
+            self.assertNotIn("container", job)
+            steps = job["steps"]
+            self.assertTrue(any(
+                step.get("uses", "").startswith("actions/setup-node@")
+                and step.get("with", {}).get("node-version-file") == "scripts/.node-version"
+                for step in steps
+            ))
+            self.assertTrue(any(
+                step.get("uses", "").startswith("actions/setup-python@")
+                and step.get("with", {}).get("python-version") == "3.12"
+                for step in steps
+            ))
+            self.assertTrue(any(step.get("run") == "python scripts/verify.py" for step in steps))
+            self.assertTrue(any(
+                step.get("run") == "python -m pip install --requirement requirements-governance.txt"
+                for step in steps
+            ))
+            self.assertTrue(all("continue-on-error" not in step for step in steps))
+
     def test_current_workflows_and_scaffold_pass_verification(self) -> None:
         config = load_json(CONFIG_PATH)
         validate_scaffold(config)
