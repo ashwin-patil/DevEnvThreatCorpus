@@ -193,6 +193,10 @@ function row(doc, parent, label, value) {
     element(doc, 'span', Array.isArray(value) ? value.join(', ') : value)); parent.append(p);
 }
 function provenance(doc, record) {
+  if (record.itemReview) {
+    const r = record.itemReview;
+    return element(doc, 'p', `Content origin: ${r.contentOrigin} · Labels: ${r.labelAuthorship} · ${r.editor ? `Human-edited by ${r.editor} · ` : ''}Review: ${r.state}${r.state === 'Accepted' ? ' (Human-reviewed)' : ''}`, 'subtle');
+  }
   return element(doc, 'p', [record.origin, record.evidenceStatus, record.disposition ?? record.status ?? 'Pending',
     record.mappingStatus].filter(Boolean).join(' · '), 'subtle');
 }
@@ -264,7 +268,7 @@ function annotationCard(doc, model, annotation, navigate, showLiteral = true) {
 export function renderEvidencePanel(doc, model, record, navigate, download) {
   const panel = element(doc, 'section', null, 'panel research-evidence');
   panel.append(element(doc, 'h2', 'Campaign research & talk evidence'),
-    element(doc, 'p', model.publicDraft ? 'Public draft tools and extracted prompts are pending. Full article quotations remain omitted; source citations and prompt locators remain available for review.' : 'Private annotations are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
+    element(doc, 'p', model.publicDraft ? 'Public draft tools and extracted prompts are pending. Full article quotations remain omitted; source citations and prompt locators remain available for review.' : 'Private annotations show their current item-review state when available; otherwise they are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
   if (model.annotationError) panel.append(element(doc, 'p', model.annotationError, 'enrichment-warning'));
   if (download && !model.publicDraft) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
     () => download(format, format === 'md' ? talkMarkdown(talkBundle(model, record.id)) : talkBundle(model, record.id))));

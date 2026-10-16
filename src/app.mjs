@@ -99,6 +99,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     }
     reviewWindowNavigation(win, reviewNav);
     render();
+    $('content').querySelector?.('.review-detail')?.focus();
   }
   let pathContext = null;
   const pathCase = () => model?.corpus.paths?.find(p => p.id === pathContext?.pathId)?.caseId;

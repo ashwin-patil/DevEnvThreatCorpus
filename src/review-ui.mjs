@@ -131,7 +131,7 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
   else {
     const u = selected;
     detail.append(element(doc, 'h3', `${u.type}: ${u.id}`),
-      element(doc, 'p', `${u.state} · labels ${u.labels.state}${u.labels.applicable ? '' : ' (no label applies)'}`),
+      element(doc, 'p', `${u.state} · labels ${u.labels.applicable ? u.labels.state : 'N/A (no label applies)'}`),
       element(doc, 'p', `Content origin: ${u.contentOrigin} · Label authorship: ${u.labelAuthorship}`),
       element(doc, 'p', `${/LLM|agent/.test(u.originalOrigin) ? 'LLM-derived (original contribution retained)' : `Original origin: ${u.originalOrigin}`} · ${u.editor ? `Human-edited by ${u.editor}` : 'No human content edit'} · ${u.state === 'Accepted' ? 'Human-reviewed' : 'Not currently human-reviewed'}`),
       element(doc, 'h4', 'Candidate'),
@@ -220,6 +220,11 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     } else if (u.type === 'behaviors') {
       edit('Behavior name', 'name', u.record.name); edit('Behavior description', 'description', u.record.description, 'textarea');
       edit('Category / trust boundary', 'boundary', u.record.boundary);
+    } else if (u.type === 'annotations' && u.record.type === 'observed-behavior') {
+      edit('Behavior description', 'value', u.record.value, 'textarea');
+      const behavior = choose(doc, modify, 'Behavior classification', ['observed', 'attempted', 'demonstrated', 'inferred'].map(v => [v, v]),
+        u.record.context?.behavior ?? 'inferred', () => {});
+      controls.push({ key: 'context.behavior', control: behavior, before: u.record.context?.behavior ?? '' });
     } else if (u.type !== 'occurrences') {
       // Advanced records retain simple text correction; structural editors are deferred.
       const key = ['description', 'summary', 'value', 'detail', 'basis', 'rationale', 'limitations', 'hypothesis', 'action'].find(k => typeof u.record[k] === 'string');
@@ -255,10 +260,9 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     detail.append(action(doc, 'Next item (navigation only; no decision)', () => change({ itemKey: next?.itemKey ?? u.itemKey })));
     const history = element(doc, 'details'); history.append(element(doc, 'summary', `Retained audit history · ${u.history.length}`),
       element(doc, 'pre', JSON.stringify(u.history, null, 2)));
-    const originalDetails = element(doc, 'details'); originalDetails.append(element(doc, 'summary', 'Original proposal / extraction metadata'),
-      element(doc, 'pre', JSON.stringify({ original: u.original, runMetadata: u.runMetadata, binding: u.binding }, null, 2)));
-    detail.append(originalDetails, history);
+    detail.append(history);
   }
+  detail.tabIndex = -1;
   workspace.append(detail); root.append(workspace);
   const eligibility = element(doc, 'details'); eligibility.append(element(doc, 'summary', 'Case release eligibility / withheld reasons'));
   for (const u of state.units.filter(u => u.caseIds.includes(caseId))) eligibility.append(action(doc,

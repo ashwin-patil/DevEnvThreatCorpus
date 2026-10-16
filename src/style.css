@@ -67,3 +67,9 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}input{acce
 .review-page .workspace > * { min-width: 0; }
 .review-progress { border-block-start: 1px solid var(--divider); margin-block: 1rem; padding-block: .5rem; }
 .review-page textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--control-border); }
+.review-page .review-quote { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 12rem; overflow: auto; margin-inline: 0; border-inline-start: 3px solid var(--green); padding-inline-start: 12px; }
+.review-page .review-candidate { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }
+.review-page .review-attestation { border: 1px solid var(--control-border); border-radius: 5px; padding: 12px; background: var(--tint); }
+.review-detail > details { margin-block: 12px; }
+.review-detail > details > summary { padding: 8px 0; }
+.review-detail > button { min-height: 44px; }

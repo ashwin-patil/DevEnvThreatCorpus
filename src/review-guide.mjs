@@ -41,6 +41,7 @@ export function confirmationFor(unit) {
 }
 export function priorityCategory(unit) {
   if (['behaviors', 'occurrences'].includes(unit.type)) return 'behaviors';
+  if (unit.type === 'annotations' && unit.record.type === 'observed-behavior') return 'behaviors';
   if (unit.type !== 'annotations' || unit.record.type !== 'commands-ai-artifacts') return null;
   if (unit.record.context?.artifactKind === 'prompt-instruction') return 'prompts';
   if (['ide-cli', 'extension', 'skill', 'mcp-tool', 'mcp-server'].includes(unit.record.context?.artifactKind)) return 'tools';
