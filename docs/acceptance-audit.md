@@ -1,5 +1,49 @@
 # Acceptance audit
 
+## Issue #81 local HITL review
+
+Originating requirements: [#81](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/81).
+Implementation and corrections remain on draft [PR #82](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/82).
+Owner refinements: [fast-review scope](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/82#issuecomment-6225237637)
+and [revision-472aee0 review](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/82#issuecomment-6225829634).
+The PR's final verification reply is the durable record of full tested SHA,
+exact commands, counts, limitations and current hosted-check links. A new commit
+invalidates earlier revision-specific results; temporary local logs are not proof.
+
+**Authorized first pass, not all-artifact acceptance:** AC-01 now defaults to
+artifact category with blog grouping available. AC-03/04/07/14 use one explicit
+human attestation and per-tab self-attested identity, retaining guide v1 and
+revision-bound decisions. AC-05 prioritizes AI/coding tools, behavior definitions
+and source-local occurrences, and prompt literal/context/usage. Polished editors
+and semantic acceptance for mappings/TTPs/ATLAS/ATT&CK, timelines, summaries,
+paths/nodes/edges, other annotation categories and telemetry/detection/instrumentation
+are **deferred**. Generic item review remains available; no catalog entry, accepted
+endpoint or supporting claim approves a derived record. Pending advanced records
+stay withheld. No real Nx research acceptance or new campaign population is claimed.
+
+| Criterion | Implementation / automated regression surface | Durable evidence / independent outcome |
+|---|---|---|
+| AC-01 organization | `src/review-ui.mjs` category/blog queues; `tests/hitl.test.mjs` stable identities/grouping/triage; `tests/workbench.test.mjs` support-return context | Final-revision command results on PR #82; independent category/blog walkthrough **needs-human-review**. Source/category selection never batch approves. |
+| AC-02 evidence | `src/hitl.mjs` exact revision grounding; `src/review-ui.mjs` compact candidate/citations/context, span-aware repeated-evidence display; HITL grounding and rendered distinct-revision/location tests | Synthetic checks cannot establish actual source fidelity; independent evidence inspection **needs-human-review**. Private/missing passages are not fabricated. |
+| AC-03 decisions/edits | `applyItemReview`, friendly `renderReview` fields; HITL transition/reason/edit-before-accept tests; mounted support/decision/reload tests; HTTP synthetic exercise | Each Save remains distinct from Accept. Independent priority workflow **needs-human-review**; advanced friendly editing deferred. |
+| AC-04 checklist | `src/review-guide.mjs` guide-v2 confirmation; `docs/researcher-review-guide.md` retains v1; HITL checklist/confirmation/N/A/version consistency tests | Independent researcher judgment of one-action attestation/examples **needs-human-review**. LLM suggestions do not complete checks. |
+| AC-05 coverage | `reviewUnits` covers registered core/optional/nested/annotation types; per-type synthetic accept/modify/exclude/defer tests | These are contract scenarios, not all-artifact UX/semantic acceptance. Priority types only for first pass; advanced coverage deferred as above. |
+| AC-06 dependencies | `reviewSnapshot` support bindings/invalidation; transitive, unrelated-item, exclusion, stale, missing/cycle tests | No automatic support/downstream approvals. Independent dependency interpretation **needs-human-review**. |
+| AC-07 audit/identity | `governance.localReview`, `runItemReview`, existing private lock/CAS/atomic transaction; HITL POSIX reload/concurrent-write/history tests; server HTTP disk persistence across server instances/stale/concurrent tests; per-tab identity tests | Filesystem tests must execute on POSIX, not be inferred from memory demo. Self-attested, not authenticated; independent audit inspection **needs-human-review**. |
+| AC-08 queue/resume | navigation allowlist, bounded nested support-return trail, status filters, previous/history; mounted reload restores workload/category/group/source/filter | Independent keyboard, screen-reader and narrow-screen walkthrough **needs-human-review**. Navigation records no decision. |
+| AC-09 eligibility | `reviewedProfile`, generated typed `profileSchema`, `queryProfile`; HITL/export suites cover optional/nested/redacted rows, closure, privacy, withholding and determinism | Final-revision independent Draft 2020-12 row-validation result on PR #82. Context-only case identities have no summary/acceptance. No publication or operational validation. |
+| AC-10 verification/docs | Eight `project_commands`, retained command-contract assertion, focused HTTP/UI suites, `python scripts/verify.py`; README, architecture/setup/CLI, guide and changelog | Exact final-revision results/limits on PR #82. Hosted `action_required` is not success; required approval gates remain. Independent semantic/UX/accessibility/docs relevance and README applicability **needs-human-review**. |
+| AC-11 progress | `progressSummary`, `renderProgress`; applicable-label/N/A, stable segment union, historical lower bound, mixed/stale/excluded/empty tests | Counts describe priority artifacts and disclose hidden evidence/exceptions/deferred records, not corpus approval. Human interpretation **needs-human-review**. |
+| AC-12 exclusions | canonical rejection choice/rationale, originals/replacements/history retained; exclusion persistence/export tests; current Excluded badge test | Excluded is reviewed, not accepted or false/negative training data. Independent retained-history inspection **needs-human-review**; public rejection supplements remain deferred. |
+| AC-13 provenance | audited correction and effective private projection; HITL original/edit/dependency tests; rendered tool identity consistency and no-product-merge test | Original LLM contribution survives acceptance. Independent badge/identity interpretation **needs-human-review**. Published preview remains frozen. |
+| AC-14 guide | linked/embedded `researcher-review/2`, immutable historical v1 text; checklist/version consistency tests | Independent examples/rules review **needs-human-review**. No silent reinterpretation of old decisions. |
+
+Synthetic HTTP/browser exercises must be identified as agent observations, not
+independent human research approval. Existing native-Windows/non-pinned results
+remain limited historical evidence in the owner's review; they do not substitute
+for final pinned POSIX verification. Merge/publication, gate bypass, issue
+reassignment and a second implementation PR are not authorized.
+
 ## Issue #77 Planning and historical asset relocation
 
 Originating issue: [#77](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/77);

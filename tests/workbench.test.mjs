@@ -3,7 +3,7 @@ import './theme.test.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  createModel, metadata, dateLabel, caseSourceIds, linkedClaims, claimTarget,
+  createModel, applyReviewProjection, metadata, dateLabel, caseSourceIds, linkedClaims, claimTarget,
   passageSegments, conflictPairs, recordContext, filterRecords, facetOptions, parseRoute, routeHash,
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
@@ -31,6 +31,9 @@ import { graphRouter, segmentClear, NODE_WIDTH, NODE_HEIGHT } from '../src/graph
 import { aiLibrary, toolIdentity } from '../src/ai-library.mjs';
 import { publicDraftModel } from '../src/public-profile.mjs';
 import { PUBLIC_DRAFT_URL } from '../src/app.mjs';
+import { applyItemReview, reviewSnapshot } from '../src/hitl.mjs';
+import { GUIDE_VERSION, confirmationFor } from '../src/review-guide.mjs';
+import { renderReview, reviewNavigation, reviewSession, supportNavigation, returnFromSupport } from '../src/review-ui.mjs';
 
 test('public draft rejects retained bodies, attestation and acceptance without changing private corpus import', () => {
   const input = { schemaVersion: 'public-draft/1', profile: 'draft', snapshotDigest: 'a'.repeat(64),
@@ -1142,6 +1145,112 @@ function fakeWindow(hash = '') {
   };
   return win;
 }
+
+function reviewFixture() {
+  const corpus = structuredClone(researchFixture), passage = corpus.passages[0], claim = corpus.claims[0];
+  // Keep the research article distinct from the fixture's catalog metadata source.
+  corpus.sources.push({ ...structuredClone(corpus.sources[0]), id: 'synthetic-catalog-only', revisionIds: [] });
+  for (const framework of corpus.frameworks) framework.sourceId = 'synthetic-catalog-only';
+  const annotations = [{ id: 'synthetic-review-tool', type: 'commands-ai-artifacts', value: passage.text,
+    normalizedValue: 'Original proposed identity', caseId: claim.caseId, sourceId: claim.sourceId,
+    sourceRevisionId: claim.sourceRevisionId, origin: 'manual', status: 'pending', evidenceStatus: 'evidence-backed',
+    claimIds: [claim.id], support: { quote: passage.text, locator: { start: passage.start, end: passage.end } },
+    context: { artifactKind: 'ide-cli', artifactUsage: 'general-mention' } }];
+  const snapshot = () => ({ ...reviewSnapshot(corpus, annotations), campaigns: {}, sources: {} });
+  const decide = (itemKey, action = 'accept', extra = {}) => {
+    const state = snapshot(), unit = state.units.find(u => u.itemKey === itemKey);
+    return applyItemReview(corpus, { snapshot: state.snapshot, itemKey, action, guideVersion: GUIDE_VERSION,
+      reviewer: 'synthetic-human', selfAttested: true, ...(action === 'accept' ? { confirmation: confirmationFor(unit) } : {}), ...extra }, annotations);
+  };
+  return { corpus, annotations, snapshot, decide, key: `annotations:${annotations[0].id}`, claimKey: `claims:${claim.id}` };
+}
+function reviewView(fixture, itemKey, change = () => {}, nav = {}) {
+  const model = createModel(fixture.corpus), state = fixture.snapshot();
+  return renderReview(new FakeDocument(), model, state, { caseId: fixture.corpus.cases[0].id, itemKey, ...nav },
+    { change, decide: () => {}, navigate: () => {} });
+}
+test('Issue #81 review correction: human-edited tool identity is consistent in Review, library and campaign/blog cards without product merging', () => {
+  const f = reviewFixture(); f.decide(f.claimKey);
+  f.decide(f.key, 'modify', { patch: { normalizedValue: 'Claude Code' }, rationale: 'Synthetic identity correction.' });
+  f.decide(f.key);
+  const model = createModel(f.corpus); model.annotations = f.annotations; model.itemReview = f.snapshot();
+  const projected = applyReviewProjection(model), doc = new FakeDocument();
+  const [entry] = aiLibrary(projected, 'tools');
+  assert.equal(entry.name, 'Claude Code');
+  assert.equal(entry.annotations[0].value, f.annotations[0].value);
+  assert.match(entry.basis, /no automatic product merge/);
+  assert.match(reviewView(f, f.key).textContent, /Identity: Claude Code/);
+  const library = renderExploration(doc, projected, 'tools', {}, () => {});
+  assert.ok(descendants(library).some(n => n.tagName === 'H2' && n.textContent === 'Claude Code'));
+  assert.match(library.textContent, /Café/);
+  for (const view of [
+    renderCaseLibrary(doc, projected, projected.corpus.cases, () => {}),
+    renderResearchLibrary(doc, projected, projected.corpus.sources, () => {}),
+  ]) assert.ok(button(view, 'Claude Code'));
+  projected.annotations.push({ ...f.annotations[0], id: 'separate-original-occurrence', value: 'Claude Code' });
+  assert.equal(aiLibrary(projected, 'tools').length, 2);
+  const unedited = createModel(f.corpus); unedited.annotations = f.annotations;
+  assert.equal(aiLibrary(unedited, 'tools')[0].name, f.annotations[0].value);
+});
+
+test('Issue #81 review correction: current Accepted and Excluded are human-reviewed; stale decisions are not', () => {
+  const f = reviewFixture(); f.decide(f.claimKey);
+  assert.match(reviewView(f, f.claimKey).textContent, /Human-reviewed · Accepted/);
+  f.decide(f.claimKey, 'exclude', { exclusionReason: 'unsupported' });
+  assert.match(reviewView(f, f.claimKey).textContent, /Human-reviewed · Excluded/);
+  f.corpus.claims[0].description += ' Changed proposal.';
+  assert.match(reviewView(f, f.claimKey).textContent, /Not currently human-reviewed/);
+  assert.doesNotMatch(reviewView(f, f.claimKey).textContent, /Human-reviewed · (Accepted|Excluded)/);
+});
+
+test('Issue #81 review correction: exact repeated passages render once, retaining attribution and distinct revisions/locations', () => {
+  const f = reviewFixture(), view = reviewView(f, f.key);
+  assert.equal(descendants(view).filter(n => n.tagName === 'BLOCKQUOTE' && n.textContent === f.annotations[0].value).length, 1);
+  assert.match(view.textContent, /Source passage: synthetic-passage-a/);
+  assert.match(view.textContent, /Direct annotation support · Same exact passage/);
+  assert.ok(button(view, `Review supporting item: ${f.claimKey}`));
+  const state = f.snapshot(), target = state.units.find(u => u.itemKey === f.key);
+  target.evidence.push({ ...target.evidence[0], id: 'distinct-location',
+    passage: { ...target.evidence[0].passage, start: 20, end: 24 } });
+  target.evidence.push({ ...target.evidence[0], id: 'distinct-revision', revisionId: 'other-revision' });
+  const distinct = renderReview(new FakeDocument(), createModel(f.corpus), state,
+    { caseId: f.corpus.cases[0].id, itemKey: f.key }, { change() {}, decide() {}, navigate() {} });
+  assert.equal(descendants(distinct).filter(n => n.tagName === 'BLOCKQUOTE').length, 3);
+});
+
+test('Issue #81 review correction: nested support navigation and reload restore priority workload/category/group/source/filter', async () => {
+  const f = reviewFixture(), doc = new FakeDocument(), win = fakeWindow('#review/synthetic-case-a');
+  const data = new Map(), storage = { getItem: k => data.get(k), setItem: (k, v) => data.set(k, v) };
+  win.localStorage = storage; win.sessionStorage = storage;
+  const nav = { caseId: 'synthetic-case-a', queue: 'priority', category: 'tools', group: 'blog',
+    sourceId: 'synthetic-source-a', filter: 'Blocked/support changed', type: '', itemKey: f.key, mode: '' };
+  reviewNavigation(storage, nav); reviewSession(win, { reviewer: 'synthetic-human', selfAttested: true });
+  const nested = supportNavigation({ ...nav, ...supportNavigation(nav, f.claimKey, f.key) }, 'claims:nested', f.claimKey);
+  const firstReturn = returnFromSupport(nested);
+  assert.equal(firstReturn.itemKey, f.claimKey);
+  assert.deepEqual(returnFromSupport({ ...nested, ...firstReturn }), { ...nav, supportTrail: [] });
+  let posts = 0;
+  const fetcher = async (endpoint, options = {}) => {
+    if (endpoint === '/api/review' && options.method === 'POST') {
+      posts++; applyItemReview(f.corpus, JSON.parse(options.body), f.annotations); return response({});
+    }
+    if (endpoint === '/api/review') return response(f.snapshot());
+    if (endpoint === '/api/enrichment') return response({ schemaVersion: 'talk-enrichment/1', annotations: f.annotations });
+    return response(structuredClone(f.corpus), 200, true);
+  };
+  const app = mountWorkbench(doc, win, fetcher); await app.ready;
+  const content = doc.getElementById('content');
+  await button(content, `Review supporting item: ${f.claimKey}`).trigger('click');
+  assert.equal(reviewNavigation(storage).queue, 'all');
+  assert.equal(posts, 0);
+  // Reload while on the support item: both the return context and identity survive.
+  const reloadDoc = new FakeDocument(), reloaded = mountWorkbench(reloadDoc, win, fetcher); await reloaded.ready;
+  await button(reloadDoc.getElementById('content'), 'Accept item — I confirm').trigger('click');
+  assert.equal(posts, 1);
+  assert.deepEqual(reviewNavigation(storage), { ...nav, supportTrail: [] });
+  assert.equal(f.snapshot().units.find(u => u.itemKey === f.key).eligible, false);
+  assert.equal(f.snapshot().units.find(u => u.itemKey === f.claimKey).state, 'Accepted');
+});
 function response(corpus = fresh(), status = 200, collectionEnabled = false) {
   return { ok: status === 200, status, headers: { get: key => key === 'x-collection-enabled' && collectionEnabled ? 'true' : null },
     async json() { return corpus; } };

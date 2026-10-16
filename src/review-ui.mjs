@@ -3,6 +3,19 @@ import { GUIDE_VERSION, checksFor, confirmationFor, priorityCategory, PRIORITY_L
 
 export const REVIEW_FILTERS = ['All', 'Needs review', 'Accepted', 'Excluded', 'Unsure', 'Blocked/support changed'];
 const STORAGE_KEY = 'devenv-threat-corpus.review-navigation';
+const NAV_KEYS = ['caseId', 'sourceId', 'type', 'filter', 'group', 'itemKey', 'queue', 'category', 'mode'];
+const navigationFields = value => Object.fromEntries(NAV_KEYS
+  .filter(k => typeof value?.[k] === 'string').map(k => [k, value[k]]));
+export function supportNavigation(nav, itemKey, parentKey) {
+  return { queue: 'all', category: '', filter: 'All', sourceId: '', type: '', itemKey,
+    supportTrail: [...(nav.supportTrail ?? []), navigationFields({
+      queue: 'priority', group: 'category', category: '', filter: 'All', sourceId: '', type: '', ...nav, itemKey: parentKey,
+    })] };
+}
+export function returnFromSupport(nav) {
+  if (nav.supportTrail?.length) return { ...nav.supportTrail.at(-1), supportTrail: nav.supportTrail.slice(0, -1) };
+  return { itemKey: nav.returnItemKey, returnItemKey: '' };
+}
 export function reviewGroups(units, { caseId, sourceId = '', type = '', filter = 'All', group = 'category', queue = 'all', category = '' }) {
   const records = units.filter(u => u.caseIds.includes(caseId) && (!sourceId || u.sourceIds.includes(sourceId))
     && (!type || u.type === type) && (!category || priorityCategory(u) === category)
@@ -19,8 +32,9 @@ export function reviewGroups(units, { caseId, sourceId = '', type = '', filter =
 export function reviewNavigation(storage, update) {
   try {
     const value = update ?? JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}');
-    const safe = Object.fromEntries(['caseId', 'sourceId', 'type', 'filter', 'group', 'itemKey', 'queue', 'category', 'returnItemKey', 'mode']
+    const safe = Object.fromEntries([...NAV_KEYS, 'returnItemKey']
       .filter(k => typeof value?.[k] === 'string').map(k => [k, value[k]]));
+    if (Array.isArray(value?.supportTrail)) safe.supportTrail = value.supportTrail.slice(-32).map(navigationFields);
     if (update) storage.setItem(STORAGE_KEY, JSON.stringify(safe));
     return safe;
   } catch { return { notice: 'Review navigation could not be saved/restored. Decisions remain in private storage.' }; }
@@ -89,14 +103,14 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
   if (session.notice) identity.append(element(doc, 'p', session.notice));
   root.append(identity);
   choose(doc, root, 'Campaign', model.corpus.cases.map(c => [c.id, c.name]), caseId,
-    value => change({ caseId: value, sourceId: '', itemKey: '' }));
+    value => change({ caseId: value, sourceId: '', itemKey: '', supportTrail: [] }));
   const queue = nav.queue ?? 'priority';
   choose(doc, root, 'Review workload', [['priority', 'Grounded priority candidates'], ['exceptions', 'Priority exceptions / missing support'],
     ['evidence', 'Supporting claims (advanced)'], ['all', 'All records / later pass']], queue,
-  value => change({ queue: value, itemKey: '', category: '', returnItemKey: '' }));
+  value => change({ queue: value, itemKey: '', category: '', returnItemKey: '', supportTrail: [] }));
   for (const [category, name] of Object.entries(PRIORITY_LABELS)) root.append(action(doc, name,
-    () => change({ category, queue: 'priority', group: 'category', type: '', itemKey: '', returnItemKey: '' })));
-  root.append(action(doc, 'All priority categories', () => change({ category: '', queue: 'priority', itemKey: '', returnItemKey: '' })));
+    () => change({ category, queue: 'priority', group: 'category', type: '', itemKey: '', returnItemKey: '', supportTrail: [] })));
+  root.append(action(doc, 'All priority categories', () => change({ category: '', queue: 'priority', itemKey: '', returnItemKey: '', supportTrail: [] })));
   choose(doc, root, 'Group by', [['category', 'Artifact category'], ['blog', 'Blog / source']], nav.group ?? 'category', value => change({ group: value }));
   choose(doc, root, 'Queue', REVIEW_FILTERS.map(v => [v, v]), nav.filter ?? 'All', value => change({ filter: value, itemKey: '' }));
   choose(doc, root, 'Source', [['', 'All sources'], ...model.corpus.sources.map(s => [s.id, s.title ?? s.id])],
@@ -133,7 +147,7 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     detail.append(element(doc, 'h3', `${u.type}: ${u.id}`),
       element(doc, 'p', `${u.state} · labels ${u.labels.applicable ? u.labels.state : 'N/A (no label applies)'}`),
       element(doc, 'p', `Content origin: ${u.contentOrigin} · Label authorship: ${u.labelAuthorship}`),
-      element(doc, 'p', `${/LLM|agent/.test(u.originalOrigin) ? 'LLM-derived (original contribution retained)' : `Original origin: ${u.originalOrigin}`} · ${u.editor ? `Human-edited by ${u.editor}` : 'No human content edit'} · ${u.state === 'Accepted' ? 'Human-reviewed' : 'Not currently human-reviewed'}`),
+      element(doc, 'p', `${/LLM|agent/.test(u.originalOrigin) ? 'LLM-derived (original contribution retained)' : `Original origin: ${u.originalOrigin}`} · ${u.editor ? `Human-edited by ${u.editor}` : 'No human content edit'} · ${u.currentHumanReview ? `Human-reviewed · ${u.state}` : 'Not currently human-reviewed'}`),
       element(doc, 'h4', 'Candidate'),
       element(doc, u.priorityCategory === 'prompts' ? 'pre' : 'p',
         u.record.value ?? u.record.name ?? u.record.description ?? u.record.summary ?? u.record.title ?? u.id, 'review-candidate'),
@@ -149,8 +163,23 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
       element(doc, 'pre', JSON.stringify({ original: u.original, runMetadata: u.runMetadata, revision: u.binding }, null, 2)));
     detail.append(original, element(doc, 'h4', 'Exact evidence and available context'));
     if (!u.evidence.length) detail.append(element(doc, 'p', 'No direct passage on this item. Inspect supporting records below; unavailable/private passages are not invented.'));
+    const shownEvidence = new Map();
+    function showEvidence(e, parent, attribution) {
+      const locator = e.locator ?? e.passage;
+      const key = e.quote !== null && Number.isInteger(locator?.start) && Number.isInteger(locator?.end)
+        ? JSON.stringify([e.revisionId, locator.start, locator.end, e.quote]) : null;
+      if (key && shownEvidence.has(key)) {
+        parent.append(element(doc, 'p', `${attribution} · Same exact passage as evidence ${shownEvidence.get(key)} above.`, 'subtle'));
+        return false;
+      }
+      const number = shownEvidence.size + 1;
+      if (key) shownEvidence.set(key, number);
+      parent.append(element(doc, 'p', `${attribution} · Evidence ${number}`, 'subtle'),
+        element(doc, 'blockquote', e.quote ?? e.explanation, 'review-quote'));
+      return true;
+    }
     for (const e of u.evidence) {
-      detail.append(element(doc, 'blockquote', e.quote ?? e.explanation, 'review-quote'));
+      if (!showEvidence(e, detail, e.id ? `Source passage: ${e.id}` : 'Direct annotation support')) continue;
       const r = model.corpus.sourceRevisions.find(r => r.id === e.revisionId);
       const source = model.sources.get(r?.sourceId);
       detail.append(element(doc, 'p', `${source?.title ?? 'Source unavailable'} · ${source?.publisher ?? 'Publisher not recorded'} · ${source?.originalUrl ?? 'No public URL'} · revision ${e.revisionId ?? 'unavailable'}`, 'subtle'));
@@ -162,17 +191,16 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
       const box = element(doc, 'section', null, 'claim-card');
       box.append(element(doc, 'p', `Required support · ${support?.state ?? 'Missing'}`),
         element(doc, 'p', support?.record.description ?? support?.record.name ?? key));
-      if (support?.evidence[0]) box.append(element(doc, 'blockquote', support.evidence[0].quote ?? support.evidence[0].explanation, 'review-quote'));
-      box.append(action(doc, `Review supporting item: ${key}`, () => change({ queue: 'all', category: '', filter: 'All',
-        sourceId: '', type: '', itemKey: key, returnItemKey: u.itemKey })));
+      if (support?.evidence[0]) showEvidence(support.evidence[0], box, `Supporting record: ${key}`);
+      box.append(action(doc, `Review supporting item: ${key}`, () => change(supportNavigation(nav, key, u.itemKey))));
       detail.append(box);
     }
     for (const id of u.record.conflictsWith ?? []) detail.append(action(doc, `Conflicting claim: ${id}`,
-      () => change({ queue: 'all', category: '', filter: 'All', sourceId: '', type: '', itemKey: `claims:${id}`, returnItemKey: u.itemKey })));
+      () => change(supportNavigation(nav, `claims:${id}`, u.itemKey))));
     for (const blocker of u.blockers) detail.append(action(doc, blocker.reason,
-      () => change({ queue: 'all', category: '', filter: 'All', sourceId: '', type: '', itemKey: blocker.itemKey, returnItemKey: u.itemKey })));
-    if (nav.returnItemKey) detail.append(action(doc, 'Return to candidate after support review',
-      () => change({ queue: 'all', category: '', filter: 'All', itemKey: nav.returnItemKey, returnItemKey: '' })));
+      () => change(supportNavigation(nav, blocker.itemKey, u.itemKey))));
+    if (nav.supportTrail?.length || nav.returnItemKey) detail.append(action(doc, 'Return to candidate after support review',
+      () => change(returnFromSupport(nav))));
     const guide = element(doc, 'details');
     const link = element(doc, 'a', 'Full researcher decision guide'); link.href = '/docs/researcher-review-guide.md';
     guide.append(element(doc, 'summary', `Decision guide ${GUIDE_VERSION}`), link,

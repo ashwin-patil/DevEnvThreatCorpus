@@ -98,6 +98,33 @@ test('Issue #81 AC-03/07/09/10 isolated synthetic review works from public mode,
   assert.equal((await request(port, '/api/review', sameOrigin(port), 'POST', JSON.stringify(input))).status, 405);
 });
 
+privateStoreTest('Issue #81 AC-07 private HTTP review persists to disk across server instances and rejects stale/concurrent writes', async t => {
+  const store = await workspace(t);
+  const corpus = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
+  const file = path.join(store, 'corpus.json');
+  await writeFile(file, canonicalSerialize(corpus), { mode: 0o600 });
+  const port = await start(t, { store });
+  const before = JSON.parse((await request(port, '/api/review')).body);
+  const unit = before.units.find(u => u.itemKey === 'claims:synthetic-claim-a');
+  const input = { snapshot: before.snapshot, itemKey: unit.itemKey, action: 'accept',
+    reviewer: 'synthetic-disk-reviewer', selfAttested: true, guideVersion: GUIDE_VERSION, confirmation: confirmationFor(unit) };
+  const send = (p, value) => request(p, '/api/review', sameOrigin(p), 'POST', JSON.stringify(value));
+  const results = await Promise.all([send(port, input), send(port, input)]);
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+  const persisted = await readFile(file, 'utf8'), stored = JSON.parse(persisted);
+  assert.equal(stored.governance.localReview.events.length, 1);
+  assert.equal(stored.governance.localReview.events[0].reviewer, input.reviewer);
+  assert.equal((await lstat(file)).mode & 0o777, 0o600);
+  const restarted = await start(t, { store });
+  const loaded = JSON.parse((await request(restarted, '/api/review')).body);
+  const accepted = loaded.units.find(u => u.itemKey === unit.itemKey);
+  assert.equal(accepted.state, 'Accepted');
+  assert.equal(accepted.history.length, 1);
+  assert.equal((await send(restarted, input)).status, 409);
+  assert.equal(await readFile(file, 'utf8'), persisted);
+  assert.deepEqual(JSON.parse((await request(restarted, '/api/corpus')).body).claims, corpus.claims);
+});
+
 test('browser normalization helper is explicitly served without exposing private implementation modules', async t => {
   const port = await start(t);
   const response = await request(port, '/src/research-inventory.mjs');

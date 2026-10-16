@@ -1,5 +1,17 @@
 # Researcher decision guide
 
+## Interface clarification (decision rules unchanged)
+
+Current **Human-reviewed · Excluded** means a completed exclusion decision, not
+acceptance. Stale decisions are not current review. After explicit supporting-item
+review, the original workload/category/group/source/filter resumes, even after
+reload. Identical passages at the same revision/code-point span display once with
+all passage/direct-support attributions and supporting-record links retained;
+different spans or revisions are not merged. A corrected tool display identity
+appears consistently on private cards/library while its extracted literal remains
+visible; a correction never automatically merges products. These presentation
+clarifications do not change either named guide's acceptance checks.
+
 ## Current guide: researcher-review/2
 
 Version **researcher-review/2** retains the exact evidence, fidelity, scope and

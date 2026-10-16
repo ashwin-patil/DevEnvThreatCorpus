@@ -20,6 +20,20 @@
 - Add synthetic contract, persistence, privacy, UI and server regression coverage.
   Independent researcher, semantic, UX/accessibility and documentation review
   remain required; review of a proposal is not operational validation.
+- Refine #81 to category-first tool, behavior/occurrence and prompt review with
+  per-tab self-attested identity, one explicit guide-v2 acceptance, canonical
+  rejection reasons and friendly edits followed by separate acceptance. Preserve
+  original literals/proposals; show corrected tool identities consistently without
+  automatic product merging, current exclusions as reviewed but not accepted,
+  and distinct provenance links for deduplicated exact evidence.
+- Restore priority workload/category/group/source/filter after explicit support
+  review, including reload and nested dependencies. Add a clearly isolated
+  server-memory synthetic exercise; it neither writes Nx nor proves private-store
+  durability. Advanced-artifact UX/semantic acceptance is deferred, not approved.
+- Validate typed reviewed export rows, retain minimal non-approved case identity
+  closure, exclude N/A units from label denominators and union retained extraction
+  segments across runs. Wire HITL as the eighth authoritative application suite
+  and update the command-contract assertion without removing coverage.
 
 ## 2026-10-15 — Explicit light/dark workbench themes (#79 scope extension)
 

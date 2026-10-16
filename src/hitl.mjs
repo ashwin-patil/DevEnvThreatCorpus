@@ -175,7 +175,7 @@ export function reviewUnits(corpus, annotations = []) {
       const text = revision?.normalizedContent;
       const exact = typeof text === 'string' && locator
         && [...text].slice(locator.start, locator.end).join('') === quote;
-      u.evidence.push({ revisionId: u.record.sourceRevisionId, quote: exact ? quote : null,
+      u.evidence.push({ revisionId: u.record.sourceRevisionId, locator: structuredClone(locator), quote: exact ? quote : null,
         context: exact ? [...text].slice(Math.max(0, locator.start - 200), locator.end + 200).join('') : null,
         explanation: exact ? null : 'Annotation evidence unavailable/private; no passage fabricated.' });
     }

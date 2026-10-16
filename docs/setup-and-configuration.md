@@ -164,7 +164,7 @@ research off hosted machines unless you intentionally accept that storage model.
 `python -m unittest tests.test_devcontainer` executes focused configuration and
 real local-process lifecycle checks, including concurrent starts, restart,
 controlled occupied-port failure/recovery, stale identities and permissions.
-`python scripts/verify.py` discovers those Python tests and runs all seven
+`python scripts/verify.py` discovers those Python tests and runs all eight
 configured application suites. Neither command proves Codespaces creation,
 rebuild, stop/start, private access or browser usability. AC-01–AC-06 evidence and
 the still-required independent reviews are tracked in
@@ -207,10 +207,18 @@ items/progress and `POST /api/review` writes one explicit decision using the exi
 private transaction/lock and a current snapshot. A stale tab/write returns 409;
 reload and inspect again, never blindly replay acceptance. The server keeps the
 same Host/Origin/Fetch-Metadata/CSP boundary and request-size/time limits.
-No-store, public draft, synthetic demo and `--corpus` views cannot persist decisions.
+Public draft, inspect-only demos and `--corpus` views cannot write corpus decisions.
+From Review, **Start synthetic review exercise (isolated, not Nx)** explicitly
+loads a separate server-memory fixture. It supports decision/reload/history
+exercises without a store; server restart resets it. It is not private filesystem
+durability, authenticated identity or research evidence, and never writes Nx.
 
 Use the [versioned guide](researcher-review-guide.md) embedded in the item panel.
-Required common/type checks start unchecked. Navigation and Next item do not decide.
+Guide `researcher-review/2` consolidates common/type checks into one explicit
+**Accept item — I confirm** human action after inspecting the category attestation.
+LLM suggestions never complete checks; N/A exceptions require a reason. Historical
+v1 guide text/decisions remain retained. Set the self-attested identifier once per
+tab session, with visible correction controls. Navigation and Next item do not decide.
 Review filters and selection persist separately from decisions; browser storage
 failure is reported, while durable decisions remain in the private corpus.
 Do not use browser storage as a backup. Preserve `corpus.json`, source archives,
@@ -225,6 +233,12 @@ file-based CLI exports cannot discover sidecars. Private campaign/talk draft
 exports retain their existing private-content warnings. Neither route publishes.
 The configured review suite includes the synthetic HITL tests; these executed
 application checks do not establish human semantic/UX/accessibility approval.
+The HITL suite is explicitly the eighth configured command. Priority category
+queues default to grounded tool/behavior/prompt candidates; claims remain in the
+evidence queue and advanced artifacts remain withheld until explicitly accepted.
+Support review returns to the saved priority context, including after reload.
+See the [issue-81 evidence ledger](acceptance-audit.md#issue-81-local-hitl-review)
+for exact-check surfaces, owner-authorized deferrals and required human review.
 
 ### Explicit workbench themes
 

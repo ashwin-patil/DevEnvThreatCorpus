@@ -37,7 +37,9 @@ export function applyReviewProjection(model) {
     if (Object.hasOwn(record, 'disposition')) record.disposition = u.state === 'Accepted' ? 'Accepted' :
       u.state === 'Excluded' ? 'Excluded' : 'Pending';
     record.itemReview = { itemKey: u.itemKey, state: u.state, editor: u.editor ?? null,
-      contentOrigin: u.contentOrigin, labelAuthorship: u.labelAuthorship };
+      contentOrigin: u.contentOrigin, labelAuthorship: u.labelAuthorship,
+      displayIdentity: u.editor && u.record.normalizedValue !== u.original.normalizedValue
+        ? u.record.normalizedValue : null };
   }
   return { ...model, ...createModel(corpus), originalCorpus, annotations: [...annotations.values()] };
 }

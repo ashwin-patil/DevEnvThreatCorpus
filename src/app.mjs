@@ -4,7 +4,7 @@ import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, 
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
 import { publicDraftModel } from './public-profile.mjs';
 import { articleCoverage, publisherDisplay } from './research-inventory.mjs';
-import { renderReview, reviewWindowNavigation, reviewSession, reviewGroups } from './review-ui.mjs';
+import { renderReview, reviewWindowNavigation, reviewSession, reviewGroups, returnFromSupport } from './review-ui.mjs';
 export const PUBLIC_DRAFT_URL = new URL('./data/nx-draft.json', import.meta.url).href;
 
 export async function fetchCorpus(fetcher, endpoint) {
@@ -88,8 +88,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     studio.base = model.originalCorpus ?? model.corpus;
     reviewNav.previousItemKey = input.itemKey;
     reviewNav.confirmation = `${input.action === 'modify' ? 'Changes saved; separate acceptance is still required' : `Saved ${input.action}`} · ${input.itemKey}`;
-    if (reviewNav.returnItemKey && !['modify', 'provenance'].includes(input.action)) {
-      reviewNav.itemKey = reviewNav.returnItemKey; reviewNav.returnItemKey = '';
+    if ((reviewNav.supportTrail?.length || reviewNav.returnItemKey) && !['modify', 'provenance'].includes(input.action)) {
+      reviewNav = { ...reviewNav, ...returnFromSupport(reviewNav) };
     } else if (input.action !== 'modify' && input.action !== 'provenance') {
       const candidates = reviewGroups(model.itemReview.units, { ...reviewNav, caseId: reviewNav.caseId || route.id,
         queue: reviewNav.queue ?? 'priority' }).records;

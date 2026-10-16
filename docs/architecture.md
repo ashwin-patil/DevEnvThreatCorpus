@@ -65,8 +65,11 @@ Stable review keys are type plus record ID. Nested nodes/edges use path ID plus
 their own ID; occurrences use behavior ID plus immutable proposal-array position.
 An insertion/reordering is a changed proposal, not a way to inherit acceptance.
 Shared campaign definitions have one key; source counts may overlap. Blog and
-artifact-category grouping never merge distinct occurrences. Browser storage
-contains navigation keys only, not reviewer identities, content or decisions.
+artifact-category grouping never merge distinct occurrences. Local storage holds
+only navigation keys, including a bounded support-return trail; returning after
+an explicit support decision restores workload/category/group/source/filter.
+Per-tab session storage separately holds the editable self-attested identifier.
+Every durable decision records that identifier; neither storage authenticates it.
 
 Dependencies flow from claims to definitions, occurrences/nodes, edges, paths,
 mappings and proposal dependencies. Case summaries depend on claims but claims
@@ -85,16 +88,41 @@ are allowlisted; structural corrections need exclusion/regeneration. Provenance 
 a separate audited action, including human-to-LLM corrections with reason/evidence.
 Authorship is never inferred from acceptance/exclusion. Unretained or mismatching
 evidence is explained and cannot be replaced with invented quotations.
+Private models project effective edits and review state over a copy; curator
+transactions and frozen originals retain the canonical corpus. A human-corrected
+tool display identity appears consistently in Review, library and campaign/blog
+cards while the extracted literal remains visible. Corrected identities do not
+automatically merge product groups or source occurrences. Current exclusions are
+human-reviewed, not accepted; changed decisions are not current review. Identical
+exact passages are displayed once per revision/code-point span, retaining each
+passage/direct-support attribution and supporting-record navigation.
 
 `profileRecords(..., 'reviewed')` selects only currently HITL-accepted records.
 Framework definitions and source/revision provenance are reference metadata, not
 incident approvals. Pending enrichment is withheld. Nested items may be exported
 independently as typed review records; parent paths require all their nodes/edges.
 Accepted case summaries are independent records; accepted claims can be listed
-without exporting an unaccepted case summary. Reviewed projections are not
+with minimal `contextOnly: true` case identity rows, not an unaccepted case summary.
+Those rows have null review status and cannot imply summary approval. The generated
+profile schema validates accepted optional/nested units and redacted annotation
+metadata, independently of the importable corpus schema. Reviewed projections are not
 round-trippable private corpus/audit backups. Campaign/talk exports remain private
 drafts and preserve exclusions and LLM metadata. No publication or operational
 detection validation is implied. See the [decision guide](researcher-review-guide.md).
+
+Priority triage is deterministic: tool/prompt/behavior category, exact retained
+evidence and no structurally unresolved required support. Pending claims require
+their own short human review step. Missing support remains an exception, not
+permission to waive acceptance. N/A units are outside label denominators; retained
+segment identities are unioned across extraction runs. Historical partial counts
+without identities provide only a disclosed conservative lower bound.
+
+The explicitly selected `/api/review-demo` exercise uses per-server in-memory
+synthetic state and the same decision contract, never the public Nx snapshot or
+private store. Reload retains it; restart resets it. Only explicit `--store`
+review has filesystem durability. The owner-authorized first pass prioritizes
+tools, behaviors/occurrences and prompts; polished advanced-artifact UX and
+independent semantic acceptance remain deferred, with pending records withheld.
 
 - **External content → intake:** credential-free public HTTPS only, address and
   redirect checks, DNS pinning, TLS/peer verification, robots policy and finite

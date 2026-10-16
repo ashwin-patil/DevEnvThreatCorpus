@@ -197,13 +197,17 @@ interface, but these events alone no longer qualify a reviewed export. Use the
 Workbench **Review** page and its [guide](../researcher-review-guide.md), or inspect
 the `itemReview` object now included in `status`. For an item template, supply
 `snapshot`, `itemKey`, `action`, `selfAttested: true`, `guideVersion:
-"researcher-review/1"` and rationale; Accept additionally supplies `checks` with
+"researcher-review/2"` and rationale where required; Accept supplies the exact
+selected unit's human `confirmationFor(unit)` attestation from `src/review-guide.mjs`
+only after personally checking it, or explicit `checks` with
 `evidence`, `fidelity`, `scope` and `type`, each `{ "result": "pass" }` only after
 the human personally checks it. A documented non-applicability uses
 `{ "result": "not-applicable", "reason": "..." }`. Run the same `decide --template
 ... --store ... --reviewer ...` command; the reviewer flag supplies the identifier.
-Modify uses an allowlisted `patch` or `researcherTags`, Exclude uses
-`exclusionReason` and optional `replacementKeys`, and Unsure requires rationale.
+The browser's friendly Modify fields construct allowlisted corrections; researchers
+do not author JSON there. CLI templates still support allowlisted `patch` or
+`researcherTags`. Exclude uses a canonical `exclusionReason` and optional
+`replacementKeys`; extra prose is optional except for `other`. Unsure requires rationale.
 Provenance correction uses `action: "provenance"`, `contentOrigin`,
 `labelAuthorship` and `provenanceEvidence` plus rationale. Every action is a
 separate snapshot-bound write. `validate` retains its legacy claim-only output;
@@ -300,6 +304,6 @@ rm -r -- "$WORK"
 ```
 
 Never use that cleanup command on a real store. Contributor verification is
-`python scripts/verify.py`; it runs scaffold checks and all seven configured
+`python scripts/verify.py`; it runs scaffold checks and all eight configured
 application suites. Live collection/model evaluation, Codespaces access and
 independent human review are separate evidence, not implied by fixture success.

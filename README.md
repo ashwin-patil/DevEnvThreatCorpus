@@ -104,6 +104,14 @@ deciding, confirmation and previous/history access remain while the queue advanc
 Advanced mapping/path/proposal UX is deferred, not approved: these records stay
 Pending/withheld unless independently reviewed. N/A labels are outside label
 denominators; priority counts disclose hidden evidence/deferred records.
+Support review restores the original workload, category, grouping, source and
+filter rather than leaving the advanced queue active. Current exclusions show
+**Human-reviewed · Excluded**, distinct from acceptance and stale review. Identical
+exact passages are displayed once with their separate provenance links retained.
+Human-edited tool display identities are shared by Review, library and campaign/blog
+cards; literal source values stay visible and corrected identities do not silently
+merge products. See the [AC evidence ledger](docs/acceptance-audit.md#issue-81-local-hitl-review)
+for deferred coverage and the independent human decisions still required.
 
 To try review without a private store, open **Review → Start synthetic review
 exercise (isolated, not Nx)**. It loads benign tool, behavior/occurrence, prompt
