@@ -79,7 +79,9 @@ and limits; the process does not imply completed research acceptance.
 - Deliberately collect authorized public HTTPS sources into a private store, or
   supply text/files; collection is not claim acceptance.
 - Draft claims manually or use an explicit request/chat/candidate handoff.
-  The repository does not call a runtime model or automatically approve output.
+  That remains the default. An [optional CLI-only OpenAI adapter](docs/reference/cli.md#optional-openai-generation)
+  can generate a protected untrusted candidate from operator-confirmed public
+  research; it is disabled by default and never applies or approves output.
 - Record local item-level human decisions and produce reproducible reviewed/draft
   exports with read-only queries, subject to current eligibility checks.
 

@@ -1,8 +1,9 @@
 # CLI reference
 
 Run from the clone root using the [pinned Node runtime](../../scripts/.node-version).
-Examples use an absolute `REPO` and private temporary files; no package install,
-model credentials, live articles or application build is needed for offline work.
+Examples use an absolute `REPO` and private temporary files. Install the locked
+tokenizer for campaign preparation; no model credentials, live articles or
+application build are needed for offline work.
 These recipes replace the historical README exercises while its anchors remain.
 See [configuration](configuration.md) for server modes, permissions and bounds,
 and [formats](formats-and-versioning.md) for input contracts.
@@ -26,7 +27,9 @@ permission-restricted. Supplier/reviewer IDs use the
 | `extract.mjs enrichment validate` / `import` | `--store --input` | Import stays pending |
 | `extract.mjs enrichment export` | `--store --output` | `--case` |
 | `extract.mjs campaign prepare` | `--store --case --output` | `--revisions` comma-separated IDs; `--requested-model` advisory |
-| `extract.mjs campaign validate` / `apply` | `--store --request --input` | Validate first, apply explicitly |
+| `extract.mjs campaign prepare-adapter` | `--store --case --output` | `--revisions`; offline provider-bound request preparation |
+| `extract.mjs campaign generate` | `--store --request --output --enabled true --confirm-public <requestHash>` | Explicit billable action; process `OPENAI_API_KEY` required |
+| `extract.mjs campaign validate` / `apply` | `--store --request --input` | `--receipt` required for adapter requests; validate first, apply explicitly |
 | `extract.mjs campaign status` | `--store` | `--case` |
 | `extract.mjs campaign export` | `--store --case --output` | `--format json` (default), `md` or `markdown` |
 | `review.mjs status` / `validate` | `--file` | Review-aware, read-only |
@@ -162,6 +165,74 @@ validate and explicitly apply using the commands below. Optional record arrays
 belong at candidate top level, not in the guide's `records` property.
 Disclose requested/effective model separately; unavailable effective metadata
 must remain null/unknown, not inferred from a preference.
+
+### Optional OpenAI generation
+
+Manual chat handoff above remains the default. The alternative below is CLI-only
+and disabled unless deliberately enabled for a single request. It requires POSIX
+private storage, the locked tokenizer and an operator-provisioned project-scoped
+`OPENAI_API_KEY` in that CLI process's environment. Never paste the key into
+commands, browser code, request files, research notes or logs; use your approved
+secret-injection procedure. Managed Codespaces startup still strips credentials.
+There is no provider SDK, credential discovery, browser generation API or fallback.
+
+Prepare offline and inspect the request and selected retained article revisions:
+
+```sh
+node "$REPO/scripts/extract.mjs" campaign prepare-adapter \
+  --store "$WORK/research" --case synthetic-case-a --output "$WORK/api-request.json"
+```
+
+Preparation returns its `requestHash` without calling a provider. Only an operator
+who has confirmed that **all selected text and accompanying citation/scope metadata
+are published public research and authorized for processing** may supply that
+exact hash to `--confirm-public`. Quoted prompt artifacts in public articles are
+source data, not confidential user prompts or instructions to execute.
+Local unpublished notes, reviews, raw HTML, images and credentials are excluded.
+Confidential source processing is not supported by this initial policy.
+
+The following commands are **not an offline exercise**. Do not execute them
+without separate request-specific transmission and spending authorization:
+
+```sh
+node "$REPO/scripts/extract.mjs" campaign generate \
+  --store "$WORK/research" --request "$WORK/api-request.json" \
+  --output "$WORK/api-candidate.json" --enabled true --confirm-public COPIED_REQUEST_HASH
+node "$REPO/scripts/extract.mjs" campaign validate \
+  --store "$WORK/research" --request "$WORK/api-request.json" \
+  --input "$WORK/api-candidate.json" --receipt "$WORK/api-candidate.json.receipt.json"
+# Only after inspecting the untrusted candidate and validation result:
+node "$REPO/scripts/extract.mjs" campaign apply \
+  --store "$WORK/research" --request "$WORK/api-request.json" \
+  --input "$WORK/api-candidate.json" --receipt "$WORK/api-candidate.json.receipt.json"
+```
+
+Generation writes `api-candidate.json` plus `.attempt.json`, `.receipt.json` when
+available and `.result.json` beside it. Existing paths are never overwritten.
+Files are `0600` in a `0700` directory. Keep them until deliberate operator
+cleanup; none is a public export. A candidate is saved before local validation,
+including malformed/truncated text when available. Errors return safe codes and
+saved/unsaved indicators, not provider diagnostics or source text. If persistence
+fails, retention is uncertain; inspect actual files rather than assuming recovery.
+
+Only `https://api.openai.com/v1/responses` and `gpt-6-luna` are supported; no
+regional-residency guarantee is made. `store:false` is not zero retention:
+provider abuse-monitoring rules may still apply. JSON mode returns an untrusted
+candidate; schema/quote/coverage/reference/snapshot validation remains local.
+The payload explicitly omits full catalog descriptions while retaining pins and
+technique IDs/names/URLs/tactics; full catalog validation remains local. See
+[finite bounds](configuration.md#optional-cli-model-adapter) and
+[wire compatibility](formats-and-versioning.md#optional-provider-transport-83).
+
+Generation does not modify `corpus.json` or create a HITL decision. Any intervening
+corpus/review write makes an unapplied candidate stale. `STALE_INPUT` preserves
+available candidate/receipt files; inspect them, prepare a new request and explicitly
+regenerate or rework against its actual segment IDs. Never edit only hashes or
+silently transfer approval. Applying the identical already-applied request/output
+is replay-safe. A retry needs new artifact paths and may execute/bill again;
+timeout/cancellation does not establish exactly-once execution or zero cost.
+
+### Offline handoff exercise
 
 For a **fully offline plumbing exercise**, the following creates an all-skipped
 synthetic candidate with no claims, no model call and no claim of extraction:

@@ -1,5 +1,17 @@
 # Researcher decision guide
 
+## Optional model generation does not review
+
+The disabled-by-default CLI adapter can generate an untrusted candidate from
+explicitly confirmed public research; the ordinary chat handoff remains available.
+Published prompt literals are source artifacts, never commands to execute.
+Provider completion, usage metadata, JSON validity and exact quotation matching
+are not human semantic approval. Explicit application creates Pending review
+items, never an Accept/Modify/Exclude/Unsure event or completed human checklist.
+Your existing corrections, exclusions and decision history remain separate.
+An intervening review makes an unapplied frozen candidate stale: inspect the
+protected result and re-prepare explicitly rather than rewriting its hashes.
+
 ## Interface clarification (decision rules unchanged)
 
 Current **Human-reviewed · Excluded** means a completed exclusion decision, not
