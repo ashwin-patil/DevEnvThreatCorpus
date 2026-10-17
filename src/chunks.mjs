@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { sha256, stableId } from '../scripts/contract.mjs';
+import { canonicalSerialize, sha256, stableId } from '../scripts/contract.mjs';
 import { ARTICLE_PARSER_VERSION, protectedArticleRanges } from './article.mjs';
 
 const require = createRequire(new URL('../scripts/package.json', import.meta.url));
@@ -175,10 +175,11 @@ export function chunkRevision(revision) {
 }
 
 export function chunkReport(request) {
+  const metadata = value => JSON.stringify(JSON.parse(canonicalSerialize(value)));
   const lines = ['# Private canonical chunk inspection', '',
     'Contains retained source text. Keep private; preparation is not extraction or acceptance.', '',
     `Request: ${request.requestHash}`, `Policy: ${request.chunkPolicy?.version ?? 'fixed-code-points/1'}`,
-    `Reference tokenizer and limits: ${JSON.stringify(request.chunkPolicy ?? null)}`];
+    `Reference tokenizer and limits: ${metadata(request.chunkPolicy ?? null)}`];
   for (const input of request.inputs) {
     lines.push('', `Source revision: ${input.sourceRevisionId ?? 'unavailable'}`,
       `Normalized hash: ${input.normalizedHash ?? 'unavailable'}`,
@@ -187,7 +188,7 @@ export function chunkReport(request) {
     for (const segment of input.segments) {
       lines.push('', `Chunk: ${segment.id}`, `Canonical range: [${segment.start}, ${segment.end})`,
         `Core start: ${segment.coreStart ?? segment.start}`, `Reference tokens: ${segment.tokens ?? 'historical/unmeasured'}`,
-        `Overlap: ${JSON.stringify(segment.overlap ?? null)}`, `Warnings: ${JSON.stringify(segment.warnings ?? [])}`,
+        `Overlap: ${metadata(segment.overlap ?? null)}`, `Warnings: ${metadata(segment.warnings ?? [])}`,
         'BEGIN UNTRUSTED SOURCE TEXT', segment.text, 'END UNTRUSTED SOURCE TEXT');
     }
   }

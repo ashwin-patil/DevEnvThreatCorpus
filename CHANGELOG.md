@@ -19,6 +19,12 @@
   command with coordinates, measured tokens, overlap and warnings. No model
   provider, source recollection, publication or automatic acceptance is added.
   Independent semantic, UI/accessibility and documentation review remain required.
+- Correct Linux verification regressions: render report metadata in canonical key
+  order after request persistence, preserve first-seen claim-support order while
+  comparing duplicate support as sets, and regenerate compatibility-test coverage
+  from current request segments rather than reusing historical IDs. Add portable
+  regressions alongside the unchanged POSIX persistence checks; stale segment IDs
+  still fail validation and the frozen historical fixture remains unchanged.
 
 ## 2026-10-17 — Canonical context-chunking core checkpoint (#84)
 

@@ -367,18 +367,23 @@ function normalizeCandidate(corpus, request, candidate) {
 
 function deduplicateRecords(candidate, claimIds, context) {
   const output = structuredClone(candidate);
-  function resolveSupport(value) {
+  function resolveSupport(value, sort = false) {
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value)) {
       if (key === 'supportingClaimIds' && Array.isArray(child)) {
-        value[key] = [...new Set(child.map(id => claimIds.get(id) ?? id))].sort();
-      } else if (child && typeof child === 'object') resolveSupport(child);
+        value[key] = [...new Set(child.map(id => claimIds.get(id) ?? id))];
+        if (sort) value[key].sort();
+      } else if (child && typeof child === 'object') resolveSupport(child, sort);
     }
   }
   resolveSupport(output);
   // Discarded aliases cannot hide invalid original records or dangling references.
   normalizeCampaignRecords({ ...context, candidate: output, claimIds });
-  const key = item => canonicalSerialize(item);
+  const key = item => {
+    const comparable = structuredClone(item);
+    resolveSupport(comparable, true);
+    return canonicalSerialize(comparable);
+  };
   for (const type of ['roles', 'artifacts', 'published', 'dataSources']) {
     if (!Array.isArray(output[type])) continue;
     const seen = new Set();

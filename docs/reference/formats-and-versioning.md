@@ -205,6 +205,8 @@ store or provider. `campaign report --store ... --request ... --output ...`
 validates the current frozen request and writes retained text, coordinates,
 token counts, overlap and warnings only to a new protected private file. Run it
 before apply, which changes the corpus base. Neither command extracts claims.
+Report metadata uses canonical JSON key ordering, so saving and reloading the same
+request produces identical report text without changing retained source text.
 Never print a private report to CI logs or publish it.
 
 For new requests, exact duplicate claims at the same canonical evidence location
@@ -213,6 +215,9 @@ uncertainty or other claim content are explicit ambiguous-duplicate failures,
 not semantic merges. Exact duplicate artifact annotations and derived definitions
 with identical resolved support also collapse; distinct source/revision/position
 occurrences and similar-but-different interpretations remain separate.
+Duplicate comparison treats claim-support IDs as sets, but stored records retain
+the first proposal's support order instead of sorting evidence references merely
+to detect duplicates.
 Each new run stores geometry-bound completed/skipped/failed window results.
 HITL progress unions completed canonical ranges across current and historical
 policies, reporting covered code points rather than summing overlapping windows.
@@ -273,6 +278,10 @@ runs bind the chunk policy and window geometry and validate those against retain
 revisions; both `/2` and `/3` check support/scope and Pending provenance
 independently of envelope hashes. Today's catalog does not reinterpret old runs;
 legacy missing unresolved metadata is `unavailable`, not retroactively invented.
+Regenerated candidates must use their new request's segment IDs for coverage and
+quotation references. Changing only an old candidate's request hash is not a
+migration; stale segment references remain invalid. Compatibility tests preserve
+the frozen historical fixture while constructing new coverage for the new request.
 Read-only `unresolvedMappingAvailability` distinguishes recorded/unavailable
 metadata and explicit node scope from broader case/behavior scope.
 

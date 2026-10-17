@@ -33,10 +33,13 @@ const claim = (request, id = 'first', revisionId = 'synthetic-revision-a', quote
   supportingClaimIds: [], rationale: null, conflictsWith: [], uncertainty: null, observationContext: null,
   nullReasons: { rationale: 'not_applicable', uncertainty: 'not_reported', observationContext: 'not_reported' },
 });
+const completedCoverage = request => request.inputs.flatMap(i => i.segments.map(s => ({
+  segmentId: s.id, status: 'completed', reason: null,
+})));
 const candidateFor = request => ({
   schemaVersion: 'campaign-candidate/1', requestHash: request.requestHash,
   model: { effectiveModel: null, version: null, nullReasons: { effectiveModel: 'unknown', version: 'unknown' } },
-  coverage: request.inputs.flatMap(i => i.segments.map(s => ({ segmentId: s.id, status: 'completed', reason: null }))),
+  coverage: completedCoverage(request),
   claims: [claim(request)], absences: [{ sourceRevisionId: 'synthetic-revision-a', category: 'attacker-side-ai-use', reason: 'not_reported' }],
   limitations: ['Synthetic exercise; absence is not proof of no AI use.'],
 });
@@ -71,6 +74,22 @@ function groundedCandidate(request) {
   delete broad.pathId; delete broad.nodeId; delete broad.sourceLiteral;
   candidate.mappings.push(broad);
   return candidate;
+}
+
+async function historicalBaseline() {
+  const corpus = await fixture();
+  const legacy = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
+  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
+  body.extractionVersion = 'campaign-extraction/1';
+  const request = { ...body, requestHash: digest(body) };
+  assert.equal(request.requestHash, legacy.candidate.requestHash);
+  const run = { ...legacy.run, catalogSnapshot: request.catalogSnapshot,
+    inputs: request.inputs.map(({ segments, ...input }) => input) };
+  const { envelopeHash, ...runBody } = run;
+  assert.equal(digest(runBody), envelopeHash);
+  for (const [type, records] of Object.entries(run.records)) (corpus[type] ??= []).push(...records);
+  corpus.governance.campaignExtraction = { schemaVersion: 'campaign-snapshot/1', runs: [run] };
+  return { corpus, legacy, request, run };
 }
 
 test('#84 AC-01/02/07 current request and snapshot versioning binds chunks and retains fixed-window validation', async () => {
@@ -110,19 +129,41 @@ test('#84 AC-01/02/07 current request and snapshot versioning binds chunks and r
 });
 
 test('#84 AC-07 immutable historical v1 request fixture replays without changing its identities', async () => {
-  const corpus = await fixture();
-  const historical = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
-  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
-  body.extractionVersion = 'campaign-extraction/1';
-  const request = { ...body, requestHash: digest(body) };
-  assert.equal(request.requestHash, historical.candidate.requestHash);
-  const run = { ...historical.run, catalogSnapshot: request.catalogSnapshot,
-    inputs: request.inputs.map(({ segments, ...input }) => input) };
-  for (const [type, records] of Object.entries(run.records)) (corpus[type] ??= []).push(...records);
-  corpus.governance.campaignExtraction = { schemaVersion: 'campaign-snapshot/1', runs: [run] };
+  const { corpus, legacy, request } = await historicalBaseline();
   const before = canonicalSerialize(corpus);
-  assert.equal(applyCampaign(corpus, request, historical.candidate).replay, true);
+  assert.equal(applyCampaign(corpus, request, legacy.candidate).replay, true);
   assert.equal(canonicalSerialize(corpus), before);
+});
+
+test('#84 AC-07 regeneration requires current segment IDs while preserving historical proposals', async () => {
+  const { corpus, legacy, run } = await historicalBaseline(), frozen = canonicalSerialize(run);
+  const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  const next = { ...structuredClone(legacy.candidate), requestHash: request.requestHash };
+  assert.deepEqual(next.claims, []);
+  assert.throws(() => validateCampaignCandidate(corpus, request, next), /INVALID_COVERAGE/);
+  next.coverage = completedCoverage(request);
+  const { run: preview } = validateCampaignCandidate(corpus, request, next);
+  assert.notEqual(preview.id, run.id);
+  assert.notEqual(preview.records.behaviors[0].id, run.records.behaviors[0].id);
+  assert.notEqual(preview.unresolvedMappings[0].id, run.unresolvedMappings[0].id);
+  assert.equal(preview.unresolvedMappings[0].rationale, next.mappings[0].rationale);
+  applyCampaign(corpus, request, next);
+  assert.equal(canonicalSerialize(corpus.governance.campaignExtraction.runs[0]), frozen);
+  assert.deepEqual(corpus.governance.campaignExtraction.runs[1].supersedes, [run.id]);
+  assert.equal(applyCampaign(corpus, request, next).replay, true);
+});
+
+test('#84 AC-04 support order is retained while deduplication compares support sets', async () => {
+  const corpus = await fixture(), request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  const candidate = groundedCandidate(request);
+  candidate.behaviors[0].supportingClaimIds = ['second', 'first'];
+  candidate.behaviors.push({ ...structuredClone(candidate.behaviors[0]), localId: 'duplicate',
+    supportingClaimIds: ['first', 'second'] });
+  const before = canonicalSerialize(candidate), { run, claims } = validateCampaignCandidate(corpus, request, candidate);
+  assert.equal(run.records.behaviors.length, 1);
+  assert.deepEqual(run.records.behaviors[0].claimIds, [claims[1].id, claims[0].id]);
+  assert.ok(run.records.paths[0].edges.every(edge => canonicalSerialize(edge.claimIds) === canonicalSerialize(run.claimIds)));
+  assert.equal(canonicalSerialize(candidate), before);
 });
 
 test('#84 AC-02/04 overlap merges exact repeated claims/artifacts/behaviors but retains distinct canonical occurrences', async () => {
@@ -225,14 +266,16 @@ test('#84 AC-03 readable report includes exact ranges, token counts, warnings an
   assert.ok(report.includes('Overlap:'));
   assert.ok(report.includes('Warnings:'));
   assert.ok(report.includes(request.inputs[0].segments[0].text));
+  assert.equal(chunkReport(JSON.parse(canonicalSerialize(request))), report,
+    'persisted canonical JSON must render exactly the same report as the in-memory request');
   const cli = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/extract.mjs', import.meta.url)),
     'campaign', 'report-demo'], { encoding: 'utf8' });
   assert.equal(cli.status, 0, cli.stderr);
   assert.match(cli.stdout, /^SYNTHETIC DEMONSTRATION ONLY/);
   assert.ok(cli.stdout.includes('BEGIN UNTRUSTED SOURCE TEXT'));
   assert.ok(cli.stdout.includes('😀 Café'));
-  assert.ok(cli.stdout.includes('"code":"oversized-unit-split","kind":"code"'));
-  assert.ok(cli.stdout.includes('"code":"oversized-unit-split","kind":"prompt"'));
+  assert.match(cli.stdout, /Warnings: \[[^\n]*"code":"oversized-unit-split",[^\n]*"kind":"code"/);
+  assert.match(cli.stdout, /Warnings: \[[^\n]*"code":"oversized-unit-split",[^\n]*"kind":"prompt"/);
   assert.match(cli.stdout, /Overlap: \{[^\n]*"tokens":[1-9]\d*\}/);
 });
 
@@ -419,17 +462,7 @@ test('issue48 AC-02/05 new resolved run snapshots use the same all-claim scope v
 });
 
 privateStoreTest('issue48 AC-04 actual baseline run stays immutable, unavailable metadata stays broad, and new identities supersede it', async t => {
-  const corpus = await fixture(), legacy = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
-  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
-  body.extractionVersion = 'campaign-extraction/1';
-  const request = { ...body, requestHash: digest(body) };
-  assert.equal(request.requestHash, legacy.candidate.requestHash);
-  const run = { ...legacy.run, catalogSnapshot: request.catalogSnapshot,
-    inputs: request.inputs.map(({ segments, ...input }) => input) };
-  const { envelopeHash, ...runBody } = run;
-  assert.equal(digest(runBody), envelopeHash);
-  for (const [type, records] of Object.entries(run.records)) (corpus[type] ??= []).push(...records);
-  corpus.governance.campaignExtraction = { schemaVersion: 'campaign-snapshot/1', runs: [run] };
+  const { corpus, legacy, request, run } = await historicalBaseline();
   const store = await storeFor(t, corpus), before = canonicalSerialize(corpus), file = path.join(store, 'corpus.json');
   validateCampaignSnapshot(corpus);
   assert.deepEqual(campaignStatus(corpus).runs[0].unresolvedMappingAvailability,
@@ -445,7 +478,8 @@ privateStoreTest('issue48 AC-04 actual baseline run stays immutable, unavailable
   const absent = await fixture();
   assert.throws(() => applyCampaign(absent, request, legacy.candidate), /REQUEST_TAMPERED/);
   const nextRequest = prepareCampaign(corpus, { caseId: request.caseId });
-  const next = { ...legacy.candidate, requestHash: nextRequest.requestHash };
+  const next = { ...structuredClone(legacy.candidate), requestHash: nextRequest.requestHash,
+    coverage: completedCoverage(nextRequest) };
   const { run: preview } = validateCampaignCandidate(corpus, nextRequest, next);
   assert.notEqual(preview.id, run.id);
   assert.notEqual(preview.records.behaviors[0].id, run.records.behaviors[0].id);

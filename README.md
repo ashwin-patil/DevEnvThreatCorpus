@@ -294,6 +294,9 @@ After installing the locked dependency, inspect a benign report with
 `node .\scripts\extract.mjs campaign report-demo` (also supported on Windows).
 For private source reports, use the POSIX-only
 [campaign report command](docs/reference/cli.md#campaign-requestchatcandidate-handoff).
+Report metadata is deterministic before and after saving/reloading a request.
+Regeneration must use the new request's segment IDs; changing an old candidate's
+request hash alone does not convert its coverage or quotations.
 See the [chunk-policy and historical compatibility contract](docs/reference/formats-and-versioning.md#context-chunking-core-checkpoint-84).
 
 ## Contribution and review
