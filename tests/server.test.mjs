@@ -461,7 +461,7 @@ privateStoreTest('Issue #45 campaign routes use the shared prepare/apply/status/
   assert.equal(preparedResponse.status, 200, preparedResponse.body);
   const prepared = JSON.parse(preparedResponse.body);
   assert.equal(prepared.status, 'succeeded');
-  assert.equal(prepared.request.schemaVersion, 'campaign-request/1');
+  assert.equal(prepared.request.schemaVersion, 'campaign-request/2');
   assert.equal(prepared.request.provider.requestedModel, null);
   const candidate = {
     schemaVersion: 'campaign-candidate/1', requestHash: prepared.request.requestHash,

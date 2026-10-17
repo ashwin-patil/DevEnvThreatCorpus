@@ -277,6 +277,7 @@ pinned Node runtime, from the repository root:
 
 ```sh
 python -m pip install --requirement requirements-governance.txt
+npm ci --prefix scripts --ignore-scripts
 python scripts/verify.py
 ```
 
@@ -284,6 +285,19 @@ The verifier runs scaffold checks and the eight application commands in
 [`project.config.json`](project.config.json). Synthetic/offline checks are not
 live Codespaces, real-extraction quality or independent research acceptance.
 See [setup and verification](docs/setup-and-configuration.md).
+
+Campaign preparation uses versioned context-aware chunks with a locked, locally
+bundled `o200k_base` reference tokenizer: at most 2,000 tokens including up to 200
+tokens of overlap, with canonical revision offsets and explicit split warnings.
+This is not a model-context guarantee or evidence of extraction accuracy.
+After installing the locked dependency, inspect a benign report with
+`node .\scripts\extract.mjs campaign report-demo` (also supported on Windows).
+For private source reports, use the POSIX-only
+[campaign report command](docs/reference/cli.md#campaign-requestchatcandidate-handoff).
+Report metadata is deterministic before and after saving/reloading a request.
+Regeneration must use the new request's segment IDs; changing an old candidate's
+request hash alone does not convert its coverage or quotations.
+See the [chunk-policy and historical compatibility contract](docs/reference/formats-and-versioning.md#context-chunking-core-checkpoint-84).
 
 ## Contribution and review
 

@@ -61,9 +61,11 @@ previous-item/history link. Supporting-item review returns to its candidate.
 
 Priority progress shows separate per-type denominators and discloses hidden
 evidence, exceptions and deferred advanced records. N/A records are excluded from
-label denominators, not counted as labeled. Extraction unions retained segment
-identities across runs without double counting. Historical partial runs without
-identities provide only a conservative maximum lower bound, disclosed separately.
+label denominators, not counted as labeled. Extraction unions retained canonical
+code-point ranges across runs and chunk-policy versions without double counting
+overlap. Historical partial runs without positions are disclosed separately and
+not counted in the canonical coverage numerator. This reporting change does not
+alter the versioned acceptance checklist or historical decisions.
 
 Reviewed exports include minimal, explicitly **context-only** case identity rows
 when an accepted item needs its case but the summary is unreviewed. These rows have
@@ -199,7 +201,7 @@ passage text and conservatively withhold annotation content. Private campaign/ta
 exports remain research drafts and can contain private text. No action publishes.
 
 Campaign progress deduplicates stable review units. Source counts may overlap and
-must not be summed. Extraction measures eligible retained source segments, not all
+must not be summed. Extraction measures eligible retained canonical code points, not all
 incident facts. Unavailable/unprocessed sources remain separate. Accept and Exclude
 complete current review; Unsure and changed/stale decisions do not. Ready means
 current release eligibility, not quality. Zero denominators are N/A, never 100%.

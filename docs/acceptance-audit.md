@@ -1,5 +1,27 @@
 # Acceptance audit
 
+## Issue #84 context chunks — integration, independent acceptance pending
+
+Requirements and approved policy: [#84](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/84).
+Implementation and corrections remain on [PR #86](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/86).
+The initial checkpoint is superseded by integrated request/run versions below.
+Final-revision command results, counts, platform limitations and hosted check
+results must accompany the originating PR; earlier checkpoint results do not
+validate later commits. Native-Windows skips are not POSIX test success.
+
+| Criterion | Current files/tests | Status and remaining evidence |
+|---|---|---|
+| AC-01 | `src/chunks.mjs`, `src/article.mjs`, `scripts/package-lock.json`; `tests/chunks.test.mjs` measured thresholds, deterministic identity, paragraphs/Markdown/retained HTML/code/prompt/oversize tests | Mechanism implemented; independent policy implementation review required. |
+| AC-02 | `src/campaign.mjs` canonical quote resolver; chunk Unicode/hash/slice fixtures and campaign repeated-location/request/run tamper tests | Exact canonical coordinates retained; synthetic checks do not establish real source interpretation. |
+| AC-03 | Chunk boundary/full-coverage fixtures; `chunkReport`, `campaign report-demo` and protected `campaign report`; campaign readable/private report tests | Inspect benign report and authorized private output. POSIX permissions/overwrite exercise must execute on POSIX; independent quotation-context review required. |
+| AC-04 | Campaign exact-overlap claim/inference/artifact/behavior dedup, conflicting duplicate metadata and distinct-location tests; HITL stable-unit and repeated-evidence navigation regressions | Only exact normalized support/content collapses. No semantic behavior merge or transfer of human acceptance. Independent review required. |
+| AC-05 | Campaign mixed-version before/after edited/accepted/excluded fixture; `tests/hitl.test.mjs` dependency invalidation/history; `tests/workbench.test.mjs` evidence/support-return navigation | Existing history/proposals preserved; new identities Pending and withheld from reviewed exports. Independent real-source/UX inspection remains required. |
+| AC-06 | `progressSummary`, `unionCoverage`, `renderProgress`; campaign overlap/partial/skipped/failed/mixed-version and HITL historical/empty/unavailable fixtures | Canonical code-point numerator/denominator unions policies without window inflation; historical unlocated partial work is disclosed separately. Independent interpretation review required. |
+| AC-07 | Request `/2`, extraction/run `/3`, prompt `/5`; fixed request `/1` / run `/2` validation and frozen run `/1` replay fixtures; all eight configured application suites via `python scripts/verify.py` | Manual handoff and export contracts retained; pinned final-revision and hosted POSIX evidence required. No provider/context/throughput/semantic-quality guarantee. |
+
+No criterion is declared fully accepted. This PR must remain draft until its gates are met;
+automated tests and agent review do not supply independent human acceptance.
+
 ## Issue #81 local HITL review
 
 Originating requirements: [#81](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/81).

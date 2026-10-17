@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-10-16 — Context-aware campaign extraction integration (#84)
+
+- Prepare new `campaign-request/2`, prompt `/5` and extraction/run `/3` envelopes
+  with canonical context chunks. Preserve fixed-window `/2` validation/application
+  and already-applied `/1` replay without rewriting historical requests or runs.
+- Derive protected code/quote boundary hints from current retained HTML only when
+  it reproduces canonical text; never add fences or change source hashes.
+  Disclose unavailable historical HTML boundaries and unavoidable oversized splits.
+- Resolve overlapping quotes to canonical positions, collapse exact duplicate
+  claims/artifacts/definitions with identical support, reject ambiguous claim
+  differences and retain distinct occurrences. New records remain Pending;
+  existing HITL edits, decisions, exclusions and reviewed-export rules are retained.
+- Store geometry-bound coverage and report the union of completed canonical
+  code points across chunk-policy versions. Disclose historical partial work
+  without positions separately instead of adding incomparable window counts.
+- Add a portable synthetic chunk report and a protected POSIX-only private report
+  command with coordinates, measured tokens, overlap and warnings. No model
+  provider, source recollection, publication or automatic acceptance is added.
+  Independent semantic, UI/accessibility and documentation review remain required.
+- Correct Linux verification regressions: render report metadata in canonical key
+  order after request persistence, preserve first-seen claim-support order while
+  comparing duplicate support as sets, and regenerate compatibility-test coverage
+  from current request segments rather than reusing historical IDs. Add portable
+  regressions alongside the unchanged POSIX persistence checks; stale segment IDs
+  still fail validation and the frozen historical fixture remains unchanged.
+
+## 2026-10-17 — Canonical context-chunking core checkpoint (#84)
+
+- Add a separately testable `canonical-context/1` projection core with locked
+  `tiktoken` 1.0.22 WASM and bundled `o200k_base` assets. Measure a 2,000-token
+  chunk ceiling including at most 200 tokens of preceding canonical context;
+  make no provider selection or runtime tokenizer download.
+- Preserve fitting paragraphs, fenced code and blockquoted prompts, retain exact
+  Unicode code-point slices and revision hashes, and explicitly report oversized
+  units split at sentence boundaries or deterministic code-point fallbacks.
+- Add benign reproducibility, threshold, full-coverage, overlap, Unicode and hash
+  fixtures to the existing extraction suite. Install the locked dependency in
+  both Verify jobs; contributors and continuation sessions must run the documented
+  `npm ci` command before tests.
+- Preserve fence indentation rules and keep blank separators separate from
+  protected units; prefer whole code lines when an oversized block must split.
+- This is not completion of #84: campaign request/prompt versioning, overlap
+  deduplication, progress/HITL integration and readable/private inspection reports
+  remain pending. Existing campaign behavior, historical records, public preview,
+  review history and exports are unchanged. Independent human review is required.
+
 ## 2026-10-16 — Private item-level HITL review and release eligibility (#81)
 
 - Extend the existing Workbench with campaign review grouped by blog or artifact

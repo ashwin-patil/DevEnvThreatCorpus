@@ -114,8 +114,10 @@ Priority triage is deterministic: tool/prompt/behavior category, exact retained
 evidence and no structurally unresolved required support. Pending claims require
 their own short human review step. Missing support remains an exception, not
 permission to waive acceptance. N/A units are outside label denominators; retained
-segment identities are unioned across extraction runs. Historical partial counts
-without identities provide only a disclosed conservative lower bound.
+canonical ranges are unioned across extraction runs and chunk-policy versions.
+The denominator is retained canonical code points, not overlapping window counts.
+Historical partial counts without positions are disclosed but excluded from that
+numerator; known fixed windows and complete historical runs remain locatable.
 
 The explicitly selected `/api/review-demo` exercise uses per-server in-memory
 synthetic state and the same decision contract, never the public Nx snapshot or

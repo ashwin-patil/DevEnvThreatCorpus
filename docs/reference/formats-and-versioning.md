@@ -138,15 +138,105 @@ Exports refuse existing output files.
 
 ## Campaign handoff and runs
 
+<a id="context-chunking-core-checkpoint-84"></a>
+### Context-aware canonical chunks (#84)
+
+The owner-approved contract in [issue #84](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/84)
+is implemented in `src/chunks.mjs` and used by new campaign preparation.
+Historical fixed 2,400-code-point requests retain their original versions and
+validation. Never substitute new chunks into historical requests or compare
+old/new segment counts as though their denominators were interchangeable.
+
+`chunkRevision` accepts a retained revision's `id`, `normalizedContent` and
+`normalizedHash`. It rejects hash mismatches, ill-formed Unicode and NUL, returns
+no chunks for empty text, and never changes the revision. `canonical-context/1`
+pins `tiktoken` 1.0.22 with its bundled `o200k_base` encoding and WASM, protected
+by the npm lockfile's package integrity. No assets are fetched during chunking.
+Literal special-token spellings are encoded as ordinary untrusted text. This
+reference budget neither selects a provider nor guarantees compatibility with
+any model's complete input/context budget.
+
+Deterministic rules:
+
+- Scan canonical lines without rewriting whitespace. Blank lines end paragraphs
+  and form separate whitespace units, so separators cannot force a fitting
+  paragraph/code/prompt unit to split (initial whitespace is retained too).
+  Markdown backtick/tilde fences of at least three characters, with up to three
+  leading spaces, delimit protected code; a closing fence must use the same
+  character and at least the opening length. Unclosed fences extend to EOF.
+  Consecutive blockquote lines are protected prompt units. Other quoted prompts
+  stay inside their paragraphs; no semantic prompt detection is claimed.
+- For current `readable-html/5` revisions, reparse retained HTML only to derive
+  protected `<pre>` and `<blockquote>` text ranges. First verify that the parser
+  output normalizes to the exact retained canonical text; fail explicitly on a
+  mismatch or missing raw HTML. Do not insert Markdown fences or alter source
+  hashes/normalization. Every exact occurrence of a repeated protected literal
+  is conservatively protected; these hints do not attribute an occurrence or
+  create evidence. Overlapping protected ranges are combined. Historical HTML
+  parser versions retain their text and emit an explicit unavailable-boundary
+  warning rather than being silently reinterpreted with a newer parser.
+- Preserve each unit when it fits 2,000 measured reference tokens. For oversized
+  units, find a fitting code-point prefix by doubling probes then integer
+  bisection, preferring the last fitting sentence boundary within that prefix
+  (code prefers complete lines first; other units fall back to line boundaries).
+  Sentence boundaries are `.`, `!` or `?` followed by whitespace or unit end;
+  trailing whitespace stays with that sentence. This is deterministic punctuation
+  handling, not linguistic parsing. BPE counts are not assumed monotonic: every
+  accepted probe and final chunk is measured; a globally maximal prefix is not
+  promised. Remaining text is processed until EOF, with no truncation.
+- Greedily pack consecutive fitting pieces. For preceding context, consider
+  unit boundaries and paragraph sentence boundaries within the preceding **200
+  code points**, earliest first, and use the first suffix measuring at most 200
+  tokens. This additional code-point cap deliberately allows shorter/zero overlap.
+  Never start overlap inside a protected code/prompt unit. Drop overlap entirely
+  if it would prevent the next fitting piece from fitting the 2,000-token ceiling.
+- Each chunk declares policy version, revision/hash, canonical code-point
+  `[start,end)`, `coreStart`, exact text, measured tokens and overlap coordinates/
+  tokens. Core ranges `[coreStart,end)` partition the whole revision; overlapping
+  window lengths are not unique coverage. IDs bind policy version, revision/hash
+  and window coordinates. Every piece from an oversized unit carries an
+  `oversized-unit-split` warning with kind and original unit coordinates.
+
+Run `node --test tests/chunks.test.mjs` for benign paragraph, code, prompt,
+repeated-text and Unicode boundary fixtures. These tests also run through the
+configured extraction suite. No private article is committed or required.
+`campaign report-demo` emits a readable, explicitly synthetic report without a
+store or provider. `campaign report --store ... --request ... --output ...`
+validates the current frozen request and writes retained text, coordinates,
+token counts, overlap and warnings only to a new protected private file. Run it
+before apply, which changes the corpus base. Neither command extracts claims.
+Report metadata uses canonical JSON key ordering, so saving and reloading the same
+request produces identical report text without changing retained source text.
+Never print a private report to CI logs or publish it.
+
+For new requests, exact duplicate claims at the same canonical evidence location
+collapse to one claim and downstream support is redirected. Differences in
+uncertainty or other claim content are explicit ambiguous-duplicate failures,
+not semantic merges. Exact duplicate artifact annotations and derived definitions
+with identical resolved support also collapse; distinct source/revision/position
+occurrences and similar-but-different interpretations remain separate.
+Duplicate comparison treats claim-support IDs as sets, but stored records retain
+the first proposal's support order instead of sorting evidence references merely
+to detect duplicates.
+Each new run stores geometry-bound completed/skipped/failed window results.
+HITL progress unions completed canonical ranges across current and historical
+policies, reporting covered code points rather than summing overlapping windows.
+Historical partial results without positions are disclosed separately and excluded
+from this numerator; full historical coverage and known fixed segment IDs can be
+located exactly. New proposals remain Pending and do not inherit prior approval;
+original proposals, human edits, decisions and exclusions remain unchanged.
+Token bounds and coverage do not establish extraction accuracy or context adequacy;
+independent human inspection and approval remain required.
+
 Current identities are separate, not interchangeable:
 
 | Identity | Current value |
 |---|---|
-| Extraction | `campaign-extraction/2` |
-| Request / candidate interfaces | `campaign-request/1` / `campaign-candidate/1` |
-| Prompt | **`passage-grounded-campaign/4`** |
+| Extraction | `campaign-extraction/3` |
+| Request / candidate interfaces | `campaign-request/2` / `campaign-candidate/1` |
+| Prompt | **`passage-grounded-campaign/5`** |
 | Record normalization | `campaign-record-normalization/2` |
-| Governance snapshot / new run | `campaign-snapshot/1` / `campaign-run/2` |
+| Governance snapshot / new run | `campaign-snapshot/1` / `campaign-run/3` |
 | Read-only annotation compatibility projection | `campaign-projection/1` |
 | Private case talk export | `campaign-talk-bundle/1` |
 
@@ -167,7 +257,8 @@ per segment. Revision coverage is complete/partial/failed, not semantic complete
 Claims require exact supplied quotes in completed segments, or explicit
 claim-supported inference/rationale. Optional candidate arrays belong at the
 **top level**; the guide's `records` property is documentation, not candidate input.
-Prompt `/4` distinguishes explicit source framework IDs from grounded proposals.
+Prompt `/5` retains `/4`'s distinction between source framework IDs and grounded
+proposals, adding overlap, canonical occurrence and per-window-budget guidance.
 
 Apply validates the projected full corpus before atomically adding passages,
 Pending claims and optional records to core arrays, with a digest-checked immutable
@@ -181,9 +272,16 @@ boundary. Manual records, review history and enrichment sidecars are not rewritt
 
 Historical `campaign-run/1` envelopes remain readable/immutable and replayable
 only when that matching run was already applied; old unapplied requests must be
-prepared again. New `/2` validation checks support/scope and Pending provenance
+prepared again. Historical request `/1` with extraction `/2` remains validatable/applicable under its
+original fixed-window policy when their frozen base is still current. New `/3`
+runs bind the chunk policy and window geometry and validate those against retained
+revisions; both `/2` and `/3` check support/scope and Pending provenance
 independently of envelope hashes. Today's catalog does not reinterpret old runs;
 legacy missing unresolved metadata is `unavailable`, not retroactively invented.
+Regenerated candidates must use their new request's segment IDs for coverage and
+quotation references. Changing only an old candidate's request hash is not a
+migration; stale segment references remain invalid. Compatibility tests preserve
+the frozen historical fixture while constructing new coverage for the new request.
 Read-only `unresolvedMappingAvailability` distinguishes recorded/unavailable
 metadata and explicit node scope from broader case/behavior scope.
 
