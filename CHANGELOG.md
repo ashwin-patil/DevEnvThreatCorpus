@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-17 — Canonical context-chunking core checkpoint (#84)
+
+- Add a separately testable `canonical-context/1` projection core with locked
+  `tiktoken` 1.0.22 WASM and bundled `o200k_base` assets. Measure a 2,000-token
+  chunk ceiling including at most 200 tokens of preceding canonical context;
+  make no provider selection or runtime tokenizer download.
+- Preserve fitting paragraphs, fenced code and blockquoted prompts, retain exact
+  Unicode code-point slices and revision hashes, and explicitly report oversized
+  units split at sentence boundaries or deterministic code-point fallbacks.
+- Add benign reproducibility, threshold, full-coverage, overlap, Unicode and hash
+  fixtures to the existing extraction suite. Install the locked dependency in
+  both Verify jobs; contributors and continuation sessions must run the documented
+  `npm ci` command before tests.
+- This is not completion of #84: campaign request/prompt versioning, overlap
+  deduplication, progress/HITL integration and readable/private inspection reports
+  remain pending. Existing campaign behavior, historical records, public preview,
+  review history and exports are unchanged. Independent human review is required.
+
 ## 2026-10-16 — Private item-level HITL review and release eligibility (#81)
 
 - Extend the existing Workbench with campaign review grouped by blog or artifact

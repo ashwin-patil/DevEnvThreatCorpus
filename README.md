@@ -277,6 +277,7 @@ pinned Node runtime, from the repository root:
 
 ```sh
 python -m pip install --requirement requirements-governance.txt
+npm ci --prefix scripts --ignore-scripts
 python scripts/verify.py
 ```
 
@@ -284,6 +285,11 @@ The verifier runs scaffold checks and the eight application commands in
 [`project.config.json`](project.config.json). Synthetic/offline checks are not
 live Codespaces, real-extraction quality or independent research acceptance.
 See [setup and verification](docs/setup-and-configuration.md).
+
+Issue #84's context-chunking core uses a locked, locally bundled `o200k_base`
+reference tokenizer. It is a checkpoint, not yet the campaign preparation policy:
+existing manual handoffs still use their historical fixed windows. See the
+[chunk-policy contract and remaining integration](docs/reference/formats-and-versioning.md#context-chunking-core-checkpoint-84).
 
 ## Contribution and review
 

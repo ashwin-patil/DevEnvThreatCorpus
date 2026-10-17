@@ -1,5 +1,25 @@
 # Acceptance audit
 
+## Issue #84 context chunks — core checkpoint, not completion
+
+Requirements and approved policy: [#84](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/84).
+Implementation and corrections remain on [PR #86](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/86).
+The checkpoint reply on that PR records the exact tested commit, executed commands,
+counts and limitations; results must be refreshed after later commits.
+
+| Criterion | Current files/tests | Status and remaining evidence |
+|---|---|---|
+| AC-01 | `src/chunks.mjs`, `scripts/package-lock.json`, `tests/chunks.test.mjs` threshold/code/prompt tests | Core implemented; independent policy implementation review required. |
+| AC-02 | `src/chunks.mjs`, `tests/chunks.test.mjs` Unicode/hash/slice fixtures | Core coordinates tested; repeated quotation resolution/tamper integration still required. |
+| AC-03 | `tests/chunks.test.mjs` old-boundary, protected-unit and full-coverage fixtures | Core tested; readable report, private inspection route and independent quotation-context review still required. |
+| AC-04 | Existing `src/campaign.mjs` remains unchanged | Overlap/replay/distinct-occurrence candidate and HITL integration not implemented. |
+| AC-05 | Existing `src/campaign.mjs` and HITL remain unchanged | Before/after review/history, new Pending identities and navigation regression evidence still required. |
+| AC-06 | Core ranges partition the revision in `tests/chunks.test.mjs` | Progress union/mixed-version/failure integration and independent interpretation review not implemented. |
+| AC-07 | `tests/extract.test.mjs` imports the core tests; configured verifier commands unchanged | Production formats remain unchanged; new/historical integration and final revision-specific verification required. |
+
+No criterion is declared fully accepted. This checkpoint must remain draft;
+automated tests and agent review do not supply independent human acceptance.
+
 ## Issue #81 local HITL review
 
 Originating requirements: [#81](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/81).

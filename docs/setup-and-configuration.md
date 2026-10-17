@@ -2,6 +2,13 @@
 
 ## Configure a consuming project
 
+Before application tests, run `npm ci --prefix scripts --ignore-scripts` using the
+pinned Node runtime. The lockfile pins `tiktoken` 1.0.22 and its bundled WASM/encoding
+assets; installation needs registry access, but chunking and tests need no network
+or model credentials afterward. Both Verify jobs install this lockfile. Existing
+cloud-agent/devcontainer sessions must run this command explicitly before
+verification; this checkpoint does not modify their setup workflows.
+
 Edit the versioned `project.config.json` using `schemas/project-config.schema.json` as the shape reference. Configure one exact `paths.learning_index` file and map its directory under `paths.learnings`. Install the pinned YAML parser once with `python -m pip install --requirement requirements-governance.txt`; then the authoritative offline command is `python scripts/verify.py`. It parses every workflow and issue-form YAML file, validates the JSON config and governance contracts, runs its unit tests, and runs configured project commands. Semantic checks require non-empty command argument arrays, safe repository-local mapped paths, advisory-only model preference, and bounded recovery guidance. Do not put shell command strings in configuration.
 
 `project_commands` are argument arrays executed by `scripts/verify.py` using `subprocess` with `shell=False`, a repository-root working directory, a 30-minute per-command timeout, and sensitive token/secret/password/credential/key/auth/connection environment variables removed. Shell `-c`/`-command` text is rejected. The `Verify` GitHub Actions job has a 30-minute overall timeout, including setup and dependency installation. The workflow grants only `contents: read` and does not pass secrets. A consuming project should add tests in `tests/` and configure the commands it actually uses. An empty list reports **scaffold-only** validation. The read-only PR policy and Copilot setup workflow never execute these commands.

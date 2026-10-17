@@ -138,6 +138,64 @@ Exports refuse existing output files.
 
 ## Campaign handoff and runs
 
+### Context-chunking core checkpoint (#84)
+
+The owner-approved contract in [issue #84](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/84)
+is implemented separately in `src/chunks.mjs`, not yet wired into campaign
+preparation. Current requests, runs and prompts below retain their original
+versions and fixed 2,400-code-point segmentation. Do not substitute new chunks
+into historical requests or infer that old/new segment counts are comparable.
+
+`chunkRevision` accepts a retained revision's `id`, `normalizedContent` and
+`normalizedHash`. It rejects hash mismatches, ill-formed Unicode and NUL, returns
+no chunks for empty text, and never changes the revision. `canonical-context/1`
+pins `tiktoken` 1.0.22 with its bundled `o200k_base` encoding and WASM, protected
+by the npm lockfile's package integrity. No assets are fetched during chunking.
+Literal special-token spellings are encoded as ordinary untrusted text. This
+reference budget neither selects a provider nor guarantees compatibility with
+any model's complete input/context budget.
+
+Deterministic rules:
+
+- Scan canonical lines without rewriting whitespace. Blank lines end paragraphs
+  and remain attached to the preceding unit (initial whitespace is retained).
+  Markdown backtick/tilde fences of at least three characters, with up to three
+  leading spaces, delimit protected code; a closing fence must use the same
+  character and at least the opening length. Unclosed fences extend to EOF.
+  Consecutive blockquote lines are protected prompt units. Other quoted prompts
+  stay inside their paragraphs; no semantic prompt detection is claimed.
+- Preserve each unit when it fits 2,000 measured reference tokens. For oversized
+  units, find a fitting code-point prefix by doubling probes then integer
+  bisection, preferring the last fitting sentence boundary within that prefix.
+  Sentence boundaries are `.`, `!` or `?` followed by whitespace or unit end;
+  trailing whitespace stays with that sentence. This is deterministic punctuation
+  handling, not linguistic parsing. BPE counts are not assumed monotonic: every
+  accepted probe and final chunk is measured; a globally maximal prefix is not
+  promised. Remaining text is processed until EOF, with no truncation.
+- Greedily pack consecutive fitting pieces. For preceding context, consider
+  unit boundaries and paragraph sentence boundaries within the preceding **200
+  code points**, earliest first, and use the first suffix measuring at most 200
+  tokens. This additional code-point cap deliberately allows shorter/zero overlap.
+  Never start overlap inside a protected code/prompt unit. Drop overlap entirely
+  if it would prevent the next fitting piece from fitting the 2,000-token ceiling.
+- Each chunk declares policy version, revision/hash, canonical code-point
+  `[start,end)`, `coreStart`, exact text, measured tokens and overlap coordinates/
+  tokens. Core ranges `[coreStart,end)` partition the whole revision; overlapping
+  window lengths are not unique coverage. IDs bind policy version, revision/hash
+  and window coordinates. Every piece from an oversized unit carries an
+  `oversized-unit-split` warning with kind and original unit coordinates.
+
+Run `node --test tests/chunks.test.mjs` for benign paragraph, code, prompt,
+repeated-text and Unicode boundary fixtures. These tests also run through the
+configured extraction suite. No private article is committed or required.
+The readable benign report and authorized private-output inspection route remain
+unimplemented in this checkpoint. Do not print private retained text into CI logs
+as a substitute. Request/prompt versioning, canonical quote resolution across
+overlap, candidate deduplication, cumulative coverage and HITL navigation/review
+regressions must land before enabling this core in campaign preparation.
+Token bounds and coverage do not establish extraction accuracy or context adequacy;
+independent human inspection and approval remain required.
+
 Current identities are separate, not interchangeable:
 
 | Identity | Current value |
