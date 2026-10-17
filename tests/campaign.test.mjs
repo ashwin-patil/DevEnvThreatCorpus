@@ -233,6 +233,7 @@ test('#84 AC-03 readable report includes exact ranges, token counts, warnings an
   assert.ok(cli.stdout.includes('😀 Café'));
   assert.ok(cli.stdout.includes('"code":"oversized-unit-split","kind":"code"'));
   assert.ok(cli.stdout.includes('"code":"oversized-unit-split","kind":"prompt"'));
+  assert.match(cli.stdout, /Overlap: \{[^\n]*"tokens":[1-9]\d*\}/);
 });
 
 test('#84 AC-06 partial/skipped/failed overlapping windows union across runs without double counting', async () => {

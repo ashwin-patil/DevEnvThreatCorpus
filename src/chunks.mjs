@@ -195,7 +195,7 @@ export function chunkReport(request) {
 }
 
 export function benignChunkReport() {
-  const text = Array.from({ length: 100 }, (_, i) => `Paragraph ${i}: A harmless local example for boundary inspection.\n\n`).join('')
+  const text = Array.from({ length: 240 }, (_, i) => `Paragraph ${i}: A harmless local example for boundary inspection.\n\n`).join('')
     + 'Unicode example: 😀 Café, e\u0301, 漢字. Canonical text is not rewritten.\n\n'
     + '```text\nsmall_benign_example\n```\n\n'
     + '```text\n' + 'benign_example_line\n'.repeat(800) + '```\n\n'
