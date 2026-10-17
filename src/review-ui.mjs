@@ -59,10 +59,10 @@ export function renderProgress(doc, summary, openQueue) {
   };
   totals(root, 'Actionable priority artifacts', summary.priority ?? summary);
   const e = summary.extraction;
-  root.append(element(doc, 'p', `Extraction ${ratio(e.completed, e.eligible)} eligible retained source segments; ${e.unavailable} unavailable source(s), ${e.unprocessed} unprocessed source(s). Not all incident facts.`),
+  root.append(element(doc, 'p', `Extraction ${ratio(e.completed, e.eligible)} eligible retained canonical code points (union of completed windows across chunk-policy versions); ${e.unavailable} unavailable source(s), ${e.unprocessed} unprocessed source(s). Not all incident facts.`),
     element(doc, 'p', `Hidden supporting claims: ${summary.hiddenEvidence ?? 0}; deferred advanced records: ${summary.deferred ?? 0}; priority exceptions: ${summary.exceptions ?? 0}. These are not approvals.`),
     element(doc, 'p', 'Labels populated ≠ approval. N/A is excluded from label denominators. Accept + Exclude complete current review; Unsure/stale do not. Source counts overlap: do not sum. No quality score.', 'subtle'));
-  if (e.legacyUnlocated) root.append(element(doc, 'p', `${e.legacyUnlocated} source(s) have historical partial coverage without segment identities; completion is a conservative lower bound, not a summed estimate.`));
+  if (e.legacyUnlocated) root.append(element(doc, 'p', `${e.legacyUnlocated} source(s) have historical partial coverage without segment identities; unlocated work is disclosed separately and excluded from the canonical coverage numerator.`));
   for (const filter of REVIEW_FILTERS.slice(1)) root.append(action(doc, filter, () => openQueue(filter)));
   const detail = element(doc, 'details'); detail.append(element(doc, 'summary', 'Expand by artifact type'));
   for (const [type, counts] of Object.entries(summary.priority?.byType ?? summary.byType)) totals(detail, PRIORITY_LABELS[type] ?? type, counts);

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sha256 } from '../scripts/contract.mjs';
-import { CHUNK_POLICY, chunkRevision, referenceTokens } from '../src/chunks.mjs';
+import { sha256, normalizeText } from '../scripts/contract.mjs';
+import { CHUNK_POLICY, chunkRevision, referenceTokens, unionCoverage } from '../src/chunks.mjs';
+import { ARTICLE_PARSER_VERSION, parseArticle } from '../src/article.mjs';
 
 const revision = text => ({ id: 'benign-revision', normalizedContent: text, normalizedHash: sha256(text) });
 function check(text) {
@@ -120,4 +121,39 @@ test('#84 AC-02 hash tampering and malformed Unicode fail; distinct revisions ha
   assert.throws(() => chunkRevision(revision('a\0b')), { code: 'INVALID_CHUNK_REVISION' });
   const input = revision('Repeated benign quote. Repeated benign quote.');
   assert.notEqual(chunkRevision(input)[0].id, chunkRevision({ ...input, id: 'other-revision' })[0].id);
+});
+
+test('#84 AC-03 HTML parser output protects fitting code with blank lines and multiline prompts without changing text', () => {
+  const code = '😀'.repeat(300) + '\n\n' + '😀'.repeat(1500);
+  const prompt = 'Exact benign instruction.\n\nKeep this second paragraph.';
+  const html = `<article><p>${'😀'.repeat(1500)}</p><pre><code>${code}</code></pre>`
+    + `<blockquote><p>${prompt.split('\n\n').join('</p><p>')}</p></blockquote></article>`;
+  const text = normalizeText(parseArticle(html).text), input = {
+    ...revision(text), rawContent: html, parserVersion: ARTICLE_PARSER_VERSION,
+  };
+  const before = structuredClone(input), chunks = chunkRevision(input);
+  assert.ok(referenceTokens(code) <= 2000);
+  assert.ok(chunks.some(chunk => chunk.text.includes(code) && !chunk.warnings.length));
+  assert.ok(chunks.some(chunk => chunk.text.includes('Exact benign instruction.\nKeep this second paragraph.')));
+  assert.deepEqual(input, before);
+  assert.equal(unionCoverage(chunks).reduce((n, range) => n + range.end - range.start, 0), [...text].length);
+  assert.throws(() => chunkRevision({ ...input, rawContent: '<article>Different article.</article>' }),
+    { code: 'ARTICLE_BOUNDARY_MISMATCH' });
+});
+
+test('#84 AC-03 HTML repeated and oversized protected blocks retain Unicode coordinates and code warnings', () => {
+  const code = '😀'.repeat(2100), html = `<article><pre>${code}</pre><pre>${code}</pre></article>`;
+  const text = normalizeText(parseArticle(html).text);
+  const chunks = chunkRevision({ ...revision(text), rawContent: html, parserVersion: ARTICLE_PARSER_VERSION });
+  assert.ok(chunks.every(chunk => chunk.tokens <= 2000));
+  assert.ok(chunks.every(chunk => chunk.warnings.some(w => w.kind === 'code')));
+  assert.equal(chunks.map(chunk => [...chunk.text].slice(chunk.coreStart - chunk.start).join('')).join(''), text);
+});
+
+test('#84 AC-03 historical HTML text is not reinterpreted and explicitly discloses unavailable block hints', () => {
+  const input = { ...revision('Retained historical text.'), parserVersion: 'readable-html/4',
+    rawContent: '<article>Not reinterpreted with the current parser.</article>' };
+  const chunks = chunkRevision(input);
+  assert.equal(chunks[0].text, input.normalizedContent);
+  assert.deepEqual(chunks[0].warnings, [{ code: 'historical-html-boundaries-unavailable', parserVersion: 'readable-html/4' }]);
 });

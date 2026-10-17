@@ -9,6 +9,9 @@ import {
   canonicalSerialize, digest, reviewBaseDigest, reviewEligibleCorpus, sha256, validateCorpus, validatePrivateCorpus,
 } from '../scripts/contract.mjs';
 import { applyReview } from '../scripts/review.mjs';
+import { applyItemReview, reviewSnapshot, progressSummary, reviewedProfile } from '../src/hitl.mjs';
+import { GUIDE_VERSION, checksFor } from '../src/review-guide.mjs';
+import { chunkReport, unionCoverage } from '../src/chunks.mjs';
 import {
   applyCampaign, campaignAnnotations, campaignExport, campaignStatus, CAMPAIGN_LIMITS, CAMPAIGN_PROMPT,
   prepareCampaign, runCampaign, validateCampaignCandidate, validateCampaignSnapshot,
@@ -70,6 +73,213 @@ function groundedCandidate(request) {
   return candidate;
 }
 
+test('#84 AC-01/02/07 current request and snapshot versioning binds chunks and retains fixed-window validation', async () => {
+  const corpus = await fixture(), original = canonicalSerialize(corpus);
+  const legacy = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
+  assert.equal(legacy.schemaVersion, 'campaign-request/1');
+  assert.equal(legacy.prompt.version, 'passage-grounded-campaign/4');
+  assert.equal(validateCampaignCandidate(corpus, legacy, candidateFor(legacy)).run.schemaVersion, 'campaign-run/2');
+  const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  assert.equal(request.schemaVersion, 'campaign-request/2');
+  assert.equal(request.prompt.version, 'passage-grounded-campaign/5');
+  assert.equal(request.chunkPolicy.version, 'canonical-context/1');
+  for (const mutate of [
+    q => { q.inputs[0].segments[0].start++; },
+    q => { q.chunkPolicy.maxTokens++; },
+    q => { q.prompt.version = 'passage-grounded-campaign/4'; },
+  ]) {
+    const changed = structuredClone(request); mutate(changed);
+    const { requestHash, ...body } = changed; changed.requestHash = digest(body);
+    const candidate = candidateFor(changed);
+    assert.throws(() => validateCampaignCandidate(corpus, changed, candidate), /REQUEST_TAMPERED/);
+  }
+  assert.equal(canonicalSerialize(corpus), original);
+  applyCampaign(corpus, request, candidateFor(request));
+  for (const mutate of [
+    run => { run.segmentCoverage[0].start++; },
+    run => { run.coverage[0].completedCodePoints++; },
+    run => { run.coverage[0].status = 'failed'; },
+    run => { run.coverage.push(structuredClone(run.coverage[0])); },
+    run => { run.inputs[0].codePoints++; run.coverage[0].codePoints++; },
+    run => { run.chunkPolicy.encoding = 'unknown'; },
+  ]) {
+    const changed = structuredClone(corpus), run = changed.governance.campaignExtraction.runs[0];
+    mutate(run); const { envelopeHash, ...body } = run; run.envelopeHash = digest(body);
+    assert.throws(() => validateCampaignSnapshot(changed), /INVALID_SNAPSHOT/);
+  }
+});
+
+test('#84 AC-07 immutable historical v1 request fixture replays without changing its identities', async () => {
+  const corpus = await fixture();
+  const historical = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
+  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
+  body.extractionVersion = 'campaign-extraction/1';
+  const request = { ...body, requestHash: digest(body) };
+  assert.equal(request.requestHash, historical.candidate.requestHash);
+  const run = { ...historical.run, catalogSnapshot: request.catalogSnapshot,
+    inputs: request.inputs.map(({ segments, ...input }) => input) };
+  for (const [type, records] of Object.entries(run.records)) (corpus[type] ??= []).push(...records);
+  corpus.governance.campaignExtraction = { schemaVersion: 'campaign-snapshot/1', runs: [run] };
+  const before = canonicalSerialize(corpus);
+  assert.equal(applyCampaign(corpus, request, historical.candidate).replay, true);
+  assert.equal(canonicalSerialize(corpus), before);
+});
+
+test('#84 AC-02/04 overlap merges exact repeated claims/artifacts/behaviors but retains distinct canonical occurrences', async () => {
+  const corpus = await fixture(), revision = corpus.sourceRevisions[0];
+  revision.normalizedContent += '\n\n' + Array.from({ length: 600 }, (_, i) =>
+    `Paragraph ${i}: Codex is only a benign example, not incident evidence.\n\n`).join('');
+  revision.rawContent = revision.normalizedContent;
+  revision.normalizedHash = sha256(revision.normalizedContent); revision.rawHash = revision.normalizedHash;
+  const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = candidateFor(request);
+  const segments = request.inputs[0].segments, index = segments.findIndex(s => s.overlap.tokens > 0);
+  assert.ok(index > 0);
+  const next = segments[index], previous = segments[index - 1];
+  const quote = [...revision.normalizedContent].slice(next.start, next.coreStart).join('');
+  assert.ok(quote.includes('Codex'));
+  for (const [id, segment] of [['overlap-a', previous], ['overlap-b', next]]) {
+    candidate.claims.push({ ...claim(request, id), description: 'One exactly repeated grounded assertion.',
+      passages: [{ segmentId: segment.id, quote, occurrence: 0 }] });
+  }
+  candidate.artifacts = ['overlap-a', 'overlap-b'].map(id => ({
+    kind: 'ide-cli', literal: 'Codex', usage: 'vendor-example', supportingClaimIds: [id],
+  }));
+  candidate.behaviors = ['overlap-a', 'overlap-b'].map((id, i) => ({
+    localId: `behavior-${i}`, name: 'Benign example', boundary: 'No incident attribution.',
+    description: 'Exact duplicate definition with the same canonical support.', supportingClaimIds: [id],
+  }));
+  const { run, claims, passages } = validateCampaignCandidate(corpus, request, candidate);
+  assert.equal(claims.length, 2);
+  assert.equal(passages.length, 2);
+  assert.equal(passages.find(p => p.text === quote).start, next.start);
+  assert.equal(run.annotations.filter(a => a.type === 'commands-ai-artifacts').length, 1);
+  assert.equal(run.records.behaviors.length, 1);
+  assert.deepEqual(run.records.behaviors[0].claimIds, [claims[1].id]);
+  const distinct = structuredClone(candidate);
+  distinct.claims = distinct.claims.slice(0, 1);
+  distinct.artifacts = []; distinct.behaviors = [];
+  for (const occurrence of [0, 1]) distinct.claims.push({
+    ...claim(request, `position-${occurrence}`), description: 'A separate literal occurrence.',
+    passages: [{ segmentId: segments[0].id, quote: 'Codex', occurrence }],
+  });
+  const located = validateCampaignCandidate(corpus, request, distinct);
+  assert.equal(located.claims.length, 3);
+  assert.notEqual(located.passages[1].start, located.passages[2].start);
+  const ambiguous = structuredClone(candidate);
+  ambiguous.claims.at(-1).uncertainty = 'Different interpretation: do not automatically merge.';
+  delete ambiguous.claims.at(-1).nullReasons.uncertainty;
+  assert.throws(() => validateCampaignCandidate(corpus, request, ambiguous), /AMBIGUOUS_DUPLICATE_CLAIM/);
+  const invalidAlias = structuredClone(candidate);
+  invalidAlias.behaviors.at(-1).localId = 'invalid alias with spaces';
+  assert.throws(() => validateCampaignCandidate(corpus, request, invalidAlias), /must be an identifier/);
+  const inferred = structuredClone(candidate);
+  for (const id of ['overlap-a', 'overlap-b']) inferred.claims.push({
+    ...claim(request, `inference-${id}`), description: 'One identical grounded inference.',
+    evidenceStatus: 'Researcher inference', passages: [], supportingClaimIds: [id],
+    rationale: 'Synthetic bounded inference.', nullReasons: { uncertainty: 'not_reported', observationContext: 'not_reported' },
+  });
+  const inferredRun = validateCampaignCandidate(corpus, request, inferred);
+  assert.equal(inferredRun.claims.length, 3);
+  assert.deepEqual(inferredRun.claims.at(-1).inference.supportingClaimIds, [inferredRun.claims[1].id]);
+});
+
+test('#84 AC-05/06 mixed-version generation preserves existing HITL edits/exclusions and unions canonical coverage', async () => {
+  const corpus = await fixture();
+  function decide(itemKey, action, extra = {}) {
+    applyItemReview(corpus, { snapshot: reviewSnapshot(corpus).snapshot, itemKey, action,
+      reviewer: 'synthetic-human', selfAttested: true, guideVersion: GUIDE_VERSION,
+      rationale: 'Synthetic regression only.',
+      ...(action === 'accept' ? { checks: Object.fromEntries(Object.keys(checksFor('claims')).map(k => [k, { result: 'pass' }])) } : {}),
+      ...(action === 'exclude' ? { exclusionReason: 'insufficient evidence' } : {}), ...extra });
+  }
+  decide('claims:synthetic-claim-a', 'modify', { patch: { description: 'Human correction retained.' } });
+  decide('claims:synthetic-claim-a', 'accept');
+  decide('claims:synthetic-claim-b', 'exclude');
+  const history = structuredClone(corpus.governance.localReview), original = structuredClone(corpus.claims);
+  const legacy = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
+  applyCampaign(corpus, legacy, candidateFor(legacy));
+  const historicalRun = structuredClone(corpus.governance.campaignExtraction.runs[0]);
+  const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  applyCampaign(corpus, request, candidateFor(request));
+  assert.deepEqual(corpus.governance.localReview, history);
+  assert.deepEqual(corpus.claims.slice(0, original.length), original);
+  assert.deepEqual(corpus.governance.campaignExtraction.runs[0], historicalRun);
+  const snapshot = reviewSnapshot(corpus);
+  assert.equal(snapshot.units.find(u => u.itemKey === 'claims:synthetic-claim-a').state, 'Accepted');
+  assert.equal(snapshot.units.find(u => u.itemKey === 'claims:synthetic-claim-a').record.description, 'Human correction retained.');
+  assert.equal(snapshot.units.find(u => u.itemKey === 'claims:synthetic-claim-b').state, 'Excluded');
+  const generated = corpus.governance.campaignExtraction.runs[1].claimIds;
+  assert.ok(snapshot.units.filter(u => generated.includes(u.id)).every(u => u.state === 'Needs review' && !u.eligible));
+  const progress = progressSummary(corpus, snapshot, 'synthetic-case-a').extraction;
+  assert.equal(progress.completed, progress.eligible);
+  assert.equal(progress.unit, 'canonical-code-points');
+  assert.ok(reviewedProfile(corpus).records.every(row => !generated.includes(row.entity.id)));
+});
+
+test('#84 AC-03 readable report includes exact ranges, token counts, warnings and inert source text', async () => {
+  const corpus = await fixture(), request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  const report = chunkReport(request);
+  assert.ok(report.includes('Keep private'));
+  assert.ok(report.includes('Canonical range: [0,'));
+  assert.ok(report.includes('Reference tokens:'));
+  assert.ok(report.includes('Overlap:'));
+  assert.ok(report.includes('Warnings:'));
+  assert.ok(report.includes(request.inputs[0].segments[0].text));
+  const cli = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/extract.mjs', import.meta.url)),
+    'campaign', 'report-demo'], { encoding: 'utf8' });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.match(cli.stdout, /^SYNTHETIC DEMONSTRATION ONLY/);
+  assert.ok(cli.stdout.includes('BEGIN UNTRUSTED SOURCE TEXT'));
+  assert.ok(cli.stdout.includes('😀 Café'));
+  assert.ok(cli.stdout.includes('"code":"oversized-unit-split","kind":"code"'));
+  assert.ok(cli.stdout.includes('"code":"oversized-unit-split","kind":"prompt"'));
+});
+
+test('#84 AC-06 partial/skipped/failed overlapping windows union across runs without double counting', async () => {
+  const corpus = await fixture(), revision = corpus.sourceRevisions[0];
+  revision.normalizedContent += '\n\n' + Array.from({ length: 600 }, (_, i) =>
+    `Paragraph ${i}: another harmless source-local example.\n\n`).join('');
+  revision.rawContent = revision.normalizedContent;
+  revision.normalizedHash = sha256(revision.normalizedContent); revision.rawHash = revision.normalizedHash;
+  const expected = [];
+  for (const selectedIndex of [0, 1, 0]) {
+    const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = candidateFor(request);
+    candidate.claims = [];
+    for (const item of candidate.coverage) {
+      item.status = 'skipped'; item.reason = 'Not processed in this synthetic run.';
+    }
+    const segment = request.inputs[0].segments[selectedIndex];
+    assert.ok(segment);
+    const item = candidate.coverage.find(item => item.segmentId === segment.id);
+    item.status = 'completed'; item.reason = null;
+    candidate.coverage.at(-1).status = 'failed';
+    candidate.coverage.at(-1).reason = 'Synthetic unavailable processing, not source evidence.';
+    applyCampaign(corpus, request, candidate);
+    expected.push(segment);
+    const progress = progressSummary(corpus, { units: [] }, null, [revision.sourceId]).extraction;
+    assert.equal(progress.completed, unionCoverage(expected).reduce((n, range) => n + range.end - range.start, 0));
+    assert.equal(progress.eligible, [...revision.normalizedContent].length);
+    assert.ok(progress.completed <= progress.eligible);
+  }
+  const ranges = unionCoverage(expected);
+  assert.ok(expected[1].start < expected[0].end, 'the windows really overlap');
+  assert.ok(ranges.reduce((n, range) => n + range.end - range.start, 0)
+    < expected.reduce((n, range) => n + range.end - range.start, 0));
+});
+
+privateStoreTest('#84 AC-03 private report preserves permissions, refuses overwrite, leaks no article into CLI metadata', async t => {
+  const corpus = await fixture(), store = await storeFor(t, corpus);
+  const requestFile = path.join(store, 'request.json'), outputFile = path.join(store, 'chunks.txt');
+  const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  await writeFile(requestFile, canonicalSerialize(request), { mode: 0o600 });
+  const result = await runCampaign({ command: 'report', store, requestFile, outputFile });
+  assert.equal(result.status, 'succeeded');
+  assert.equal((await stat(outputFile)).mode & 0o777, 0o600);
+  assert.equal(await readFile(outputFile, 'utf8'), chunkReport(request));
+  assert.ok(!JSON.stringify(result).includes(request.inputs[0].segments[0].text));
+  assert.equal((await runCampaign({ command: 'report', store, requestFile, outputFile })).code, 'UNSAFE_PATH');
+});
+
 privateStoreTest('issue48 AC-01/03/05 grounded loops and unresolved metadata survive atomic apply, status, projection and export', async t => {
   const corpus = await fixture(), original = structuredClone(corpus), store = await storeFor(t, corpus);
   const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = groundedCandidate(request);
@@ -79,8 +289,8 @@ privateStoreTest('issue48 AC-01/03/05 grounded loops and unresolved metadata sur
   const file = path.join(store, 'corpus.json'), bytes = await readFile(file, 'utf8'), applied = JSON.parse(bytes);
   const run = applied.governance.campaignExtraction.runs[0];
   assert.deepEqual(run, validated);
-  assert.equal(run.schemaVersion, 'campaign-run/2');
-  assert.equal(run.extractionVersion, 'campaign-extraction/2');
+  assert.equal(run.schemaVersion, 'campaign-run/3');
+  assert.equal(run.extractionVersion, 'campaign-extraction/3');
   assert.deepEqual(run.records.frameworks, []);
   assert.deepEqual(run.records.mappings, []);
   assert.deepEqual(applied.cases, original.cases);
@@ -209,7 +419,7 @@ test('issue48 AC-02/05 new resolved run snapshots use the same all-claim scope v
 
 privateStoreTest('issue48 AC-04 actual baseline run stays immutable, unavailable metadata stays broad, and new identities supersede it', async t => {
   const corpus = await fixture(), legacy = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
-  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
   body.extractionVersion = 'campaign-extraction/1';
   const request = { ...body, requestHash: digest(body) };
   assert.equal(request.requestHash, legacy.candidate.requestHash);
@@ -302,8 +512,8 @@ test('issue45 AC-01/02/03 hostile long Unicode text is entirely segmented and re
   revision.normalizedHash = sha256(revision.normalizedContent); revision.rawHash = revision.normalizedHash;
   const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
   const input = request.inputs[0];
-  assert.equal(input.segments.map(s => s.text).join(''), revision.normalizedContent);
-  assert.ok(input.segments.every(s => s.end - s.start <= CAMPAIGN_LIMITS.segmentPoints));
+  assert.equal(input.segments.map(s => [...s.text].slice(s.coreStart - s.start).join('')).join(''), revision.normalizedContent);
+  assert.ok(input.segments.every(s => s.tokens <= 2000));
   assert.ok(input.segments.length > 2);
   const candidate = candidateFor(request);
   const { claims, passages, run } = validateCampaignCandidate(corpus, request, candidate);
@@ -338,7 +548,8 @@ for (const [name, change] of [
 ]) {
   privateStoreTest(`issue45 AC-02/03/04/08 ${name} rejects atomically`, async t => {
     const corpus = await fixture(), store = await storeFor(t, corpus), before = await readFile(path.join(store, 'corpus.json'), 'utf8');
-    const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' }), candidate = candidateFor(request);
+    const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a',
+      ...(name === 'duplicate atomic claim' ? { chunkPolicy: 'fixed-code-points/1' } : {}) }), candidate = candidateFor(request);
     change(request, candidate);
     const result = await runCampaign({ command: 'apply', store, request, candidate });
     assert.equal(result.status, 'failed');

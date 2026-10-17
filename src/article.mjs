@@ -161,3 +161,34 @@ export function parseArticle(raw, url, { legacyRoots = false, replaceNulls = tru
   }
   return { text: textOf(article), metadata, images: [...new Set(images)] };
 }
+
+// Read-only boundary hints: never insert markup into retained normalized text.
+export function protectedArticleRanges(raw, normalizedContent) {
+  const normalize = value => value.replace(/\r\n?/g, '\n').normalize('NFC');
+  if (typeof raw !== 'string' || normalize(parseArticle(raw).text) !== normalizedContent) {
+    throw Object.assign(new Error('ARTICLE_BOUNDARY_MISMATCH'), { code: 'ARTICLE_BOUNDARY_MISMATCH' });
+  }
+  const root = tree(raw.replace(/\0/g, '\ufffd'));
+  const article = nodes(root, node => node.name === 'article', true)[0]
+    ?? nodes(root, node => node.name === 'main' || node.attrs.role === 'main', true)[0]
+    ?? nodes(root, node => node.name === 'body', true)[0] ?? root;
+  const ranges = [], seen = new Set();
+  for (const node of nodes(article, node => ['pre', 'blockquote'].includes(node.name), true)) {
+    const literal = normalize(textOf(node));
+    const kind = node.name === 'pre' ? 'code' : 'prompt';
+    if (!literal || seen.has(`${kind}:${literal}`)) continue;
+    seen.add(`${kind}:${literal}`);
+    // Repeated identical blocks are all protected, not attributed to an occurrence.
+    let offset = 0, found = false, previousOffset = 0, previousPoint = 0;
+    while ((offset = normalizedContent.indexOf(literal, offset)) !== -1) {
+      const start = previousPoint + [...normalizedContent.slice(previousOffset, offset)].length;
+      ranges.push({ start, end: start + [...literal].length, kind });
+      previousOffset = offset;
+      previousPoint = start;
+      offset += literal.length;
+      found = true;
+    }
+    if (!found) throw Object.assign(new Error('ARTICLE_BOUNDARY_MISMATCH'), { code: 'ARTICLE_BOUNDARY_MISMATCH' });
+  }
+  return ranges;
+}

@@ -4,6 +4,7 @@ import {
 } from '../scripts/contract.mjs';
 import { readEnrichmentSnapshot, validateEnrichment } from './enrichment.mjs';
 import { GUIDE_VERSION, GUIDE_VERSIONS, checksFor, confirmationFor, priorityCategory, labelCompleteness, labelFields, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
+import { unionCoverage } from './chunks.mjs';
 
 export const HITL_VERSION = 'local-hitl/1';
 const coreTypes = ['claims', 'cases', 'categorizations', 'timelines'];
@@ -368,26 +369,33 @@ export function progressSummary(corpus, snapshot, caseId, sourceIds) {
     const revision = source.revisionIds.map(id => corpus.sourceRevisions.find(r => r.id === id))
       .filter(r => typeof r?.normalizedContent === 'string' && r.normalizedContent.length).at(-1);
     if (!revision) { unavailable++; continue; }
-    const segments = Math.ceil([...revision.normalizedContent].length / 2400);
-    eligible += segments;
-    const identities = Array.from({ length: segments }, (_, i) => {
-      const start = i * 2400, end = Math.min([...revision.normalizedContent].length, start + 2400);
-      return stableId('segment', `${revision.id}\n${revision.normalizedHash}\n${start}\n${end}`);
-    });
-    const completedIds = new Set();
-    let attempted = false, legacyLowerBound = 0;
+    const length = [...revision.normalizedContent].length, segments = Math.ceil(length / 2400);
+    eligible += length;
+    const historical = new Map(Array.from({ length: segments }, (_, i) => {
+      const start = i * 2400, end = Math.min(length, start + 2400);
+      return [stableId('segment', `${revision.id}\n${revision.normalizedHash}\n${start}\n${end}`), { start, end }];
+    }));
+    const ranges = [];
+    let attempted = false, unlocated = false;
     for (const run of corpus.governance?.campaignExtraction?.runs ?? []) {
       if (caseId && run.caseId !== caseId) continue;
       const coverage = run.coverage?.find(c => c.sourceRevisionId === revision.id && c.normalizedHash === revision.normalizedHash);
       if (!coverage) continue;
       attempted = true;
       if (Array.isArray(run.segmentCoverage)) {
-        for (const s of run.segmentCoverage) if (s.status === 'completed' && identities.includes(s.segmentId)) completedIds.add(s.segmentId);
-      } else if (coverage.completed === segments && coverage.segments === segments) identities.forEach(id => completedIds.add(id));
-      else legacyLowerBound = Math.max(legacyLowerBound, Math.min(segments, coverage.completed ?? 0));
+        for (const item of run.segmentCoverage) {
+          if (item.status !== 'completed') continue;
+          if (run.chunkPolicy) {
+            if (item.sourceRevisionId === revision.id && item.normalizedHash === revision.normalizedHash
+              && Number.isSafeInteger(item.start) && Number.isSafeInteger(item.end)
+              && item.start >= 0 && item.end > item.start && item.end <= length) ranges.push(item);
+          } else if (historical.has(item.segmentId)) ranges.push(historical.get(item.segmentId));
+        }
+      } else if (coverage.completed === segments && coverage.segments === segments) ranges.push({ start: 0, end: length });
+      else if (coverage.completed > 0) unlocated = true;
     }
-    completed += Math.max(completedIds.size, legacyLowerBound);
-    if (legacyLowerBound > completedIds.size) legacyUnlocated++;
+    completed += unionCoverage(ranges).reduce((sum, range) => sum + range.end - range.start, 0);
+    if (unlocated) legacyUnlocated++;
     if (!attempted) unprocessed++;
   }
   const priority = units.filter(u => u.actionable);
@@ -397,7 +405,7 @@ export function progressSummary(corpus, snapshot, caseId, sourceIds) {
     hiddenEvidence: units.filter(u => u.type === 'claims').length,
     deferred: units.filter(u => !u.priorityCategory && u.type !== 'claims').length,
     exceptions: units.filter(u => u.priorityCategory && !u.actionable).length,
-    extraction: { completed, eligible, unavailable, unprocessed, legacyUnlocated } };
+    extraction: { completed, eligible, unavailable, unprocessed, legacyUnlocated, unit: 'canonical-code-points' } };
 }
 
 // Reviewed records are a projection, not a private audit log or an importable corpus.

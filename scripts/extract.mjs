@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { runEnrichment } from '../src/enrichment.mjs';
 import { runCampaign } from '../src/campaign.mjs';
+import { benignChunkReport } from '../src/chunks.mjs';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
 } from './contract.mjs';
@@ -160,8 +161,13 @@ async function cli(args) {
 }
 
 async function campaignCli([command, ...args]) {
+  if (command === 'report-demo') {
+    return args.length ? { status: 'failed', code: 'INVALID_INPUT' }
+      : { status: 'succeeded', benignReport: benignChunkReport() };
+  }
   const required = {
     prepare: ['--store', '--case', '--output'],
+    report: ['--store', '--request', '--output'],
     validate: ['--store', '--request', '--input'],
     apply: ['--store', '--request', '--input'],
     status: ['--store'],
@@ -196,6 +202,7 @@ async function campaignCli([command, ...args]) {
       limitations: run.limitations.length, recordCounts: run.recordCounts,
     })) } : {}),
     ...(result.bundle ? { private: true, format: values['--format'] ?? 'json' } : {}),
+    ...(command === 'report' ? { private: true, chunks: result.summary.chunks } : {}),
   };
 }
 
@@ -223,6 +230,6 @@ async function enrichmentCli([command, ...args]) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result = await cli(process.argv.slice(2));
-  process.stdout.write(JSON.stringify(result) + '\n');
+  process.stdout.write(result.benignReport ?? JSON.stringify(result) + '\n');
   process.exitCode = result.status === 'succeeded' ? 0 : 1;
 }

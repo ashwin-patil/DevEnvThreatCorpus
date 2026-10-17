@@ -329,7 +329,7 @@ test('Issue #81 AC-11 N/A units are excluded from label denominators, not counte
   assert.ok(summary.deferred > 0 && summary.hiddenEvidence > 0);
 });
 
-test('Issue #81 AC-11 extraction unions stable segment identities across incremental/skipped runs and discloses legacy lower bounds', async () => {
+test('Issue #81 AC-11 / #84 AC-06 extraction unions canonical coverage and separately discloses unlocated legacy work', async () => {
   const c = await fixture(), revision = c.sourceRevisions[0];
   revision.normalizedContent = 'x'.repeat(5000);
   const segments = [0, 2400, 4800].map(start => stableId('segment', `${revision.id}\n${revision.normalizedHash}\n${start}\n${Math.min(5000, start + 2400)}`));
@@ -338,12 +338,13 @@ test('Issue #81 AC-11 extraction unions stable segment identities across increme
     segmentCoverage: segments.map(segmentId => ({ segmentId, status: segmentId === completedId ? 'completed' : 'skipped' })) });
   c.governance.campaignExtraction = { runs: [run('first', segments[0]), run('second', segments[1]), run('skip', null), run('duplicate', segments[0])] };
   const progress = () => progressSummary(c, { units: [] }, null, [c.sources[0].id]).extraction;
-  assert.equal(progress().completed, 2);
-  assert.equal(progress().eligible, 3);
+  assert.equal(progress().completed, 4800);
+  assert.equal(progress().eligible, 5000);
+  assert.equal(progress().unit, 'canonical-code-points');
   c.governance.campaignExtraction.runs.push({ id: 'legacy', coverage: [{ ...coverage, completed: 3 }] });
-  assert.equal(progress().completed, 3);
+  assert.equal(progress().completed, 5000);
   c.governance.campaignExtraction.runs = [{ coverage: [{ ...coverage, completed: 2 }] }, { coverage: [{ ...coverage, completed: 1 }] }];
-  assert.equal(progress().completed, 2);
+  assert.equal(progress().completed, 0);
   assert.equal(progress().legacyUnlocated, 1);
   c.governance.campaignExtraction.runs = [{ coverage: [{ ...coverage, normalizedHash: 'wrong', completed: 3 }] }];
   assert.equal(progress().completed, 0);

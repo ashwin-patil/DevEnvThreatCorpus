@@ -286,10 +286,15 @@ The verifier runs scaffold checks and the eight application commands in
 live Codespaces, real-extraction quality or independent research acceptance.
 See [setup and verification](docs/setup-and-configuration.md).
 
-Issue #84's context-chunking core uses a locked, locally bundled `o200k_base`
-reference tokenizer. It is a checkpoint, not yet the campaign preparation policy:
-existing manual handoffs still use their historical fixed windows. See the
-[chunk-policy contract and remaining integration](docs/reference/formats-and-versioning.md#context-chunking-core-checkpoint-84).
+Campaign preparation uses versioned context-aware chunks with a locked, locally
+bundled `o200k_base` reference tokenizer: at most 2,000 tokens including up to 200
+tokens of overlap, with canonical revision offsets and explicit split warnings.
+This is not a model-context guarantee or evidence of extraction accuracy.
+After installing the locked dependency, inspect a benign report with
+`node .\scripts\extract.mjs campaign report-demo` (also supported on Windows).
+For private source reports, use the POSIX-only
+[campaign report command](docs/reference/cli.md#campaign-requestchatcandidate-handoff).
+See the [chunk-policy and historical compatibility contract](docs/reference/formats-and-versioning.md#context-chunking-core-checkpoint-84).
 
 ## Contribution and review
 

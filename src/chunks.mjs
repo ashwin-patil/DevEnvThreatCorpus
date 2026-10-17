@@ -1,9 +1,9 @@
 import { createRequire } from 'node:module';
 import { sha256, stableId } from '../scripts/contract.mjs';
+import { ARTICLE_PARSER_VERSION, protectedArticleRanges } from './article.mjs';
 
 const require = createRequire(new URL('../scripts/package.json', import.meta.url));
-const { get_encoding } = require('tiktoken');
-const tokenizer = get_encoding('o200k_base');
+let tokenizer;
 
 export const CHUNK_POLICY = Object.freeze({
   version: 'canonical-context/1',
@@ -15,6 +15,7 @@ export const CHUNK_POLICY = Object.freeze({
 });
 
 export function referenceTokens(text) {
+  tokenizer ??= require('tiktoken').get_encoding('o200k_base');
   // Embedded special-token spellings are article data, never control tokens.
   return tokenizer.encode(text, [], []).length;
 }
@@ -23,7 +24,7 @@ function invalid(code) {
   throw Object.assign(new Error(code), { code });
 }
 
-function units(text) {
+function units(text, protectedRanges = []) {
   const result = [];
   let offset = 0, current = null, fence = null;
   for (const line of text.match(/[^\n]*\n|[^\n]+$/g) ?? []) {
@@ -51,7 +52,25 @@ function units(text) {
     }
     offset += [...line].length;
   }
-  return result;
+  if (!protectedRanges.length) return result;
+  const merged = [];
+  for (const range of protectedRanges.sort((a, b) => a.start - b.start || b.end - a.end)) {
+    const previous = merged.at(-1);
+    if (previous && range.start < previous.end) {
+      previous.end = Math.max(previous.end, range.end);
+      if (range.kind === 'code') previous.kind = 'code';
+    } else merged.push({ ...range });
+  }
+  const boundaries = [...new Set([0, offset, ...result.flatMap(unit => [unit.start, unit.end]),
+    ...merged.flatMap(range => [range.start, range.end])])].sort((a, b) => a - b)
+    .filter(point => !merged.some(range => point > range.start && point < range.end));
+  let unitIndex = 0;
+  return boundaries.slice(0, -1).map((start, index) => {
+    const end = boundaries[index + 1];
+    while (result[unitIndex].end <= start) unitIndex++;
+    return { start, end, kind: merged.find(range => start >= range.start && end <= range.end)?.kind
+      ?? result[unitIndex].kind };
+  });
 }
 
 function sentenceEnds(points, start, end) {
@@ -92,7 +111,9 @@ export function chunkRevision(revision) {
   if (sha256(text) !== revision.normalizedHash) invalid('REVISION_HASH_MISMATCH');
   const points = [...text];
   const count = (start, end) => referenceTokens(points.slice(start, end).join(''));
-  const sourceUnits = units(text), parts = [], overlapBoundaries = new Set([0]);
+  const protectedRanges = revision.parserVersion === ARTICLE_PARSER_VERSION
+    ? protectedArticleRanges(revision.rawContent, text) : [];
+  const sourceUnits = units(text, protectedRanges), parts = [], overlapBoundaries = new Set([0]);
   for (const unit of sourceUnits) {
     overlapBoundaries.add(unit.start);
     overlapBoundaries.add(unit.end);
@@ -134,7 +155,8 @@ export function chunkRevision(revision) {
     // Never split a fitting unit merely to retain overlap.
     if (count(start, parts[index].end) > CHUNK_POLICY.maxTokens) start = coreStart;
     let end = parts[index].end;
-    const warnings = [];
+    const warnings = /^readable-html\//.test(revision.parserVersion ?? '') && revision.parserVersion !== ARTICLE_PARSER_VERSION
+      ? [{ code: 'historical-html-boundaries-unavailable', parserVersion: revision.parserVersion }] : [];
     do {
       const part = parts[index++];
       end = part.end;
@@ -150,4 +172,50 @@ export function chunkRevision(revision) {
     });
   }
   return chunks;
+}
+
+export function chunkReport(request) {
+  const lines = ['# Private canonical chunk inspection', '',
+    'Contains retained source text. Keep private; preparation is not extraction or acceptance.', '',
+    `Request: ${request.requestHash}`, `Policy: ${request.chunkPolicy?.version ?? 'fixed-code-points/1'}`,
+    `Reference tokenizer and limits: ${JSON.stringify(request.chunkPolicy ?? null)}`];
+  for (const input of request.inputs) {
+    lines.push('', `Source revision: ${input.sourceRevisionId ?? 'unavailable'}`,
+      `Normalized hash: ${input.normalizedHash ?? 'unavailable'}`,
+      `Availability: ${input.availability}`);
+    if (input.reason) lines.push(`Reason: ${input.reason}`);
+    for (const segment of input.segments) {
+      lines.push('', `Chunk: ${segment.id}`, `Canonical range: [${segment.start}, ${segment.end})`,
+        `Core start: ${segment.coreStart ?? segment.start}`, `Reference tokens: ${segment.tokens ?? 'historical/unmeasured'}`,
+        `Overlap: ${JSON.stringify(segment.overlap ?? null)}`, `Warnings: ${JSON.stringify(segment.warnings ?? [])}`,
+        'BEGIN UNTRUSTED SOURCE TEXT', segment.text, 'END UNTRUSTED SOURCE TEXT');
+    }
+  }
+  return lines.join('\n') + '\n';
+}
+
+export function benignChunkReport() {
+  const text = Array.from({ length: 100 }, (_, i) => `Paragraph ${i}: A harmless local example for boundary inspection.\n\n`).join('')
+    + 'Unicode example: 😀 Café, e\u0301, 漢字. Canonical text is not rewritten.\n\n'
+    + '```text\nsmall_benign_example\n```\n\n'
+    + '```text\n' + 'benign_example_line\n'.repeat(800) + '```\n\n'
+    + '> ' + 'Describe this benign synthetic prompt. '.repeat(500) + '\n'
+    + '> Do not execute source content.\n';
+  const revision = { id: 'synthetic-chunk-report', normalizedContent: text, normalizedHash: sha256(text) };
+  return 'SYNTHETIC DEMONSTRATION ONLY - not incident evidence or a prepared extraction request.\n\n'
+    + chunkReport({ requestHash: 'synthetic-demonstration', chunkPolicy: CHUNK_POLICY, inputs: [{
+      sourceRevisionId: revision.id, normalizedHash: revision.normalizedHash, availability: 'retained',
+      segments: chunkRevision(revision),
+    }] });
+}
+
+export function unionCoverage(ranges) {
+  const merged = [];
+  for (const { start, end } of [...ranges].sort((a, b) => a.start - b.start || a.end - b.end)) {
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start) invalid('INVALID_COVERAGE');
+    const previous = merged.at(-1);
+    if (previous && start <= previous.end) previous.end = Math.max(previous.end, end);
+    else merged.push({ start, end });
+  }
+  return merged;
 }

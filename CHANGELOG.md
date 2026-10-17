@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-16 — Context-aware campaign extraction integration (#84)
+
+- Prepare new `campaign-request/2`, prompt `/5` and extraction/run `/3` envelopes
+  with canonical context chunks. Preserve fixed-window `/2` validation/application
+  and already-applied `/1` replay without rewriting historical requests or runs.
+- Derive protected code/quote boundary hints from current retained HTML only when
+  it reproduces canonical text; never add fences or change source hashes.
+  Disclose unavailable historical HTML boundaries and unavoidable oversized splits.
+- Resolve overlapping quotes to canonical positions, collapse exact duplicate
+  claims/artifacts/definitions with identical support, reject ambiguous claim
+  differences and retain distinct occurrences. New records remain Pending;
+  existing HITL edits, decisions, exclusions and reviewed-export rules are retained.
+- Store geometry-bound coverage and report the union of completed canonical
+  code points across chunk-policy versions. Disclose historical partial work
+  without positions separately instead of adding incomparable window counts.
+- Add a portable synthetic chunk report and a protected POSIX-only private report
+  command with coordinates, measured tokens, overlap and warnings. No model
+  provider, source recollection, publication or automatic acceptance is added.
+  Independent semantic, UI/accessibility and documentation review remain required.
+
 ## 2026-10-17 — Canonical context-chunking core checkpoint (#84)
 
 - Add a separately testable `canonical-context/1` projection core with locked

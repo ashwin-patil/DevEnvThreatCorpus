@@ -7,7 +7,11 @@ pinned Node runtime. The lockfile pins `tiktoken` 1.0.22 and its bundled WASM/en
 assets; installation needs registry access, but chunking and tests need no network
 or model credentials afterward. Both Verify jobs install this lockfile. Existing
 cloud-agent/devcontainer sessions must run this command explicitly before
-verification; this checkpoint does not modify their setup workflows.
+verification; this change does not modify their setup workflows.
+The tokenizer is loaded lazily: the data-free public preview still has no
+application install step. Campaign preparation and either chunk-report command
+require the locked dependency. Private report files use the existing protected
+output boundary; they are not public preview assets or approval records.
 
 Edit the versioned `project.config.json` using `schemas/project-config.schema.json` as the shape reference. Configure one exact `paths.learning_index` file and map its directory under `paths.learnings`. Install the pinned YAML parser once with `python -m pip install --requirement requirements-governance.txt`; then the authoritative offline command is `python scripts/verify.py`. It parses every workflow and issue-form YAML file, validates the JSON config and governance contracts, runs its unit tests, and runs configured project commands. Semantic checks require non-empty command argument arrays, safe repository-local mapped paths, advisory-only model preference, and bounded recovery guidance. Do not put shell command strings in configuration.
 

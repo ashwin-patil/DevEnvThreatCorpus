@@ -139,7 +139,22 @@ node "$REPO/scripts/extract.mjs" campaign prepare \
   --store "$WORK/research" --case synthetic-case-a --output "$WORK/request.json"
 node "$REPO/scripts/extract.mjs" campaign status \
   --store "$WORK/research" --case synthetic-case-a
+node "$REPO/scripts/extract.mjs" campaign report \
+  --store "$WORK/research" --request "$WORK/request.json" --output "$WORK/chunks.txt"
 ```
+
+Install the locked tokenizer with `npm ci --prefix scripts --ignore-scripts`
+before preparation. The report contains private retained text and must stay
+in the mode-0700 working directory; it is a new mode-0600 file, never stdout.
+It lists canonical ranges, reference token counts, overlap and split warnings.
+Inspect it before applying a candidate: a later corpus/review change makes
+the frozen request stale. Reporting does not collect, extract, apply or accept.
+
+For a data-free, cross-platform inspection, run
+`node scripts/extract.mjs campaign report-demo`. Only this explicitly synthetic
+report is printed to stdout; it needs no private store or model. On native
+Windows use `node .\scripts\extract.mjs campaign report-demo` after installing
+the locked dependency. Real private-store reporting remains POSIX-only.
 
 For actual extraction, inspect this private request, deliberately supply it to
 your configured chat, save returned `campaign-candidate/1` JSON privately, then
@@ -178,6 +193,9 @@ node "$REPO/scripts/extract.mjs" campaign export \
 ```
 
 Expect a Pending run with skipped/failed coverage, **not semantic success**.
+New runs record overlapping window geometry and unique completed canonical
+code points. HITL progress unions those positions across policies; window counts
+are not summed into a coverage percentage.
 Apply changes the non-review base even for this no-claim run. Real campaigns must
 inspect completed/skipped/failed coverage, absences, exact evidence and limitations.
 Protected campaign bundles include complete revisions with retained raw HTML text
