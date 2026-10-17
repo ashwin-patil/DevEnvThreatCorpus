@@ -82,6 +82,29 @@ test('#84 AC-01/03 oversized fenced code and prompts split explicitly without lo
   }
 });
 
+test('#84 AC-03 indented fence-like code content cannot prematurely close a fitting block', () => {
+  const block = '```\n' + '😀'.repeat(300) + '\n    ```\n' + '😀'.repeat(1000) + '\n```\n';
+  assert.ok(referenceTokens(block) < 2000);
+  const chunks = check('😀'.repeat(1500) + '\n\n' + block);
+  assert.ok(chunks.some(chunk => chunk.text.includes(block)));
+});
+
+test('#84 AC-03 separator whitespace cannot force a fitting code block to split', () => {
+  const block = '```text\n' + '😀'.repeat(1950) + '\n```\n';
+  const separator = (' \t'.repeat(100) + '\n').repeat(3);
+  assert.ok(referenceTokens(block) <= 2000);
+  assert.ok(referenceTokens(block + separator) > 2000);
+  const chunks = check(block + separator + 'Benign ending.');
+  assert.ok(chunks.some(chunk => chunk.text.includes(block) && !chunk.warnings.length));
+});
+
+test('#84 AC-01/03 oversized code prefers complete lines before code-point fallback', () => {
+  const line = 'benign_example_with_no_sentence_punctuation\n';
+  const chunks = check('```text\n' + line.repeat(600) + '```\n');
+  assert.ok(chunks.length > 1);
+  assert.ok(chunks.slice(0, -1).every(chunk => chunk.text.endsWith('\n')));
+});
+
 test('#84 AC-03 overlap is preceding canonical context, not new source content', () => {
   const chunks = check('A benign paragraph. \n\n'.repeat(600));
   assert.ok(chunks.length > 1);

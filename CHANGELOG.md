@@ -13,6 +13,8 @@
   fixtures to the existing extraction suite. Install the locked dependency in
   both Verify jobs; contributors and continuation sessions must run the documented
   `npm ci` command before tests.
+- Preserve fence indentation rules and keep blank separators separate from
+  protected units; prefer whole code lines when an oversized block must split.
 - This is not completion of #84: campaign request/prompt versioning, overlap
   deduplication, progress/HITL integration and readable/private inspection reports
   remain pending. Existing campaign behavior, historical records, public preview,

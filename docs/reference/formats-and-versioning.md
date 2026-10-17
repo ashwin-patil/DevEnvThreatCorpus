@@ -158,7 +158,8 @@ any model's complete input/context budget.
 Deterministic rules:
 
 - Scan canonical lines without rewriting whitespace. Blank lines end paragraphs
-  and remain attached to the preceding unit (initial whitespace is retained).
+  and form separate whitespace units, so separators cannot force a fitting
+  paragraph/code/prompt unit to split (initial whitespace is retained too).
   Markdown backtick/tilde fences of at least three characters, with up to three
   leading spaces, delimit protected code; a closing fence must use the same
   character and at least the opening length. Unclosed fences extend to EOF.
@@ -166,7 +167,8 @@ Deterministic rules:
   stay inside their paragraphs; no semantic prompt detection is claimed.
 - Preserve each unit when it fits 2,000 measured reference tokens. For oversized
   units, find a fitting code-point prefix by doubling probes then integer
-  bisection, preferring the last fitting sentence boundary within that prefix.
+  bisection, preferring the last fitting sentence boundary within that prefix
+  (code prefers complete lines first; other units fall back to line boundaries).
   Sentence boundaries are `.`, `!` or `?` followed by whitespace or unit end;
   trailing whitespace stays with that sentence. This is deterministic punctuation
   handling, not linguistic parsing. BPE counts are not assumed monotonic: every

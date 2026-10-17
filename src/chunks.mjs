@@ -32,14 +32,14 @@ function units(text) {
     const kind = opening ? 'code' : /^ {0,3}>/.test(line) ? 'prompt' : 'paragraph';
     if (fence) {
       current.end += [...line].length;
-      const closing = line.trim().match(/^(`{3,}|~{3,})$/)?.[1];
+      const closing = line.match(/^ {0,3}(`{3,}|~{3,})[ \t]*(?:\r?\n)?$/)?.[1];
       if (closing?.[0] === fence[0] && closing.length >= fence.length) {
         fence = null;
         current = null;
       }
     } else if (blank) {
-      if (result.length) result.at(-1).end += [...line].length;
-      else result.push({ start: offset, end: offset + [...line].length, kind: 'paragraph' });
+      if (result.at(-1)?.kind === 'whitespace') result.at(-1).end += [...line].length;
+      else result.push({ start: offset, end: offset + [...line].length, kind: 'whitespace' });
       current = null;
     } else {
       if (!current || opening || current.kind !== kind) {
@@ -97,6 +97,10 @@ export function chunkRevision(revision) {
     overlapBoundaries.add(unit.start);
     overlapBoundaries.add(unit.end);
     const sentences = sentenceEnds(points, unit.start, unit.end);
+    const lines = [];
+    for (let i = unit.start; i < unit.end; i++) {
+      if (points[i] === '\n') lines.push(i + 1);
+    }
     if (unit.kind === 'paragraph') sentences.forEach(end => overlapBoundaries.add(end));
     const oversized = count(unit.start, unit.end) > CHUNK_POLICY.maxTokens;
     let start = unit.start;
@@ -104,7 +108,9 @@ export function chunkRevision(revision) {
       let end = oversized
         ? fittingEnd(points, start, unit.end, CHUNK_POLICY.maxTokens, count) : unit.end;
       if (end < unit.end) {
-        const meaningful = sentences.filter(boundary => boundary > start && boundary <= end).at(-1);
+        const sentence = sentences.filter(boundary => boundary > start && boundary <= end).at(-1);
+        const line = lines.filter(boundary => boundary > start && boundary <= end).at(-1);
+        const meaningful = unit.kind === 'code' ? line ?? sentence : sentence ?? line;
         if (meaningful !== undefined && count(start, meaningful) <= CHUNK_POLICY.maxTokens) end = meaningful;
       }
       parts.push({ start, end, warning: oversized
