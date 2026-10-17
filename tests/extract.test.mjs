@@ -1,5 +1,6 @@
 import test from 'node:test';
 import './campaign.test.mjs';
+import './model-adapter.test.mjs';
 import './campaign-records.test.mjs';
 import './chunks.test.mjs';
 import assert from 'node:assert/strict';

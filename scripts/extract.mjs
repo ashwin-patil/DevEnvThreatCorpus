@@ -3,6 +3,7 @@ import path from 'node:path';
 import { runEnrichment } from '../src/enrichment.mjs';
 import { runCampaign } from '../src/campaign.mjs';
 import { benignChunkReport } from '../src/chunks.mjs';
+import { runAdapter } from '../src/model-adapter.mjs';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
 } from './contract.mjs';
@@ -161,6 +162,7 @@ async function cli(args) {
 }
 
 async function campaignCli([command, ...args]) {
+  if (['prepare-adapter', 'generate'].includes(command)) return adapterCli(command, args);
   if (command === 'report-demo') {
     return args.length ? { status: 'failed', code: 'INVALID_INPUT' }
       : { status: 'succeeded', benignReport: benignChunkReport() };
@@ -175,6 +177,7 @@ async function campaignCli([command, ...args]) {
   }[command];
   if (!required || args.length % 2) return { status: 'failed', code: 'INVALID_INPUT' };
   const allowed = [...new Set([...required, ...(command === 'prepare' ? ['--revisions', '--requested-model'] : []),
+    ...(['validate', 'apply'].includes(command) ? ['--receipt'] : []),
     ...(command === 'export' ? ['--format'] : []), ...(command === 'status' ? ['--case'] : [])])];
   const values = {};
   for (let index = 0; index < args.length; index += 2) {
@@ -189,6 +192,7 @@ async function campaignCli([command, ...args]) {
     requestFile: values['--request'], inputFile: values['--input'],
     revisionIds: values['--revisions']?.split(','), requestedModel: values['--requested-model'],
     format: values['--format'],
+    receiptFile: values['--receipt'],
   });
   // The private file is the payload; terminal/CI output contains only safe aggregate metadata.
   if (result.status !== 'succeeded') return result;
@@ -204,6 +208,30 @@ async function campaignCli([command, ...args]) {
     ...(result.bundle ? { private: true, format: values['--format'] ?? 'json' } : {}),
     ...(command === 'report' ? { private: true, chunks: result.summary.chunks } : {}),
   };
+}
+
+async function adapterCli(command, args) {
+  const required = command === 'prepare-adapter' ? ['--store', '--case', '--output']
+    : ['--store', '--request', '--output', '--enabled', '--confirm-public'];
+  const allowed = command === 'prepare-adapter' ? [...required, '--revisions'] : required;
+  const values = {};
+  if (args.length % 2) return { status: 'failed', code: 'INVALID_INPUT' };
+  for (let index = 0; index < args.length; index += 2) {
+    if (!allowed.includes(args[index]) || Object.hasOwn(values, args[index]) || !args[index + 1]) {
+      return { status: 'failed', code: 'INVALID_INPUT' };
+    }
+    values[args[index]] = args[index + 1];
+  }
+  if (required.some(key => !Object.hasOwn(values, key))
+    || (command === 'generate' && values['--enabled'] !== 'true')) {
+    return { status: 'failed', code: command === 'generate' ? 'ADAPTER_DISABLED' : 'INVALID_INPUT' };
+  }
+  return runAdapter({
+    command: command === 'prepare-adapter' ? 'prepare' : 'generate',
+    store: values['--store'], caseId: values['--case'], revisionIds: values['--revisions']?.split(','),
+    requestFile: values['--request'], outputFile: values['--output'],
+    enabled: values['--enabled'] === 'true', confirmPublic: values['--confirm-public'],
+  });
 }
 
 async function enrichmentCli([command, ...args]) {

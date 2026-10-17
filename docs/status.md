@@ -19,6 +19,10 @@ evidence. Historical results in
 [the acceptance audit](acceptance-audit.md) or [Nx notes](nx-corpus.md#usage-and-review)
 remain historical, not fresh validation or independent acceptance.
 
+The optional provider transport described here is a subsequent #83 addition,
+not a capability asserted at that historical baseline. Its current-revision
+evidence and outstanding independent reviews belong in the acceptance audit/PR.
+
 ## Capability and maturity matrix
 
 “Implemented” means a checked-in mechanism, not proven research quality.
@@ -29,7 +33,7 @@ collection is not evidence that a mechanism or real-world behavior is absent.
 |---|---|---|---|
 | Sources, revisions and collection | Explicit text/file/public HTTPS intake, bounded batch collection, failure manifests, private archives; [contract](../scripts/contract.mjs), [server](../scripts/server.mjs) | Nx has four retained incident reports; two historical URL failures remain failures. Official catalog sources are separate reference material, not additional incident reports. | [Intake](../tests/intake.test.mjs) and [server](../tests/server.test.mjs) fixtures exercise collection boundaries. Live access/retention permission and protected source review remain operator/human obligations; fixture success is not live collection. |
 | Manual claim extraction | Exact passage/hash checks, explicit cases/inference/conflicts, Pending-only persistence; [extract](../scripts/extract.mjs) | [Synthetic manual template](../tests/fixtures/extraction/manual.json); Nx is an agent-extracted example, not manual semantic gold. | [Extraction suite](../tests/extract.test.mjs) checks mechanical behavior. No independent manual-extraction quality evaluation is established here. |
-| AI-assisted campaign extraction | Frozen request → external researcher chat → candidate validation/application; coverage, provenance, immutable runs; [extract](../scripts/extract.mjs), [campaign records](../src/campaign-records.mjs) | Nx public projection: 38 Pending claims, 14 behaviors, 3 path records, 2 Proposed mappings. Private run envelopes and article bodies are not published. | [Campaign](../tests/campaign.test.mjs) and [record](../tests/campaign-records.test.mjs) tests provide synthetic contract evidence, not model accuracy. Protected three-revision human-gold evaluation remains outstanding in the [contract](architecture.md#campaign-extraction-contract); no runtime provider integration exists. |
+| AI-assisted campaign extraction | Default external-chat handoff, or optional disabled-by-default CLI OpenAI generation, then separate candidate validation/application; coverage, provenance, immutable runs; [extract](../scripts/extract.mjs), [adapter](../src/model-adapter.mjs) | Nx public projection: 38 Pending claims, 14 behaviors, 3 path records, 2 Proposed mappings. Private run envelopes and article bodies are not published. | Campaign/record/adapter tests provide synthetic contract evidence, not model accuracy or live API proof. Protected human-gold evaluation and independent privacy/research review remain outstanding; generation never accepts research. |
 | Claim review and stale eligibility | Explicit local decisions, correction/exclusion history and dependency/base-bound eligibility; [review](../scripts/review.mjs), [contract](../scripts/contract.mjs) | [Review fixtures](../tests/review.test.mjs) exercise decisions. No Nx claim has independent human acceptance. | Mechanical review tests do not authenticate reviewer identities or attest research truth. Local identifiers are self-attested; independent research review is outstanding. Browser counts show recorded events, not current CLI eligibility. |
 | Within-case paths and cross-case comparison | Supported nodes/edges, unordered behaviors, facets and typed dates; [exploration](../src/explore.mjs), [model](../src/model.mjs) | Nx displays one campaign graph over three canonical phase paths, 12 nodes and 7 relationships. Synthetic fixtures demonstrate comparisons; Nx alone is not a cross-case pattern study. | [Workbench tests](../tests/workbench.test.mjs) exercise projections. Independent chronology, causal interpretation and cross-case synthesis remain human work; layout/shared labels prove none of them. |
 | Framework and AI-artifact inspection | Pinned resolver/catalogs, scoped Proposed/unresolved mappings, exact tool/prompt projections; [framework catalog](../src/framework-catalog.mjs), [AI library](../src/ai-library.mjs) | Nx has Proposed T1059 and AML.T0053 analogies; two published prompt variants span three source occurrences. Catalog membership is not a campaign mapping count. | [Campaign-record](../tests/campaign-records.test.mjs) and [workbench](../tests/workbench.test.mjs) checks test linkage/presentation. Applicability, source meaning and artifact interpretation still need human review. |
@@ -38,7 +42,7 @@ collection is not evidence that a mechanism or real-world behavior is absent.
 | Browser workbench and Codespaces route | Loopback server, read-only snapshot/public preview, opt-in private store; [server](../scripts/server.mjs), [Codespaces guide](guides/codespaces.md) | Public Pending Nx draft and explicitly synthetic demos. Demos do not populate a private store. | Server/workbench and local lifecycle tests do not prove hosted startup, signed-out denial or usable rendering. Independent live Codespaces, responsive, keyboard, accessibility and editorial review still require evidence. |
 
 Test files listed above identify relevant coverage, not an assertion that every
-file is a separately configured command. The seven configured suites include
+file is a separately configured command. The eight configured suites include
 additional imported tests; current execution results must come from the verifier.
 
 ## Partial, deferred and unvalidated work
@@ -49,9 +53,10 @@ additional imported tests; current execution results must come from the verifier
 - **Partial framework resolution:** immutable catalog membership supports narrow
   resolution, not universal ATT&CK/ATLAS mapping or independently proven relevance.
   Unresolved candidates and historical unavailable metadata stay explicit.
-- **Researcher-mediated AI only:** no credentialed runtime provider, automatic
-  fallback, scheduler or automatic research acceptance. Requested/effective model
-  provenance must remain separate.
+- **Researcher-controlled AI:** external-chat handoff remains default. Optional
+  CLI generation supports only explicitly confirmed public research using a
+  process credential; no automatic fallback, scheduler or research acceptance.
+  Requested, provider-reported and model-authored provenance remain separate.
 - **Local review only:** no authenticated local identity or hosted review service.
   Mechanism correctness is separate from independent researcher acceptance.
 - **Partial authoring/review:** typed timelines and additional reviewable entities

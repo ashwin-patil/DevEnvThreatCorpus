@@ -1,5 +1,36 @@
 # Acceptance audit
 
+## Issue #83 optional public-research model adapter
+
+Originating requirements: [#83](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/83).
+Human-selected design: CLI-only, disabled-by-default OpenAI Responses at the fixed
+global endpoint, `gpt-6-luna`, explicit process `OPENAI_API_KEY`, operator-confirmed
+published research and per-request transmission confirmation. Public prompt
+literals are article artifacts, not confidential user prompts. Keep chat handoff
+as the default. No live call is authorized by design approval.
+
+The approved profile is low reasoning, at most 256 KiB serialized full payload
+and 32,000 reference tokens, 16,000 output tokens, 120-second provider deadline,
+2 MiB response and one attempt without automatic retries. Protected artifacts
+remain until explicit operator cleanup. Input reference counts are not exact
+provider accounting; `store:false` is not a zero-retention guarantee.
+
+| Criterion | Implementation / focused executable evidence | Independent outcome / limitation |
+|---|---|---|
+| AC-01 opt-in | `src/model-adapter.mjs`, explicit CLI dispatch in `scripts/extract.mjs`; disabled/missing/denied/stale no-network tests and CLI unknown-flag checks | Configuration/transmission walkthrough **needs-human-review**; no browser generation or startup setting |
+| AC-02 versioned boundary | `src/campaign.mjs` request `/3`, run `/4`, provider receipt and explicit historical readers; request/provider/model/policy tamper, provenance and rehashed-snapshot negatives | Provider/provenance review **needs-human-review**; local receipts are not signed provider attestations |
+| AC-03 untrusted output | Existing candidate normalization, exact passage/coverage/closure/geometry checks; receipt-required validation, human-origin/acceptance/checklist/unsupported-output negatives; POSIX generate then explicit apply | JSON mode is not semantic/schema approval; generated records Pending; independent candidate-to-review inspection required |
+| AC-04 review preservation | Reviewed claims/tools/prompts/behaviors/mapping fixture before/after generation; unchanged human edits/history/states, changed proposals Pending, stale dependent acceptance blocked; replay checks | Independent researcher judgment **needs-human-review**; no semantic accuracy improvement claimed |
+| AC-05 concurrent review | POSIX delayed fake provider modifies human decisions during generation; stale text/receipt retained, full-base validation/application reject, review history preserved | Actual private-store tests require POSIX execution; native-Windows skips are not persistence evidence |
+| AC-06 limits/privacy | Byte/reference-token boundaries, response ceiling/deadline/abort, single attempt/status classification, no redirect/fallback/tools, diagnostic/credential assertions, malformed/incomplete/refusal/storage-failure cases | Independent privacy review **needs-human-review**; timeout is not exactly-once execution or zero cost; no credentials/live endpoint exercised |
+| AC-07 regressions | Adapter tests imported by configured extraction suite; existing campaign/chunk/HITL/server/workbench/export suites and `python scripts/verify.py` | Exact commands/results/skips/final SHA and hosted links belong on the originating PR; live-provider operation, browser/researcher and documentation relevance review remain separate |
+
+API payload `public-research-projection/1` explicitly omits full catalog descriptions
+because those alone exceed the approved reference budget. Full pins/catalog and
+unchanged canonical windows remain bound locally; sent IDs/names/URLs/tactics are
+not an assertion of semantic completeness. No chunk or staged-extraction changes,
+public corpus mutation, acceptance transfer or automatic application are included.
+
 ## Issue #84 context chunks — integration, independent acceptance pending
 
 Requirements and approved policy: [#84](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/84).
