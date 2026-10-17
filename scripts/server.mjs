@@ -5,6 +5,8 @@ import path from 'node:path';
 import { assertValid, canonicalSerialize, validatePrivateCorpus, collectBatch, readArchiveArtifact, reviewEligibleCorpus } from './contract.mjs';
 import { readEnrichmentSnapshot } from '../src/enrichment.mjs';
 import { runCampaign, campaignAnnotations, campaignStatus, campaignExport } from '../src/campaign.mjs';
+import { runStage, stageStatus } from '../src/stages.mjs';
+import { baselineSelectionStatus } from '../src/stage-comparison.mjs';
 import { applyItemReview, reviewSnapshot, runItemReview, progressSummary, reviewedProfile } from '../src/hitl.mjs';
 
 export const WEB_INTAKE_LIMITS = Object.freeze({ bodyBytes: 192 * 1024, bodyTimeoutMs: 10_000, urls: 20 });
@@ -115,6 +117,7 @@ const assets = new Map([
   ['/src/model.mjs', ['src/model.mjs', 'text/javascript']],
   ['/src/render.mjs', ['src/render.mjs', 'text/javascript']],
   ['/src/studio.mjs', ['src/studio.mjs', 'text/javascript']],
+  ['/src/stage-view.mjs', ['src/stage-view.mjs', 'text/javascript']],
   ['/src/explore.mjs', ['src/explore.mjs', 'text/javascript']],
   ['/src/campaign-presentation.mjs', ['src/campaign-presentation.mjs', 'text/javascript']],
   ['/src/graph-geometry.mjs', ['src/graph-geometry.mjs', 'text/javascript']],
@@ -236,8 +239,9 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
           message: error.status ? error.message : 'Collection could not complete. Check campaign, URLs and private store permissions; reload before retrying.' }), 'application/json');
       } finally { writing = false; }
     }
+    const stageRoute = request.url?.match(/^\/api\/campaign\/stage\/(prepare|validate|apply|status)$/)?.[1];
     const campaignRoute = request.url?.match(/^\/api\/campaign\/(prepare|import|export)$/)?.[1];
-    if (request.method === 'POST' && campaignRoute && store) {
+    if (request.method === 'POST' && (campaignRoute || stageRoute) && store) {
       if (request.headers.origin !== `http://${request.headers.host}` ||
           (request.headers['sec-fetch-site'] && request.headers['sec-fetch-site'] !== 'same-origin')) {
         return send(403, 'Campaign operations require the exact same origin.');
@@ -251,6 +255,22 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
       if (writing) return send(409, 'Another private-store operation is in progress; wait before resubmitting.');
       try {
         const input = await campaignBody(request);
+        if (stageRoute) {
+          const allowed = stageRoute === 'prepare' ? ['caseId', 'kind', 'inputKeys', 'revisionIds', 'requestedModel']
+            : stageRoute === 'status' ? ['caseId'] : ['request', 'candidate'];
+          if (!exactKeys(input, allowed) || (stageRoute === 'prepare' && (!caseIdPattern.test(input.caseId ?? '')
+            || !['ground', 'interpret', 'relate'].includes(input.kind)
+            || (input.inputKeys !== undefined && (!Array.isArray(input.inputKeys) || input.inputKeys.length > 1000))
+            || (input.revisionIds !== undefined && (!Array.isArray(input.revisionIds) || input.revisionIds.length > 1000))))
+            || (['apply', 'validate'].includes(stageRoute) && (!input.request || !input.candidate
+              || jsonBytes(input.request) > CAMPAIGN_LIMITS.itemBytes || jsonBytes(input.candidate) > CAMPAIGN_LIMITS.itemBytes))) {
+            return send(400, JSON.stringify({ status: 'failed', code: 'INVALID_STAGE' }), 'application/json');
+          }
+          writing = true;
+          const result = await runStage({ command: stageRoute, store, ...input });
+          return send(result.status === 'succeeded' ? 200 : ['STORE_BUSY', 'STALE_INPUT', 'STALE_STAGE_INPUT'].includes(result.code) ? 409 : 400,
+            JSON.stringify(result), 'application/json');
+        }
         if (!validCampaignInput(campaignRoute, input)) {
           return send(400, 'Supply only the bounded fields required for this campaign operation.');
         }
@@ -308,6 +328,8 @@ export async function createPreviewServer({ corpusFile, store, intakeDeps = {} }
           return send(200, canonicalSerialize(reviewedProfile(current, manual.annotations)), 'application/json');
         }
         const state = reviewSnapshot(current, manual.annotations);
+        state.stages = stageStatus(current);
+        state.baselineSelection = baselineSelectionStatus(current, manual.annotations);
         const campaigns = Object.fromEntries(current.cases.map(c => [c.id, progressSummary(current, state, c.id)]));
         const sources = Object.fromEntries(current.sources.map(s => [s.id, progressSummary(current, state, null, [s.id])]));
         return send(200, canonicalSerialize({ ...state, campaigns, sources }), 'application/json');

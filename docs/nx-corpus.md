@@ -1,5 +1,13 @@
 # Nx / s1ngularity public Pending draft
 
+Issue #85 adds protected staged regeneration/comparison tooling, not a refreshed
+public dataset. No real Nx regeneration, independent semantic comparison or
+adoption was performed in that implementation. Preserve the old private baseline,
+generate into a separate candidate on the same retained revisions, and follow the
+[independent adjudication gate](researcher-review-guide.md#staged-extraction-and-independent-comparison)
+before selecting a new private working baseline. That selection neither approves
+individual items nor authorizes replacing this bundled public Pending snapshot.
+
 This case was prepared from main `3456f2b0df700d0b173f3ac98c59bff198c0783a`.
 It contains 38 agent-extracted claims, 14 behavior definitions, 3 representative
 paths (12 nodes and 7 relationships), and 2 Proposed framework mappings.

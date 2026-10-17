@@ -184,7 +184,7 @@ export function validateMappingScope(mapping, { caseId, claims, behaviors, paths
 }
 
 export function normalizeCampaignRecords({
-  candidate, request, claims, passages, corpus, runId, claimIds = {},
+  candidate, request, claims, passages, corpus, runId, claimIds = {}, upstreamBehaviors = [],
 }) {
   object(candidate, 'candidate'); object(request, 'request'); object(corpus, 'corpus');
   id(runId, 'runId');
@@ -199,6 +199,12 @@ export function normalizeCampaignRecords({
   const catalogProvenance = [];
   const generated = new Map();
   const local = Object.fromEntries(GROUPS.map(name => [name, new Map()]));
+  for (const behavior of upstreamBehaviors) {
+    if (behavior.caseId !== caseId || !corpus.behaviors?.some(b => b.id === behavior.id)) {
+      invalid('upstream behavior must exist in the selected case');
+    }
+    local.behaviors.set(behavior.id, behavior.id);
+  }
   const coreIds = new Set(GROUPS.flatMap(name => (corpus[name] ?? []).map(item => item.id)));
 
   const makeId = (type, localId) => stableId(`campaign-${type}`, `${RECORD_NORMALIZATION_VERSION}\n${runId}\n${localId}`);
@@ -487,7 +493,7 @@ export function normalizeCampaignRecords({
       Object.assign(scope, { pathId, nodeId });
     }
     validateMappingScope({ caseId, behaviorId, supportingClaimIds, ...scope }, {
-      caseId, claims: [...byClaim.values()], behaviors: records.behaviors, paths: records.paths,
+      caseId, claims: [...byClaim.values()], behaviors: [...upstreamBehaviors, ...records.behaviors], paths: records.paths,
     });
     const rationale = text(item.rationale, 'mapping.rationale');
     const applicability = text(item.applicability, 'mapping.applicability');

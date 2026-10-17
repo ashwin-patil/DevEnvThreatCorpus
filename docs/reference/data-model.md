@@ -1,5 +1,29 @@
 # Data model
 
+## Effective staged inputs
+
+The `grounded-applied-pending/1` policy permits derivation from grounded applied
+Pending items, including valid effective human modifications, without accepting
+them. Excluded, Unsure, unresolved, cyclic, cross-case or unsupported items are
+ineligible. Input snapshots retain original proposal hash, effective record,
+content/provenance/dependency binding, reviewer/editor metadata, exact passages
+and canonical context, decision ID and originating run IDs.
+
+Selecting a behavior also freezes its independently reviewed occurrences, not
+only its display label. Every selected upstream item and its required dependency closure binds **every
+output in that bounded cohort**. Choose minimal coherent cohorts; an unrelated
+input unnecessarily selected into a cohort intentionally invalidates that cohort
+when corrected. The effective revision excludes a mere acceptance decision:
+accepting unchanged support later does not require regeneration. Material
+content/provenance changes do, even if the changed support is subsequently
+accepted. Original proposals and historical stage snapshots are never rewritten.
+
+Claims, tool/prompt usage annotations, behavior definitions, occurrences, paths,
+nodes, edges and mappings retain separate review identities. Upstream acceptance
+does not approve a dependent item; reviewed exports enforce the existing current
+approval and dependency closure. Stage processing counts, canonical covered
+source positions, human review and release eligibility are distinct measures.
+
 Start with source evidence, not optional path or detection records.
 [Architecture](../architecture.md) owns component flow and trust boundaries;
 [formats](formats-and-versioning.md) owns schema/type and serialized-format
