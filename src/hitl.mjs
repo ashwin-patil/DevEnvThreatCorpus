@@ -4,6 +4,7 @@ import {
 } from '../scripts/contract.mjs';
 import { readEnrichmentSnapshot, validateEnrichment } from './enrichment.mjs';
 import { GUIDE_VERSION, GUIDE_VERSIONS, checksFor, confirmationFor, priorityCategory, labelCompleteness, labelFields, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
+import { STAGE_RUN, stageInputRevision, validateStageEnvelope } from './stage-contract.mjs';
 import { unionCoverage } from './chunks.mjs';
 
 export const HITL_VERSION = 'local-hitl/1';
@@ -56,6 +57,7 @@ export function assertReviewHistory(previous, next) {
 
 export function reviewUnits(corpus, annotations = []) {
   const runs = corpus.governance?.campaignExtraction?.runs ?? [];
+  for (const run of runs) if (run.schemaVersion === STAGE_RUN) validateStageEnvelope(run);
   const units = [], keys = new Set();
   const supportFor = (type, id) => runs.flatMap(run => (run.recordSupport ?? [])
     .filter(s => s.recordType === type && s.recordId === id).flatMap(s => s.supportingClaimIds));
@@ -68,16 +70,18 @@ export function reviewUnits(corpus, annotations = []) {
       claimIds.map(id => corpus.claims.find(c => c.id === id)?.caseId).filter(Boolean)));
     const sources = unique([...(record.sourceIds ?? []), ...(record.sourceId ? [record.sourceId] : []),
       ...claimIds.map(id => corpus.claims.find(c => c.id === id)?.sourceId).filter(Boolean)]);
-    const runMetadata = runs.filter(run => run.claimIds?.includes(record.id)
+    const owningRuns = runs.filter(run => run.claimIds?.includes(record.id)
       || run.claimSnapshots?.some(c => c.id === record.id)
       || run.annotations?.some(a => a.id === record.id)
       || run.records?.[type]?.some(r => r.id === record.id)
-      || (parent && run.records?.[parent.type]?.some(r => r.id === parent.id)))
-      .map(run => ({ id: run.id, provider: run.provider, promptVersion: run.promptVersion,
+      || (parent && run.records?.[parent.type]?.some(r => r.id === parent.id)));
+    const stageInputs = owningRuns.flatMap(run => run.stage?.upstream ?? []);
+    const runMetadata = owningRuns.map(run => ({ id: run.id, provider: run.provider, promptVersion: run.promptVersion,
         requestHash: run.requestHash, responseHash: run.responseHash, envelopeHash: run.envelopeHash }));
     units.push({ itemKey, type, id, caseIds: cases, sourceIds: sources, original: structuredClone(record),
       record: structuredClone(record), claimIds, parent, index, runMetadata,
-      dependencies: unique([...claimIds.map(id => keyFor('claims', id)), ...dependencies]),
+      dependencies: unique([...claimIds.map(id => keyFor('claims', id)), ...dependencies, ...stageInputs.map(i => i.itemKey)]),
+      stageInputs,
       originalOrigin: record.origin ?? (runMetadata.length ? 'agent' : 'unknown'),
       contentOrigin: record.origin ?? (runMetadata.length ? 'agent' : 'unknown'),
       labelAuthorship: record.labelAuthorship ?? (/LLM|agent/.test(record.origin ?? '') || runMetadata.length
@@ -208,6 +212,11 @@ export function reviewSnapshot(corpus, annotations = []) {
     if (active.has(u.itemKey)) return;
     active.add(u.itemKey);
     const blockers = [], bindings = {};
+    for (const input of u.stageInputs) {
+      if (stageInputRevision(byKey.get(input.itemKey), byKey) !== input.effectiveRevision) {
+        blockers.push({ itemKey: input.itemKey, reason: 'Frozen stage input changed; regenerate from the effective revision' });
+      }
+    }
     for (const key of u.dependencies) {
       const support = byKey.get(key);
       if (!support) { blockers.push({ itemKey: key, reason: 'Missing required support' }); continue; }
@@ -226,7 +235,7 @@ export function reviewSnapshot(corpus, annotations = []) {
     if (u.type === 'annotations' && u.record.evidenceStatus === 'unresolved') blockers.push({ itemKey: u.itemKey, reason: 'Unresolved annotation evidence' });
     if (u.groundingLost) blockers.push({ itemKey: u.itemKey, reason: 'Extracted literal no longer matches exact evidence; correct or regenerate before acceptance' });
     if (!['claims', 'annotations'].includes(u.type) && !u.dependencies.length) blockers.push({ itemKey: u.itemKey, reason: 'No independently supported record; regenerate or exclude' });
-    u.structurallyBlocked = blockers.some(b => /Missing|Cyclic|Unresolvable|unavailable|Unresolved|no longer matches|No independently/.test(b.reason))
+    u.structurallyBlocked = blockers.some(b => /Missing|Cyclic|Unresolvable|unavailable|Unresolved|no longer matches|No independently|Frozen stage/.test(b.reason))
       || u.dependencies.some(key => byKey.get(key)?.structurallyBlocked);
     u.stale = !!event && (!current || (event.action === 'accept' && blockers.length > 0));
     u.state = current && event.action === 'exclude' ? 'Excluded' :
@@ -400,6 +409,11 @@ export function progressSummary(corpus, snapshot, caseId, sourceIds) {
   }
   const priority = units.filter(u => u.actionable);
   return { ...count(units), byType: Object.fromEntries(unique(units.map(u => u.type)).map(type => [type, count(units.filter(u => u.type === type))])),
+    stages: (corpus.governance?.campaignExtraction?.runs ?? []).filter(r => r.stage && (!caseId || r.caseId === caseId))
+      .map(r => ({ id: r.id, kind: r.stage.kind, inputs: r.stage.processing.length,
+        completed: r.stage.processing.filter(i => i.status === 'completed').length,
+        skipped: r.stage.processing.filter(i => i.status === 'skipped').length,
+        failed: r.stage.processing.filter(i => i.status === 'failed').length })),
     priority: { ...count(priority), byType: Object.fromEntries(['tools', 'behaviors', 'prompts'].map(type => [type,
       count(priority.filter(u => u.priorityCategory === type))])) },
     hiddenEvidence: units.filter(u => u.type === 'claims').length,

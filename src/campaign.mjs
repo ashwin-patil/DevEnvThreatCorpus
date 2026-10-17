@@ -9,6 +9,7 @@ import {
 } from './campaign-records.mjs';
 import { catalogSnapshot } from './framework-catalog.mjs';
 import { CHUNK_POLICY, chunkRevision, chunkReport, unionCoverage } from './chunks.mjs';
+import { validateStageEnvelope } from './stage-contract.mjs';
 
 export const CAMPAIGN_VERSION = 'campaign-extraction/3';
 export const REQUEST_VERSION = 'campaign-request/2';
@@ -202,7 +203,11 @@ export function validateCampaignCandidate(corpus, request, candidate) {
   verifyRequest(corpus, request);
   return normalizeCandidate(corpus, request, candidate);
 }
-function normalizeCandidate(corpus, request, candidate) {
+export function normalizeStageGrounding(corpus, request, candidate, runId) {
+  verifyRequest(corpus, request);
+  return normalizeCandidate(corpus, request, candidate, { runId });
+}
+function normalizeCandidate(corpus, request, candidate, { runId: selectedRunId } = {}) {
   validateCampaignSnapshot(corpus);
   size(candidate);
   object(candidate, ['schemaVersion', 'requestHash', 'model', 'coverage', 'claims', 'absences', 'limitations',
@@ -247,7 +252,7 @@ function normalizeCandidate(corpus, request, candidate) {
     text(absence.category, 200); text(absence.reason);
   }
   const responseHash = digest(candidate);
-  const runId = stableId('campaign-run', canonicalSerialize({ requestHash: request.requestHash, responseHash,
+  const runId = selectedRunId ?? stableId('campaign-run', canonicalSerialize({ requestHash: request.requestHash, responseHash,
     catalogSnapshot: request.catalogSnapshot }));
   const claimIds = new Map();
   for (const item of list(candidate.claims, CAMPAIGN_LIMITS.claims)) {
@@ -430,7 +435,7 @@ function append(collection, records) {
     if (!old) collection.push(structuredClone(record));
   }
 }
-function appendOutputs(corpus, claims, passages, run) {
+export function appendOutputs(corpus, claims, passages, run) {
   append(corpus.claims, claims); append(corpus.passages, passages);
   for (const [type, records] of Object.entries(run.records)) {
     corpus[type] ??= [];
@@ -459,11 +464,13 @@ export function applyCampaign(corpus, request, candidate) {
 function validateRunMappings(run, corpus) {
   if (run.schemaVersion === 'campaign-run/1' && run.extractionVersion === 'campaign-extraction/1') return;
   if (!((run.schemaVersion === 'campaign-run/2' && run.extractionVersion === 'campaign-extraction/2')
-    || (run.schemaVersion === 'campaign-run/3' && run.extractionVersion === CAMPAIGN_VERSION))
+    || (run.schemaVersion === 'campaign-run/3' && run.extractionVersion === CAMPAIGN_VERSION)
+    || (run.schemaVersion === 'campaign-stage-run/1' && run.extractionVersion === 'campaign-stages/1'))
     || run.normalizationVersion !== RECORD_NORMALIZATION_VERSION || run.disposition !== 'Pending') fail('INVALID_SNAPSHOT');
   const context = {
     caseId: run.caseId, claims: [...run.claimSnapshots, ...corpus.claims],
-    behaviors: run.records.behaviors, paths: run.records.paths,
+    behaviors: run.schemaVersion === 'campaign-stage-run/1' ? [...(corpus.behaviors ?? []), ...run.records.behaviors]
+      : run.records.behaviors, paths: run.records.paths,
   };
   const seen = new Set();
   for (const mapping of run.unresolvedMappings) {
@@ -539,9 +546,13 @@ export function validateCampaignSnapshot(corpus) {
   const seen = new Set();
   for (const run of list(snapshot.runs, 10000)) {
     const { envelopeHash, ...body } = run;
-    if (!['campaign-run/1', 'campaign-run/2', 'campaign-run/3'].includes(run.schemaVersion) || envelopeHash !== digest(body)
+    if (!['campaign-run/1', 'campaign-run/2', 'campaign-run/3', 'campaign-stage-run/1'].includes(run.schemaVersion) || envelopeHash !== digest(body)
       || seen.has(run.id) || !corpus.cases.some(c => c.id === run.caseId)) fail('INVALID_SNAPSHOT');
     seen.add(run.id);
+    if (run.schemaVersion === 'campaign-stage-run/1') {
+      validateStageEnvelope(run);
+      if (run.stage.kind === 'ground') validateRunCoverage(run, corpus);
+    }
     if (run.schemaVersion === 'campaign-run/3') validateRunCoverage(run, corpus);
     try { validateRunMappings(run, corpus); }
     catch { fail('INVALID_SNAPSHOT'); }

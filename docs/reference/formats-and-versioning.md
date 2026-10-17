@@ -1,5 +1,50 @@
 # Formats and versioning
 
+## Staged extraction contracts
+
+`campaign-stages/1` uses `campaign-stage-request/1`,
+`campaign-stage-candidate/1` and `campaign-stage-run/1`, with named prompts
+`campaign-stage-ground/1`, `campaign-stage-interpret/1` and
+`campaign-stage-relate/1`. These are distinct from monolithic
+`campaign-request/2`, `campaign-extraction/3`, `passage-grounded-campaign/5`,
+`campaign-run/3` and `campaign-candidate/1`. Historical readers are not upgraded
+by relabeling old envelopes. Optional provider request/run versions are a
+separate integration dimension, not permission to send stage requests.
+
+Requests and candidates are each bounded to 2 MiB canonical UTF-8, 1,000 entries
+per array, 65,536 Unicode code points per string and 1,000 output review units,
+including nested behavior/occurrence and path/node/edge units. Requests bind
+the full corpus digest, case scope, canonical chunk policy, selected inputs,
+effective upstream snapshots, catalog, provider metadata, exact prompt/hash and
+limits. Every selected source chunk or upstream item requires one processing
+entry: `completed` with null reason, or `skipped`/`failed` with a nonblank reason.
+No omitted processing entry is silently complete.
+
+Ground outputs are exactly `{claims, artifacts}` (literal IDE/tool/product,
+command, executable, flag/argument or prompt/instruction kinds). Interpret has
+exactly `{behaviors}` with distinct occurrences; Relate has exactly
+`{paths, mappings}`. Use the prepared `candidateGuide` and existing campaign
+record guide for nested shapes. No stage initially generates categories,
+timelines, telemetry, detection or OTEL proposals. Existing monolithic records
+remain supported and all populated types participate in comparison.
+
+Run identity binds request and response hashes; runs retain immutable request,
+candidate, normalized output snapshots, input/output hashes and parent run IDs.
+Ground preserves canonical evidence/deduplication/coverage. Derived runs do not
+create claims/passages or inflate source coverage. Unknown model/version is null
+with `unknown` reasons, not guessed.
+
+Protected comparison formats are `campaign-private-baseline/1`,
+`campaign-regeneration/1`, `campaign-stage-comparison/1`,
+`campaign-major-mismatch/1`, `campaign-comparison-adjudication/1` and
+`campaign-baseline-selection/1`. Baselines include the full corpus and sidecar
+annotations; comparisons include exact retained evidence and configuration
+differences, not safe public summaries. All use protected non-overwriting
+outputs; the existing 2 MiB file boundary can reject a large baseline/report
+explicitly. The candidate selection log is append-only and hash-chained.
+Changes to the compared corpus or annotations invalidate current selection.
+Hashing detects inconsistency, not authenticated authorship or independent review.
+
 ## Ownership
 
 | Contract | Authoritative implementation |
