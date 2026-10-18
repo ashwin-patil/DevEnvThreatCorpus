@@ -6,6 +6,8 @@
 .card-badges>.publisher-badge{flex-shrink:0}
 .prompt-response{border-left:3px solid var(--accent);padding-left:12px;margin-top:16px}
 .prompt-response h4{font-size:14px}.prompt-response .artifact-value{max-height:360px}
+.telemetry-scope-summary h3{font-size:14px;margin:12px 0 6px}.scope-citation{font-size:12px;margin:6px 0}.telemetry-scope-badge{cursor:pointer;text-align:left;font:inherit}.scope-claims>summary{cursor:pointer;color:var(--green);padding:10px 0}.related-research h4{font-size:13px;margin:12px 0 6px}.related-research .chip{font-size:12px;max-width:100%;overflow-wrap:anywhere}.response-context{font-size:13px;line-height:1.5}
+.exploration .research-grid.research-detail{column-count:1;column-width:auto;max-width:1100px}
 .category-evidence{border-left:2px solid var(--divider);padding-left:10px;margin:8px 0}
 :root{
   color-scheme:light;

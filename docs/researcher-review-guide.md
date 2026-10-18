@@ -111,6 +111,15 @@ evidence. Edited support, response content or provenance invalidates prior
 acceptance. Public preview cannot save decisions; reviewed public annotation
 exports still omit private prompt/response/context content.
 
+Reader display is not review completeness: Prompt library initially shows only
+published pairs. Choose **All prompts**, follow a direct occurrence link, or use
+the full Prompts & responses queue to inspect prompt-only records. Collapsed
+Technical provenance retains full pairing/observation metadata and receipts;
+the shorter visible summary does not replace that review. Campaign/blog scope
+tags open Security telemetry, where supporting claims and the private
+**Review telemetry scope** action remain available. Claim-side Related research
+links use the same explicit support projection, not independently inferred evidence.
+
 ## Historical guide: researcher-review/3
 
 Version **researcher-review/3** adds **Campaign categories** to the priority

@@ -1,5 +1,5 @@
 import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, applyReviewProjection, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
-import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison } from './render.mjs';
+import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison, technicalDetails } from './render.mjs';
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
 import { publicDraftModel } from './public-profile.mjs';
@@ -149,7 +149,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       const path = model?.corpus.paths?.find(p => p.id === id);
       if (path) filters.cases = [path.caseId];
     }
-    status('Navigation revealed the target and reset search / facets. ' + trustLabel(),
+    status(trustLabel(),
       model?.corpus.governance?.synthetic ? 'synthetic' : '');
     route = { view, id, revisionId };
     if (model) buildFacets();
@@ -184,7 +184,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     $('search').value = filters.query ?? ''; $('tag-mode').value = filters.tagMode ?? 'OR';
     route = { view, id, revisionId };
     win.history.pushState({ filters: structuredClone(filters), pathContext: structuredClone(pathContext) }, '', routeHash(view, id, revisionId));
-    status('Linked evidence revealed within the path case; original graph filters retained for return. ' + trustLabel(), model?.corpus.governance?.synthetic ? 'synthetic' : '');
+    status(trustLabel(), model?.corpus.governance?.synthetic ? 'synthetic' : '');
     if (!sameGraph) { buildFacets(); render(); $('content').focus(); }
   }
   function trustLabel() {
@@ -341,6 +341,9 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         'LLM content stays labeled by its recorded origin. Pending, Needs correction and Excluded records remain visible; acceptance metadata is not proof of research truth.',
         'Claims navigate to their exact source revision. Old snapshots and conflicting claims remain available. Unicode passages use half-open code-point intervals [start, end); overlapping claims are not merged.',
         'Null values keep their recorded reasons. Publication, discovery, disclosure and incident activity dates retain type and precision; missing content is not invented.',
+        'Prompt library defaults to published prompt/response pairs. All prompts includes prompt-only occurrences; a missing response establishes neither refusal nor successful execution. Exact prompts are shown once per variant, with source-local exchanges below. A published response is not independent confirmation of an incident; test, compromised-host and unspecified log-review environments remain distinct.',
+        'Published JSON-string artifacts are decoded for reading. Raw token locators and hashes include the original quotes and escapes, not the decoded display. Full pairing context, unknown model/role values and tracking identifiers remain in collapsed Technical provenance.',
+        'Log Collection/Telemetry Scope tags open the supporting claims in Security telemetry. They describe collection-scope proposals, not collected events or detection coverage. Related research links follow explicit claim support in both directions, never article proximity or shared wording.',
         'Only same-origin local endpoints and bundled assets are requested by the browser. With --store, explicit Fetch articles sends public HTTPS URLs to the backend, which persists collection and campaign links; new campaigns remain Pending, never accepted. --corpus and no-store modes remain read-only snapshots. The curator studio retains pasted text and pending annotations in memory and downloads private proposals. There is no automatic acceptance, model call or curator review. Local browsing filters never change canonical records. Untrusted original HTML is download-only; extracted text is displayed by default.',
         'Comparison, attack paths and behavior views describe recorded observations and research proposals, not attribution or prevalence. Framework membership does not establish occurrence. Security telemetry and detection hypotheses are distinct from synthetic OpenTelemetry examples. Optional enrichment is displayed with its recorded origin and disposition; human research review and merge approval remain independent.',
       ]) panel.append(element(doc, 'p', text));
@@ -355,7 +358,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
         });
       $('result').textContent = `${coverage.cases} distinct cases · ${coverage.sources} distinct linked sources (case context) · ${coverage.claims} matching claims · ${coverage.supported} source-supported claims. ` +
         `Review coverage: ${coverage.humanEvents}/${coverage.claims} claims with matching recorded human events; ${Object.entries(coverage.dispositions).map(([d, n]) => `${n} ${d}`).join(', ') || 'no claims'}. ` +
-        `Recorded events are not current eligibility or independent approval. Active filters: ${active.join('; ') || 'none'}. Snapshot: ${model.corpus.name} · ${model.corpus.schemaVersion} · loaded JSON SHA-256 ${model.snapshot}`;
+        `Recorded events are not current eligibility or independent approval. Active filters: ${active.join('; ') || 'none'}. Snapshot: ${model.corpus.name} · ${model.corpus.schemaVersion}`;
+      $('content').append(technicalDetails(doc, [['Loaded JSON SHA-256', model.snapshot]]));
       if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
         $('content').append(empty('Invalid date range: From must not be after Through.')); return;
       }
@@ -364,12 +368,14 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       return;
     }
     if (Object.hasOwn(EXPLORE_VIEWS, route.view)) {
-      const selection = explorationRecords(model, route.view, filters);
-      const annotationCount = (model.annotations ?? []).filter(a => (VIEW_ANNOTATIONS[route.view] ?? []).includes(a.type) && selection.caseIds.has(a.caseId) && (!filters.query || JSON.stringify(a).toLowerCase().includes(filters.query.toLowerCase()))).length;
+      const selection = explorationRecords(evidenceModel, route.view, filters, route.revisionId);
+      const annotationCount = (model.annotations ?? []).filter(a => (VIEW_ANNOTATIONS[route.view] ?? []).includes(a.type) && selection.caseIds.has(a.caseId)
+        && (!selection.sourceIds || selection.sourceIds.has(a.sourceId)) && (!filters.query || JSON.stringify(a).toLowerCase().includes(filters.query.toLowerCase()))).length;
       const count = route.view === 'paths' ? `${new Set(selection.records.map(p => p.caseId)).size} matching campaign graph(s) · ${selection.records.length} matching retained path record(s)`
-        : `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records`;
+        : route.view === 'prompts' ? `${selection.records.length} prompt variants available`
+          : `${selection.records.length} matching ${EXPLORE_VIEWS[route.view]} records`;
       $('result').textContent = `${count}${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
-      $('content').append(renderExploration(doc, evidenceModel, route.view, filters, visit, route.id, () => load('/api/demo-research'), route.revisionId)); return;
+      $('content').append(renderExploration(doc, evidenceModel, route.view, filters, visit, route.id, () => load('/api/demo-research'), route.revisionId, openReview)); return;
     }
     const records = filterRecords(evidenceModel, route.view, pathContext ? { ...filters, cases: [pathCase()] } : filters);
     $('result').textContent = `${records.length} matching ${route.view} / ${model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;

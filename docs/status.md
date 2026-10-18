@@ -14,6 +14,14 @@ not generated. The current projection has 308 typed rows and one response across
 the unchanged two prompt groups/four occurrences. None is independent HITL,
 semantic gold, available enterprise logs or proven detection coverage.
 
+The reader display defaults to the one published prompt/response pair while
+**All prompts** retains all four occurrences. Tracking identifiers and detailed
+pairing context are collapsed; shared reading conventions are in Trust & method.
+Log Collection/Telemetry Scope tags open source-filtered evidence in Security
+telemetry, and Claims & evidence links back to explicitly supported objects.
+These are read-only projections over the unchanged corpus/ZIP, not new collection,
+operational detection or human-review outcomes.
+
 Implementation and public-data statements below were inspected against
 [`06f93a10f4481378c394785f4e2d239886a92c21`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/06f93a10f4481378c394785f4e2d239886a92c21),
 the merged #60 default-branch baseline. This documentation does not change those

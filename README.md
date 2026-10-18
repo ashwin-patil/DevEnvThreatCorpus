@@ -23,10 +23,14 @@ what remains uncertain, and what would a defender need to investigate?**
 > **Research preview** · Explore the workbench and its source-linked Pending draft.
 > Read [coverage and review limits](docs/nx-corpus.md) before interpreting the examples.
 
-Campaign cards put AI-role badges at top-right and propose enterprise telemetry
-collection families; Research library blogs show only their own supported tags.
-In **Prompt library**, Semgrep's refusal nests under its existing prompt occurrence,
-with source-reported log-review context, unknown model/role and exact receipts.
+Campaign cards put AI-role badges at top-right; **Log Collection/Telemetry Scope**
+tags open supporting claims in **Security telemetry**, rather than expanding
+evidence on each campaign/blog card. Research library blogs show only their own
+supported tags. Claims link back to explicitly supported research objects.
+**Prompt library** defaults to published prompt/response pairs; select **All
+prompts** for prompt-only occurrences. Semgrep's refusal has one concise log-review
+context summary; unknown model/role, pairing details and exact receipts remain
+under **Technical provenance**. Shared reading conventions live in **Trust & method**.
 No transcript is executed; scope tags do not promise available logs, and public
 display does not record HITL acceptance. [Review boundaries](docs/methodology.md#enterprise-telemetry-collection-scope)
 explain the terminology and remaining human decisions.

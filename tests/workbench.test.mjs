@@ -10,6 +10,7 @@ import {
   passageSegments, conflictPairs, recordContext, filterRecords, facetOptions, parseRoute, routeHash,
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
+  telemetryScopeEntries, researchRelationships,
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl, sourceCitation, claimCitation, reviewChip, reviewLegend } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
@@ -138,11 +139,17 @@ test('#89 AC-10 campaign left/right headers and six source-supported blog catego
   }
   const source = m.corpus.sources.find(s => s.publisher === 'Semgrep'), calls = [];
   const scoped = renderResearchLibrary(doc, m, [source], (...args) => calls.push(args));
-  const evidence = descendants(scoped).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Scope evidence'));
-  assert.ok(evidence.length);
-  for (const button of evidence) {
-    await button.trigger('click');
-    assert.equal(m.claims.get(calls.at(-1)[1]).sourceId, source.id);
+  const tags = descendants(scoped).filter(n => n.tagName === 'BUTTON' && n.className.includes('telemetry-scope-badge'));
+  assert.ok(tags.length);
+  assert.ok(!button(scoped, 'Scope evidence'));
+  assert.match(scoped.textContent, /Log Collection\/Telemetry Scope/);
+  for (const tag of tags) {
+    await tag.trigger('click');
+    assert.equal(calls.at(-1)[0], 'telemetry'); assert.equal(calls.at(-1)[2], source.id);
+    const detail = renderExploration(doc, m, 'telemetry', {}, () => {}, calls.at(-1)[1], undefined, source.id);
+    const claims = descendants(detail).filter(n => n.className === 'claim-card');
+    assert.ok(claims.length);
+    for (const claim of claims) assert.ok(claim.textContent.includes('Semgrep'));
   }
   const scopes = facetOptions(m, ['telemetryScopes']).telemetryScopes;
   assert.equal(scopes.length, 6); assert.ok(scopes.includes('AI agent observability'));
@@ -171,6 +178,129 @@ test('#89 AC-10 alias blogs deduplicate categories across cases while preserving
   assert.doesNotMatch(descendants(render()).find(n => n.className === 'card-badges').textContent, /Victim-side/);
 });
 
+test('#89 AC-12/13 scope projections and the bidirectional index retain source-local support without changing the corpus', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), index = researchRelationships(m);
+  const scopes = telemetryScopeEntries(m);
+  assert.equal(scopes.length, 6);
+  assert.equal(scopes.flatMap(s => s.scopeRecords).length, 63);
+  for (const scope of scopes) {
+    const object = index.byKey.get(`telemetryScopes:${scope.id}`);
+    assert.deepEqual(object.claimIds, scope.claimIds);
+    for (const member of scope.scopeRecords) assert.equal(index.byKey.get(`telemetryScopes:${member.id}`), object);
+    for (const id of object.claimIds) {
+      assert.ok(index.byClaim.get(id).includes(object));
+      assert.equal(m.claims.get(id).caseId, scope.caseId);
+      assert.ok(scope.sourceIds.includes(m.claims.get(id).sourceId));
+    }
+  }
+  const paired = m.annotations.find(a => a.responses?.length), prompt = index.byKey.get(`annotations:${paired.id}`);
+  for (const id of paired.responses[0].claimIds) assert.ok(index.byClaim.get(id).includes(prompt));
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-13 related research rejects invalid support and proximity and refreshes late annotations and exclusions', () => {
+  const m = createModel(structuredClone(researchFixture)), claim = m.corpus.claims[0], behavior = m.corpus.behaviors[0];
+  const annotation = { id: 'synthetic-related', type: 'data-sources', value: 'Synthetic collection',
+    caseId: claim.caseId, sourceId: claim.sourceId, sourceRevisionId: claim.sourceRevisionId, claimIds: [claim.id, 'missing-claim'] };
+  m.annotations = [annotation];
+  let index = researchRelationships(m);
+  assert.deepEqual(index.byKey.get(`annotations:${annotation.id}`).claimIds, [claim.id]);
+  const node = m.corpus.paths[0].nodes.find(n => n.behaviorIds.includes(behavior.id) && n.claimIds.includes(claim.id));
+  assert.ok(node);
+  assert.ok(index.byClaim.get(claim.id).some(o => o.type === 'behaviors' && o.id === behavior.id));
+  annotation.sourceRevisionId = 'wrong-revision';
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0);
+  annotation.sourceRevisionId = claim.sourceRevisionId; annotation.sourceId = 'synthetic-source-b';
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0);
+  annotation.sourceId = claim.sourceId; annotation.caseId = 'synthetic-case-b';
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0);
+  annotation.caseId = claim.caseId; annotation.claimIds = [];
+  annotation.value = claim.description;
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0, 'wording is not support');
+  annotation.claimIds.push(claim.id);
+  assert.ok(researchRelationships(m).byClaim.get(claim.id).some(o => o.id === annotation.id));
+  const category = { ...m.corpus.categorizations[0], id: 'synthetic-scope-index', caseId: claim.caseId,
+    dimension: 'telemetry_scope', value: 'Endpoint telemetry', sourceIds: [claim.sourceId], supportingClaimIds: [claim.id], disposition: 'Pending' };
+  m.corpus.categorizations.push(category);
+  assert.ok(researchRelationships(m).byClaim.get(claim.id).some(o => o.type === 'telemetryScopes'));
+  category.disposition = 'Excluded';
+  assert.ok(!researchRelationships(m).byClaim.get(claim.id).some(o => o.id === category.id));
+  category.disposition = 'Pending'; category.sourceIds = ['synthetic-source-b'];
+  assert.ok(!researchRelationships(m).byClaim.get(claim.id).some(o => o.id === category.id), 'category support must match its source');
+});
+
+test('#89 AC-12/13 campaign scope to claims to source-filtered scope survives route reload without exposing tracking IDs', async () => {
+  const corpus = structuredClone(researchFixture), claim = corpus.claims[0], category = {
+    ...structuredClone(corpus.categorizations[0]), id: 'synthetic-click-scope', caseId: claim.caseId,
+    dimension: 'telemetry_scope', value: 'Endpoint telemetry', sourceIds: [claim.sourceId], supportingClaimIds: [claim.id], disposition: 'Pending',
+  };
+  corpus.categorizations.push(category);
+  const { content, win } = await mounted(corpus, '#cases');
+  assert.ok(!button(content, 'Scope evidence'));
+  await button(content, 'Endpoint telemetry').trigger('click');
+  assert.equal(parseRoute(win.location.hash).view, 'telemetry');
+  const scope = descendants(content).find(n => n.className?.includes('telemetry-scope-detail'));
+  assert.ok(scope); assert.match(scope.textContent, /Claims & evidence · 1/);
+  assert.doesNotMatch(visibleText(scope), /synthetic-click-scope/);
+  await button(scope, claim.description).trigger('click');
+  assert.equal(parseRoute(win.location.hash).view, 'claims');
+  await button(content, 'Log scope: Endpoint telemetry').trigger('click');
+  assert.deepEqual(parseRoute(win.location.hash), { view: 'telemetry', id: category.id, revisionId: claim.sourceId });
+  const reloaded = await mounted(corpus, win.location.hash);
+  assert.match(reloaded.content.textContent, /Claims & evidence · 1/);
+  assert.ok(!reloaded.content.textContent.includes('Unknown target'));
+  assert.doesNotMatch(visibleText(renderCase(new FakeDocument(), createModel(corpus), corpus.cases[0], () => {})), /Campaign identifier|Revision:/);
+});
+
+test('#89 AC-13 direct source-artifact and nested detection targets resolve without unrelated cards or filter bypass', () => {
+  const m = createModel(structuredClone(researchFixture)), claim = m.corpus.claims[0];
+  m.annotations = ['data-sources', 'observed-behavior', 'ttp-references'].map((type, i) => ({
+    id: `synthetic-direct-${i}`, type, value: `Synthetic literal ${i}`, caseId: claim.caseId, sourceId: claim.sourceId,
+    sourceRevisionId: claim.sourceRevisionId, claimIds: [claim.id],
+  }));
+  for (const [i, view] of ['telemetry', 'behaviors', 'frameworks'].entries()) {
+    const root = renderExploration(new FakeDocument(), m, view, {}, () => {}, m.annotations[i].id);
+    assert.doesNotMatch(root.textContent, /Unknown target/);
+    assert.equal(descendants(root).filter(n => n.className === 'artifact-value').length, 1);
+    assert.ok(root.textContent.includes(m.annotations[i].value));
+    const outside = renderExploration(new FakeDocument(), m, view, { sources: ['synthetic-source-b'] }, () => {}, m.annotations[i].id);
+    assert.match(outside.textContent, /Unknown target/);
+  }
+  const detection = renderExploration(new FakeDocument(), m, 'telemetry', {}, () => {}, m.corpus.detections[0].id);
+  assert.match(detection.textContent, /Illustrative test correlation/);
+  assert.doesNotMatch(detection.textContent, /No records for this view|Unknown target/);
+  const foreign = m.corpus.claims.find(c => c.caseId !== claim.caseId);
+  m.corpus.governance.campaignExtraction = { runs: [{ caseId: claim.caseId, recordSupport:
+    ['telemetry', 'detections', 'otel'].map(type => ({ recordType: type, recordId: m.corpus[type][0].id, supportingClaimIds: [claim.id, foreign.id] })) }] };
+  const index = researchRelationships(m);
+  for (const type of ['telemetry', 'detections', 'otel']) {
+    const object = index.byKey.get(`${type}:${m.corpus[type][0].id}`);
+    assert.deepEqual(object.claimIds, [claim.id]);
+    assert.ok(index.byClaim.get(claim.id).includes(object));
+    const view = type === 'otel' ? 'otel' : 'telemetry';
+    const root = renderExploration(new FakeDocument(), m, view, {}, () => {}, object.targetId);
+    assert.ok(root.textContent.includes(claim.description));
+    assert.ok(!root.textContent.includes(foreign.description));
+  }
+});
+
+test('#89 AC-11 withheld responses do not create complete exchanges and explicit targets preserve review state', () => {
+  const f = responseFixture(), m = createModel(f.corpus);
+  m.annotations = [structuredClone(f.annotation)];
+  m.annotations[0].responses[0].text = null;
+  m.annotations[0].itemReview = { state: 'Excluded', contentOrigin: 'Manual', labelAuthorship: 'Human', editor: null };
+  const root = renderExploration(new FakeDocument(), m, 'prompts', {}, () => {});
+  assert.equal(descendants(root).filter(n => n.className === 'artifact-value').length, 0);
+  assert.match(root.textContent, /No published prompt\/response pairs/);
+  const entry = aiLibrary(m, 'prompts')[0];
+  const direct = renderExploration(new FakeDocument(), m, 'prompts', {}, () => {}, entry.id);
+  assert.equal(descendants(direct).find(n => n.className === 'artifact-value').textContent, f.annotation.value);
+  assert.match(visibleText(direct), /Review: Excluded/);
+  assert.match(direct.textContent, /Response text withheld/);
+  assert.equal(m.annotations[0].responses[0].text, null);
+});
+
 test('#89 AC-08 one Semgrep response nests beneath its source occurrence without changing prompt groups or other outcomes', async () => {
   const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
   const m = publicDraftModel(document), calls = [];
@@ -179,7 +309,10 @@ test('#89 AC-08 one Semgrep response nests beneath its source occurrence without
   assert.equal(responses.length, 1); assert.match(responses[0].parentNode.textContent, /Semgrep/);
   assert.match(responses[0].textContent, /environment unspecified|without identifying/);
   assert.match(responses[0].textContent, /Claude \/ unknown \/ unspecified/);
-  assert.match(responses[0].textContent, /JSON-decoded/);
+  assert.match(responses[0].textContent, /Encoding: json-string/);
+  const summary = descendants(responses[0]).find(n => n.className === 'response-context');
+  assert.match(summary.textContent, /Claude · refusal.*Semgrep.*provenance is unspecified/);
+  assert.doesNotMatch(visibleText(responses[0]), /Pairing basis|Responder \/ model|Context basis|Raw response receipt/);
   const text = descendants(responses[0]).find(n => n.className?.includes('response-value'));
   assert.equal(text.textContent, document.prompts.find(p => p.responses)?.responses[0].text);
   const evidence = descendants(responses[0]).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Response/context evidence'));
@@ -188,7 +321,8 @@ test('#89 AC-08 one Semgrep response nests beneath its source occurrence without
   const step = document.prompts.find(p => p.id.includes('stepsecurity'));
   const filtered = renderExploration(new FakeDocument(), m, 'prompts', { sources: [step.sourceId] }, () => {});
   assert.equal(descendants(filtered).filter(n => n.className === 'prompt-response').length, 0);
-  assert.match(filtered.textContent, /neither refusal nor successful execution/);
+  assert.match(filtered.textContent, /Choose All prompts/);
+  assert.doesNotMatch(page.textContent, /No exact response attached|Display is JSON-decoded/);
   assert.equal(aiLibrary(m, 'prompts').length, 2);
 });
 
@@ -244,10 +378,10 @@ test('#89 AC-09 scope review has its own queue and controlled values without AI-
     id: 'synthetic-telemetry-scope', dimension: 'telemetry_scope', value: 'Endpoint telemetry' });
   const model = createModel(f.corpus);
   model.itemReview = f.snapshot();
-  const cards = renderCaseLibrary(new FakeDocument(), model, f.corpus.cases, () => {}, {}, (...args) => opened.push(args));
+  const category = f.corpus.categorizations.find(c => c.dimension === 'telemetry_scope');
+  const cards = renderExploration(new FakeDocument(), model, 'telemetry', {}, () => {}, category.id, undefined, '', (...args) => opened.push(args));
   await button(cards, 'Review telemetry scope').trigger('click');
   assert.deepEqual(opened[0], [f.corpus.cases[0].id, '', 'All', 'telemetry-scope']);
-  const category = f.corpus.categorizations.find(c => c.dimension === 'telemetry_scope');
   const view = reviewView(f, `categorizations:${category.id}`, () => {}, { category: 'telemetry-scope' });
   const select = descendants(descendants(view).find(n => n.tagName === 'LABEL' && n.textContent.startsWith('Telemetry scope'))).find(n => n.tagName === 'SELECT');
   assert.ok(select.children.some(n => n.textContent === 'Cloud control-plane audit'));
@@ -311,7 +445,7 @@ test('AI libraries retain exact prompt variants, scope, provenance, navigation a
   const calls = [], root = renderExploration(new FakeDocument(), m, 'prompts', {}, (...args) => calls.push(args), 'prompts-prompt-c');
   assert.doesNotMatch(root.textContent, /Unknown target/);
   assert.match(root.textContent, /Vendor example/);
-  assert.doesNotMatch(root.textContent, /artifactUsage:/);
+  assert.doesNotMatch(visibleText(root), /artifactUsage:/);
   assert.ok(descendants(root).some(n => n.getAttribute?.('aria-label') === 'Source artifact: Vendor example'));
   assert.match(root.textContent, /synthetic prompt 😀/);
   const sourceButton = descendants(root).find(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Source:'));
@@ -772,7 +906,10 @@ test('Issue #25 AC-01/04 comparison controls, reset, empty states, crosslinks an
   const { doc, app, content, requests } = await mounted(corpus, '#comparison');
   assert.match(content.textContent, /Observations within the collected dataset/);
   assert.match(doc.getElementById('result').textContent, /2 distinct cases · 2 distinct linked sources.*4 matching claims/);
-  assert.match(doc.getElementById('result').textContent, /Review coverage: 0\/4.*not current eligibility.*Active filters: none.*SHA-256 [a-f0-9]{64}/);
+  assert.match(doc.getElementById('result').textContent, /Review coverage: 0\/4.*not current eligibility.*Active filters: none/);
+  assert.doesNotMatch(doc.getElementById('result').textContent, /SHA-256/);
+  assert.match(content.textContent, /Loaded JSON SHA-256: [a-f0-9]{64}/);
+  assert.doesNotMatch(visibleText(content), /Loaded JSON SHA-256/);
   const facets = doc.getElementById('facets');
   const ai = facets.children.find(n => n.firstChild.textContent.startsWith('AI involvement'));
   const checkboxes = descendants(ai).filter(n => n.tagName === 'INPUT');
@@ -985,6 +1122,11 @@ test('Issue #51 follow-up public prompt library renders exact variants with sour
   assert.equal(entries.length, 2);
   assert.equal(entries.flatMap(entry => entry.annotations).length, 4);
   const page = renderExploration(new FakeDocument(), publicModel, 'prompts', {}, (...args) => calls.push(args));
+  const mode = descendants(page).find(n => n.tagName === 'SELECT' && n.getAttribute('aria-label') === 'Prompt view');
+  assert.equal(mode.value, 'paired');
+  assert.equal(descendants(page).filter(node => node.className === 'artifact-value').length, 1);
+  assert.equal(descendants(page).filter(node => node.className?.includes('response-value')).length, 1);
+  mode.value = 'all'; await mode.trigger('change');
   assert.match(page.textContent, /Exact vendor-reported prompts for research/);
   assert.match(page.textContent, /No prompt is executed/);
   assert.doesNotMatch(page.textContent, /Source-reported prompt activity|Full prompt text remains withheld|Inspect cited claim/);
@@ -1003,10 +1145,12 @@ test('Issue #51 follow-up public prompt library renders exact variants with sour
   await sourceButtons[0].trigger('click');
   assert.deepEqual(calls[0], ['sources', document.prompts[0].sourceId, document.prompts[0].sourceRevisionId]);
   const socket = renderExploration(new FakeDocument(), publicModel, 'prompts', { sources: [document.prompts[1].sourceId] }, () => {});
+  const socketMode = descendants(socket).find(n => n.tagName === 'SELECT' && n.getAttribute('aria-label') === 'Prompt view');
+  socketMode.value = 'all'; await socketMode.trigger('change');
   assert.equal(descendants(socket).filter(node => node.className === 'artifact-value').length, 2);
   const wizId = document.sourceCoverage.find(source => source.url.includes('wiz.io')).sourceId;
   const wiz = renderExploration(new FakeDocument(), publicModel, 'prompts', { sources: [wizId] }, () => {});
-  assert.match(wiz.textContent, /No grounded entries/);
+  assert.match(wiz.textContent, /No published prompt\/response pairs/);
   assert.equal(descendants(wiz).filter(node => node.className === 'artifact-value').length, 0);
   assert.equal(digest(document), before);
 });
@@ -1047,7 +1191,7 @@ test('Issue #51 public prompt projection rejects missing support, invalid locato
     locator: { start: 4163, end: 4163 + '<script>synthetic artifact</script> \n'.length } }];
   synthetic.coverage.promptArtifacts.prompts = structuredClone(synthetic.prompts);
   synthetic.coverage.promptArtifactDigest = digest(synthetic.coverage.promptArtifacts);
-  const page = renderExploration(new FakeDocument(), publicDraftModel(synthetic), 'prompts', {}, () => {});
+  const page = renderExploration(new FakeDocument(), publicDraftModel(synthetic), 'prompts', {}, () => {}, `prompts-${synthetic.prompts[0].id}`);
   assert.equal(descendants(page).find(node => node.className === 'artifact-value').textContent, synthetic.prompts[0].literal);
   assert.equal(descendants(page).filter(node => node.tagName === 'SCRIPT').length, 0);
 });
@@ -1338,6 +1482,10 @@ class FakeDocument {
   getElementById(id) { return this.nodes.get(id); }
 }
 function descendants(node) { return [node, ...node.children.flatMap(descendants)]; }
+function visibleText(node) {
+  if (node.tagName === 'DETAILS' && !node.open) return node.children.find(c => c.tagName === 'SUMMARY')?.textContent ?? '';
+  return node.children.length ? node.children.map(visibleText).join('') : node.textContent;
+}
 function button(node, label) { return descendants(node).find(n => n.tagName === 'BUTTON' && n.textContent.includes(label)); }
 function fakeWindow(hash = '') {
   const win = { location: { hash }, listeners: {}, addEventListener(name, fn) { this.listeners[name] = fn; } };
@@ -1959,7 +2107,7 @@ test('crosslink resets hiding filters, exposes exact target and moves keyboard f
   app.navigate('claims', 'synthetic-claim-b');
   assert.equal(doc.getElementById('search').value, '');
   assert.equal(win.location.hash, '#claims/synthetic-claim-b/');
-  assert.match(doc.getElementById('status').textContent, /reset search \/ facets/);
+  assert.doesNotMatch(doc.getElementById('status').textContent, /Navigation revealed|reset search \/ facets/);
   assert.match(content.textContent, /A second synthetic source denies/);
   assert.equal(content.focused, true);
 });

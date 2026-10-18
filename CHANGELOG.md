@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-18 - Compact research display and bidirectional evidence navigation (#89)
+
+- Default the prompt library to complete published exchanges, with an explicit
+  All prompts view and direct access to prompt-only variants. Remove missing-response
+  filler; consolidate response attribution and uncertainty into one summary.
+  Retain raw receipts, model/role unknowns and tracking IDs in collapsed provenance,
+  and centralize encoding/interpretation conventions in Trust & method.
+- Replace exhaustive campaign/blog scope evidence with Log Collection/Telemetry
+  Scope tags and compact citation counts. Tags open source-filtered family details
+  and their existing review queue in Security telemetry; no operational events,
+  detection rules or OTLP artifacts are generated.
+- Derive one bidirectional relationship index from explicit support for claims,
+  behaviors, paths, scope/category proposals, mappings and source artifacts.
+  Preserve source/case/revision boundaries, direct targets and existing graph-return
+  context. Public corpus rows, exact prompt/response artifacts and ZIP are unchanged;
+  these navigation changes do not accept research or establish semantic gold.
+
 ## 2026-10-18 - Source-local prompt responses and enterprise telemetry scope (#89)
 
 - Attach the user-supplied Semgrep refusal to its existing exact prompt occurrence,

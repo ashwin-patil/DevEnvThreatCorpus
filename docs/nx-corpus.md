@@ -61,6 +61,16 @@ Other sources have no attached literal response. In particular, Wiz's aggregate
 success/guardrail report remains source-local; this one refusal does not imply
 universal failure. Missing responses imply neither refusal nor compliance.
 
+The reader's default Prompt library shows the Semgrep exchange, with one
+source/environment summary. **All prompts** reveals all four occurrences; direct
+prompt links also reveal prompt-only variants. No entries are deleted or accepted.
+Encoding, unknown model/role, exact receipts and pairing/context details remain
+in Technical provenance; shared interpretation notes live in Trust & method.
+Campaign/blog Log Collection/Telemetry Scope tags open their supporting evidence
+in Security telemetry, with reverse links from claims to explicitly supported
+research objects. This display/navigation pass leaves all 308 rows and the
+public JSON/ZIP artifacts unchanged.
+
 Public JSON and the existing six-member ZIP's `manifest.json` coverage carry
 identical prompt artifacts and a separate `promptArtifactDigest`; the typed-row
 snapshot digest remains a digest of typed rows only. Public receipts cannot

@@ -33,6 +33,12 @@ logic. A family badge means only that a source-linked behavior suggests examinin
 that collection surface. Operational availability and effectiveness require later
 scoped work and executed evidence.
 
+Campaign/blog cards present **Log Collection/Telemetry Scope** tags with compact
+claim/article counts. A tag opens its family in Security telemetry, retaining the
+blog's source/alias context where applicable. The dedicated view exposes the
+supporting claims, receipts and private review entrypoint; it does not materialize
+new event or detection records.
+
 ## Prompt responses and observation provenance
 
 An optional response is metadata on its exact prompt occurrence, not a separate
@@ -51,6 +57,26 @@ model/role explicit, and distinguish a local refusal from aggregate source-repor
 success elsewhere. Missing responses are not an outcome. Guide v4 binds these
 decisions to each prompt/response/support revision; independent human semantic,
 rights/privacy and documentation review remain required.
+
+The reader-facing Prompt library defaults to occurrences with a nonblank prompt
+and published response text. **All prompts** restores prompt-only research; direct
+links reveal their target even when it has no response. Exact variants and all
+source occurrences remain in the corpus, evidence panel, exports and review queues.
+Each exchange uses a concise source/environment summary, with full context,
+pairing basis, unknown model/role and raw receipts in collapsed provenance.
+The app's Trust & method centralizes JSON-decoding and missing-response conventions.
+
+## Bidirectional research navigation
+
+A read-only relationship index projects explicit support into object-to-claim and
+claim-to-object links. It includes direct behavior/occurrence/run support,
+path-node behavior references, paths, categories, timelines, mappings, proposal
+records with explicit claim support, annotations and nested response claims.
+Existing claim IDs, case membership, source membership and annotation revisions
+bound the links; similar wording or a shared article does not create a relationship.
+Review projections and late-loaded annotations are read afresh rather than cached
+by model identity. A related-object link is navigation, not proof of execution,
+attribution, available logs, detection effectiveness or acceptance.
 
 ## High-level campaign categories
 

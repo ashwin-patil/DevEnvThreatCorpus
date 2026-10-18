@@ -1,6 +1,7 @@
 export const VIEWS = { cases: 'Case library', sources: 'Research library', review: 'Review', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
 import { publisherDisplay } from './research-inventory.mjs';
-import { campaignCategories } from './campaign-categories.mjs';
+import { campaignCategories, telemetryCategoryGroups } from './campaign-categories.mjs';
+import { aiLibrary } from './ai-library.mjs';
 export const FACETS = ['cases', 'sources', 'publishers', 'campaignCategories', 'telemetryScopes', 'tags', 'disposition'];
 export const COMPARISON_DIMENSIONS = {
   trust_surface: 'Trust surface', ai_involvement: 'AI involvement', execution_location: 'Execution location',
@@ -70,6 +71,86 @@ export function claimTarget(model, claimId) {
   const claim = model.claims.get(claimId);
   if (!claim) return null;
   return { view: 'claims', id: claim.id, sourceId: claim.sourceId, revisionId: claim.sourceRevisionId };
+}
+
+function extractionSupport(model, type, id) {
+  return (model.corpus.governance?.campaignExtraction?.runs ?? []).flatMap(run =>
+    (run.recordSupport ?? []).filter(s => s.recordType === type && s.recordId === id)
+      .flatMap(s => (s.supportingClaimIds ?? []).filter(claimId => model.claims.get(claimId)?.caseId === run.caseId)));
+}
+
+export function behaviorSupport(model, behavior) {
+  return [...new Set([...(behavior.claimIds ?? []),
+    ...(behavior.occurrences ?? []).flatMap(o => (o.claimIds ?? []).filter(id =>
+      !o.caseId || model.claims.get(id)?.caseId === o.caseId)),
+    ...extractionSupport(model, 'behaviors', behavior.id),
+    ...(model.corpus.paths ?? []).flatMap(path => path.nodes.filter(node => node.behaviorIds.includes(behavior.id))
+      .flatMap(node => node.claimIds.filter(id => model.claims.get(id)?.caseId === path.caseId))),
+  ])].filter(id => !behavior.caseId || model.claims.get(id)?.caseId === behavior.caseId);
+}
+
+export function telemetryScopeEntries(model, caseIds = new Set(model.cases.keys()), sourceIds) {
+  return [...caseIds].flatMap(caseId => telemetryCategoryGroups(model.corpus, caseId, sourceIds).map(group => ({
+    id: group.records[0].id, name: group.value, dimension: 'telemetry_scope', caseId,
+    description: group.description, disposition: group.state, scopeRecords: group.records,
+    claimIds: [...new Set(group.records.flatMap(record => record.supportingClaimIds.filter(id => {
+      const claim = model.claims.get(id);
+      return claim?.caseId === caseId && record.sourceIds.includes(claim.sourceId);
+    })))],
+    sourceIds: [...new Set(group.records.flatMap(record => record.sourceIds))],
+  })));
+}
+
+// Bidirectional navigation uses explicit support only, never shared wording or article proximity.
+export function researchRelationships(model) {
+  const objects = [], byClaim = new Map(), byKey = new Map();
+  function add(type, record, view, label, ids, targetId = record.id, caseId = record.caseId, sourceIds, revisionId) {
+    sourceIds ??= record.sourceIds ?? (record.sourceId ? [record.sourceId] : undefined);
+    revisionId ??= record.sourceRevisionId;
+    const claimIds = [...new Set(ids ?? [])].filter(id => {
+      const claim = model.claims.get(id);
+      return claim && model.cases.has(claim.caseId) && model.sources.has(claim.sourceId)
+        && (!caseId || claim.caseId === caseId) && (!revisionId || claim.sourceRevisionId === revisionId)
+        && (!sourceIds || sourceIds.includes(claim.sourceId));
+    });
+    const object = { key: `${type}:${record.id}`, type, id: record.id, record, view, label,
+      targetId, claimIds, caseIds: [...new Set(claimIds.map(id => model.claims.get(id).caseId))] };
+    objects.push(object); byKey.set(object.key, object);
+    for (const id of claimIds) {
+      if (!byClaim.has(id)) byClaim.set(id, []);
+      byClaim.get(id).push(object);
+    }
+  }
+  for (const record of model.corpus.behaviors ?? []) add('behaviors', record, 'behaviors', record.name, behaviorSupport(model, record));
+  for (const record of model.corpus.paths ?? []) add('paths', record, 'paths', record.name ?? 'Attack path',
+    [...record.nodes.flatMap(n => n.claimIds), ...record.edges.flatMap(e => e.claimIds), ...extractionSupport(model, 'paths', record.id)]);
+  for (const record of telemetryScopeEntries(model)) {
+    add('telemetryScopes', record, 'telemetry', record.name, record.claimIds);
+    for (const member of record.scopeRecords) byKey.set(`telemetryScopes:${member.id}`, byKey.get(`telemetryScopes:${record.id}`));
+  }
+  for (const record of model.corpus.categorizations.filter(c => c.dimension !== 'telemetry_scope')) {
+    add('categorizations', record, 'cases', record.value ?? 'Category', record.supportingClaimIds, record.caseId, record.caseId, record.sourceIds);
+  }
+  for (const record of model.corpus.timelines) add('timelines', record, 'cases', record.label ?? record.event ?? 'Timeline observation',
+    record.claimIds ?? record.supportingClaimIds, record.caseId);
+  for (const [type, view, fallback] of [['telemetry', 'telemetry', 'Telemetry proposal'], ['detections', 'telemetry', 'Detection hypothesis'],
+    ['otel', 'otel', 'Instrumentation proposal'], ['mappings', 'frameworks', 'Framework mapping']]) {
+    for (const record of model.corpus[type] ?? []) {
+      add(type, record, view, record.name ?? record.eventType ?? record.action ?? (type === 'mappings' ? record.techniqueId : fallback),
+        [...(record.claimIds ?? record.supportingClaimIds ?? []), ...extractionSupport(model, type, record.id)],
+        type === 'mappings' ? record.techniqueId : record.id);
+    }
+  }
+  for (const view of ['tools', 'prompts']) for (const group of aiLibrary(model, view)) {
+    for (const annotation of group.annotations) add('annotations', annotation, view, group.name,
+      [...(annotation.claimIds ?? []), ...(annotation.responses ?? []).flatMap(r => r.claimIds)], group.id, annotation.caseId, [annotation.sourceId], annotation.sourceRevisionId);
+  }
+  for (const annotation of model.annotations ?? []) {
+    if (annotation.type === 'commands-ai-artifacts' && ['ide-cli', 'prompt-instruction'].includes(annotation.context?.artifactKind)) continue;
+    const view = { 'observed-behavior': 'behaviors', 'data-sources': 'telemetry', 'detection-references': 'telemetry', 'ttp-references': 'frameworks' }[annotation.type];
+    if (view) add('annotations', annotation, view, annotation.normalizedValue ?? annotation.value, annotation.claimIds, annotation.id, annotation.caseId, [annotation.sourceId], annotation.sourceRevisionId);
+  }
+  return { objects, byClaim, byKey };
 }
 
 export function passageSegments(text, passages) {
