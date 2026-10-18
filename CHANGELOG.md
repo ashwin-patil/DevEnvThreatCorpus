@@ -21,6 +21,9 @@
   operator/evaluation guidance. No live model invocation, real-campaign
   regeneration, independent semantic evaluation or production adoption was
   performed by this implementation; these remain separate human/operator gates.
+- Initialize the staged DOM regression after its fake-document fixtures so it
+  also runs correctly in isolation with `--test-name-pattern`, not only after
+  unrelated asynchronous tests in the full suite.
 
 ## 2026-10-16 — Context-aware campaign extraction integration (#84)
 
