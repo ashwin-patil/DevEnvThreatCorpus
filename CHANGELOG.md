@@ -1,14 +1,21 @@
 # Changelog
 
-## 2026-10-18 - Nx source-expansion and human-gated gold plan (#89)
+## 2026-10-18 - Publisher-grounded Pending Nx source expansion (#89)
 
-- Add a source-attributed, unreviewed extraction preview for Semgrep,
-  StepSecurity and Panther, distinguishing prompt filename targets, credential
-  roles including `GITHUB_TOKEN`, conditional harvesting and attempted shutdown.
-- Link bounded source-expansion, independent HITL/gold-qualification and
-  detection/data-source/OTLP/inert-replay design tasks. Preserve publisher-local
-  evidence, same-revision comparison gates and separate new-source evaluation.
-  No corpus, review decision, public Pending snapshot or runtime behavior changes.
+- Expand the actual public Pending Nx dataset with separate Semgrep and Panther
+  articles and precise StepSecurity extraction, including targeted filenames,
+  credential roles, attempted shutdown conditions and source-specific differences.
+  Add 59 Pending claims (97 total), retain 14 behavior definitions with distinct
+  source support, and add Semgrep's occurrence of the existing exact prompt.
+  Parse all six successful report URLs; matching normalized hashes preserve the
+  four historical report revisions, original claims, paths and mappings.
+- Recognize Semgrep and Panther publisher labels without merging their sources.
+  Keep shared behavior definitions with source-local claim occurrences, align
+  the public JSON and typed ZIP, and add baseline/linkage/privacy/export tests.
+- Replace the earlier checked-in planning document with execution in the same PR.
+  Full article bodies and supporting quotations remain withheld; new research
+  stays Pending. Complete parsing does not establish exhaustive extraction,
+  completed HITL, gold, detection effectiveness or OTLP/replay implementation.
 
 ## 2026-10-17 - Optional public-research model adapter (#83)
 

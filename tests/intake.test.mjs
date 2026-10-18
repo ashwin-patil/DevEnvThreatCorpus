@@ -28,6 +28,22 @@ test('publisher normalization recognizes Nx without changing reported page publi
   assert.equal(article.metadata.publisher, 'Nx');
   assert.equal(article.metadata.pagePublisher, 'Nx Blog');
 });
+test('Issue #89 publisher labels distinguish Semgrep and Panther without merging their articles', () => {
+  const sources = [
+    { id: 'semgrep-article', canonicalUrl: 'https://semgrep.dev/blog/synthetic-nx', publisher: null, revisionIds: ['semgrep-revision'] },
+    { id: 'panther-article', canonicalUrl: 'https://panther.com/blog/synthetic-nx', publisher: null, revisionIds: ['panther-revision'] },
+    { id: 'stepsecurity-article', canonicalUrl: 'https://www.stepsecurity.io/blog/synthetic-nx', publisher: null, revisionIds: ['stepsecurity-revision'] },
+  ];
+  const before = digest(sources), groups = sourceInventory(sources);
+  assert.equal(groups.length, 3);
+  assert.deepEqual(groups.map(group => group.publisher.name), ['Semgrep', 'Panther', 'StepSecurity']);
+  for (const [host, expected] of [['semgrep.dev', 'Semgrep'], ['panther.com', 'Panther']]) {
+    const article = parseArticle('<article><h1>Synthetic report</h1><p>Benign text.</p></article>', `https://${host}/blog/synthetic`);
+    assert.equal(article.metadata.publisher, expected);
+    assert.notEqual(publisherDisplay({ originalUrl: `https://${host}.evil.invalid/blog/synthetic` }).name, expected);
+  }
+  assert.equal(digest(sources), before);
+});
 test('publisher metadata and migrated domains normalize Zscaler without relabeling legacy Red Canary pages', () => {
   for (const [host, reported, expected] of [
     ['redcanary.com', 'Zscaler Blog', 'Zscaler'],

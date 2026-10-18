@@ -155,7 +155,7 @@ or exposing the unreviewed summary; context rows have `contextOnly: true` and no
 acceptance. Generated profile schema covers accepted optional/nested units.
 they are projections, not importable private audit backups. Existing draft and
 private campaign/talk exports keep their explicit private-draft semantics.
-No button publishes; the bundled Nx/s1ngularity preview snapshot is unchanged.
+No button publishes or mutates the bundled Nx/s1ngularity preview snapshot.
 Independent human semantic, UX/accessibility and documentation review is still
 required before merge; this feature does not establish campaign acceptance.
 
@@ -167,9 +167,14 @@ independently validated incident corpus. Implemented validation, review and expo
 mechanisms do not establish research truth or evaluated extraction quality.
 
 The bundled **Nx / s1ngularity public Pending draft** is an inspectable example,
-not a reviewed release or semantic gold. It contains 38 claims, 14 behaviors,
-three representative phase paths and two Proposed mappings from four retained
-reports. Full articles, other quotations and private run bundles are withheld;
+not a reviewed release or semantic gold. Its original baseline contained 38 claims,
+14 behaviors, three representative phase paths and two Proposed mappings.
+The expanded preview adds source-local Pending extraction from Semgrep
+and Panther plus precise StepSecurity targets and conditions, across six parsed
+reports. Publisher article cards stay separate within one Nx campaign. The
+current extraction totals 97 Pending claims; complete parsing does not establish
+exhaustive semantic extraction or completed HITL. Full articles,
+other quotations and private run bundles are withheld;
 the published prompt literals are source-attributed, untrusted research artifacts.
 See [coverage, omissions and review limits](docs/nx-corpus.md) and its
 [typed draft export](docs/data/nx-draft.zip).

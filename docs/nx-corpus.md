@@ -1,9 +1,63 @@
 # Nx / s1ngularity public Pending draft
 
-The [source-expansion and gold plan](case-studies/nx-gold-plan.md) previews
-Semgrep, StepSecurity and Panther evidence with linked execution tasks. It is
-unreviewed planning, not a refreshed extraction, completed HITL or gold release.
-The bundled snapshot and its counts below are unchanged.
+## Public source expansion - Issue #89
+
+The current bundled Pending data adds **Semgrep and Panther as separate publisher
+articles** within the existing Nx campaign, plus precise StepSecurity claims and
+source-local behavior support. StepSecurity keeps its existing article identity;
+similar TTPs do not merge publishers. The same PR now executes the expansion
+rather than checking in a planning document. HITL follows extraction; no record
+has acquired human acceptance or gold status.
+
+The expanded projection contains **97 Pending claims** (38 preserved plus 59
+new), **14 reused behavior definitions**, **3 unchanged path records** and
+**2 unchanged Proposed mappings**, across **241 typed export rows**. The new
+claims comprise 19 precise StepSecurity additions, 22 Semgrep claims and 18
+Panther claims. These are extraction counts, not independent confirmations or
+quality scores.
+
+On 2026-10-18 UTC, all six successful report URLs were fetched with robots checks
+and parsed using the existing `readable-html/5` / `unicode-lf-nfc/1` pipeline.
+The full normalized texts for Nx, StepSecurity, Wiz and Socket match their
+existing normalized hashes exactly. Their historical revisions, original claims,
+passage locators, paths and framework mappings are preserved. Dynamic raw HTML
+hashes differed and are recorded separately, not substituted into historical
+revisions. Semgrep redirects to its same-origin trailing-slash URL; Panther is
+separate, not a StepSecurity alias. The two historical failed URLs were not retried.
+
+| Additional publisher | Fully parsed normalized code points | Extraction boundary |
+|---|---:|---|
+| [Semgrep](https://semgrep.dev/blog/2025/security-alert-nx-compromised-to-steal-wallets-and-credentials/) | 11,892 | Source-local Pending claims, including scoped refusal evidence and defender guidance distinguished from malware targets |
+| [Panther](https://panther.com/blog/nx-threat-analysis) | 12,340 | Source-local Pending incident phases and attributed detection guidance, not validated detection effectiveness |
+
+New candidate quotations were exact-matched to the complete normalized article
+texts before public omission. The projection's `expansion` metadata records
+parsed versus total code points, retrieval times, hashes, reused revisions, new
+claim IDs and quote-hash grounding receipts. Repeated exact passages retain every
+matching source occurrence; no arbitrary duplicate location is selected.
+`coverage` reports actual record counts. Complete HTML parsing
+does not prove exhaustive semantic extraction, independent agreement, or success
+of any reported attack. Exact offsets are code points in the named revision,
+not offsets in a newer live page. Local quote matching does not establish truth.
+
+Review filename/path criteria separately from confirmed reads; distinguish the
+upstream workflow's `GITHUB_TOKEN`, the npm publishing token, GitHub CLI token
+output and broad victim environment capture. Shell startup mutation is distinct
+from shutdown execution. Preserve publisher-specific encoding statements, typos
+and refusals rather than silently resolving them or assuming universal success.
+Source-local claims and behavior occurrences supply evidence navigation without
+adding unsupported edges to the three existing path records.
+
+Public JSON and the typed ZIP contain the same expanded records. Full article
+bodies, general quotations, human attestations and private decisions remain
+withheld; existing published prompt literals remain inert research artifacts.
+The public preview is still **read-only**, not an importable retained-text private
+corpus or an authenticated HITL surface. Later human review needs the matching
+source text and existing protected review workflow; public display is not a
+recorded human decision. Independent semantic, rights/privacy, documentation,
+README relevance and UX/accessibility review remain outstanding.
+
+## Historical public snapshot and comparison tooling
 
 Issue #85 adds protected staged regeneration/comparison tooling, not a refreshed
 public dataset. No real Nx regeneration, independent semantic comparison or
@@ -13,13 +67,13 @@ generate into a separate candidate on the same retained revisions, and follow th
 before selecting a new private working baseline. That selection neither approves
 individual items nor authorizes replacing this bundled public Pending snapshot.
 
-This case was prepared from main `3456f2b0df700d0b173f3ac98c59bff198c0783a`.
-It contains 38 agent-extracted claims, 14 behavior definitions, 3 representative
+The original case was prepared from main `3456f2b0df700d0b173f3ac98c59bff198c0783a`.
+Before #89 it contained 38 agent-extracted claims, 14 behavior definitions, 3 representative
 paths (12 nodes and 7 relationships), and 2 Proposed framework mappings.
-No claim or optional record has independent human acceptance. The case remains
+No claim or optional record had independent human acceptance. The case remains
 Pending. This is a research draft, not a reviewed release or semantic gold.
 
-## Source coverage
+## Historical source coverage
 
 | Explicit URL | Collection and extraction |
 |---|---|
@@ -81,8 +135,8 @@ offsets, and adds bounded claim-linked AI tool labels and source coverage.
 It retains public revision hashes, citations, source-local descriptions and graph
 support references. It omits article bodies, human decisions, private campaign
 run envelopes, research logs and screenshots. A separate `prompts` display
-projection contains two published literal variants across three source occurrences:
-the wallet-inventory prompt reported by StepSecurity and Socket, and Socket's
+projection contains two published literal variants across four source occurrences:
+the wallet-inventory prompt reported by StepSecurity, Socket and Semgrep, and Socket's
 authorized-testing inventory variant. The shared variant appears once with both
 source citations. Wiz's retained article discusses AI tools and flags without
 quoting a complete prompt; it has no literal entry.
@@ -112,7 +166,7 @@ accessibility, UX, documentation and protected real-campaign review remain
 outstanding unless separately evidenced. Automated tests and an agent browser
 smoke check do not satisfy those human criteria.
 
-The matching native-POSIX verification copy passed `python3 scripts/verify.py`:
+Historical evidence only, before #89: the matching native-POSIX verification copy passed `python3 scripts/verify.py`:
 35 governance tests and 350 configured application executions, with no failures
 or skips. Node was 22.23.3, Python was 3.12.3 and the existing PyYAML 6.0.3 was
 loaded read-only; no dependency installation was required. A standard Draft

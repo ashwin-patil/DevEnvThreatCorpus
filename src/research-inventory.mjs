@@ -4,6 +4,7 @@ export const PUBLISHER_NAMES = Object.freeze({
   'redcanary.com': 'Red Canary', 'zscaler.com': 'Zscaler', 'pillar.security': 'Pillar Security',
   'unit42.paloaltonetworks.com': 'Unit 42', 'snyk.io': 'Snyk', 'wiz.io': 'Wiz',
   'microsoft.com': 'Microsoft', 'github.blog': 'GitHub',
+  'semgrep.dev': 'Semgrep', 'panther.com': 'Panther',
   'attack.mitre.org': 'MITRE ATT&CK', 'atlas.mitre.org': 'MITRE ATLAS',
 });
 const articleAlias = 'https://redcanary.com/blog/threat-detection/ai-cli-tools/';

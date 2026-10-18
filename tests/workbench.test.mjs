@@ -776,7 +776,12 @@ test('Issue #51 follow-up campaign cards keep claim details in the workspace and
     .some(claim => cases.textContent.includes(claim.description)));
   assert.doesNotMatch(cases.textContent, /published research/);
   const library = renderResearchLibrary(new FakeDocument(), publicModel, publicModel.corpus.sources, () => {});
-  assert.equal(descendants(library).filter(node => node.className?.includes('blog-card')).length, 4);
+  const articleCards = descendants(library).filter(node => node.className?.includes('blog-card'));
+  assert.equal(articleCards.length, 6);
+  for (const publisher of ['StepSecurity', 'Semgrep', 'Panther']) {
+    assert.equal(articleCards.filter(card => descendants(card)
+      .some(node => node.className === 'publisher-badge' && node.textContent === publisher)).length, 1);
+  }
   assert.doesNotMatch(library.textContent, /MITRE ATT&CK|MITRE ATLAS/);
   assert.equal(descendants(library).filter(node => node.tagName === 'A').length, 0);
 });
@@ -786,7 +791,7 @@ test('Issue #51 follow-up public prompt library renders exact variants with sour
   const before = digest(document), publicModel = publicDraftModel(document), calls = [];
   const entries = aiLibrary(publicModel, 'prompts');
   assert.equal(entries.length, 2);
-  assert.equal(entries.flatMap(entry => entry.annotations).length, 3);
+  assert.equal(entries.flatMap(entry => entry.annotations).length, 4);
   const page = renderExploration(new FakeDocument(), publicModel, 'prompts', {}, (...args) => calls.push(args));
   assert.match(page.textContent, /Exact vendor-reported prompts for research/);
   assert.match(page.textContent, /No prompt is executed/);
@@ -802,7 +807,7 @@ test('Issue #51 follow-up public prompt library renders exact variants with sour
     assert.equal([...annotation.value].length, prompt.locator.end - prompt.locator.start);
   }
   const sourceButtons = descendants(page).filter(node => node.tagName === 'BUTTON' && node.textContent.startsWith('Source:'));
-  assert.equal(sourceButtons.length, 3);
+  assert.equal(sourceButtons.length, 4);
   await sourceButtons[0].trigger('click');
   assert.deepEqual(calls[0], ['sources', document.prompts[0].sourceId, document.prompts[0].sourceRevisionId]);
   const socket = renderExploration(new FakeDocument(), publicModel, 'prompts', { sources: [document.prompts[1].sourceId] }, () => {});
