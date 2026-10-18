@@ -1,5 +1,5 @@
 export const VIEWS = { cases: 'Case library', sources: 'Research library', review: 'Review', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
-import { publisherDisplay } from './research-inventory.mjs';
+import { publisherDisplay, sourceInventory } from './research-inventory.mjs';
 import { campaignCategories, telemetryCategoryGroups } from './campaign-categories.mjs';
 import { aiLibrary } from './ai-library.mjs';
 export const FACETS = ['cases', 'sources', 'publishers', 'campaignCategories', 'telemetryScopes', 'tags', 'disposition'];
@@ -151,6 +151,33 @@ export function researchRelationships(model) {
     if (view) add('annotations', annotation, view, annotation.normalizedValue ?? annotation.value, annotation.claimIds, annotation.id, annotation.caseId, [annotation.sourceId], annotation.sourceRevisionId);
   }
   return { objects, byClaim, byKey };
+}
+
+export const CAMPAIGN_SECTIONS = ['research', 'attack-paths', 'behaviors', 'ai-artifacts', 'telemetry', 'review'];
+
+export function campaignMetrics(model, caseId, index = researchRelationships(model)) {
+  const cases = new Set([caseId]), tools = aiLibrary(model, 'tools', cases), prompts = aiLibrary(model, 'prompts', cases);
+  const occurrences = prompts.flatMap(p => p.annotations), paths = (model.corpus.paths ?? []).filter(p => p.caseId === caseId);
+  return {
+    researchArticles: sourceInventory(caseSourceIds(model, caseId).map(id => model.sources.get(id)).filter(Boolean)).length,
+    aiTools: tools.length,
+    targetedAiTools: tools.filter(t => t.annotations.some(a => ['targeted', 'attempted-abuse', 'reported-abuse'].includes(a.context?.artifactUsage))).length,
+    promptVariants: prompts.length, promptOccurrences: occurrences.length,
+    promptResponses: occurrences.reduce((n, a) => n + (a.responses?.length ?? 0), 0),
+    behaviors: index.objects.filter(o => o.type === 'behaviors' && o.caseIds.includes(caseId)).length,
+    campaignGraphs: Number(paths.length > 0), phasePaths: paths.length,
+  };
+}
+
+export function researchPresentation(model) {
+  const index = researchRelationships(model);
+  return {
+    schemaVersion: 'public-research-view/1',
+    defaults: { promptView: 'paired', campaignSections: [...CAMPAIGN_SECTIONS] },
+    campaigns: model.corpus.cases.map(c => ({ caseId: c.id, counts: campaignMetrics(model, c.id, index) })),
+    relationships: index.objects.map(({ key, type, id, view, label, targetId, claimIds, caseIds }) =>
+      ({ key, type, id, view, label, targetId, claimIds, caseIds })),
+  };
 }
 
 export function passageSegments(text, passages) {

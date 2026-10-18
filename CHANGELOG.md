@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-18 - Persisted public research view and aligned campaign cards (#89)
+
+- Archive the exact pre-format public JSON/ZIP with fixed SHA-256 checks and
+  restoration instructions. Persist generated `public-research-view/1` counts,
+  reader defaults and explicit relationship descriptors identically in current
+  JSON coverage and ZIP manifest coverage, with a separate canonical digest.
+  Reject stale/forged view metadata and retain legacy-reader compatibility;
+  canonical rows, exact prompts, responses and other ZIP payloads are unchanged.
+- Order campaign sections as sources, attack flow, behaviors, AI artifacts,
+  telemetry and collapsed evidence/review. Move projection/limits prose out of
+  the concise summary; count blogs, AI tools and target/abuse-linked products,
+  prompt variants/occurrences/responses, supported behaviors and graph/phases.
+  Use bordered, review-colored behavior tiles rather than bare links, including
+  the behavior inventory, without changing destinations or review decisions.
+
 ## 2026-10-18 - Compact research display and bidirectional evidence navigation (#89)
 
 - Default the prompt library to complete published exchanges, with an explicit

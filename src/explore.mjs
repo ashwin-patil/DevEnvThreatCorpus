@@ -1,6 +1,6 @@
 import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, telemetryScopeBadges, renderCampaignCategories, relatedResearch } from './render.mjs';
 import { OBSERVATION_CONTEXTS } from './prompt-responses.mjs';
-import { filterRecords, metadata, caseSourceIds, behaviorSupport, telemetryScopeEntries, researchRelationships } from './model.mjs';
+import { filterRecords, metadata, caseSourceIds, behaviorSupport, telemetryScopeEntries, researchRelationships, campaignMetrics, CAMPAIGN_SECTIONS } from './model.mjs';
 import { publisherDisplay, behaviorInventory, sourceInventory } from './research-inventory.mjs';
 import { aiLibrary } from './ai-library.mjs';
 import { campaignGraph, campaignSummary, pathDisplayName, evidenceLabel, originReview, activityIcon, ICON_PATHS } from './campaign-presentation.mjs';
@@ -46,12 +46,11 @@ function behaviorLinks(doc, parent, model, claimIds, navigate) {
   for (const [kind, label] of [['atomic-behavior', 'Actions'], ['activity-pattern', 'Activity patterns']]) {
     const items = groups.filter(g => g.kind === kind); if (!items.length) continue;
     const section = element(doc, 'details', null, `behavior-category ${kind}`);
-    section.append(element(doc, 'summary', `${label} · ${items.length}`), reviewLegend(doc));
+    section.append(element(doc, 'summary', `${label} · ${items.length}`));
     const tiles = element(doc, 'div', null, 'behavior-action-list');
     for (const group of items) {
       const chip = reviewChip(doc, group.name, group.members[0].disposition, () => navigate('behaviors', group.members[0].id));
-      chip.title = group.basis; chip.classList?.add('behavior-action-link');
-      if (!chip.classList) chip.setAttribute('class', `${chip.getAttribute('class')} behavior-action-link`);
+      chip.title = group.basis; chip.className += ' behavior-action-link';
       tiles.append(chip);
     }
     section.append(tiles);
@@ -61,8 +60,7 @@ function behaviorLinks(doc, parent, model, claimIds, navigate) {
 }
 export function renderCaseLibrary(doc, model, records, navigate, filters = {}, openReview) {
   const panel = element(doc, 'section', null, 'case-library');
-  panel.append(element(doc, 'h2', 'Case library'), element(doc, 'p',
-    'One card per campaign or explicitly selected research group. Cards open expanded to show cited context, research and linked views; collapse them for a compact overview. Shared research does not merge campaigns.', 'subtle'), usageLegend(doc));
+  panel.append(element(doc, 'h2', 'Case library'));
   const grid = element(doc, 'div', null, 'research-grid');
   for (const record of records) {
     const card = element(doc, 'details', null, 'panel research-card case-card');
@@ -71,24 +69,40 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     const sourceIds = caseSourceIds(model, record.id), claimIds = new Set(model.corpus.claims.filter(c => c.caseId === record.id).map(c => c.id));
     const articles = sourceInventory(sourceIds.map(id => model.sources.get(id)).filter(Boolean));
     const overview = campaignSummary(model, record), paths = list(model, 'paths').filter(p => p.caseId === record.id);
+    const counts = campaignMetrics(model, record.id), metrics = element(doc, 'dl', null, 'campaign-metrics');
+    for (const [key, label, detail] of [
+      ['researchArticles', 'Research blogs'], ['aiTools', 'AI tools', `${counts.targetedAiTools} target/abuse-linked`],
+      ['promptVariants', 'Prompt variants', `${counts.promptOccurrences} occurrences · ${counts.promptResponses} responses`],
+      ['behaviors', 'Behaviors'], ['campaignGraphs', 'Campaign graphs'], ['phasePaths', 'Phase paths'],
+    ]) {
+      const metric = element(doc, 'div'), value = element(doc, 'dd');
+      value.append(element(doc, 'strong', counts[key]));
+      if (detail) value.append(element(doc, 'span', detail, 'metric-detail'));
+      metric.append(element(doc, 'dt', label), value); metrics.append(metric);
+    }
     const heading = element(doc, 'h2'); heading.append(activitySvg(doc, 'graph'), element(doc, 'span', record.name));
     const badges = element(doc, 'div', null, 'card-badges');
     badges.append(element(doc, 'span', record.kind ?? 'Case', 'publisher-badge'), campaignCategoryBadges(doc, model, record.id));
     summary.append(badges, heading,
       element(doc, 'p', overview.text, 'campaign-summary'),
-      element(doc, 'p', originReview(overview), 'subtle'),
-      element(doc, 'p', record.limits ?? 'Limits not recorded. Source association does not establish attribution, universal success or chronology.', 'limits'),
-      element(doc, 'p', `${articles.length} research articles · ${paths.length ? '1 campaign graph' : '0 campaign graphs'} · ${paths.length} phases`, 'subtle'),
+      metrics,
       element(doc, 'span', 'Expand campaign', 'card-expand'));
     card.append(summary);
     const body = element(doc, 'div', null, 'case-card-body');
-    body.append(action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
-    body.append(telemetryScopeBadges(doc, model, record.id, undefined, navigate));
-    body.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false));
-    if (model.itemReview?.campaigns[record.id] && openReview) body.append(renderProgress(doc,
+    const sections = new Map(CAMPAIGN_SECTIONS.map(id => {
+      const section = element(doc, id === 'review' ? 'details' : 'section', null, 'campaign-section');
+      section.setAttribute('data-campaign-section', id); return [id, section];
+    }));
+    const review = sections.get('review');
+    review.append(element(doc, 'summary', 'Evidence & review'),
+      element(doc, 'p', originReview(overview), 'subtle'),
+      element(doc, 'p', record.limits ?? 'Source association does not establish attribution or successful execution.', 'limits'),
+      renderCampaignCategories(doc, model, record.id, navigate, openReview, false));
+    sections.get('telemetry').append(telemetryScopeBadges(doc, model, record.id, undefined, navigate));
+    if (model.itemReview?.campaigns[record.id] && openReview) review.append(renderProgress(doc,
       model.itemReview.campaigns[record.id], filter => openReview(record.id, '', filter)));
-    else if (model.collectionEnabled) body.append(element(doc, 'p', model.reviewError ?? 'Review coverage unavailable; no approval inferred.'));
-    appendAiLinks(doc, body, model, record.id, navigate);
+    else if (model.collectionEnabled) review.append(element(doc, 'p', model.reviewError ?? 'Review coverage unavailable; no approval inferred.'));
+    appendAiLinks(doc, sections.get('ai-artifacts'), model, record.id, navigate);
     if (overview.claimIds.length) {
       const citations = element(doc, 'details', null, 'campaign-summary-citations');
       citations.append(element(doc, 'summary', `Summary citations · ${overview.claimIds.length}`));
@@ -96,25 +110,26 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
         const claim = model.claims.get(id);
         if (claim) citations.append(action(doc, claim.description, () => navigate('claims', id)));
       }
-      body.append(citations);
+      review.append(citations);
     }
-    body.append(element(doc, 'h3', 'Unified attack graph'));
-    if (paths.length) body.append(action(doc, `${record.name} · campaign graph`, () => navigate('paths', paths[0].id)),
-      element(doc, 'p', `${paths.length} underlying phase path record(s). Only recorded relationships are drawn; unconnected phases stay disconnected.`, 'subtle'));
-    else body.append(element(doc, 'p', 'No supported path recorded.', 'subtle'));
+    const flow = sections.get('attack-paths');
+    flow.append(element(doc, 'h3', 'Attack flow'));
+    if (paths.length) flow.append(action(doc, `${record.name} · campaign graph`, () => navigate('paths', paths[0].id)));
+    else flow.append(element(doc, 'p', 'No supported path recorded.', 'subtle'));
     const phases = element(doc, 'details'); phases.append(element(doc, 'summary', 'Phase paths & technical provenance'));
     for (const path of paths) phases.append(action(doc, pathDisplayName(path), () => navigate('paths', path.id)),
       technicalDetails(doc, [['Canonical path', path.id], ['Origin / review', originReview(path)]]));
-    if (paths.length) body.append(phases);
-    body.append(element(doc, 'h3', 'Research blogs'));
+    if (paths.length) flow.append(phases);
+    const research = sections.get('research'); research.append(element(doc, 'h3', 'Research blogs'));
     const totals = new Map(), index = new Map();
     for (const article of articles) totals.set(article.publisher.name, (totals.get(article.publisher.name) ?? 0) + 1);
     for (const article of articles) {
       const source = article.source, display = article.publisher; index.set(display.name, (index.get(display.name) ?? 0) + 1);
       const chip = action(doc, `${display.name}${totals.get(display.name) > 1 ? ` · ${index.get(display.name)}` : ''}`, () => navigate('sources', source.id));
-      chip.title = `${metadata(source, 'title')} · ${display.basis}`; chip.setAttribute('aria-label', `${display.name}: ${metadata(source, 'title')}`); body.append(chip);
+      chip.title = `${metadata(source, 'title')} · ${display.basis}`; chip.setAttribute('aria-label', `${display.name}: ${metadata(source, 'title')}`); research.append(chip);
     }
-    behaviorLinks(doc, body, model, claimIds, navigate);
+    behaviorLinks(doc, sections.get('behaviors'), model, claimIds, navigate);
+    body.append(...sections.values(), action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
     card.append(body); grid.append(card);
   }
   panel.append(grid); return panel;

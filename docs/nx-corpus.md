@@ -68,8 +68,28 @@ Encoding, unknown model/role, exact receipts and pairing/context details remain
 in Technical provenance; shared interpretation notes live in Trust & method.
 Campaign/blog Log Collection/Telemetry Scope tags open their supporting evidence
 in Security telemetry, with reverse links from claims to explicitly supported
-research objects. This display/navigation pass leaves all 308 rows and the
-public JSON/ZIP artifacts unchanged.
+research objects. The display/navigation pass preserved all 308 rows; the
+subsequent user-directed format adoption adds only the generated coverage below.
+
+### Current public view format and rollback
+
+Public JSON coverage and ZIP manifest coverage now contain identical
+`researchPresentation` (`public-research-view/1`) and
+`researchPresentationDigest`. The generated projection records paired-reader
+defaults, campaign section order, counts and explicit support relationships.
+The current Nx counts are six blogs, three AI tools (three target/abuse-linked),
+two prompt variants/four source occurrences/one response, 14 supported behaviors,
+one campaign graph and three phase paths. Counts are not incidents or successes.
+The loader compares stored projection content against the current derived model;
+offline checks verify its canonical digest and transport parity. No presentation
+field may introduce new evidence or acceptance.
+
+The exact pre-format pair from `040b2bfcd62091f9727cac319f83875ba384dea5`
+is preserved in the [snapshot archive](data/archive/README.md), with fixed hashes
+and deliberate data-pair restore instructions. Current rows, tools, prompts and
+all non-manifest ZIP members match that snapshot. Regenerate view metadata from
+the shared model when canonical support changes rather than manually maintaining
+a second relationship graph.
 
 Public JSON and the existing six-member ZIP's `manifest.json` coverage carry
 identical prompt artifacts and a separate `promptArtifactDigest`; the typed-row

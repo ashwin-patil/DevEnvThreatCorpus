@@ -19,8 +19,12 @@ The reader display defaults to the one published prompt/response pair while
 pairing context are collapsed; shared reading conventions are in Trust & method.
 Log Collection/Telemetry Scope tags open source-filtered evidence in Security
 telemetry, and Claims & evidence links back to explicitly supported objects.
-These are read-only projections over the unchanged corpus/ZIP, not new collection,
-operational detection or human-review outcomes.
+These remain read-only projections, not new collection, operational detection or
+human-review outcomes. The subsequent public-format adoption persists the
+versioned projection and digest in current JSON/ZIP coverage and archives the exact
+previous pair. Canonical records remain unchanged. Campaign headers now expose
+tool/prompt/behavior counts, ordered sections and bordered behavior tiles, while
+projection/limits prose remains available under Evidence & review.
 
 Implementation and public-data statements below were inspected against
 [`06f93a10f4481378c394785f4e2d239886a92c21`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/06f93a10f4481378c394785f4e2d239886a92c21),

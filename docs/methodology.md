@@ -78,6 +78,18 @@ Review projections and late-loaded annotations are read afresh rather than cache
 by model identity. A related-object link is navigation, not proof of execution,
 attribution, available logs, detection effectiveness or acceptance.
 
+The public transport now persists that projection as `public-research-view/1`
+under coverage, identically in JSON and the ZIP manifest, with its own canonical
+digest. It remains derived data: the reader rejects disagreement with explicit
+canonical support. Legacy documents without this extension still derive the
+current view. Campaign counts use logical source aliases, normalized AI-product
+groups, exact prompt variants and source occurrences, attached responses, distinct
+supported behavior IDs and retained phase paths. Target/abuse-linked product
+counts include explicit targeted, attempted-abuse or reported-abuse annotations,
+not mere mentions or a success assertion. Paired display defaults never filter
+the exported canonical prompt set. See the [archive](data/archive/README.md)
+for byte-preserved rollback and producer guidance.
+
 ## High-level campaign categories
 
 These are overlapping local research facets, **not** a replacement for formal

@@ -10,7 +10,7 @@ import {
   passageSegments, conflictPairs, recordContext, filterRecords, facetOptions, parseRoute, routeHash,
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
-  telemetryScopeEntries, researchRelationships,
+  telemetryScopeEntries, researchRelationships, campaignMetrics, researchPresentation, CAMPAIGN_SECTIONS,
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl, sourceCitation, claimCitation, reviewChip, reviewLegend } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
@@ -197,6 +197,50 @@ test('#89 AC-12/13 scope projections and the bidirectional index retain source-l
   const paired = m.annotations.find(a => a.responses?.length), prompt = index.byKey.get(`annotations:${paired.id}`);
   for (const id of paired.responses[0].claimIds) assert.ok(index.byClaim.get(id).includes(prompt));
   assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-14 persisted public view matches derived support and rejects stale or forged presentation metadata', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document);
+  assert.deepEqual(m.presentation, document.coverage.researchPresentation);
+  assert.equal(digest(m.presentation), document.coverage.researchPresentationDigest);
+  assert.deepEqual(researchPresentation(m), m.presentation);
+  for (const mutate of [
+    view => { view.schemaVersion = 'public-research-view/999'; },
+    view => { view.campaigns[0].counts.aiTools = 99; },
+    view => { view.relationships[0].claimIds = ['nonexistent-claim']; },
+    view => { view.defaults.promptView = 'all'; },
+    view => { view.defaults.campaignSections.reverse(); },
+  ]) {
+    const bad = structuredClone(document); mutate(bad.coverage.researchPresentation);
+    bad.coverage.researchPresentationDigest = digest(bad.coverage.researchPresentation);
+    assert.throws(() => publicDraftModel(bad), /Invalid public/);
+  }
+  const old = structuredClone(document);
+  delete old.coverage.researchPresentation; delete old.coverage.researchPresentationDigest;
+  assert.deepEqual(publicDraftModel(old).presentation, m.presentation);
+});
+
+test('#89 AC-15 campaign metrics and ordered sections keep summary concise and behavior tiles navigable', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), id = m.corpus.cases[0].id, calls = [];
+  assert.deepEqual(campaignMetrics(m, id), { researchArticles: 6, aiTools: 3, targetedAiTools: 3,
+    promptVariants: 2, promptOccurrences: 4, promptResponses: 1, behaviors: 14, campaignGraphs: 1, phasePaths: 3 });
+  const root = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
+  const card = descendants(root).find(n => n.className?.includes('case-card') && n.tagName === 'DETAILS');
+  const summary = card.children[0];
+  assert.doesNotMatch(summary.textContent, /Agent display projection|Explicit operator grouping|unreviewed/);
+  assert.match(summary.textContent, /AI tools3.*3 target\/abuse-linked/);
+  assert.match(summary.textContent, /Prompt variants2.*4 occurrences.*1 responses/);
+  assert.match(summary.textContent, /Behaviors14/);
+  assert.deepEqual(descendants(root).map(n => n.getAttribute?.('data-campaign-section')).filter(Boolean), CAMPAIGN_SECTIONS);
+  const review = descendants(root).find(n => n.getAttribute?.('data-campaign-section') === 'review');
+  assert.equal(review.tagName, 'DETAILS'); assert.ok(!review.open);
+  assert.match(review.textContent, /Agent display projection/);
+  const tiles = descendants(root).filter(n => n.className?.includes('behavior-action-link'));
+  assert.equal(tiles.length, 14);
+  await tiles[0].trigger('click'); assert.equal(calls[0][0], 'behaviors');
+  assert.ok(m.corpus.behaviors.some(b => b.id === calls[0][1]));
 });
 
 test('#89 AC-13 related research rejects invalid support and proximity and refreshes late annotations and exclusions', () => {
@@ -1083,7 +1127,7 @@ test('Issue #51 follow-up campaign cards keep claim details in the workspace and
   assert.doesNotMatch(cases.textContent, /No concise campaign summary has been recorded/);
   assert.ok(descendants(cases).some(node => node.textContent === '◐ Wallet and secret-path inventory'));
   assert.doesNotMatch(cases.textContent, /Prompt-related claims/);
-  assert.ok(cases.textContent.indexOf('AI tools') < cases.textContent.indexOf('Behaviors'));
+  assert.deepEqual(descendants(cases).map(n => n.getAttribute?.('data-campaign-section')).filter(Boolean), CAMPAIGN_SECTIONS);
   assert.ok(descendants(cases).some(node => node.className === 'behavior-action-list'));
   const privateModel = model(), privateRecord = privateModel.corpus.cases[0];
   privateModel.annotations = [{
@@ -1095,7 +1139,7 @@ test('Issue #51 follow-up campaign cards keep claim details in the workspace and
   }];
   const privateCalls = [], privateCard = renderCaseLibrary(new FakeDocument(), privateModel,
     privateModel.corpus.cases, (...args) => privateCalls.push(args));
-  assert.ok(privateCard.textContent.indexOf('Prompts') < privateCard.textContent.indexOf('Behaviors'));
+  assert.deepEqual(descendants(privateCard).map(n => n.getAttribute?.('data-campaign-section')).filter(Boolean).slice(0, 6), CAMPAIGN_SECTIONS);
   const promptLink = descendants(privateCard).find(node => node.tagName === 'BUTTON' && node.textContent === '□ Synthetic private prompt');
   assert.ok(promptLink);
   await promptLink.trigger('click');
@@ -1185,12 +1229,17 @@ test('Issue #51 public prompt projection rejects missing support, invalid locato
   assert.throws(() => publicDraftModel(gap), /Invalid public/);
   const legacy = structuredClone(document); delete legacy.prompts;
   delete legacy.coverage.promptArtifacts; delete legacy.coverage.promptArtifactDigest;
+  delete legacy.coverage.researchPresentation; delete legacy.coverage.researchPresentationDigest;
   assert.equal(aiLibrary(publicDraftModel(legacy), 'prompts').length, 0);
   const synthetic = structuredClone(document);
   synthetic.prompts = [{ ...synthetic.prompts[1], literal: '<script>synthetic artifact</script> \n',
     locator: { start: 4163, end: 4163 + '<script>synthetic artifact</script> \n'.length } }];
   synthetic.coverage.promptArtifacts.prompts = structuredClone(synthetic.prompts);
   synthetic.coverage.promptArtifactDigest = digest(synthetic.coverage.promptArtifacts);
+  delete synthetic.coverage.researchPresentation; delete synthetic.coverage.researchPresentationDigest;
+  const projected = publicDraftModel(synthetic);
+  synthetic.coverage.researchPresentation = projected.presentation;
+  synthetic.coverage.researchPresentationDigest = digest(projected.presentation);
   const page = renderExploration(new FakeDocument(), publicDraftModel(synthetic), 'prompts', {}, () => {}, `prompts-${synthetic.prompts[0].id}`);
   assert.equal(descendants(page).find(node => node.className === 'artifact-value').textContent, synthetic.prompts[0].literal);
   assert.equal(descendants(page).filter(node => node.tagName === 'SCRIPT').length, 0);

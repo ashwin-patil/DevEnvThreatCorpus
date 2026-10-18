@@ -35,6 +35,15 @@ No transcript is executed; scope tags do not promise available logs, and public
 display does not record HITL acceptance. [Review boundaries](docs/methodology.md#enterprise-telemetry-collection-scope)
 explain the terminology and remaining human decisions.
 
+Campaign headers count linked blogs, AI tools, exact prompt variants/occurrences
+and responses, supported behaviors and graph/phases. Sections follow sources,
+attack flow, boxed behaviors, AI artifacts and telemetry; provenance and review
+sit in a final collapsed panel. Current public JSON and ZIP share a generated
+`public-research-view/1` projection (counts, defaults and explicit relationships).
+The previous exact pair and restore instructions are in the
+[public snapshot archive](docs/data/archive/README.md); canonical research records
+and prompt-only occurrences are preserved, not replaced by a filtered display.
+
 ### On this page
 
 - [Vision and audiences](#vision-and-audiences)

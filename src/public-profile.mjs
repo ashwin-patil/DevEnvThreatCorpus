@@ -1,10 +1,16 @@
-import { createModel } from './model.mjs';
+import { createModel, researchPresentation } from './model.mjs';
 import { OBSERVATION_CONTEXTS, validatePromptResponses } from './prompt-responses.mjs';
 
 const TYPES = ['sources', 'sourceRevisions', 'passages', 'cases', 'claims', 'categorizations', 'timelines',
   'paths', 'behaviors', 'frameworks', 'mappings', 'telemetry', 'detections', 'otel'];
 const USAGE = ['targeted', 'attempted-abuse', 'reported-abuse', 'vendor-example', 'general-mention', 'unclear'];
 const fail = () => { throw new Error('Invalid public Pending draft projection.'); };
+function sameProjection(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && sameProjection(a[key], b[key]));
+}
 
 // Export rows are a display projection, not a private corpus: omitted article text
 // cannot acquire the human passage attestation required by private-corpus import.
@@ -97,5 +103,10 @@ export function publicDraftModel(document) {
     limitations: [...document.limitations], baseRevision: document.baseRevision, snapshotDigest: document.snapshotDigest };
   model.publicCatalogSnapshot = structuredClone(document.catalogSnapshot);
   model.publicAvailableCatalogSnapshot = structuredClone(document.availableCatalogSnapshot);
+  model.presentation = researchPresentation(model);
+  if (document.coverage?.researchPresentation !== undefined
+    && (!/^[a-f0-9]{64}$/.test(document.coverage.researchPresentationDigest ?? '')
+      || !sameProjection(document.coverage.researchPresentation, model.presentation))) fail();
+  if (document.coverage?.researchPresentation === undefined && document.coverage?.researchPresentationDigest !== undefined) fail();
   return model;
 }

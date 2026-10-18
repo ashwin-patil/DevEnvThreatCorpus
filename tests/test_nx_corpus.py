@@ -293,3 +293,31 @@ class NxPublicExpansionTests(unittest.TestCase):
             self.assertEqual(counts[kind], len(self.entities[kind]))
         canonical = json.dumps(self.rows, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
         self.assertEqual(hashlib.sha256(canonical.encode()).hexdigest(), self.document["snapshotDigest"])
+
+    def test_versioned_view_and_restorable_archive_preserve_all_canonical_data(self) -> None:
+        archive_root = ROOT / "docs/data/archive"
+        old_json = archive_root / "nx-draft-040b2bf.json"
+        old_zip = archive_root / "nx-draft-040b2bf.zip"
+        self.assertEqual(hashlib.sha256(old_json.read_bytes()).hexdigest(),
+                         "0d6fce2d8e22fb8d3f1566e096e02435a5165495b1bb612f2e7c5737c09f3904")
+        self.assertEqual(hashlib.sha256(old_zip.read_bytes()).hexdigest(),
+                         "d232c8a999d2ae09b9c3f00ccb813c70a9e9fb630b49e327ea802edaaf74244f")
+        current = json.loads(json.dumps(self.document))
+        projection = current["coverage"].pop("researchPresentation")
+        view_digest = current["coverage"].pop("researchPresentationDigest")
+        self.assertEqual(current, json.loads(old_json.read_text(encoding="utf-8")))
+        self.assertEqual(projection["schemaVersion"], "public-research-view/1")
+        self.assertEqual(canonical_digest(projection), view_digest)
+        self.assertEqual(projection["defaults"]["promptView"], "paired")
+        self.assertEqual(projection["campaigns"][0]["counts"]["behaviors"], 14)
+        self.assertEqual(projection["campaigns"][0]["counts"]["promptOccurrences"], 4)
+        claims = {claim["id"]: claim for claim in self.entities["claims"]}
+        for relation in projection["relationships"]:
+            for claim_id in relation["claimIds"]:
+                self.assertIn(claim_id, claims)
+                self.assertIn(claims[claim_id]["caseId"], relation["caseIds"])
+        with zipfile.ZipFile(old_zip) as old, zipfile.ZipFile(ROOT / "docs/data/nx-draft.zip") as new:
+            self.assertIsNone(old.testzip())
+            for name in old.namelist():
+                if name != "nx-draft/manifest.json":
+                    self.assertEqual(old.read(name), new.read(name), name)
