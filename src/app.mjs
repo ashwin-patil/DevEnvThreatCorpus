@@ -69,8 +69,8 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (saved.notice) reviewNav.notice = saved.notice;
     render();
   }
-  function openReview(caseId, sourceId = '', filter = 'All') {
-    reviewNav = { caseId, sourceId, filter, group: 'category', queue: 'priority', itemKey: '', type: '',
+  function openReview(caseId, sourceId = '', filter = 'All', category = '') {
+    reviewNav = { caseId, sourceId, filter, category, group: 'category', queue: 'priority', itemKey: '', type: '',
       mode: model?.reviewDemo ? 'synthetic' : '' };
     reviewWindowNavigation(win, reviewNav);
     navigate('review', caseId);
@@ -204,7 +204,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     const keys = comparing ? COMPARISON_FACETS : FACETS;
     const allOptions = facetOptions(model, keys);
     const titleFor = key => COMPARISON_DIMENSIONS[key] ??
-      ({ evidenceStatus: 'Evidence status', reviewerDisposition: 'Claim reviewer disposition' }[key] ?? key[0].toUpperCase() + key.slice(1));
+      ({ campaignCategories: 'Campaign categories', evidenceStatus: 'Evidence status', reviewerDisposition: 'Claim reviewer disposition' }[key] ?? key[0].toUpperCase() + key.slice(1));
     for (const key of keys) {
       const options = allOptions[key];
       const details = element(doc, 'details');

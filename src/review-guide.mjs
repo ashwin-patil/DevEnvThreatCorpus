@@ -1,12 +1,13 @@
+import { CAMPAIGN_CATEGORIES, categoryRule } from './campaign-categories.mjs';
 // Published versions are immutable: add a new version rather than changing decision rules.
-export const GUIDE_VERSION = 'researcher-review/2';
-export const GUIDE_VERSIONS = ['researcher-review/1', GUIDE_VERSION];
+export const GUIDE_VERSION = 'researcher-review/3';
+export const GUIDE_VERSIONS = ['researcher-review/1', 'researcher-review/2', GUIDE_VERSION];
 export const CONTENT_ORIGINS = [
   'Human authored', 'Human source paraphrase', 'Human inference', 'Official framework',
   'LLM source paraphrase', 'LLM synthesis', 'LLM reconstruction', 'LLM inferred relationship',
   'LLM inferred mapping', 'LLM normalized behavior', 'LLM proposed categorization',
   'LLM proposed collection', 'LLM proposed detection', 'LLM proposed instrumentation',
-  'LLM synthetic fixture; not incident evidence', 'unknown',
+  'LLM synthetic fixture; not incident evidence', 'Deterministic rule', 'unknown',
 ];
 export const COMMON_CHECKS = {
   evidence: 'Supported by the cited evidence; uncertainty and conflicts are explicit.',
@@ -40,6 +41,8 @@ export function confirmationFor(unit) {
   return `I personally checked evidence, fidelity and scope. ${rule} Reported is not confirmed; attempted is not successful.`;
 }
 export function priorityCategory(unit) {
+  if (unit.type === 'categorizations' && (categoryRule(unit.original ?? unit.record)
+    || CAMPAIGN_CATEGORIES.some(rule => rule.dimension === unit.record.dimension && rule.value === unit.record.value))) return 'campaigns';
   if (['behaviors', 'occurrences'].includes(unit.type)) return 'behaviors';
   if (unit.type === 'annotations' && unit.record.type === 'observed-behavior') return 'behaviors';
   if (unit.type !== 'annotations' || unit.record.type !== 'commands-ai-artifacts') return null;
@@ -47,7 +50,7 @@ export function priorityCategory(unit) {
   if (['ide-cli', 'extension', 'skill', 'mcp-tool', 'mcp-server'].includes(unit.record.context?.artifactKind)) return 'tools';
   return null;
 }
-export const PRIORITY_LABELS = { tools: 'AI / coding tools', behaviors: 'Behaviors / occurrences', prompts: 'Prompt literals' };
+export const PRIORITY_LABELS = { campaigns: 'Campaign categories', tools: 'AI / coding tools', behaviors: 'Behaviors / occurrences', prompts: 'Prompt literals' };
 export const LABEL_FIELDS = {
   claims: ['evidenceStatus'], cases: [], categorizations: ['dimension', 'value'],
   timelines: ['dateType', 'date.precision'], behaviors: ['boundary'], occurrences: [],

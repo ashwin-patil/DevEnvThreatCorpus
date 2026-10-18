@@ -81,5 +81,6 @@ export function publicDraftModel(document) {
   model.publicDraft = { sourceCoverage: structuredClone(document.sourceCoverage),
     limitations: [...document.limitations], baseRevision: document.baseRevision, snapshotDigest: document.snapshotDigest };
   model.publicCatalogSnapshot = structuredClone(document.catalogSnapshot);
+  model.publicAvailableCatalogSnapshot = structuredClone(document.availableCatalogSnapshot);
   return model;
 }

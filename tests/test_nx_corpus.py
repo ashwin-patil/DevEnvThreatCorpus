@@ -59,6 +59,39 @@ class NxPublicExpansionTests(unittest.TestCase):
         for source in articles:
             self.assertTrue(any(claim["sourceId"] == source["id"] for claim in self.entities["claims"]))
 
+    def test_pending_categories_preserve_claim_scope_and_historical_catalogue(self) -> None:
+        categories = self.entities["categorizations"]
+        self.assertEqual(len(categories), 4)
+        claims = {claim["id"]: claim for claim in self.entities["claims"]}
+        sources = {source["id"]: source for source in self.entities["sources"]}
+        self.assertEqual({category["value"] for category in categories}, {"Victim-side agent abuse"})
+        self.assertEqual(
+            {sources[category["sourceIds"][0]]["publisher"] for category in categories},
+            {"Nx", "Wiz", "Semgrep", "Panther"},
+        )
+        for category in categories:
+            claim = claims[category["supportingClaimIds"][0]]
+            self.assertEqual(category["caseId"], claim["caseId"])
+            self.assertEqual(category["sourceIds"], [claim["sourceId"]])
+            self.assertEqual(category["origin"], "Deterministic rule")
+            self.assertEqual(category["disposition"], "Pending")
+            self.assertEqual(category["history"], [])
+        self.assertEqual(set(self.document["categoryExtraction"]["categoryIds"]), {c["id"] for c in categories})
+        self.assertEqual(self.document["categoryExtraction"]["version"], "campaign-category-rules/1")
+        self.assertEqual(self.document["coverage"]["reviewCoverage"]["categorizations"]["pending"], 4)
+        historical = self.document["catalogSnapshot"]
+        self.assertEqual(
+            hashlib.sha256(json.dumps(historical, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest(),
+            "5ef2ab3578cdc919c4853641221083548c556a7aee909745cd3e9669313956c5",
+        )
+        active = next(c for c in self.document["availableCatalogSnapshot"]["catalogs"] if c["framework"] == "ATT&CK")
+        old = next(c for c in historical["catalogs"] if c["framework"] == "ATT&CK")
+        self.assertEqual(len(old["techniques"]), 1)
+        self.assertEqual(len(active["techniques"]), 697)
+        self.assertEqual(active["materialDigest"], old["materialDigest"])
+        self.assertEqual(active["immutableRevision"], old["immutableRevision"])
+        self.assertEqual(len(self.rows), 245)
+
     def test_parsing_receipts_cover_full_text_without_upgrading_historical_failures(self) -> None:
         expansion = self.document["expansion"]
         self.assertEqual(expansion["schemaVersion"], "nx-public-expansion/1")

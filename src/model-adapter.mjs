@@ -28,9 +28,12 @@ export function adapterPayload(request) {
   if (request?.schemaVersion !== ADAPTER_REQUEST_VERSION) fail('REQUEST_TAMPERED');
   const { requestHash, inputs, caseScope, catalogSnapshot, candidateGuide, chunkPolicy } = request;
   const catalog = {
-    ...catalogSnapshot, descriptionAvailability: 'omitted-from-transport; do not invent catalog descriptions',
+    resolverVersion: catalogSnapshot.resolverVersion, digest: catalogSnapshot.digest,
+    descriptionAvailability: 'IDs and names only; definitions, URLs, license text and exclusion inventory remain local. Do not invent catalog descriptions.',
     catalogs: catalogSnapshot.catalogs.map(catalog => ({
-      ...catalog, techniques: catalog.techniques.map(({ description: omitted, ...technique }) => technique),
+      framework: catalog.framework, version: catalog.version, immutableRevision: catalog.immutableRevision,
+      materialDigest: catalog.materialDigest, materialUrl: catalog.materialUrl,
+      techniques: catalog.techniques.map(({ id, name }) => ({ id, name })),
     })),
   };
   const payload = {

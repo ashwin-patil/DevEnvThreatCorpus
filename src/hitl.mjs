@@ -84,7 +84,7 @@ export function reviewUnits(corpus, annotations = []) {
       stageInputs,
       originalOrigin: record.origin ?? (runMetadata.length ? 'agent' : 'unknown'),
       contentOrigin: record.origin ?? (runMetadata.length ? 'agent' : 'unknown'),
-      labelAuthorship: record.labelAuthorship ?? (/LLM|agent/.test(record.origin ?? '') || runMetadata.length
+      labelAuthorship: record.labelAuthorship ?? (record.origin === 'Deterministic rule' ? 'Rule-derived' : /LLM|agent/.test(record.origin ?? '') || runMetadata.length
         ? 'LLM-derived' : /^Human|manual/.test(record.origin ?? '') ? 'Human authored' : 'unknown') });
     return units.at(-1);
   }
@@ -333,7 +333,7 @@ export function applyItemReview(corpus, input, annotations = []) {
       .some(field => Object.hasOwn(patch, field.split('.')[0]));
   } else if (input.patch !== undefined || input.researcherTags !== undefined) fail('INVALID_REVIEW');
   if (input.action === 'provenance') {
-    const authors = ['LLM-derived', 'Human authored', 'Human-edited', 'unknown'];
+    const authors = ['LLM-derived', 'Rule-derived', 'Human authored', 'Human-edited', 'unknown'];
     if (!CONTENT_ORIGINS.includes(input.contentOrigin) || !authors.includes(input.labelAuthorship)
       || !nonempty(input.provenanceEvidence)) fail('INVALID_PROVENANCE');
     Object.assign(event, { contentOrigin: input.contentOrigin, labelAuthorship: input.labelAuthorship,

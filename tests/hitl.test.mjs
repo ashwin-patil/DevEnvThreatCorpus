@@ -268,7 +268,8 @@ test('Issue #81 AC-01/05/06 deterministic priority triage hides claims, exposes 
   const nav = { caseId: 'synthetic-case-a', queue: 'priority', group: 'category' };
   const priority = reviewGroups(state.units, nav);
   assert.ok(priority.records.length);
-  assert.ok(priority.records.every(u => ['behaviors', 'occurrences'].includes(u.type)));
+  assert.ok(priority.records.every(u => ['behaviors', 'occurrences', 'categorizations'].includes(u.type)));
+  assert.ok(priority.records.some(u => u.type === 'categorizations' && u.priorityCategory === 'campaigns'));
   assert.ok(reviewGroups(state.units, { ...nav, queue: 'evidence' }).records.every(u => u.type === 'claims'));
   c.claims[0].inference = { rationale: 'Synthetic unresolved support', supportingClaimIds: ['missing'] };
   const blocked = reviewSnapshot(c);

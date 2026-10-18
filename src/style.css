@@ -1,3 +1,6 @@
+.campaign-category-badges{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.campaign-category-badge{font-size:12px;background:var(--tint);color:var(--green);max-width:100%;overflow-wrap:anywhere}
+.category-evidence{border-left:2px solid var(--divider);padding-left:10px;margin:8px 0}
 :root{
   color-scheme:light;
   --paper:#f6f3eb;--surface:#fffdf7;--ink:#25352f;--muted:#59675d;

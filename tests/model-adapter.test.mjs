@@ -14,6 +14,7 @@ import { applyItemReview, reviewSnapshot, reviewedProfile } from '../src/hitl.mj
 import { GUIDE_VERSION, checksFor } from '../src/review-guide.mjs';
 import { applyStage, prepareStage, validateStageCandidate } from '../src/stages.mjs';
 import { privateStoreTest } from './platform.mjs';
+import { referenceTokens } from '../src/chunks.mjs';
 
 const fixture = async () => JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const env = { OPENAI_API_KEY: 'synthetic-not-a-credential' };
@@ -112,6 +113,17 @@ test('#83 AC-01/06 payload excludes review history/raw HTML and enforces exact b
   assert.equal(p.reasoning.effort, 'low'); assert.equal(p.max_output_tokens, 16_000);
   assert.equal(body.includes('PRIVATE-NOTE-MARKER'), false); assert.equal(body.includes('"rawContent"'), false);
   assert.deepEqual(JSON.parse(p.input).inputs, r.inputs);
+  const projectedCatalog = JSON.parse(p.input).catalogSnapshot;
+  assert.equal(projectedCatalog.digest, r.catalogSnapshot.digest);
+  for (const catalog of projectedCatalog.catalogs) {
+    const complete = r.catalogSnapshot.catalogs.find(c => c.framework === catalog.framework);
+    assert.deepEqual(catalog.techniques, complete.techniques.map(({ id, name }) => ({ id, name })));
+    assert.equal(catalog.materialDigest, complete.materialDigest);
+    assert.equal(Object.hasOwn(catalog, 'licenseText'), false);
+    assert.ok(catalog.techniques.every(t => Object.keys(t).sort().join(',') === 'id,name'));
+  }
+  assert.equal(projectedCatalog.catalogs.find(c => c.framework === 'ATT&CK').techniques.length, 697);
+  assert.ok(referenceTokens(body) <= ADAPTER_LIMITS.referenceTokens);
   const large = structuredClone(r);
   large.inputs[0].segments[0].text = 'A'.repeat(ADAPTER_LIMITS.requestBytes);
   assert.throws(() => adapterPayload(large), { code: 'REQUEST_TOO_LARGE' });

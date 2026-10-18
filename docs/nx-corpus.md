@@ -11,10 +11,32 @@ has acquired human acceptance or gold status.
 
 The expanded projection contains **97 Pending claims** (38 preserved plus 59
 new), **14 reused behavior definitions**, **3 unchanged path records** and
-**2 unchanged Proposed mappings**, across **241 typed export rows**. The new
+**2 unchanged Proposed mappings**, across **245 typed export rows**, including
+four Pending deterministic category assertions. The new
 claims comprise 19 precise StepSecurity additions, 22 Semgrep claims and 18
 Panther claims. These are extraction counts, not independent confirmations or
 quality scores.
+
+### Reviewable campaign categories and complete reference catalogue
+
+The high-level Nx badge is **Victim-side agent abuse**, supported separately by
+Nx, Wiz, Semgrep and Panther claims. `campaign-category-rules/1` inspects
+individual source-linked claim descriptions; it does not rerun article parsing
+or promote a paraphrase into independent evidence. Four source-local proposals
+deduplicate to one badge; their original claim IDs/revisions and all 97 claims
+remain unchanged. Nothing here assigns attacker-side AI use, AI review targeting
+or developer-targeted social engineering to Nx without separate support.
+`categoryExtraction` records the rule version, input boundary and record IDs.
+The JSON and ZIP include those Pending records with honest deterministic origin.
+
+The current **reference** catalogue now contains all **697 active Enterprise
+ATT&CK 19.2 techniques/subtechniques** (222 techniques, 475 subtechniques).
+The prior one-entry display was a partial local projection, not the full MITRE
+release. The immutable upstream hash/version is unchanged; 149 revoked and 12
+deprecated attack patterns are explicitly excluded. `availableCatalogSnapshot`
+contains the current reference, while the original `catalogSnapshot` remains
+byte-for-byte historical. The two incident mapping proposals are unchanged;
+reference membership does not establish incident applicability.
 
 On 2026-10-18 UTC, all six successful report URLs were fetched with robots checks
 and parsed using the existing `readable-html/5` / `unicode-lf-nfc/1` pipeline.

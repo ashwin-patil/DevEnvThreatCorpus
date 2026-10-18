@@ -1,5 +1,6 @@
 import { element, action } from './render.mjs';
 import { GUIDE_VERSION, checksFor, confirmationFor, priorityCategory, PRIORITY_LABELS, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
+import { CAMPAIGN_CATEGORIES, categoryRule, CATEGORY_EXTRACTION_VERSION } from './campaign-categories.mjs';
 
 export const REVIEW_FILTERS = ['All', 'Needs review', 'Accepted', 'Excluded', 'Unsure', 'Blocked/support changed'];
 const STORAGE_KEY = 'devenv-threat-corpus.review-navigation';
@@ -146,6 +147,8 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     action(doc, 'Clear selection', () => change({ itemKey: '' })));
   else {
     const u = selected;
+    const rule = categoryRule(u.original);
+    if (rule) detail.append(element(doc, 'p', `${CATEGORY_EXTRACTION_VERSION} / ${rule.id}: ${rule.description} Matched source-linked claim wording, not an independent finding. Missing matches do not establish absence.`, 'limits'));
     detail.append(element(doc, 'h3', `${u.type}: ${u.id}`),
       element(doc, 'p', `${u.state} · labels ${u.labels.applicable ? u.labels.state : 'N/A (no label applies)'}`),
       element(doc, 'p', `Content origin: ${u.contentOrigin} · Label authorship: ${u.labelAuthorship}`),
@@ -247,6 +250,10 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
       const usage = choose(doc, modify, 'Usage', ['targeted', 'attempted-abuse', 'reported-abuse', 'vendor-example', 'general-mention', 'unclear'].map(v => [v, v]), u.record.context?.artifactUsage ?? 'unclear', () => {});
       controls.push({ key: 'context.artifactUsage', control: usage, before: u.record.context?.artifactUsage ?? '' });
       edit('Use context', 'context.notes', u.record.context?.notes, 'textarea');
+    } else if (u.type === 'categorizations' && category === 'campaigns') {
+      const values = [...new Set([u.record.value, ...CAMPAIGN_CATEGORIES.filter(r => r.dimension === u.record.dimension).map(r => r.value)])];
+      const control = choose(doc, modify, 'Campaign category', values.map(value => [value, value]), u.record.value, () => {});
+      controls.push({ key: 'value', control, before: u.record.value });
     } else if (u.type === 'behaviors') {
       edit('Behavior name', 'name', u.record.name); edit('Behavior description', 'description', u.record.description, 'textarea');
       edit('Category / trust boundary', 'boundary', u.record.boundary);
@@ -276,7 +283,7 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     unsure.append(action(doc, 'Save Unsure', () => submit('unsure', { rationale: unsureReason.value }))); detail.append(unsure);
     const advanced = element(doc, 'details'); advanced.append(element(doc, 'summary', 'Provenance correction / non-applicability'));
     const origin = choose(doc, advanced, 'Correct content origin', CONTENT_ORIGINS.map(v => [v, v]), CONTENT_ORIGINS.includes(u.contentOrigin) ? u.contentOrigin : 'unknown', () => {});
-    const authorship = choose(doc, advanced, 'Correct label authorship', ['LLM-derived', 'Human authored', 'Human-edited', 'unknown'].map(v => [v, v]), u.labelAuthorship, () => {});
+    const authorship = choose(doc, advanced, 'Correct label authorship', ['LLM-derived', 'Rule-derived', 'Human authored', 'Human-edited', 'unknown'].map(v => [v, v]), u.labelAuthorship, () => {});
     const provenanceReason = field(doc, advanced, 'Provenance correction reason', 'textarea');
     const evidence = field(doc, advanced, 'Available provenance evidence / reference');
     advanced.append(action(doc, 'Save provenance correction', () => submit('provenance', { contentOrigin: origin.value,

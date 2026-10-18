@@ -1,4 +1,4 @@
-import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend } from './render.mjs';
+import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, renderCampaignCategories } from './render.mjs';
 import { filterRecords, metadata, caseSourceIds } from './model.mjs';
 import { publisherDisplay, behaviorInventory, sourceInventory } from './research-inventory.mjs';
 import { aiLibrary } from './ai-library.mjs';
@@ -79,6 +79,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     const overview = campaignSummary(model, record), paths = list(model, 'paths').filter(p => p.caseId === record.id);
     const heading = element(doc, 'h2'); heading.append(activitySvg(doc, 'graph'), element(doc, 'span', record.name));
     summary.append(element(doc, 'span', record.kind ?? 'Case', 'publisher-badge'), heading,
+      campaignCategoryBadges(doc, model, record.id),
       element(doc, 'p', overview.text, 'campaign-summary'),
       element(doc, 'p', originReview(overview), 'subtle'),
       element(doc, 'p', record.limits ?? 'Limits not recorded. Source association does not establish attribution, universal success or chronology.', 'limits'),
@@ -87,6 +88,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     card.append(summary);
     const body = element(doc, 'div', null, 'case-card-body');
     body.append(action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
+    body.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false));
     if (model.itemReview?.campaigns[record.id] && openReview) body.append(renderProgress(doc,
       model.itemReview.campaigns[record.id], filter => openReview(record.id, '', filter)));
     else if (model.collectionEnabled) body.append(element(doc, 'p', model.reviewError ?? 'Review coverage unavailable; no approval inferred.'));
@@ -821,14 +823,18 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     const runs = (model.corpus.governance?.campaignExtraction?.runs ?? []).filter(r => selected.caseIds.has(r.caseId));
     const unresolved = runs.flatMap(r => r.unresolvedMappings ?? []);
     const available = [...Object.values(model.campaignStatus ?? {}).flatMap(s => s.availableCatalogSnapshot?.catalogs ?? []),
+      ...(model.publicAvailableCatalogSnapshot?.catalogs ?? []),
       ...(model.publicCatalogSnapshot?.catalogs ?? [])];
-    const catalogs = new Map([...available, ...runs.flatMap(r => r.catalogSnapshot?.catalogs ?? [])]
-      .map(c => [`${c.framework}:${c.version}:${c.materialDigest}`, c]));
+    const catalogs = new Map();
+    for (const c of [...available, ...runs.flatMap(r => r.catalogSnapshot?.catalogs ?? [])]) {
+      const key = `${c.framework}:${c.version}:${c.materialDigest}`;
+      if (!catalogs.has(key)) catalogs.set(key, c);
+    }
     const catalogPanel = element(doc, 'section', null, 'panel resolver-catalog');
     catalogPanel.append(element(doc, 'h2', 'Mapping and catalog coverage'), element(doc, 'p',
       `${selected.mappings.length} recorded mappings · ${unresolved.length} unresolved candidates · ${catalogs.size} pinned resolver catalogs`),
       element(doc, 'p', 'Resolver references are catalog membership only, not campaign observations. Only validated candidate mappings appear in the mapped technique cards. Missing mappings do not mean no relevant technique applies.', 'subtle'));
-    catalogPanel.append(element(doc, 'p', 'Catalogs include the current local resolver and any retained run snapshots. Preparing a new extraction uses the current resolver; earlier runs keep their original catalog provenance.', 'subtle'));
+    catalogPanel.append(element(doc, 'p', 'Reference lists prefer the current local projection for the same pinned material. Earlier extraction snapshots keep their original membership and provenance; expanding this reference never re-resolves historical mappings.', 'subtle'));
     if (!catalogs.size) catalogPanel.append(element(doc, 'p', 'No resolver snapshot is recorded in this corpus. Prepare/import a grounded extraction candidate to retain its catalog provenance.'));
     for (const c of catalogs.values()) {
       const details = element(doc, 'details', null, 'catalog-entries');

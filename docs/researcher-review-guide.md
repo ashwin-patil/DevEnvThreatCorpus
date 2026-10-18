@@ -84,7 +84,32 @@ appears consistently on private cards/library while its extracted literal remain
 visible; a correction never automatically merges products. These presentation
 clarifications do not change either named guide's acceptance checks.
 
-## Current guide: researcher-review/2
+## Current guide: researcher-review/3
+
+Version **researcher-review/3** adds **Campaign categories** to the priority
+workload and distinguishes **Rule-derived** labels / **Deterministic rule**
+content from LLM-derived and human-authored contributions. It retains the v2
+evidence, fidelity, scope and type checks and explicit personal attestation.
+Historical v1/v2 events remain bound to their original version; no event is
+upgraded, copied or accepted by this change.
+
+Campaign categories can overlap: **Victim-side agent abuse**, **Attacker-side AI
+use**, **AI review targeting**, and **Developer-targeted social engineering**.
+They are local research/navigation labels, not new MITRE technique IDs. Review
+each source-local proposal and its supporting claim separately. Rules inspect
+bounded English sentences in source-linked claim descriptions, not whole-article
+keyword co-occurrence or a semantic model. Reported/attempted/refused agent use is
+not universal success; recommendations, ambiguous roles and missing matches must
+not become positive facts or a "no AI" finding.
+
+Use the category dropdown to correct a high-level value, or Exclude/Unsure when
+unsupported. A saved correction retains the original proposal and needs separate
+acceptance. Changing support invalidates dependent decisions. The rule version
+and ID remain inspectable; **Rule-derived** describes label production, not
+independent evidence. Public Nx remains read-only: absent private article text
+cannot be bypassed by accepting a category in the preview.
+
+## Historical guide: researcher-review/2
 
 Version **researcher-review/2** retains the exact evidence, fidelity, scope and
 type-specific checks printed below, but replaces four separate check inputs with

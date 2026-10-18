@@ -6,6 +6,47 @@ limits. This page owns the research distinctions; the linked architecture
 sections retain the exact CLI and data contracts. No historical prototype
 assertions are imported as accepted research.
 
+## High-level campaign categories
+
+These are overlapping local research facets, **not** a replacement for formal
+framework mappings or a claim that MITRE/OWASP defines these exact four groups.
+
+| Category | Meaning and framework relationship |
+|---|---|
+| Victim-side agent abuse | Misuse of a victim-environment agent, including attempts/refusals. Where supported, distinguish direct/indirect [OWASP LLM01 prompt injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) rather than inferring it from any AI mention. |
+| Attacker-side AI use | AI used by the adversary to develop/operate attacks. Separate the operating side from a victim agent invoked by malicious code. |
+| AI review targeting | Content attempts to manipulate/evade an AI code/security reviewer; a particular mechanism may involve prompt injection, but the label alone establishes no technique. |
+| Developer-targeted social engineering | Deceptive recruiting/development interactions induce execution/access. [ATT&CK phishing](https://attack.mitre.org/techniques/T1566/) and user-execution concepts provide broader context; not every developer lure automatically maps to phishing. |
+
+`campaign-category-rules/1` creates source-local Pending categorization records
+from individual, bounded English claim-description sentences, not whole-document
+keyword co-occurrence or raw article extraction. Eligible source assertions,
+attempts and demonstrations require source/revision/passage linkage. Explicit
+role/action wording is required; hypothetical/recommendation/negated clauses,
+inferences, excluded/correction-needed claims and ambiguous roles abstain.
+This heuristic is deliberately incomplete and can be wrong: a label needs its
+own HITL decision after supporting-claim review. Missing matches are unclassified,
+never evidence of no AI involvement, no abuse or no social engineering.
+
+The origin is **Deterministic rule** and label authorship **Rule-derived**; the
+underlying claim may still be LLM-paraphrased. Versioned record identities and
+claim dependencies retain rule/source scope. Category corrections, exclusion,
+deferral and acceptance use the existing review log; no rule overwrites a human
+correction or accepts support. Cards deduplicate values while preserving every
+source-local assertion and review state. Category facets on source/claim views
+match their own supporting occurrences, not every source associated with a case.
+
+The current ATT&CK catalogue is an offline reference, not incident evidence.
+Its importer verifies the original immutable material SHA-256 and Git blob,
+retains the upstream license notice, and excludes inventoried revoked/deprecated
+attack patterns. Run `node src/import-attack-catalog.mjs --check` with the pinned
+runtime to check reproducibility (requires the official public download).
+Current reference membership never silently rewrites historical request/run
+catalogue pins. The optional adapter transmits only complete ID/name membership
+and pin metadata; definitions, URLs, license text and exclusions remain local,
+with the existing byte/token caps unchanged. No network model generation is
+implied by category extraction or catalogue import.
+
 ## Provenance before interpretation
 
 A **source** identifies an input; a **source revision** identifies retained

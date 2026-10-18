@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-18 - Reviewable campaign categories and complete ATT&CK reference (#89)
+
+- Add overlapping campaign-card categories for victim-side agent abuse,
+  attacker-side AI use, AI review targeting and developer-targeted social
+  engineering. Show review state, source-local evidence and category filters;
+  classify individual linked claim sentences conservatively during manual,
+  campaign/staged and curator proposal application. Preserve deterministic
+  origin separately from LLM claim provenance; never infer a negative from no match.
+- Add four Pending Nx category assertions (245 typed rows, 97 unchanged claims)
+  supporting one victim-side badge. Route categories into the existing item-level
+  HITL queue with correction, exclusion, deferral and separate acceptance; guide
+  v3 preserves historical v1/v2 events and does not approve unavailable evidence.
+- Replace the T1059-only ATT&CK projection with 697 active Enterprise 19.2
+  techniques/subtechniques from the original verified immutable material.
+  Retain upstream notices and inventory 149 revoked/12 deprecated exclusions.
+  Keep the current reference separate from historical extraction snapshots and
+  leave incident mappings unchanged. Minimize optional adapter catalogue transport
+  to complete IDs/names and pins without increasing byte/token limits.
+- Add extraction/abstention/role separation, source scope, HITL dependency,
+  catalogue integrity, historical replay and UI regressions. Category matching
+  is not exhaustive semantic extraction, successful abuse, human review or gold.
+
 ## 2026-10-18 - Publisher-grounded Pending Nx source expansion (#89)
 
 - Expand the actual public Pending Nx dataset with separate Semgrep and Panther

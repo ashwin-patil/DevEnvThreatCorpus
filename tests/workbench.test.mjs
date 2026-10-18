@@ -1,9 +1,11 @@
 import test from 'node:test';
 import './theme.test.mjs';
+import './campaign-categories.test.mjs';
+import { campaignCategoryGroups } from '../src/campaign-categories.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  createModel, applyReviewProjection, metadata, dateLabel, caseSourceIds, linkedClaims, claimTarget,
+  createModel, applyReviewProjection, metadata, dateLabel, caseSourceIds, linkedClaims, claimTarget, FACETS,
   passageSegments, conflictPairs, recordContext, filterRecords, facetOptions, parseRoute, routeHash,
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
@@ -78,6 +80,55 @@ test('public loader falls back only for static API absence or explicitly bundled
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
+
+test('#89 AC-06 current public campaign shows one Pending badge with four independent category evidence links', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), calls = [];
+  const groups = campaignCategoryGroups(m.corpus, m.corpus.cases[0].id);
+  assert.equal(groups.length, 1); assert.equal(groups[0].records.length, 4);
+  const root = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
+  const badges = descendants(root).filter(n => n.className?.includes('campaign-category-badge') && n.tagName === 'SPAN');
+  assert.equal(badges.length, 1); assert.equal(badges[0].textContent, 'Victim-side agent abuse · Pending');
+  const evidence = descendants(root).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Category evidence'));
+  assert.equal(evidence.length, 4); await evidence[0].trigger('click');
+  assert.equal(calls[0][0], 'claims'); assert.ok(m.claims.has(calls[0][1]));
+  assert.match(root.textContent, /preview cannot save category decisions/);
+  assert.ok(!descendants(root).some(n => n.tagName === 'BUTTON' && n.textContent === 'Review campaign categories'));
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-07 public catalogue uses the complete current reference without replacing the historical singleton', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const historical = canonicalSerialize(document.catalogSnapshot);
+  const m = publicDraftModel(document), root = renderExploration(new FakeDocument(), m, 'frameworks', {}, () => {});
+  const section = descendants(root).find(n => n.tagName === 'DETAILS' && n.className === 'catalog-entries'
+    && n.firstChild.textContent.startsWith('ATT&CK 19.2'));
+  assert.ok(section); assert.match(section.firstChild.textContent, /697 resolver entries/);
+  const entries = descendants(section).find(n => n.className === 'catalog-list');
+  assert.equal(entries.children.length, 697);
+  const search = descendants(section).find(n => n.tagName === 'INPUT');
+  search.value = 'T1552.001'; await search.trigger('input');
+  assert.deepEqual(entries.children.filter(n => !n.hidden).map(n => n.textContent), ['T1552.001 · Credentials In Files']);
+  assert.equal(m.publicCatalogSnapshot.catalogs.find(c => c.framework === 'ATT&CK').techniques.length, 1);
+  assert.equal(canonicalSerialize(document.catalogSnapshot), historical);
+  assert.equal(m.corpus.mappings.length, 2);
+});
+
+test('#89 AC-06 campaign category review navigation selects its own queue and exposes a value correction dropdown', async () => {
+  const f = reviewFixture(), m = createModel(f.corpus), opened = [];
+  m.itemReview = { ...f.snapshot(), campaigns: {}, sources: {} };
+  const cards = renderCaseLibrary(new FakeDocument(), m, f.corpus.cases, () => {}, {}, (...args) => opened.push(args));
+  await button(cards, 'Review campaign categories').trigger('click');
+  assert.deepEqual(opened[0], [f.corpus.cases[0].id, '', 'All', 'campaigns']);
+  const category = f.corpus.categorizations.find(c => c.dimension === 'ai_involvement' && c.value === 'Victim-side agent abuse');
+  const view = reviewView(f, `categorizations:${category.id}`, () => {}, { category: 'campaigns' });
+  const label = descendants(view).find(n => n.tagName === 'LABEL' && n.textContent.startsWith('Campaign category'));
+  assert.ok(label);
+  const select = descendants(label).find(n => n.tagName === 'SELECT');
+  assert.ok(select.children.some(n => n.textContent === 'Attacker-side AI use'));
+  assert.match(view.textContent, /Save changes \(not acceptance\)/);
+});
+
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
 
@@ -602,7 +653,7 @@ test('Issue #25 AC-01/04 comparison controls, reset, empty states, crosslinks an
   await button(content, 'Reset search').trigger('click');
   await button(content, 'Source:').trigger('click');
   assert.equal(doc.getElementById('content').focused, true);
-  assert.equal(doc.getElementById('facets').children.length, 5);
+  assert.equal(doc.getElementById('facets').children.length, FACETS.length);
   app.navigate('comparison');
   assert.equal(parseRoute('#comparison').view, 'comparison');
   assert.equal(JSON.stringify(corpus), before);

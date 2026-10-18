@@ -24,6 +24,14 @@ and precise StepSecurity support, preserving the earlier records. Current source
 coverage and Pending review limits are in [the Nx notes](nx-corpus.md#public-source-expansion---issue-89);
 the historical evidence boundary above does not validate that expansion.
 
+The same issue subsequently adds reviewable campaign categories and restores the
+complete active ATT&CK Enterprise 19.2 reference (697 techniques/subtechniques).
+Nx has four source-local Pending victim-side category proposals, not four
+confirmed events. Deterministic labels, source-claim provenance and independent
+review remain separate; the original extraction catalogue and mappings are not
+rewritten. The current-revision PR evidence, not the historical baseline above,
+must establish executed checks.
+
 The optional provider transport described here is a subsequent #83 addition,
 not a capability asserted at that historical baseline. Its current-revision
 evidence and outstanding independent reviews belong in the acceptance audit/PR.

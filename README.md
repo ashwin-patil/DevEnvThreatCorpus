@@ -96,16 +96,33 @@ and limits; the process does not imply completed research acceptance.
 - Record local item-level human decisions and produce reproducible reviewed/draft
   exports with read-only queries, subject to current eligibility checks.
 
+### Campaign categories and framework references
+
+Campaign cards show overlapping high-level **Victim-side agent abuse**,
+**Attacker-side AI use**, **AI review targeting**, and **Developer-targeted social
+engineering** categories when supported. Expand **Category evidence & review**
+for source-local claim links; use the **Campaign categories** facet to filter.
+Conservative deterministic rules propose Pending labels during claim application;
+absence of a match is unclassified, never "no AI". Nx currently has four
+source-local proposals for victim-side agent abuse, shown as one campaign badge.
+These are research labels, not official MITRE technique IDs or success findings.
+
+**ATLAS & TTPs → Mapping and catalog coverage** includes a searchable offline
+ATT&CK Enterprise 19.2 reference: **697 active techniques/subtechniques** from the
+existing immutable pin, rather than the earlier T1059-only projection. Revoked
+and deprecated entries are inventoried but excluded. Current reference expansion
+does not add incident mappings or rewrite historical extraction snapshots.
+
 ### Private local review
 
 Start `node scripts/server.mjs --store /absolute/private/store` on POSIX (store
 directory `0700`, `corpus.json` `0600`; inside this clone use ignored
-`.private-intake/`). Open **Review**: grounded AI/coding tools, behaviors/occurrences
-and prompt literals are the first-class category queues; blog grouping remains
+`.private-intake/`). Open **Review**: campaign categories, grounded AI/coding tools,
+behaviors/occurrences and prompt literals are the first-class category queues; blog grouping remains
 available over the same stable items/decisions. Claims are supporting evidence,
 accessible separately with exceptions and later-pass records, never deleted.
 Set your self-attested identity once per tab/session, visibly editable (not
-authenticated). Use the [researcher-review/2 guide](docs/researcher-review-guide.md):
+authenticated). Use the [researcher-review/3 guide](docs/researcher-review-guide.md):
 read the compact candidate, evidence/citation and category checklist, then choose
 **Accept item — I confirm** as one explicit personal attestation. Review each
 required support item separately; accepting a candidate never approves a claim.

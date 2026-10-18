@@ -1,5 +1,6 @@
 import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline } from './model.mjs';
 import { publisherDisplay, sourceInventory, canonicalArticleUrl } from './research-inventory.mjs';
+import { campaignCategoryGroups, categoryRule, CATEGORY_EXTRACTION_VERSION } from './campaign-categories.mjs';
 
 // Corpus values enter the DOM only through textContent; attributes and handlers are UI-owned.
 export function element(doc, tag, text, className = '') {
@@ -256,9 +257,51 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   return section;
 }
 
+export function campaignCategoryBadges(doc, model, caseId) {
+  const badges = element(doc, 'div', null, 'campaign-category-badges');
+  badges.setAttribute('aria-label', 'Campaign categories and review state');
+  for (const group of campaignCategoryGroups(model.corpus, caseId)) {
+    const state = group.state === 'Accepted' ? 'Recorded acceptance' : group.state;
+    const badge = element(doc, 'span', `${group.value} · ${state}`, 'usage-key campaign-category-badge');
+    badge.title = `${group.description} Classification does not establish successful abuse.`;
+    badges.append(badge);
+  }
+  return badges;
+}
+
+export function renderCampaignCategories(doc, model, caseId, navigate, openReview, showBadges = true) {
+  const section = element(doc, 'section', null, 'campaign-categories');
+  section.append(element(doc, 'h3', 'Campaign categories'));
+  if (showBadges) section.append(campaignCategoryBadges(doc, model, caseId));
+  const groups = campaignCategoryGroups(model.corpus, caseId);
+  if (!groups.length) {
+    section.append(element(doc, 'p', 'Unclassified: no supported high-level category recorded. This is not evidence of no AI involvement.', 'subtle'));
+    return section;
+  }
+  section.append(element(doc, 'p', 'Overlapping research labels, not official technique mappings. Pending rules classify source-linked claim wording, not success or human acceptance.', 'subtle'));
+  const details = element(doc, 'details');
+  details.append(element(doc, 'summary', 'Category evidence & review'));
+  for (const group of groups) {
+    details.append(element(doc, 'h4', group.value), element(doc, 'p', group.description));
+    for (const category of group.records) {
+      const block = element(doc, 'div', null, 'category-evidence');
+      const rule = categoryRule(category);
+      block.append(element(doc, 'p', `${category.origin} · ${category.itemReview?.state ?? category.disposition}${rule ? ` · ${CATEGORY_EXTRACTION_VERSION}/${rule.id}` : ''}`, 'subtle'));
+      for (const id of category.supportingClaimIds) block.append(claimCitation(doc, model, id, navigate, 'Category evidence'));
+      details.append(block);
+    }
+  }
+  if (model.itemReview && openReview) details.append(action(doc, 'Review campaign categories',
+    () => openReview(caseId, '', 'All', 'campaigns')));
+  else details.append(element(doc, 'p', 'This preview cannot save category decisions. Retained evidence and the supported local HITL workflow are required.', 'subtle'));
+  section.append(details);
+  return section;
+}
+
 export function renderCase(doc, model, record, navigate, exportReferences) {
   const panel = element(doc, 'article', null, 'panel');
   panel.append(element(doc, 'h2', record.name));
+  panel.append(renderCampaignCategories(doc, model, record.id, navigate));
   for (const key of ['kind', 'summary', 'limits', 'origin', 'disposition', 'collectionState', 'revision']) {
     field(doc, panel, key, metadata(record, key));
   }
