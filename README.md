@@ -112,6 +112,8 @@ ATT&CK Enterprise 19.2 reference: **697 active techniques/subtechniques** from t
 existing immutable pin, rather than the earlier T1059-only projection. Revoked
 and deprecated entries are inventoried but excluded. Current reference expansion
 does not add incident mappings or rewrite historical extraction snapshots.
+The catalogue asset has a scoped LF checkout rule in `src/.gitattributes` so
+Windows Git newline conversion does not change its reproducible bytes.
 
 ### Private local review
 

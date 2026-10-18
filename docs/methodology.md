@@ -41,6 +41,10 @@ Its importer verifies the original immutable material SHA-256 and Git blob,
 retains the upstream license notice, and excludes inventoried revoked/deprecated
 attack patterns. Run `node src/import-attack-catalog.mjs --check` with the pinned
 runtime to check reproducibility (requires the official public download).
+`src/.gitattributes` pins only the generated catalogue to LF, so Git's Windows
+checkout conversion cannot alter its deterministic byte snapshot. The strict
+snapshot assertion is unchanged; canonicalization is enforced at checkout, not
+silently tolerated by the importer.
 Current reference membership never silently rewrites historical request/run
 catalogue pins. The optional adapter transmits only complete ID/name membership
 and pin metadata; definitions, URLs, license text and exclusions remain local,
