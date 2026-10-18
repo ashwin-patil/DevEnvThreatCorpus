@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { applyCampaignCategories, proposeCampaignCategories, campaignCategoryGroups } from '../src/campaign-categories.mjs';
+import { applyCampaignCategories, proposeCampaignCategories, proposeTelemetryCategories, campaignCategoryGroups, telemetryCategoryGroups } from '../src/campaign-categories.mjs';
 import { assertValid, sha256, canonicalSerialize, profileRecords } from '../scripts/contract.mjs';
 import { applyExtraction } from '../scripts/extract.mjs';
 import { appendOutputs } from '../src/campaign.mjs';
@@ -89,7 +89,9 @@ test('#89 AC-06 uncertain/inferred/excluded/unlinked inputs never become automat
 test('#89 AC-06 idempotent proposals retain source-local identities and never rewrite existing corrections/history', () => {
   const c = fixture(), before = canonicalSerialize(c.claims);
   const ids = applyCampaignCategories(c, [c.claims[0].id]);
-  assert.equal(ids.length, 1);
+  assert.equal(ids.length, 2);
+  assert.ok(ids.some(id => id.startsWith('category-rules-1:victim-agent:')));
+  assert.ok(ids.some(id => id.startsWith('telemetry-scope-rules-1:agent:')));
   assert.deepEqual(applyCampaignCategories(c, [c.claims[0].id]), []);
   assert.equal(canonicalSerialize(c.claims), before);
   c.categorizations[0].value = 'Unclear';
@@ -156,6 +158,81 @@ test('#89 AC-06 categories deduplicate badges, preserve independent sources and 
   assert.deepEqual(filterRecords(model, 'claims', selected).map(c => c.id), [c.claims[0].id]);
   assert.deepEqual(recordContext(model, 'cases', c.cases[1]).campaignCategories, []);
   c.categorizations.find(c => c.id === ids[0]).disposition = 'Excluded';
-  c.categorizations[1].disposition = 'Excluded';
+  c.categorizations.find(c => c.id === 'synthetic-second-category').disposition = 'Excluded';
   assert.deepEqual(filterRecords(model, 'cases', selected), []);
+});
+
+for (const [description, value] of [
+  ['The payload executed a process on the endpoint.', 'Endpoint telemetry'],
+  ['The job ran in a CI runner.', 'CI/CD audit'],
+  ['The attacker changed repository visibility to public.', 'Source-control audit'],
+  ['The attacker made AWS API calls to change IAM policy.', 'Cloud control-plane audit'],
+  ['The identity provider recorded an authentication event.', 'Identity & access logs'],
+  ['The malware uploaded data over HTTPS.', 'Network & DNS telemetry'],
+  ['The script invoked the Claude CLI.', 'AI agent observability'],
+  ['The compromised npm package version ran a postinstall hook.', 'Package & build provenance'],
+]) test(`#89 AC-09 deterministic collection-scope proposal: ${value}`, () => {
+  const c = fixture(description);
+  assert.ok(proposeTelemetryCategories(c).some(category => category.value === value));
+  applyCampaignCategories(c); assertValid(c);
+  for (const category of c.categorizations.filter(c => c.dimension === 'telemetry_scope')) {
+    assert.equal(category.disposition, 'Pending'); assert.equal(category.origin, 'Deterministic rule');
+    assert.deepEqual(category.sourceIds, [c.claims[0].sourceId]);
+    assert.deepEqual(category.supportingClaimIds, [c.claims[0].id]);
+  }
+  assert.ok(!c.telemetry?.length && !c.detections?.length && !c.otel?.length);
+});
+
+test('#89 AC-09 cloud credentials, recommendations, isolated names and absent matches are not telemetry/coverage proof', () => {
+  for (const description of [
+    'The payload stole AWS credentials from a file.',
+    'The attacker read the GITHUB_TOKEN variable.',
+    'Nx Cloud was not affected.',
+    'Researchers recommend collecting endpoint and DNS logs.',
+    'The author mentioned Claude without invocation.',
+  ]) {
+    const values = proposeTelemetryCategories(fixture(description)).map(c => c.value);
+    assert.ok(!values.includes('Cloud control-plane audit'));
+    assert.ok(!values.includes('CI/CD audit'));
+    if (description.includes('recommend') || description.includes('without')) assert.deepEqual(values, []);
+  }
+  const c = fixture();
+  c.claims[0].evidenceStatus = 'Potential consequence'; assert.deepEqual(proposeTelemetryCategories(c), []);
+  c.claims[0].evidenceStatus = 'Attempted behavior'; c.claims[0].passageIds = [];
+  assert.deepEqual(proposeTelemetryCategories(c), []);
+});
+
+test('#89 AC-09 telemetry scope stays source-local, filters separately, and uses dependent HITL decisions', () => {
+  const c = fixture(); applyCampaignCategories(c);
+  const category = c.categorizations.find(c => c.dimension === 'telemetry_scope'), key = `categorizations:${category.id}`;
+  assert.equal(priorityCategory(reviewSnapshot(c).units.find(u => u.itemKey === key)), 'telemetry-scope');
+  assert.throws(() => decide(c, key), /BLOCKED_REVIEW/);
+  decide(c, `claims:${c.claims[0].id}`); decide(c, key, 'unsure');
+  decide(c, key); assert.equal(reviewSnapshot(c).units.find(u => u.itemKey === key).state, 'Accepted');
+  const model = createModel(c), filters = { telemetryScopes: ['AI agent observability'] };
+  assert.deepEqual(filterRecords(model, 'sources', filters).map(s => s.id), [c.claims[0].sourceId]);
+  assert.deepEqual(filterRecords(model, 'claims', filters).map(s => s.id), [c.claims[0].id]);
+  assert.equal(telemetryCategoryGroups(c, c.cases[0].id, new Set([c.sources[1].id])).length, 0);
+  decide(c, key, 'exclude');
+  const projected = applyReviewProjection({ ...model, itemReview: reviewSnapshot(c) });
+  assert.deepEqual(filterRecords(projected, 'cases', filters), []);
+});
+
+test('#89 AC-09/10 multi-claim same-source categories filter their supporting claims without projecting cross-source joint categories', () => {
+  const c = fixture(); applyCampaignCategories(c);
+  const clone = { ...structuredClone(c.claims[0]), id: 'synthetic-second-support', conflictsWith: [] };
+  c.claims.push(clone);
+  for (const category of c.categorizations) category.supportingClaimIds.push(clone.id);
+  assertValid(c);
+  const model = createModel(c);
+  for (const filters of [{ telemetryScopes: ['AI agent observability'] }, { campaignCategories: ['Victim-side agent abuse'] }]) {
+    assert.deepEqual(filterRecords(model, 'claims', filters).map(claim => claim.id), [c.claims[0].id, clone.id]);
+    assert.deepEqual(filterRecords(model, 'sources', filters).map(source => source.id), [c.sources[0].id]);
+  }
+  for (const category of c.categorizations) category.sourceIds.push(c.sources[1].id);
+  for (const filters of [{ telemetryScopes: ['AI agent observability'] }, { campaignCategories: ['Victim-side agent abuse'] }]) {
+    assert.deepEqual(filterRecords(model, 'sources', filters), []);
+    assert.deepEqual(filterRecords(model, 'claims', filters), []);
+    assert.deepEqual(filterRecords(model, 'cases', filters).map(c => c.id), [c.cases[0].id]);
+  }
 });

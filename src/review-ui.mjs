@@ -1,6 +1,7 @@
 import { element, action } from './render.mjs';
 import { GUIDE_VERSION, checksFor, confirmationFor, priorityCategory, PRIORITY_LABELS, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
-import { CAMPAIGN_CATEGORIES, categoryRule, CATEGORY_EXTRACTION_VERSION } from './campaign-categories.mjs';
+import { ALL_CAMPAIGN_CATEGORIES, categoryRule } from './campaign-categories.mjs';
+import { OBSERVATION_CONTEXTS, RESPONSE_OUTCOMES } from './prompt-responses.mjs';
 
 export const REVIEW_FILTERS = ['All', 'Needs review', 'Accepted', 'Excluded', 'Unsure', 'Blocked/support changed'];
 const STORAGE_KEY = 'devenv-threat-corpus.review-navigation';
@@ -148,7 +149,7 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
   else {
     const u = selected;
     const rule = categoryRule(u.original);
-    if (rule) detail.append(element(doc, 'p', `${CATEGORY_EXTRACTION_VERSION} / ${rule.id}: ${rule.description} Matched source-linked claim wording, not an independent finding. Missing matches do not establish absence.`, 'limits'));
+    if (rule) detail.append(element(doc, 'p', `${rule.version} / ${rule.id}: ${rule.description} Matched source-linked claim wording, not an independent finding or available telemetry. Missing matches do not establish absence.`, 'limits'));
     detail.append(element(doc, 'h3', `${u.type}: ${u.id}`),
       element(doc, 'p', `${u.state} · labels ${u.labels.applicable ? u.labels.state : 'N/A (no label applies)'}`),
       element(doc, 'p', `Content origin: ${u.contentOrigin} · Label authorship: ${u.labelAuthorship}`),
@@ -239,20 +240,37 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
       rationale: rationale.value, replacementKeys: replacements.value.split(',').map(k => k.trim()).filter(Boolean) })));
     detail.append(rejection);
     const modify = element(doc, 'details'); modify.append(element(doc, 'summary', 'Modify item'));
-    const controls = [];
+    const controls = [], responseControls = [];
     const edit = (name, key, value, tag = 'input') => {
       const control = field(doc, modify, name, tag); control.value = value ?? ''; controls.push({ key, control, before: value ?? '' });
     };
     const category = priorityCategory(u);
     if (category === 'tools') edit('Tool identity', 'normalizedValue', u.record.normalizedValue ?? u.record.value);
-    if (category === 'prompts') edit('Exact prompt literal', 'value', u.record.value, 'textarea');
+    if (category === 'prompts') {
+      edit('Exact prompt literal', 'value', u.record.value, 'textarea');
+      const context = choose(doc, modify, 'Prompt observation environment', Object.entries(OBSERVATION_CONTEXTS),
+        u.record.context?.observationContext ?? 'unknown', () => {});
+      controls.push({ key: 'context.observationContext', control: context, before: u.record.context?.observationContext ?? 'unknown' });
+      for (const [index, response] of (u.record.responses ?? []).entries()) {
+        modify.append(element(doc, 'h4', `Attached response ${index + 1}: ${response.agent}`),
+          element(doc, 'p', response.contextBasis, 'limits'),
+          element(doc, 'pre', response.text ?? 'Response text withheld.', 'artifact-value'));
+        for (const [key, label, values] of [
+          ['outcome', 'Response outcome', RESPONSE_OUTCOMES.map(v => [v, v])],
+          ['observationContext', 'Response observation environment', Object.entries(OBSERVATION_CONTEXTS)],
+        ]) {
+          const control = choose(doc, modify, label, values, response[key], () => {});
+          responseControls.push({ index, key, control, before: response[key] });
+        }
+      }
+    }
     if (['tools', 'prompts'].includes(category)) {
       const usage = choose(doc, modify, 'Usage', ['targeted', 'attempted-abuse', 'reported-abuse', 'vendor-example', 'general-mention', 'unclear'].map(v => [v, v]), u.record.context?.artifactUsage ?? 'unclear', () => {});
       controls.push({ key: 'context.artifactUsage', control: usage, before: u.record.context?.artifactUsage ?? '' });
       edit('Use context', 'context.notes', u.record.context?.notes, 'textarea');
-    } else if (u.type === 'categorizations' && category === 'campaigns') {
-      const values = [...new Set([u.record.value, ...CAMPAIGN_CATEGORIES.filter(r => r.dimension === u.record.dimension).map(r => r.value)])];
-      const control = choose(doc, modify, 'Campaign category', values.map(value => [value, value]), u.record.value, () => {});
+    } else if (u.type === 'categorizations' && ['campaigns', 'telemetry-scope'].includes(category)) {
+      const values = [...new Set([u.record.value, ...ALL_CAMPAIGN_CATEGORIES.filter(r => r.dimension === u.record.dimension).map(r => r.value)])];
+      const control = choose(doc, modify, category === 'telemetry-scope' ? 'Telemetry scope' : 'Campaign category', values.map(value => [value, value]), u.record.value, () => {});
       controls.push({ key: 'value', control, before: u.record.value });
     } else if (u.type === 'behaviors') {
       edit('Behavior name', 'name', u.record.name); edit('Behavior description', 'description', u.record.description, 'textarea');
@@ -274,6 +292,10 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
       for (const { key, control, before } of controls) if (control.value !== before) {
         if (key.startsWith('context.')) { patch.context ??= { ...u.record.context }; patch.context[key.slice(8)] = control.value; }
         else patch[key] = control.value;
+      }
+      for (const { index, key, control, before } of responseControls) if (control.value !== before) {
+        patch.responses ??= structuredClone(u.record.responses);
+        patch.responses[index][key] = control.value;
       }
       submit('modify', { patch, researcherTags: tags.value.split(',').map(t => t.trim()).filter(Boolean), rationale: editReason.value });
     }));

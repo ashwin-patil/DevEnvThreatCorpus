@@ -6,6 +6,52 @@ limits. This page owns the research distinctions; the linked architecture
 sections retain the exact CLI and data contracts. No historical prototype
 assertions are imported as accepted research.
 
+## Enterprise telemetry collection scope
+
+These overlapping **local navigation families** use recognizable enterprise
+collection terms, not exact official framework IDs or promised coverage.
+`telemetry-scope-rules/1` proposes Pending source-local categorizations from
+eligible bounded claim sentences; absence/negation, recommendations and inferred
+consequences do not establish positive scope. HITL can correct/exclude/defer and
+accept separately from the supporting claims. Blog/alias groups display only
+categories supported by their own sources, never wholesale campaign inheritance.
+
+| Family | Typical enterprise collection surface and limitation |
+|---|---|
+| Endpoint telemetry | EDR process/command-line and file activity; individual file reads need appropriate sensor/audit configuration. |
+| CI/CD audit | [Workflow/job/run logs](https://docs.github.com/en/actions/how-tos/monitor-workflows/use-workflow-run-logs), runner records; access, retention and instrumentation vary. |
+| Source-control audit | [Repository/organization audit](https://docs.github.com/en/organizations/keeping-your-organization-secure/managing-security-settings-for-your-organization/reviewing-the-audit-log-for-your-organization), permission, visibility and API changes; organization logs do not cover every personal-account action. |
+| Cloud control-plane audit | [CloudTrail management events](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-management-events-with-cloudtrail.html), Azure Activity, Google Cloud Audit Logs; local credential theft alone establishes no cloud API action. |
+| Identity & access logs | IdP sign-in, consent and token/session lifecycle audit where available; reading a local secret is not an IdP event. |
+| Network & DNS telemetry | Enterprise resolver, proxy, firewall and flow logs; do not assume TLS payload/file contents are visible. |
+| AI agent observability | Instrumented CLI/agent transcripts, model/tool-operation traces; [OpenTelemetry GenAI conventions](https://github.com/open-telemetry/semantic-conventions-genai/tree/main/docs/gen-ai) remain in Development and message content is sensitive/opt-in, not default universal enterprise telemetry. |
+| Package & build provenance | Registry publish/install metadata, dependency/build records and provenance attestations where collection is controlled; historical attestations may not exist. |
+
+Scope is distinct from the existing typed telemetry-event, detection and OTEL
+records. This refactor creates none of those records, event mappings or detection
+logic. A family badge means only that a source-linked behavior suggests examining
+that collection surface. Operational availability and effectiveness require later
+scoped work and executed evidence.
+
+## Prompt responses and observation provenance
+
+An optional response is metadata on its exact prompt occurrence, not a separate
+prompt entry or an outcome shared across exact-prompt groups. Preserve literal
+encoding, full raw response/context receipts and source-local claim dependencies.
+The response artifact may cover more text than its associated atomic claim;
+never silently enlarge that claim's supporting passage. Private validation checks
+exact retained text/hashes; public projection checks shape/scope/receipts but
+cannot independently reverify withheld articles.
+
+Distinguish researcher-controlled testing, reported compromised-host evidence,
+source-reported log review with unspecified environment, illustration and unknown.
+An attacker saying “authorized testing” proves none of those environments. Nor
+does a separate malware runtime experiment locate an AI transcript. Keep unknown
+model/role explicit, and distinguish a local refusal from aggregate source-reported
+success elsewhere. Missing responses are not an outcome. Guide v4 binds these
+decisions to each prompt/response/support revision; independent human semantic,
+rights/privacy and documentation review remain required.
+
 ## High-level campaign categories
 
 These are overlapping local research facets, **not** a replacement for formal

@@ -84,7 +84,34 @@ appears consistently on private cards/library while its extracted literal remain
 visible; a correction never automatically merges products. These presentation
 clarifications do not change either named guide's acceptance checks.
 
-## Current guide: researcher-review/3
+## Current guide: researcher-review/4
+
+Version **researcher-review/4** adds the **Telemetry scope** queue and nested
+**Prompts & responses** review. It preserves historical v1/v2/v3 guide versions
+and bindings, not their acceptance on changed content. Scope confirmation says
+the source-local behavior fits a collection family; it establishes neither
+available logs nor events/detection coverage. Correct, exclude or defer any
+unsupported proposal; acceptance still depends on separately accepted claims.
+
+A response belongs to its exact prompt occurrence, never a new prompt card or
+all occurrences of a shared prompt. Inspect the full raw response and context
+receipts as well as supporting claims: a claim may support only an opening
+refusal. JSON-string tokens retain raw offsets/hashes while displaying decoded
+text. Unknown role/model stay unknown. Distinguish researcher-controlled testing,
+reported compromised-host evidence, unspecified-environment log review,
+illustration and unknown; neither attacker testing pretexts nor a separate
+malware experiment establish the environment of an AI exchange.
+
+The prompt confirmation is: “The prompt and any attached responses, pairing and
+observation contexts are source-supported; unknown is not independent testing
+or compromised-host proof.” Saving outcome/context corrections does not
+accept them. A correction cannot reassign response identity, source support or
+claim dependencies; use a separately grounded Pending artifact for changed
+evidence. Edited support, response content or provenance invalidates prior
+acceptance. Public preview cannot save decisions; reviewed public annotation
+exports still omit private prompt/response/context content.
+
+## Historical guide: researcher-review/3
 
 Version **researcher-review/3** adds **Campaign categories** to the priority
 workload and distinguishes **Rule-derived** labels / **Deterministic rule**

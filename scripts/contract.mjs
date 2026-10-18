@@ -20,7 +20,7 @@ export const CONTRACT_VERSION = '0.3.0';
 export const NORMALIZATION_VERSION = 'unicode-lf-nfc/1';
 export const categories = Object.freeze(Object.fromEntries(Object.entries({
   trust_surface: 'trustSurface', ai_involvement: 'aiInvolvement', execution_location: 'executionLocation',
-  delivery: 'delivery', objective: 'objective', evidence_to_seek: 'evidenceToSeek',
+  delivery: 'delivery', objective: 'objective', evidence_to_seek: 'evidenceToSeek', telemetry_scope: 'telemetryScope',
 }).map(([dimension, definition]) => [dimension, Object.freeze(schema.$defs[definition].enum.filter(value => value !== null))])));
 
 export function sha256(text) {

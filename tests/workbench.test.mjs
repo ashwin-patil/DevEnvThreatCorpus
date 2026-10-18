@@ -1,6 +1,7 @@
 import test from 'node:test';
 import './theme.test.mjs';
 import './campaign-categories.test.mjs';
+import { responseFixture } from './prompt-responses.test.mjs';
 import { campaignCategoryGroups } from '../src/campaign-categories.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -112,6 +113,146 @@ test('#89 AC-07 public catalogue uses the complete current reference without rep
   assert.equal(m.publicCatalogSnapshot.catalogs.find(c => c.framework === 'ATT&CK').techniques.length, 1);
   assert.equal(canonicalSerialize(document.catalogSnapshot), historical);
   assert.equal(m.corpus.mappings.length, 2);
+});
+
+test('#89 AC-10 campaign left/right headers and six source-supported blog categories do not inherit unsupported tags', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), doc = new FakeDocument();
+  const campaign = renderCaseLibrary(doc, m, m.corpus.cases, () => {});
+  const header = descendants(campaign).find(n => n.className === 'card-badges');
+  assert.equal(header.children[0].className, 'publisher-badge');
+  assert.equal(header.children[1].className, 'campaign-category-badges');
+  assert.match(header.children[1].textContent, /Victim-side agent abuse/);
+  const library = renderResearchLibrary(doc, m, m.corpus.sources, () => {});
+  const cards = descendants(library).filter(n => n.className?.includes('blog-card'));
+  assert.equal(cards.length, 6);
+  for (const card of cards) {
+    const blogHeader = descendants(card).find(n => n.className === 'card-badges');
+    const publisher = blogHeader.children[0].textContent;
+    assert.equal(blogHeader.children[1].className, 'campaign-category-badges');
+    assert.equal(blogHeader.children[1].textContent.includes('Victim-side agent abuse'),
+      ['Nx', 'Wiz', 'Semgrep', 'Panther'].includes(publisher), publisher);
+    assert.ok(!card.textContent.includes('Cloud control-plane audit'));
+    assert.ok(!card.textContent.includes('Identity & access logs'));
+    assert.match(card.textContent, /scope/);
+  }
+  const source = m.corpus.sources.find(s => s.publisher === 'Semgrep'), calls = [];
+  const scoped = renderResearchLibrary(doc, m, [source], (...args) => calls.push(args));
+  const evidence = descendants(scoped).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Scope evidence'));
+  assert.ok(evidence.length);
+  for (const button of evidence) {
+    await button.trigger('click');
+    assert.equal(m.claims.get(calls.at(-1)[1]).sourceId, source.id);
+  }
+  const scopes = facetOptions(m, ['telemetryScopes']).telemetryScopes;
+  assert.equal(scopes.length, 6); assert.ok(scopes.includes('AI agent observability'));
+});
+
+test('#89 AC-10 alias blogs deduplicate categories across cases while preserving mixed/excluded states and selected-case scope', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), c = m.corpus;
+  const source = c.sources.find(s => s.publisher === 'Semgrep');
+  const alias = { ...structuredClone(source), id: 'synthetic-semgrep-alias', canonicalUrl: `${source.canonicalUrl}?utm_source=synthetic`, revisionIds: [] };
+  const original = c.categorizations.find(cat => cat.value === 'Victim-side agent abuse' && cat.sourceIds.includes(source.id));
+  const claim = { ...structuredClone(m.claims.get(original.supportingClaimIds[0])), id: 'synthetic-alias-claim', sourceId: alias.id, caseId: 'synthetic-alias-case' };
+  const secondCase = { ...structuredClone(c.cases[0]), id: claim.caseId, name: 'Synthetic alias case', sourceIds: [alias.id], summaryClaimIds: [claim.id], pathIds: [] };
+  c.sources.push(alias); c.claims.push(claim); c.cases.push(secondCase);
+  const second = { ...structuredClone(original), id: 'synthetic-alias-category', caseId: claim.caseId,
+    supportingClaimIds: [claim.id], sourceIds: [alias.id], itemReview: { state: 'Accepted' } };
+  c.categorizations.push(second);
+  const render = (filters = {}) => renderResearchLibrary(new FakeDocument(), createModel(c), [source, alias], () => {}, filters);
+  const root = render(), header = descendants(root).find(n => n.className === 'card-badges');
+  assert.equal(descendants(root).filter(n => n.className?.includes('blog-card')).length, 1);
+  assert.equal(descendants(header).filter(n => n.tagName === 'SPAN' && n.className?.includes('campaign-category-badge')).length, 1);
+  assert.match(header.textContent, /Mixed review states/);
+  const selected = descendants(render({ cases: [c.cases[0].id] })).find(n => n.className === 'card-badges');
+  assert.match(selected.textContent, /Pending/); assert.doesNotMatch(selected.textContent, /Mixed/);
+  original.disposition = 'Excluded'; second.disposition = 'Excluded';
+  assert.doesNotMatch(descendants(render()).find(n => n.className === 'card-badges').textContent, /Victim-side/);
+});
+
+test('#89 AC-08 one Semgrep response nests beneath its source occurrence without changing prompt groups or other outcomes', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), calls = [];
+  const page = renderExploration(new FakeDocument(), m, 'prompts', {}, (...args) => calls.push(args));
+  const responses = descendants(page).filter(n => n.className === 'prompt-response');
+  assert.equal(responses.length, 1); assert.match(responses[0].parentNode.textContent, /Semgrep/);
+  assert.match(responses[0].textContent, /environment unspecified|without identifying/);
+  assert.match(responses[0].textContent, /Claude \/ unknown \/ unspecified/);
+  assert.match(responses[0].textContent, /JSON-decoded/);
+  const text = descendants(responses[0]).find(n => n.className?.includes('response-value'));
+  assert.equal(text.textContent, document.prompts.find(p => p.responses)?.responses[0].text);
+  const evidence = descendants(responses[0]).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Response/context evidence'));
+  assert.equal(evidence.length, 2); await evidence[0].trigger('click');
+  assert.equal(m.claims.get(calls[0][1]).sourceId, document.prompts.find(p => p.responses).sourceId);
+  const step = document.prompts.find(p => p.id.includes('stepsecurity'));
+  const filtered = renderExploration(new FakeDocument(), m, 'prompts', { sources: [step.sourceId] }, () => {});
+  assert.equal(descendants(filtered).filter(n => n.className === 'prompt-response').length, 0);
+  assert.match(filtered.textContent, /neither refusal nor successful execution/);
+  assert.equal(aiLibrary(m, 'prompts').length, 2);
+});
+
+test('#89 AC-08 public response shape, provenance and export-copy validation reject malformed metadata without relying on receipt parity', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  for (const mutate of [
+    p => { p.observationBasis = {}; },
+    p => { p.responses[0].revisionHash = '0'.repeat(64); },
+    p => { p.responses[0].support.locator.end = -1; },
+    p => { p.responses[0].contextSupport.sha256 = 'no-hash'; },
+    p => { p.responses[0].role = 'system'; },
+    p => { p.responses[0].observationContext = 'confirmed-test'; },
+    p => { p.responses[0].claimIds = [document.prompts[0].claimId]; },
+    p => { p.responses.push(structuredClone(p.responses[0])); },
+  ]) {
+    const invalid = structuredClone(document); mutate(invalid.prompts.find(p => p.responses));
+    invalid.coverage.promptArtifacts.prompts = structuredClone(invalid.prompts);
+    invalid.coverage.promptArtifactDigest = digest(invalid.coverage.promptArtifacts);
+    assert.throws(() => publicDraftModel(invalid), /Invalid public/);
+  }
+  const mismatched = structuredClone(document); mismatched.coverage.promptArtifacts.prompts.pop();
+  assert.throws(() => publicDraftModel(mismatched), /Invalid public/);
+});
+
+test('#89 AC-08 private talk exports preserve nested response metadata and Review exposes independent correction controls', async () => {
+  const f = responseFixture(), model = createModel(f.corpus); model.annotations = [f.annotation];
+  const bundle = talkBundle(model, f.annotation.caseId);
+  assert.deepEqual(bundle.annotations[0].responses, f.annotation.responses);
+  const markdown = talkMarkdown(bundle);
+  assert.match(markdown, /Attached response: synthetic-response; refusal/);
+  assert.match(markdown, /Responder \/ model \/ role: Synthetic test agent \/ unknown \/ unspecified/);
+  assert.match(markdown, /> Synthetic refusal\./); assert.match(markdown, /Pairing basis/);
+  const state = { ...reviewSnapshot(f.corpus, [f.annotation]), campaigns: {}, sources: {} }, inputs = [];
+  const view = renderReview(new FakeDocument(), model, state, { caseId: f.annotation.caseId, itemKey: `annotations:${f.annotation.id}`, category: 'prompts' },
+    { change: () => {}, decide: input => inputs.push(input), navigate: () => {}, session: { reviewer: 'synthetic-human', selfAttested: true } });
+  const labels = descendants(view).filter(n => n.tagName === 'LABEL');
+  assert.ok(labels.some(n => n.textContent.startsWith('Response outcome')));
+  assert.ok(labels.some(n => n.textContent.startsWith('Response observation environment')));
+  assert.match(view.textContent, /Save changes \(not acceptance\)/);
+  descendants(labels.find(n => n.textContent.startsWith('Response outcome'))).find(n => n.tagName === 'SELECT').value = 'unknown';
+  descendants(labels.find(n => n.textContent.startsWith('Change reason'))).find(n => n.tagName === 'TEXTAREA').value = 'Synthetic conservative correction.';
+  await button(view, 'Save changes (not acceptance)').trigger('click');
+  assert.equal(inputs[0].action, 'modify');
+  assert.equal(inputs[0].patch.responses[0].outcome, 'unknown');
+  assert.deepEqual(inputs[0].patch.responses[0].claimIds, f.annotation.responses[0].claimIds);
+  assert.deepEqual(inputs[0].patch.responses[0].support, f.annotation.responses[0].support);
+  assert.equal(f.annotation.responses[0].outcome, 'refusal');
+});
+
+test('#89 AC-09 scope review has its own queue and controlled values without AI-role conflation', async () => {
+  const f = reviewFixture(), opened = [];
+  f.corpus.categorizations.push({ ...structuredClone(f.corpus.categorizations[0]),
+    id: 'synthetic-telemetry-scope', dimension: 'telemetry_scope', value: 'Endpoint telemetry' });
+  const model = createModel(f.corpus);
+  model.itemReview = f.snapshot();
+  const cards = renderCaseLibrary(new FakeDocument(), model, f.corpus.cases, () => {}, {}, (...args) => opened.push(args));
+  await button(cards, 'Review telemetry scope').trigger('click');
+  assert.deepEqual(opened[0], [f.corpus.cases[0].id, '', 'All', 'telemetry-scope']);
+  const category = f.corpus.categorizations.find(c => c.dimension === 'telemetry_scope');
+  const view = reviewView(f, `categorizations:${category.id}`, () => {}, { category: 'telemetry-scope' });
+  const select = descendants(descendants(view).find(n => n.tagName === 'LABEL' && n.textContent.startsWith('Telemetry scope'))).find(n => n.tagName === 'SELECT');
+  assert.ok(select.children.some(n => n.textContent === 'Cloud control-plane audit'));
+  assert.ok(!select.children.some(n => n.textContent === 'Victim-side agent abuse'));
+  assert.match(view.textContent, /does not establish available logs/);
 });
 
 test('#89 AC-06 campaign category review navigation selects its own queue and exposes a value correction dropdown', async () => {
@@ -888,6 +1029,8 @@ test('Issue #51 public prompt projection rejects missing support, invalid locato
   ]) {
     const invalid = structuredClone(document);
     alter(invalid.prompts[0]);
+    invalid.coverage.promptArtifacts.prompts = structuredClone(invalid.prompts);
+    invalid.coverage.promptArtifactDigest = digest(invalid.coverage.promptArtifacts);
     assert.throws(() => publicDraftModel(invalid), /Invalid public Pending draft projection/);
   }
   const duplicate = structuredClone(document);
@@ -897,10 +1040,13 @@ test('Issue #51 public prompt projection rejects missing support, invalid locato
   gap.records.find(row => row.entity.id === 'campaign-passage-5ac9b8203bba17601a5b64b945abe6213a4f3d93efebd062f5d80f7a085d7611').entity.start += 1;
   assert.throws(() => publicDraftModel(gap), /Invalid public/);
   const legacy = structuredClone(document); delete legacy.prompts;
+  delete legacy.coverage.promptArtifacts; delete legacy.coverage.promptArtifactDigest;
   assert.equal(aiLibrary(publicDraftModel(legacy), 'prompts').length, 0);
   const synthetic = structuredClone(document);
   synthetic.prompts = [{ ...synthetic.prompts[1], literal: '<script>synthetic artifact</script> \n',
     locator: { start: 4163, end: 4163 + '<script>synthetic artifact</script> \n'.length } }];
+  synthetic.coverage.promptArtifacts.prompts = structuredClone(synthetic.prompts);
+  synthetic.coverage.promptArtifactDigest = digest(synthetic.coverage.promptArtifacts);
   const page = renderExploration(new FakeDocument(), publicDraftModel(synthetic), 'prompts', {}, () => {});
   assert.equal(descendants(page).find(node => node.className === 'artifact-value').textContent, synthetic.prompts[0].literal);
   assert.equal(descendants(page).filter(node => node.tagName === 'SCRIPT').length, 0);

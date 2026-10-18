@@ -23,6 +23,14 @@ what remains uncertain, and what would a defender need to investigate?**
 > **Research preview** · Explore the workbench and its source-linked Pending draft.
 > Read [coverage and review limits](docs/nx-corpus.md) before interpreting the examples.
 
+Campaign cards put AI-role badges at top-right and propose enterprise telemetry
+collection families; Research library blogs show only their own supported tags.
+In **Prompt library**, Semgrep's refusal nests under its existing prompt occurrence,
+with source-reported log-review context, unknown model/role and exact receipts.
+No transcript is executed; scope tags do not promise available logs, and public
+display does not record HITL acceptance. [Review boundaries](docs/methodology.md#enterprise-telemetry-collection-scope)
+explain the terminology and remaining human decisions.
+
 ### On this page
 
 - [Vision and audiences](#vision-and-audiences)

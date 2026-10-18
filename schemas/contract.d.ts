@@ -41,7 +41,7 @@ export interface Claim extends Reviewable {
   caseId: ID; sourceId: ID; sourceRevisionId: ID; description: string; passageIds: ID[]; inference: Inference | null;
   evidenceStatus: EvidenceStatus; conflictsWith: ID[]; uncertainty: string | null; observationContext: string | null;
 }
-export type CategoryDimension = 'trust_surface' | 'ai_involvement' | 'execution_location' | 'delivery' | 'objective' | 'evidence_to_seek' | 'tool' | 'platform' | 'tag';
+export type CategoryDimension = 'trust_surface' | 'ai_involvement' | 'execution_location' | 'delivery' | 'objective' | 'evidence_to_seek' | 'telemetry_scope' | 'tool' | 'platform' | 'tag';
 export interface Categorization extends Reviewable {
   caseId: ID; dimension: CategoryDimension; value: string | null; otherText: string | null; sourceIds: ID[]; supportingClaimIds: ID[];
 }

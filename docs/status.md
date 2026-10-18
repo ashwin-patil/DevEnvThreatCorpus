@@ -6,6 +6,14 @@ corpus or proven detection service. Read the [workflow](workflow.md) and
 
 ## Evidence boundary
 
+Issue #89's follow-up nests the user-supplied Semgrep refusal under its existing
+prompt, with log-review/unknown-environment provenance, and adds 63 Pending
+source-local enterprise collection-scope proposals. Campaign/blog badges and
+guide v4 expose these separately from event/detection/OTLP records, which were
+not generated. The current projection has 308 typed rows and one response across
+the unchanged two prompt groups/four occurrences. None is independent HITL,
+semantic gold, available enterprise logs or proven detection coverage.
+
 Implementation and public-data statements below were inspected against
 [`06f93a10f4481378c394785f4e2d239886a92c21`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/06f93a10f4481378c394785f4e2d239886a92c21),
 the merged #60 default-branch baseline. This documentation does not change those

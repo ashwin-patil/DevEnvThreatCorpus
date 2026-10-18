@@ -191,7 +191,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     if (model?.publicDraft) {
       const articles = articleCoverage(model.publicDraft.sourceCoverage);
       return `PUBLIC PENDING DRAFT — ${articles.filter(s => s.collected).length}/${articles.length} logical research articles retained. ` +
-        'No human acceptance. Published prompt literals are displayed as untrusted research artifacts; full articles and other quotations remain private.';
+        'No human acceptance. Published prompts and explicitly authorized responses are untrusted research artifacts; full articles and other quotations remain private.';
     }
     return model?.corpus.governance?.synthetic ?
       'SYNTHETIC DEMO — generated benign fixture, not incident evidence.' :
@@ -204,7 +204,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     const keys = comparing ? COMPARISON_FACETS : FACETS;
     const allOptions = facetOptions(model, keys);
     const titleFor = key => COMPARISON_DIMENSIONS[key] ??
-      ({ campaignCategories: 'Campaign categories', evidenceStatus: 'Evidence status', reviewerDisposition: 'Claim reviewer disposition' }[key] ?? key[0].toUpperCase() + key.slice(1));
+      ({ campaignCategories: 'Campaign categories', telemetryScopes: 'Telemetry scope', evidenceStatus: 'Evidence status', reviewerDisposition: 'Claim reviewer disposition' }[key] ?? key[0].toUpperCase() + key.slice(1));
     for (const key of keys) {
       const options = allOptions[key];
       const details = element(doc, 'details');

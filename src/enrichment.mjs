@@ -3,8 +3,9 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { canonicalSerialize, readPrivateTemplate, stableId, validatePrivateCorpus } from '../scripts/contract.mjs';
+import { canonicalSerialize, readPrivateTemplate, stableId, validatePrivateCorpus, sha256 } from '../scripts/contract.mjs';
 import { ARTIFACT_USAGE } from './ai-library.mjs';
+import { responseSchema, OBSERVATION_CONTEXTS, validatePromptResponses, responseSupportText } from './prompt-responses.mjs';
 
 export const ENRICHMENT_VERSION = 'talk-enrichment/1';
 export const ENRICHMENT_LIMITS = Object.freeze({ annotations: 1000, bytes: 2 * 1024 * 1024 });
@@ -29,6 +30,8 @@ const contextSchema = shape({
   dataSources: list(['endpoint', 'process', 'network', 'dns', 'identity', 'repository', 'package', 'agent-ide', 'github-actions', 'ci-cd', 'cloud']),
   artifactKind: enumeration(['command', 'executable', 'flag-argument', 'prompt-instruction', 'agent-configuration', 'ide-cli', 'extension', 'skill', 'mcp-tool', 'mcp-server']),
   artifactUsage: enumeration(ARTIFACT_USAGE),
+  observationContext: enumeration(Object.keys(OBSERVATION_CONTEXTS)),
+  observationBasis: text,
   indicatorKind: enumeration(['domain', 'ip', 'url', 'hash', 'file-path', 'package', 'repository', 'user-agent', 'workflow', 'action-ref', 'runner', 'configuration']),
   mapping: enumeration(['source-mentioned', 'researcher-proposed']),
   framework: text, frameworkVersion: text,
@@ -63,6 +66,7 @@ export const enrichmentSchema = {
             anyOf: [{ required: ['quote'] }, { required: ['locator'] }],
             description: 'Exact normalized revision quote and/or Unicode code-point half-open [start,end) offsets. Repeated quotes require a locator or unresolved evidenceStatus.',
           },
+          responses: { type: 'array', maxItems: 20, items: responseSchema },
           origin: enumeration(['manual', 'agent']), status: { const: 'pending' },
           modelVersion: text, promptVersion: text, externalReferenceUrl: { ...text, format: 'uri' },
         }, ['id', 'caseId', 'sourceId', 'sourceRevisionId', 'type', 'value', 'evidenceStatus', 'origin', 'status']),
@@ -174,6 +178,11 @@ export function validateEnrichment(document, corpus) {
         reject('support must resolve uniquely to retained text; label absent/ambiguous support unresolved');
       }
     } catch (error) { reject(error.message); }
+    errors.push(...validatePromptResponses(item, corpus));
+    for (const response of item.responses ?? []) for (const support of [response.support, response.contextSupport]) {
+      const raw = responseSupportText(revision, support);
+      if (raw !== null && sha256(raw) !== support.sha256) reject('response/context hash differs from retained text');
+    }
     if (item.externalReferenceUrl !== undefined) {
       try {
         const url = new URL(item.externalReferenceUrl);

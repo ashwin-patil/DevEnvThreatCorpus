@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-18 - Source-local prompt responses and enterprise telemetry scope (#89)
+
+- Attach the user-supplied Semgrep refusal to its existing exact prompt occurrence,
+  preserving two prompt groups/four occurrences. Record JSON-token versus decoded
+  content, full response/context hash receipts, explicit unknown model/role and
+  source-reported log review with unspecified environment. Keep other publishers'
+  unpaired/aggregate outcome claims distinct; a separate malware test is not an
+  AI-response reproduction or proof of compromised-host transcript provenance.
+- Add Pending deterministic enterprise collection-scope families, their limitations,
+  source/claim filters and separate HITL queue. The public example adds 63
+  source-local scope proposals (308 typed rows); no cloud/identity tags are inferred
+  merely from stolen credentials, and no event/detection/OTLP artifacts are added.
+- Place role badges top-right opposite Campaign/publisher and render only each
+  blog's supported role/scope categories, with evidence links. Add guide v4,
+  response dependency/staleness/hash checks, nested outcome/context corrections
+  and private Markdown/JSON talk exports. Preserve private response-content
+  omission in reviewed exports and public JSON/ZIP prompt-artifact parity.
+
 ## 2026-10-18 - Reviewable campaign categories and complete ATT&CK reference (#89)
 
 - Add overlapping campaign-card categories for victim-side agent abuse,

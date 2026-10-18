@@ -1,6 +1,6 @@
 import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline } from './model.mjs';
 import { publisherDisplay, sourceInventory, canonicalArticleUrl } from './research-inventory.mjs';
-import { campaignCategoryGroups, categoryRule, CATEGORY_EXTRACTION_VERSION } from './campaign-categories.mjs';
+import { campaignCategoryGroups, telemetryCategoryGroups, categoryRule } from './campaign-categories.mjs';
 
 // Corpus values enter the DOM only through textContent; attributes and handlers are UI-owned.
 export function element(doc, tag, text, className = '') {
@@ -257,42 +257,54 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   return section;
 }
 
-export function campaignCategoryBadges(doc, model, caseId) {
+function categoryBadges(doc, model, caseIds, sourceIds, scope) {
   const badges = element(doc, 'div', null, 'campaign-category-badges');
-  badges.setAttribute('aria-label', 'Campaign categories and review state');
-  for (const group of campaignCategoryGroups(model.corpus, caseId)) {
-    const state = group.state === 'Accepted' ? 'Recorded acceptance' : group.state;
-    const badge = element(doc, 'span', `${group.value} · ${state}`, 'usage-key campaign-category-badge');
-    badge.title = `${group.description} Classification does not establish successful abuse.`;
+  badges.setAttribute('aria-label', scope ? 'Proposed telemetry scope and review state' : 'Campaign categories and review state');
+  const groups = new Map();
+  for (const id of Array.isArray(caseIds) ? caseIds : [caseIds]) {
+    for (const group of (scope ? telemetryCategoryGroups : campaignCategoryGroups)(model.corpus, id, sourceIds)) {
+      if (!groups.has(group.id)) groups.set(group.id, { ...group, records: [] });
+      groups.get(group.id).records.push(...group.records);
+    }
+  }
+  for (const group of groups.values()) {
+    const states = [...new Set(group.records.map(c => c.itemReview?.state ?? c.disposition))];
+    const state = states.length !== 1 ? 'Mixed review states' : states[0] === 'Accepted' ? 'Recorded acceptance' : states[0];
+    const badge = element(doc, 'span', `${group.value} · ${state}${scope ? ' scope' : ''}`, `usage-key ${scope ? 'telemetry-scope-badge' : 'campaign-category-badge'}`);
+    badge.title = `${group.description} ${scope ? 'Collection scope only; logs, coverage and deployment are not established.' : 'Classification does not establish successful abuse.'}`;
     badges.append(badge);
   }
   return badges;
 }
+export const campaignCategoryBadges = (doc, model, caseIds, sourceIds) => categoryBadges(doc, model, caseIds, sourceIds, false);
+export const telemetryScopeBadges = (doc, model, caseIds, sourceIds) => categoryBadges(doc, model, caseIds, sourceIds, true);
 
-export function renderCampaignCategories(doc, model, caseId, navigate, openReview, showBadges = true) {
+export function renderCampaignCategories(doc, model, caseId, navigate, openReview, showBadges = true, sourceIds, scope = false) {
   const section = element(doc, 'section', null, 'campaign-categories');
-  section.append(element(doc, 'h3', 'Campaign categories'));
-  if (showBadges) section.append(campaignCategoryBadges(doc, model, caseId));
-  const groups = campaignCategoryGroups(model.corpus, caseId);
+  section.append(element(doc, 'h3', scope ? 'Telemetry scope (proposed)' : 'Campaign categories'));
+  if (showBadges) section.append((scope ? telemetryScopeBadges : campaignCategoryBadges)(doc, model, caseId, sourceIds));
+  const groups = (scope ? telemetryCategoryGroups : campaignCategoryGroups)(model.corpus, caseId, sourceIds);
   if (!groups.length) {
-    section.append(element(doc, 'p', 'Unclassified: no supported high-level category recorded. This is not evidence of no AI involvement.', 'subtle'));
+    section.append(element(doc, 'p', scope ? 'No telemetry scope classification recorded; this is not evidence that logs are unavailable.'
+      : 'Unclassified: no supported high-level category recorded. This is not evidence of no AI involvement.', 'subtle'));
     return section;
   }
-  section.append(element(doc, 'p', 'Overlapping research labels, not official technique mappings. Pending rules classify source-linked claim wording, not success or human acceptance.', 'subtle'));
+  section.append(element(doc, 'p', scope ? 'Source-supported collection-scope proposals, not observed logs, validated events, detection coverage or deployment. Availability and enterprise visibility require separate evaluation.'
+    : 'Overlapping research labels, not official technique mappings. Pending rules classify source-linked claim wording, not success or human acceptance.', 'subtle'));
   const details = element(doc, 'details');
-  details.append(element(doc, 'summary', 'Category evidence & review'));
+  details.append(element(doc, 'summary', scope ? 'Telemetry scope evidence & review' : 'Category evidence & review'));
   for (const group of groups) {
     details.append(element(doc, 'h4', group.value), element(doc, 'p', group.description));
     for (const category of group.records) {
       const block = element(doc, 'div', null, 'category-evidence');
       const rule = categoryRule(category);
-      block.append(element(doc, 'p', `${category.origin} · ${category.itemReview?.state ?? category.disposition}${rule ? ` · ${CATEGORY_EXTRACTION_VERSION}/${rule.id}` : ''}`, 'subtle'));
-      for (const id of category.supportingClaimIds) block.append(claimCitation(doc, model, id, navigate, 'Category evidence'));
+      block.append(element(doc, 'p', `${category.origin} · ${category.itemReview?.state ?? category.disposition}${rule ? ` · ${rule.version}/${rule.id}` : ''}`, 'subtle'));
+      for (const id of category.supportingClaimIds) block.append(claimCitation(doc, model, id, navigate, scope ? 'Scope evidence' : 'Category evidence'));
       details.append(block);
     }
   }
-  if (model.itemReview && openReview) details.append(action(doc, 'Review campaign categories',
-    () => openReview(caseId, '', 'All', 'campaigns')));
+  if (model.itemReview && openReview) details.append(action(doc, scope ? 'Review telemetry scope' : 'Review campaign categories',
+    () => openReview(caseId, sourceIds ? [...sourceIds][0] : '', 'All', scope ? 'telemetry-scope' : 'campaigns')));
   else details.append(element(doc, 'p', 'This preview cannot save category decisions. Retained evidence and the supported local HITL workflow are required.', 'subtle'));
   section.append(details);
   return section;
@@ -302,6 +314,7 @@ export function renderCase(doc, model, record, navigate, exportReferences) {
   const panel = element(doc, 'article', null, 'panel');
   panel.append(element(doc, 'h2', record.name));
   panel.append(renderCampaignCategories(doc, model, record.id, navigate));
+  panel.append(renderCampaignCategories(doc, model, record.id, navigate, undefined, true, undefined, true));
   for (const key of ['kind', 'summary', 'limits', 'origin', 'disposition', 'collectionState', 'revision']) {
     field(doc, panel, key, metadata(record, key));
   }

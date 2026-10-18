@@ -1,5 +1,11 @@
 .campaign-category-badges{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .campaign-category-badge{font-size:12px;background:var(--tint);color:var(--green);max-width:100%;overflow-wrap:anywhere}
+.telemetry-scope-badge{font-size:11px;background:var(--paper);color:var(--muted);max-width:100%;overflow-wrap:anywhere}
+.card-badges{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card-badges>.campaign-category-badges{justify-content:flex-end;flex:1;min-width:min(100%,160px);margin:0}
+.card-badges>.publisher-badge{flex-shrink:0}
+.prompt-response{border-left:3px solid var(--accent);padding-left:12px;margin-top:16px}
+.prompt-response h4{font-size:14px}.prompt-response .artifact-value{max-height:360px}
 .category-evidence{border-left:2px solid var(--divider);padding-left:10px;margin:8px 0}
 :root{
   color-scheme:light;

@@ -1,12 +1,12 @@
 export const VIEWS = { cases: 'Case library', sources: 'Research library', review: 'Review', claims: 'Claims & evidence', comparison: 'Comparison & timelines', studio: 'Curator studio', paths: 'Attack paths', behaviors: 'Behaviors', tools: 'AI tools', prompts: 'Prompt library', frameworks: 'ATLAS & TTPs', telemetry: 'Security telemetry', otel: 'OpenTelemetry', method: 'Trust & method' };
 import { publisherDisplay } from './research-inventory.mjs';
 import { campaignCategories } from './campaign-categories.mjs';
-export const FACETS = ['cases', 'sources', 'publishers', 'campaignCategories', 'tags', 'disposition'];
+export const FACETS = ['cases', 'sources', 'publishers', 'campaignCategories', 'telemetryScopes', 'tags', 'disposition'];
 export const COMPARISON_DIMENSIONS = {
   trust_surface: 'Trust surface', ai_involvement: 'AI involvement', execution_location: 'Execution location',
   tool: 'Tool', platform: 'Platform', delivery: 'Delivery', objective: 'Objective',
 };
-export const COMPARISON_FACETS = ['cases', 'sources', 'publishers', 'campaignCategories', 'tags', ...Object.keys(COMPARISON_DIMENSIONS), 'evidenceStatus', 'reviewerDisposition'];
+export const COMPARISON_FACETS = ['cases', 'sources', 'publishers', 'campaignCategories', 'telemetryScopes', 'tags', ...Object.keys(COMPARISON_DIMENSIONS), 'evidenceStatus', 'reviewerDisposition'];
 export const DATE_TYPES = ['publication', 'source_update', 'first_reported_activity', 'incident_execution', 'discovery', 'disclosure'];
 
 export function createModel(corpus) {
@@ -103,8 +103,11 @@ export function recordContext(model, kind, record) {
   const claims = kind === 'claims' ? [record] : model.corpus.claims.filter(c =>
     kind === 'cases' ? c.caseId === record.id : c.sourceId === record.id);
   const categories = model.corpus.categorizations.filter(c => caseIds.includes(c.caseId) && c.disposition !== 'Excluded');
-  const highLevel = caseIds.flatMap(id => campaignCategories(model.corpus, id)).filter(c =>
-    kind === 'cases' || (kind === 'sources' ? c.sourceIds.includes(record.id) : c.supportingClaimIds.includes(record.id)));
+  const locallySupported = category => kind === 'cases' || (kind === 'sources'
+    ? category.sourceIds.every(id => id === record.id)
+    : category.supportingClaimIds.includes(record.id) && category.sourceIds.every(id => id === record.sourceId));
+  const highLevel = caseIds.flatMap(id => campaignCategories(model.corpus, id)).filter(locallySupported);
+  const scopes = categories.filter(c => c.dimension === 'telemetry_scope' && locallySupported(c));
   const sources = sourceIds.map(id => model.sources.get(id)).filter(Boolean);
   return {
     ...Object.fromEntries(Object.keys(COMPARISON_DIMENSIONS).map(key =>
@@ -113,6 +116,7 @@ export function recordContext(model, kind, record) {
     reviewerDisposition: kind === 'claims' ? [record.disposition] : [...new Set(claims.map(c => c.disposition))],
     cases: caseIds, sources: sourceIds,
     campaignCategories: [...new Set(highLevel.map(c => c.value))],
+    telemetryScopes: [...new Set(scopes.map(c => c.value))],
     publishers: sources.map(s => { const display = publisherDisplay(s); return ['URL host; publisher unverified', 'unavailable'].includes(display.basis) ? '(Unknown publisher)' : display.name; }),
     tags: categories.filter(c => c.dimension === 'tag').map(c => c.value ?? '(Unknown tag)'),
     disposition: [...new Set([record.disposition, record.collectionState, ...claims.map(c => c.disposition),

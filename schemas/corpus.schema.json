@@ -56,6 +56,7 @@
     "delivery": { "enum": ["recruiter lure", "repository content", "package install/update", "extension", "Skill", "MCP integration", "configuration change", "other", null] },
     "objective": { "enum": ["credential theft", "data theft", "persistence", "execution", "lateral movement", "disruption", "other/unknown", null] },
     "evidenceToSeek": { "enum": ["native agent records", "endpoint telemetry", "package provenance", "repository/CI records", "identity/cloud logs", "network records", null] },
+    "telemetryScope": { "enum": ["Endpoint telemetry", "CI/CD audit", "Source-control audit", "Cloud control-plane audit", "Identity & access logs", "Network & DNS telemetry", "AI agent observability", "Package & build provenance", null] },
     "provenance": {
       "type": "object", "additionalProperties": false,
       "required": ["kind", "suppliedBy", "description", "nullReasons"],
@@ -128,10 +129,11 @@
         { "if": { "properties": { "dimension": { "const": "execution_location" } } }, "then": { "properties": { "value": { "$ref": "#/$defs/executionLocation" } } } },
         { "if": { "properties": { "dimension": { "const": "delivery" } } }, "then": { "properties": { "value": { "$ref": "#/$defs/delivery" } } } },
         { "if": { "properties": { "dimension": { "const": "objective" } } }, "then": { "properties": { "value": { "$ref": "#/$defs/objective" } } } },
-        { "if": { "properties": { "dimension": { "const": "evidence_to_seek" } } }, "then": { "properties": { "value": { "$ref": "#/$defs/evidenceToSeek" } } } }
+        { "if": { "properties": { "dimension": { "const": "evidence_to_seek" } } }, "then": { "properties": { "value": { "$ref": "#/$defs/evidenceToSeek" } } } },
+        { "if": { "properties": { "dimension": { "const": "telemetry_scope" } } }, "then": { "properties": { "value": { "$ref": "#/$defs/telemetryScope" } } } }
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" }, "caseId": { "$ref": "#/$defs/id" }, "dimension": { "enum": ["trust_surface", "ai_involvement", "execution_location", "delivery", "objective", "evidence_to_seek", "tool", "platform", "tag"] },
+        "id": { "$ref": "#/$defs/id" }, "caseId": { "$ref": "#/$defs/id" }, "dimension": { "enum": ["trust_surface", "ai_involvement", "execution_location", "delivery", "objective", "evidence_to_seek", "telemetry_scope", "tool", "platform", "tag"] },
         "value": { "$ref": "#/$defs/nullableText" }, "otherText": { "$ref": "#/$defs/nullableText" }, "sourceIds": { "$ref": "#/$defs/supportIds" }, "supportingClaimIds": { "$ref": "#/$defs/supportIds" }, "origin": { "$ref": "#/$defs/origin" },
         "disposition": { "$ref": "#/$defs/disposition" }, "revision": { "$ref": "#/$defs/id" }, "history": { "$ref": "#/$defs/ids" }, "nullReasons": { "$ref": "#/$defs/nullReasons" }
       }

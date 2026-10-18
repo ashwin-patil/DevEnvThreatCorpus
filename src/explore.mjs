@@ -1,4 +1,5 @@
-import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, renderCampaignCategories } from './render.mjs';
+import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, telemetryScopeBadges, renderCampaignCategories } from './render.mjs';
+import { OBSERVATION_CONTEXTS } from './prompt-responses.mjs';
 import { filterRecords, metadata, caseSourceIds } from './model.mjs';
 import { publisherDisplay, behaviorInventory, sourceInventory } from './research-inventory.mjs';
 import { aiLibrary } from './ai-library.mjs';
@@ -78,8 +79,9 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     const articles = sourceInventory(sourceIds.map(id => model.sources.get(id)).filter(Boolean));
     const overview = campaignSummary(model, record), paths = list(model, 'paths').filter(p => p.caseId === record.id);
     const heading = element(doc, 'h2'); heading.append(activitySvg(doc, 'graph'), element(doc, 'span', record.name));
-    summary.append(element(doc, 'span', record.kind ?? 'Case', 'publisher-badge'), heading,
-      campaignCategoryBadges(doc, model, record.id),
+    const badges = element(doc, 'div', null, 'card-badges');
+    badges.append(element(doc, 'span', record.kind ?? 'Case', 'publisher-badge'), campaignCategoryBadges(doc, model, record.id));
+    summary.append(badges, heading, telemetryScopeBadges(doc, model, record.id),
       element(doc, 'p', overview.text, 'campaign-summary'),
       element(doc, 'p', originReview(overview), 'subtle'),
       element(doc, 'p', record.limits ?? 'Limits not recorded. Source association does not establish attribution, universal success or chronology.', 'limits'),
@@ -89,6 +91,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     const body = element(doc, 'div', null, 'case-card-body');
     body.append(action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
     body.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false));
+    body.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false, undefined, true));
     if (model.itemReview?.campaigns[record.id] && openReview) body.append(renderProgress(doc,
       model.itemReview.campaigns[record.id], filter => openReview(record.id, '', filter)));
     else if (model.collectionEnabled) body.append(element(doc, 'p', model.reviewError ?? 'Review coverage unavailable; no approval inferred.'));
@@ -137,10 +140,17 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
     const claims = model.corpus.claims.filter(c => memberIds.has(c.sourceId) && caseIds.has(c.caseId));
     const claimIds = new Set(claims.map(c => c.id));
     const revisions = new Set(article.members.flatMap(s => s.revisionIds));
-    card.append(element(doc, 'span', article.publisher.name, 'publisher-badge'),
+    const badges = element(doc, 'div', null, 'card-badges');
+    badges.append(element(doc, 'span', article.publisher.name, 'publisher-badge'), campaignCategoryBadges(doc, model, [...caseIds], memberIds));
+    card.append(badges,
       element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', revisions.size
         ? `${source.collectionState} · ${revisions.size} retained revision(s)` : 'No retained article revision · source metadata only', 'subtle'),
       action(doc, 'Open research source', () => navigate('sources', source.id)));
+    card.append(telemetryScopeBadges(doc, model, [...caseIds], memberIds));
+    for (const record of cases) {
+      card.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false, memberIds),
+        renderCampaignCategories(doc, model, record.id, navigate, openReview, false, memberIds, true));
+    }
     if (article.members.length > 1) {
       const history = element(doc, 'details'); history.append(element(doc, 'summary', `Article aliases & source history · ${article.members.length} retained identities`));
       for (const member of article.members) history.append(action(doc, `Inspect historical source: ${member.id}`, () => navigate('sources', member.id)),
@@ -251,8 +261,12 @@ function annotationCard(doc, model, annotation, navigate, showLiteral = true) {
   if (showLiteral) card.append(element(doc, 'pre', annotation.value, 'artifact-value'));
   card.append(provenance(doc, annotation));
   if (annotation.normalizedValue) row(doc, card, 'Normalized value', annotation.normalizedValue);
+  if (annotation.context?.artifactKind === 'prompt-instruction') {
+    row(doc, card, 'Prompt observation environment', OBSERVATION_CONTEXTS[annotation.context.observationContext ?? 'unknown']);
+    row(doc, card, 'Observation basis', annotation.context.observationBasis);
+  }
   for (const [key, value] of Object.entries(annotation.context ?? {})) {
-    if (key !== 'artifactUsage') row(doc, card, key, value);
+    if (!['artifactUsage', 'observationContext', 'observationBasis'].includes(key)) row(doc, card, key, value);
   }
   const revision = model.sourceRevisions.get(annotation.sourceRevisionId);
   const locator = annotation.support?.locator;
@@ -263,6 +277,27 @@ function annotationCard(doc, model, annotation, navigate, showLiteral = true) {
   card.append(technicalDetails(doc, [['Exact revision', annotation.sourceRevisionId], ['Annotation identifier', annotation.id]]));
   row(doc, card, 'Model / prompt', [annotation.modelVersion, annotation.promptVersion].filter(Boolean));
   card.append(sourceCitation(doc, model, annotation.sourceId, navigate, annotation.sourceRevisionId));
+  if (annotation.context?.artifactKind === 'prompt-instruction') {
+    const responses = annotation.responses ?? [];
+    if (!responses.length) card.append(element(doc, 'p', 'No exact response attached for this source occurrence. This proves neither refusal nor successful execution.', 'subtle'));
+    for (const response of responses) {
+      const section = element(doc, 'section', null, 'prompt-response');
+      section.append(element(doc, 'h4', `Attached response · ${response.outcome}`),
+        element(doc, 'p', 'Source-local published artifact; reviewed with this prompt occurrence, not a separate prompt or independently confirmed incident.', 'subtle'));
+      row(doc, section, 'Response observation environment', OBSERVATION_CONTEXTS[response.observationContext]);
+      row(doc, section, 'Context limit', response.contextBasis);
+      row(doc, section, 'Responder / model / role', `${response.agent} / ${response.model} / ${response.role}`);
+      row(doc, section, 'Pairing basis', response.pairingBasis);
+      section.append(element(doc, 'pre', response.text ?? 'Response text withheld.', 'artifact-value response-value'),
+        element(doc, 'p', response.encoding === 'json-string'
+          ? 'Display is JSON-decoded. Raw source token contains JSON quotes/escapes; its locator and hash refer to the original token, not this decoded display.'
+          : 'Display retains the published response text.', 'subtle'),
+        technicalDetails(doc, [['Response identifier', response.id], ['Raw response receipt', JSON.stringify(response.support)],
+          ['Observation-context receipt', JSON.stringify(response.contextSupport)], ['Exact normalized revision hash', response.revisionHash]]));
+      for (const id of response.claimIds) section.append(claimCitation(doc, model, id, navigate, 'Response/context evidence'));
+      card.append(section);
+    }
+  }
   if (annotation.externalReferenceUrl) card.append(reference(doc, annotation.externalReferenceUrl, 'Public reference'));
   return card;
 }
@@ -270,7 +305,7 @@ function annotationCard(doc, model, annotation, navigate, showLiteral = true) {
 export function renderEvidencePanel(doc, model, record, navigate, download) {
   const panel = element(doc, 'section', null, 'panel research-evidence');
   panel.append(element(doc, 'h2', 'Campaign research & talk evidence'),
-    element(doc, 'p', model.publicDraft ? 'Public draft tools and extracted prompts are pending. Full article quotations remain omitted; source citations and prompt locators remain available for review.' : 'Private annotations show their current item-review state when available; otherwise they are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
+    element(doc, 'p', model.publicDraft ? 'Public draft tools, prompts and explicitly published response artifacts are pending. Full articles and other quotations remain omitted; source citations and locator receipts remain available for review.' : 'Private annotations show their current item-review state when available; otherwise they are pending. Evidence-backed describes passage linkage, not independent confirmation. Inferences and unresolved items remain separate.', 'subtle'));
   if (model.annotationError) panel.append(element(doc, 'p', model.annotationError, 'enrichment-warning'));
   if (download && !model.publicDraft) for (const format of ['json', 'md']) panel.append(action(doc, `Download talk bundle (${format === 'md' ? 'Markdown' : 'JSON'})`,
     () => download(format, format === 'md' ? talkMarkdown(talkBundle(model, record.id)) : talkBundle(model, record.id))));
@@ -368,10 +403,20 @@ export function talkMarkdown(bundle) {
   for (const [type, label] of Object.entries(ANNOTATION_LABELS)) {
     const items = bundle.annotations.filter(a => a.type === type); if (!items.length) continue;
     lines.push('', `## ${label}`);
-    for (const a of items) lines.push('', `- ${text(a.value)}`, `  ${text(`${a.evidenceStatus} · ${a.origin} · ${a.status}`)}`,
+    for (const a of items) {
+      lines.push('', `- ${text(a.value)}`, `  ${text(`${a.evidenceStatus} · ${a.origin} · ${a.status}`)}`,
       `  Source: ${text(a.sourceId)} / ${text(a.sourceRevisionId)}`, `  Context: ${text(JSON.stringify(a.context ?? {}))}`,
       ...(a.support ? [`  Support: ${text(JSON.stringify(a.support))}`] : []),
       ...(a.externalReferenceUrl ? [`  Reference: ${text(a.externalReferenceUrl)}`] : []));
+      for (const response of a.responses ?? []) lines.push(
+        `  Attached response: ${text(response.id)}; ${text(response.outcome)}; ${text(OBSERVATION_CONTEXTS[response.observationContext])}`,
+        `  Responder / model / role: ${text(response.agent)} / ${text(response.model)} / ${text(response.role)}`,
+        `  ${text(response.contextBasis)}`, `  Pairing basis: ${text(response.pairingBasis)}`,
+        `  Response display (${text(response.encoding)}):`,
+        ...String(response.text ?? 'Withheld').split('\n').map(line => `> ${text(line)}`),
+        `  Revision hash: ${text(response.revisionHash)}; supporting claims: ${text(response.claimIds.join(', '))}`,
+        `  Raw/context receipts: ${text(JSON.stringify([response.support, response.contextSupport]))}`);
+    }
   }
   if (bundle.timelines.length) lines.push('', '## Typed timeline', ...bundle.timelines.map(t => `- ${text(t.description)} — ${text(t.dateType)} — ${text(JSON.stringify(t.date))}`));
   if (bundle.categorizations.length) lines.push('', '## Categorization proposals', ...bundle.categorizations.map(c => `- ${text(c.dimension)}: ${text(c.value)} — ${text(c.disposition)}`));
@@ -726,7 +771,8 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       const card = element(doc, 'article', null, `panel research-card usage-${usageOf(record.annotations)}`);
       card.append(element(doc, 'h2', record.name), element(doc, 'p', record.basis, 'subtle'));
       if (!selectedId) card.append(action(doc, 'Open library entry', () => navigate(view, record.id)));
-      if (view === 'prompts') card.append(element(doc, 'pre', record.annotations[0].value, 'artifact-value'));
+      if (view === 'prompts') card.append(element(doc, 'pre', record.annotations[0].value, 'artifact-value'),
+        element(doc, 'p', `${record.annotations.length} source occurrence(s) · ${record.annotations.reduce((count, a) => count + (a.responses?.length ?? 0), 0)} attached response(s). Outcomes are never inherited across sources.`, 'subtle'));
       for (const a of record.annotations) {
         const item = annotationCard(doc, model, a, navigate, view !== 'prompts');
         item.append(action(doc, `Campaign: ${model.cases.get(a.caseId)?.name ?? a.caseId}`, () => navigate('cases', a.caseId)));

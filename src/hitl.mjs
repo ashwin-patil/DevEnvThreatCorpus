@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import {
-  canonicalSerialize, digest, stableId, assertValid, reviewEligibleCorpus, updatePrivateCorpus,
+  canonicalSerialize, digest, sha256, stableId, assertValid, reviewEligibleCorpus, updatePrivateCorpus,
 } from '../scripts/contract.mjs';
 import { readEnrichmentSnapshot, validateEnrichment } from './enrichment.mjs';
 import { GUIDE_VERSION, GUIDE_VERSIONS, checksFor, confirmationFor, priorityCategory, labelCompleteness, labelFields, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
 import { STAGE_RUN, stageInputRevision, validateStageEnvelope } from './stage-contract.mjs';
 import { unionCoverage } from './chunks.mjs';
+import { validatePromptResponses, responseSupportText } from './prompt-responses.mjs';
 
 export const HITL_VERSION = 'local-hitl/1';
 const coreTypes = ['claims', 'cases', 'categorizations', 'timelines'];
@@ -26,7 +27,7 @@ const edits = {
   paths: ['scope'], nodes: ['title', 'detail'], edges: ['relation', 'basis'],
   mappings: ['rationale', 'applicability'], telemetry: ['availability', 'limitations'],
   detections: ['hypothesis', 'tuning', 'testPlan'], otel: ['action', 'limitations'],
-  annotations: ['value', 'normalizedValue', 'context'],
+  annotations: ['value', 'normalizedValue', 'context', 'responses'],
 };
 
 function eventsOf(corpus) {
@@ -65,7 +66,8 @@ export function reviewUnits(corpus, annotations = []) {
     const itemKey = keyFor(type, id);
     if (keys.has(itemKey)) fail('DUPLICATE_REVIEW_UNIT');
     keys.add(itemKey);
-    const claimIds = unique(support ?? record.supportingClaimIds ?? record.claimIds ?? record.summaryClaimIds ?? []);
+    const claimIds = unique([...(support ?? record.supportingClaimIds ?? record.claimIds ?? record.summaryClaimIds ?? []),
+      ...(type === 'annotations' ? (record.responses ?? []).flatMap(response => response.claimIds ?? []) : [])]);
     const cases = unique(caseIds ?? (record.caseId ? [record.caseId] :
       claimIds.map(id => corpus.claims.find(c => c.id === id)?.caseId).filter(Boolean)));
     const sources = unique([...(record.sourceIds ?? []), ...(record.sourceId ? [record.sourceId] : []),
@@ -184,9 +186,19 @@ export function reviewUnits(corpus, annotations = []) {
         context: exact ? [...text].slice(Math.max(0, locator.start - 200), locator.end + 200).join('') : null,
         explanation: exact ? null : 'Annotation evidence unavailable/private; no passage fabricated.' });
     }
+    if (u.type === 'annotations') for (const response of u.record.responses ?? []) {
+      const revision = corpus.sourceRevisions.find(r => r.id === u.record.sourceRevisionId);
+      for (const [kind, support] of [['response', response.support], ['response context', response.contextSupport]]) {
+        const quote = responseSupportText(revision, support);
+        if (quote === null || sha256(quote) !== support.sha256) u.responseGroundingLost = true;
+        u.evidence.push({ revisionId: u.record.sourceRevisionId, locator: structuredClone(support.locator), quote,
+          context: quote, explanation: quote === null ? `${kind} evidence unavailable/private; no text fabricated.` : null });
+      }
+    }
     if (u.type === 'annotations' && u.record.type === 'commands-ai-artifacts') {
       const literal = u.record.value;
-      u.groundingLost = !u.evidence.some(e => e.quote !== null && e.quote.includes(literal));
+      u.groundingLost = !u.evidence.some(e => e.quote !== null && e.quote.includes(literal))
+        || u.responseGroundingLost || validatePromptResponses(u.record, corpus).length > 0;
     }
     u.binding = digest({ record: clean(u.record), originalHash, contentOrigin: u.contentOrigin,
       labelAuthorship: u.labelAuthorship, editor: u.editor ?? null, tags: u.researcherTags ?? [],
@@ -315,8 +327,15 @@ export function applyItemReview(corpus, input, annotations = []) {
     }
     const changed = { ...u.record, ...normalizedPatch };
     if (digest(changed) === digest(u.record) && digest(input.researcherTags ?? []) === digest(u.researcherTags ?? [])) fail('INVALID_CORRECTION');
-    if (Object.entries(patch).some(([key, value]) => key !== 'context' && !nonempty(value))) fail('INVALID_CORRECTION');
+    if (Object.entries(patch).some(([key, value]) => !['context', 'responses'].includes(key) && !nonempty(value))) fail('INVALID_CORRECTION');
     if (u.type === 'annotations') {
+      if (patch.responses !== undefined) {
+        const prior = u.record.responses ?? [];
+        const immutable = ['schemaVersion', 'id', 'claimIds', 'revisionHash', 'support', 'contextSupport', 'encoding'];
+        if (!Array.isArray(patch.responses) || patch.responses.length !== prior.length
+          || patch.responses.some((response, index) => !response
+            || immutable.some(key => digest(response[key] ?? null) !== digest(prior[index]?.[key] ?? null)))) fail('INVALID_CORRECTION');
+      }
       const { claimIds, runId, ...a } = changed;
       // Campaign model metadata may be explicitly unknown; validation does not invent it.
       if (a.origin === 'agent') { a.modelVersion ||= 'unknown'; a.promptVersion ||= 'unknown'; }
@@ -453,7 +472,7 @@ export function reviewedProfile(corpus, annotations = []) {
     if (u.type === 'annotations') {
       // Literal extracted annotations may contain private quotations; reviewed public
       // exports include classification metadata only, not article-derived values.
-      for (const field of ['value', 'normalizedValue', 'support', 'context', 'modelVersion', 'promptVersion']) delete entity[field];
+      for (const field of ['value', 'normalizedValue', 'support', 'context', 'responses', 'modelVersion', 'promptVersion']) delete entity[field];
       entity.contentOmitted = 'Private annotation content retained locally; classification is not a public quotation license.';
       if (entity.sourceRevisionId) revisionIds.add(entity.sourceRevisionId);
     }

@@ -10,9 +10,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def entity_digest(entities: list[dict]) -> str:
+def entity_digest(entities: list[dict] | dict) -> str:
     encoded = json.dumps(entities, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(encoded.encode()).hexdigest()
+
+
+def canonical_digest(value: list[dict] | dict) -> str:
+    return hashlib.sha256((json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False) + "\n").encode()).hexdigest()
 
 
 class NxPublicExpansionTests(unittest.TestCase):
@@ -26,6 +30,7 @@ class NxPublicExpansionTests(unittest.TestCase):
         }
 
     def test_original_claims_passages_paths_and_mappings_are_preserved(self) -> None:
+        self.assertEqual(canonical_digest(self.rows[:245]), "dfd85011f0209749b4999e76fd76d14638363309bbf253c3712d159965495da5")
         expected = {
             "claims": (38, "17c2190e95ed6bfcac413a2f64f07197fd88d65e2e83a25b01a6fc93fa0e6be4"),
             "passages": (43, "feaa4cd76404707538a0f1ee7c28a11df34e11a68dadad7bdb0ac2a0f52fd17f"),
@@ -60,7 +65,7 @@ class NxPublicExpansionTests(unittest.TestCase):
             self.assertTrue(any(claim["sourceId"] == source["id"] for claim in self.entities["claims"]))
 
     def test_pending_categories_preserve_claim_scope_and_historical_catalogue(self) -> None:
-        categories = self.entities["categorizations"]
+        categories = [c for c in self.entities["categorizations"] if c["dimension"] != "telemetry_scope"]
         self.assertEqual(len(categories), 4)
         claims = {claim["id"]: claim for claim in self.entities["claims"]}
         sources = {source["id"]: source for source in self.entities["sources"]}
@@ -78,7 +83,7 @@ class NxPublicExpansionTests(unittest.TestCase):
             self.assertEqual(category["history"], [])
         self.assertEqual(set(self.document["categoryExtraction"]["categoryIds"]), {c["id"] for c in categories})
         self.assertEqual(self.document["categoryExtraction"]["version"], "campaign-category-rules/1")
-        self.assertEqual(self.document["coverage"]["reviewCoverage"]["categorizations"]["pending"], 4)
+        self.assertEqual(self.document["coverage"]["reviewCoverage"]["categorizations"]["pending"], 67)
         historical = self.document["catalogSnapshot"]
         self.assertEqual(
             hashlib.sha256(json.dumps(historical, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest(),
@@ -90,7 +95,64 @@ class NxPublicExpansionTests(unittest.TestCase):
         self.assertEqual(len(active["techniques"]), 697)
         self.assertEqual(active["materialDigest"], old["materialDigest"])
         self.assertEqual(active["immutableRevision"], old["immutableRevision"])
-        self.assertEqual(len(self.rows), 245)
+        self.assertEqual(len(self.rows), 308)
+
+    def test_telemetry_scope_is_pending_source_local_and_not_instrumentation(self) -> None:
+        categories = [c for c in self.entities["categorizations"] if c["dimension"] == "telemetry_scope"]
+        self.assertEqual(len(categories), 63)
+        self.assertEqual(
+            {c["value"] for c in categories},
+            {"Endpoint telemetry", "CI/CD audit", "Source-control audit", "Network & DNS telemetry",
+             "AI agent observability", "Package & build provenance"},
+        )
+        self.assertEqual(self.document["telemetryScopeExtraction"]["version"], "telemetry-scope-rules/1")
+        self.assertEqual(set(self.document["telemetryScopeExtraction"]["categoryIds"]), {c["id"] for c in categories})
+        claims = {c["id"]: c for c in self.entities["claims"]}
+        for category in categories:
+            claim = claims[category["supportingClaimIds"][0]]
+            self.assertEqual(category["sourceIds"], [claim["sourceId"]])
+            self.assertEqual(category["caseId"], claim["caseId"])
+            self.assertEqual(category["disposition"], "Pending")
+            self.assertEqual(category["history"], [])
+            self.assertEqual(category["origin"], "Deterministic rule")
+        for kind in ("telemetry", "detections", "otel"):
+            self.assertFalse(self.entities.get(kind))
+
+    def test_semgrep_response_is_nested_with_honest_context_and_distinct_full_artifact_support(self) -> None:
+        prompts = self.document["prompts"]
+        self.assertEqual(len(prompts), 4)
+        self.assertEqual(len({p["literal"] for p in prompts}), 2)
+        paired = [p for p in prompts if p.get("responses")]
+        self.assertEqual(len(paired), 1)
+        parent = paired[0]
+        self.assertEqual(parent["id"], "nx-expansion-prompt-8abb1862b59fc30f4260c5b69a212b2b402bc93f500430db4fcfd512b66cd66a")
+        response, = parent["responses"]
+        self.assertEqual(response["outcome"], "refusal")
+        self.assertEqual(response["observationContext"], "reported-log-review")
+        self.assertEqual(response["role"], "unspecified")
+        self.assertEqual(response["model"], "unknown")
+        self.assertEqual(response["agent"], "Claude")
+        self.assertEqual(response["encoding"], "json-string")
+        self.assertEqual(response["support"]["locator"], {"start": 9178, "end": 9820})
+        self.assertEqual(response["contextSupport"]["locator"], {"start": 8060, "end": 8155})
+        raw = json.dumps(response["text"], ensure_ascii=False, separators=(",", ":"))
+        self.assertEqual(len(raw), 642)
+        self.assertEqual(hashlib.sha256(raw.encode()).hexdigest(), response["support"]["sha256"])
+        self.assertEqual(hashlib.sha256(response["text"].encode()).hexdigest(),
+                         "191c6163621b168aeb4a1e775bdf5da588475e1ed238304a016cb06136ea6650")
+        claims = {c["id"]: c for c in self.entities["claims"]}
+        for claim_id in response["claimIds"]:
+            self.assertEqual(claims[claim_id]["sourceId"], parent["sourceId"])
+            self.assertEqual(claims[claim_id]["sourceRevisionId"], parent["sourceRevisionId"])
+        partial_passage = next(p for p in self.entities["passages"]
+                               if p["id"] == "nx-expansion-passage-7b4eb48385063c99a01189f1b1e92dbe920b7955793ed3cbcf8dbed6703635af")
+        self.assertEqual((partial_passage["start"], partial_passage["end"]), (9179, 9474))
+        self.assertTrue(all(p["observationContext"] == "unknown" for p in prompts if p is not parent))
+        artifacts = self.document["coverage"]["promptArtifacts"]
+        self.assertEqual(artifacts["prompts"], prompts)
+        self.assertEqual(artifacts["sourcesReviewed"], 6)
+        self.assertEqual(artifacts["sourcesWithLiteralResponses"], ["Semgrep"])
+        self.assertEqual(canonical_digest(artifacts), self.document["coverage"]["promptArtifactDigest"])
 
     def test_parsing_receipts_cover_full_text_without_upgrading_historical_failures(self) -> None:
         expansion = self.document["expansion"]

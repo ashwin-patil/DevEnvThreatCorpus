@@ -11,8 +11,9 @@ has acquired human acceptance or gold status.
 
 The expanded projection contains **97 Pending claims** (38 preserved plus 59
 new), **14 reused behavior definitions**, **3 unchanged path records** and
-**2 unchanged Proposed mappings**, across **245 typed export rows**, including
-four Pending deterministic category assertions. The new
+**2 unchanged Proposed mappings**, across **308 typed export rows**, including
+four Pending deterministic role-category assertions and 63 Pending telemetry-scope
+assertions. The prior 245 rows are unchanged. The new
 claims comprise 19 precise StepSecurity additions, 22 Semgrep claims and 18
 Panther claims. These are extraction counts, not independent confirmations or
 quality scores.
@@ -28,6 +29,46 @@ remain unchanged. Nothing here assigns attacker-side AI use, AI review targeting
 or developer-targeted social engineering to Nx without separate support.
 `categoryExtraction` records the rule version, input boundary and record IDs.
 The JSON and ZIP include those Pending records with honest deterministic origin.
+
+Campaign role badges appear top-right, opposite the Campaign label. Each
+Research library blog has only source-supported role/scope badges, not inherited
+campaign conclusions. Nx currently proposes Endpoint, CI/CD, Source-control,
+Network & DNS, AI agent observability, and Package & build provenance families.
+Cloud and Identity & access families exist but receive no Nx proposals from
+credential theft alone. These are collection-scope labels, not populated logs,
+validated detections or an instrumentation plan; see the
+[enterprise log families and caveats](methodology.md#enterprise-telemetry-collection-scope).
+`telemetryScopeExtraction` preserves rule version/input/IDs separately from roles.
+
+### Attached responses and observation context
+
+All six retained reports were checked for literal AI responses. Only Semgrep
+publishes an attachable response: the user-supplied Claude refusal, nested under
+its existing wallet-inventory prompt. The library remains **two exact prompt
+groups / four source occurrences**, with **one attached response**. Semgrep
+attributes the refusal to researchers reviewing logs; it does **not** identify
+independent testing or a specific compromised-host environment. Use
+`reported-log-review`, unknown model and unspecified response role, not invented
+provenance. A separate Semgrep pipeline reproduction and StepSecurity's
+Harden-Runner malware experiment do not establish AI-exchange provenance.
+
+The response's raw JSON string token is `[9178,9820)` in the named Semgrep
+normalized revision; display decodes its escapes without changing the raw hash.
+Context has its own `[8060,8155)` receipt. The original refusal passage remains
+`[9179,9474)` and supports only the opening refusal; it was not enlarged to
+pretend it supported the full response. New artifact-level support is separate.
+Other sources have no attached literal response. In particular, Wiz's aggregate
+success/guardrail report remains source-local; this one refusal does not imply
+universal failure. Missing responses imply neither refusal nor compliance.
+
+Public JSON and the existing six-member ZIP's `manifest.json` coverage carry
+identical prompt artifacts and a separate `promptArtifactDigest`; the typed-row
+snapshot digest remains a digest of typed rows only. Public receipts cannot
+reverify omitted article text. Matching normalized article hashes were checked;
+raw HTML byte identity was reproduced only for StepSecurity, Semgrep and Panther,
+not all six dynamic pages. Private exact-text validation, response-dependent
+HITL under guide v4 and content-omitting reviewed exports remain distinct from
+the explicitly authorized public prompt/Semgrep-response artifacts.
 
 The current **reference** catalogue now contains all **697 active Enterprise
 ATT&CK 19.2 techniques/subtechniques** (222 techniques, 475 subtechniques).
@@ -72,7 +113,8 @@ adding unsupported edges to the three existing path records.
 
 Public JSON and the typed ZIP contain the same expanded records. Full article
 bodies, general quotations, human attestations and private decisions remain
-withheld; existing published prompt literals remain inert research artifacts.
+withheld; published prompts and the user-supplied Semgrep response remain inert
+Pending research artifacts, not a general quotation redistribution permission.
 The public preview is still **read-only**, not an importable retained-text private
 corpus or an authenticated HITL surface. Later human review needs the matching
 source text and existing protected review workflow; public display is not a

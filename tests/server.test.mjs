@@ -172,6 +172,10 @@ test('#89 AC-06 category browser dependency is allowlisted without exposing the 
   assert.equal(response.status, 200);
   assert.match(response.headers['content-type'], /javascript/);
   assert.match(response.body, /campaign-category-rules\/1/);
+  const responseModule = await request(port, '/src/prompt-responses.mjs');
+  assert.equal(responseModule.status, 200);
+  assert.match(responseModule.headers['content-type'], /javascript/);
+  assert.match(responseModule.body, /prompt-response\/1/);
   assert.equal((await request(port, '/src/import-attack-catalog.mjs')).status, 404);
   assert.equal((await request(port, '/src/campaign.mjs')).status, 404);
   assert.equal((await request(port, '/src/model-adapter.mjs')).status, 404);
