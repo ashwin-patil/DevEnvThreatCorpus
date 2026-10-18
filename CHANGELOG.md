@@ -15,7 +15,7 @@
 - Replace the T1059-only ATT&CK projection with 697 active Enterprise 19.2
   techniques/subtechniques from the original verified immutable material.
   Retain upstream notices and inventory 149 revoked/12 deprecated exclusions.
-  Pin LF checkout for this generated asset on Windows, preserving strict
+  Pin LF checkout for this generated asset and frozen request fixture on Windows, preserving strict
   byte-for-byte reproducibility without relaxing snapshot checks.
   Keep the current reference separate from historical extraction snapshots and
   leave incident mappings unchanged. Minimize optional adapter catalogue transport
