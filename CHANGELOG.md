@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-18 - Nx source-expansion and human-gated gold plan (#89)
+
+- Add a source-attributed, unreviewed extraction preview for Semgrep,
+  StepSecurity and Panther, distinguishing prompt filename targets, credential
+  roles including `GITHUB_TOKEN`, conditional harvesting and attempted shutdown.
+- Link bounded source-expansion, independent HITL/gold-qualification and
+  detection/data-source/OTLP/inert-replay design tasks. Preserve publisher-local
+  evidence, same-revision comparison gates and separate new-source evaluation.
+  No corpus, review decision, public Pending snapshot or runtime behavior changes.
+
 ## 2026-10-17 - Optional public-research model adapter (#83)
 
 - Add disabled-by-default, CLI-only OpenAI Responses generation using the

@@ -1,5 +1,10 @@
 # Nx / s1ngularity public Pending draft
 
+The [source-expansion and gold plan](case-studies/nx-gold-plan.md) previews
+Semgrep, StepSecurity and Panther evidence with linked execution tasks. It is
+unreviewed planning, not a refreshed extraction, completed HITL or gold release.
+The bundled snapshot and its counts below are unchanged.
+
 Issue #85 adds protected staged regeneration/comparison tooling, not a refreshed
 public dataset. No real Nx regeneration, independent semantic comparison or
 adoption was performed in that implementation. Preserve the old private baseline,
