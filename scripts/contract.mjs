@@ -12,6 +12,7 @@ import { Readable } from 'node:stream';
 import { ARTICLE_PARSER_VERSION, parseArticle, PUBLISHERS } from '../src/article.mjs';
 import { canonicalArticleUrl, sourceInventory } from '../src/research-inventory.mjs';
 import { reviewedProfile, assertReviewHistory } from '../src/hitl.mjs';
+import { STAGE_RUN, validateStageEnvelope, assertStageHistory, validateBaselineSelections } from '../src/stage-contract.mjs';
 export { PUBLISHERS };
 
 export const schema = JSON.parse(readFileSync(new URL('../schemas/corpus.schema.json', import.meta.url), 'utf8'));
@@ -838,6 +839,12 @@ export function validateCorpus(corpus) {
   const errors = validateShape(corpus);
   if (errors.length) return errors;
   const fail = (type, id, message) => errors.push(`${type}:${id}: ${message}`);
+  try { validateBaselineSelections(corpus.governance); }
+  catch (error) { fail('governance', 'baselineSelections', error.code ?? 'INVALID_BASELINE_SELECTION'); }
+  for (const run of corpus.governance.campaignExtraction?.runs ?? []) if (run.schemaVersion === STAGE_RUN) {
+    try { validateStageEnvelope(run); }
+    catch (error) { fail('governance', run.id, error.code ?? 'INVALID_STAGE_SNAPSHOT'); }
+  }
   const index = {};
   for (const name of entityCollections) {
     index[name] = new Map();
@@ -1665,9 +1672,11 @@ export function assertAppendOnlyReviews(previous, next) {
       const corpus = await validatePrivateCorpus(store.file, { reviewAware });
       const previousReviews = structuredClone(corpus.reviews);
       const previousItemReviews = structuredClone(corpus.governance.localReview);
+      const previousStageHistory = structuredClone(corpus.governance);
       result = await update(corpus);
       assertAppendOnlyReviews(previousReviews, corpus.reviews);
       assertReviewHistory(previousItemReviews, corpus.governance.localReview);
+      assertStageHistory(previousStageHistory, corpus.governance);
       await persist(store, corpus);
     } catch (error) {
       failure = { status: 'failed', code: safeCode(error), ...(error?.errors ? { errors: error.errors } : {}) };

@@ -1,5 +1,8 @@
 import test from 'node:test';
 import './campaign.test.mjs';
+import './stages.test.mjs';
+import { stageCandidate } from './stages.test.mjs';
+import './stage-comparison.test.mjs';
 import './campaign-records.test.mjs';
 import './chunks.test.mjs';
 import assert from 'node:assert/strict';
@@ -36,6 +39,40 @@ const invoke = (directory, template) => spawnSync(process.execPath, [
   '--template', template, '--store', directory, '--supplied-by', 'synthetic-researcher',
 ], { encoding: 'utf8' });
 const result = child => JSON.parse(child.stdout);
+
+privateStoreTest('#85 AC-01/04/05/09 private CLI persists stage handoffs and freezes a separate regeneration candidate', async t => {
+  const { directory, corpusFile } = await makeStore();
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const entrypoint = fileURLToPath(new URL('../scripts/extract.mjs', import.meta.url));
+  const command = (...args) => {
+    const child = spawnSync(process.execPath, [entrypoint, ...args], { encoding: 'utf8' });
+    assert.equal(child.status, 0, child.stderr || child.stdout);
+    return result(child);
+  };
+  const baseline = path.join(directory, 'baseline.json'), candidateStore = path.join(directory, 'candidate');
+  command('regeneration', 'freeze', '--store', directory, '--case', 'synthetic-case-a', '--output', baseline);
+  const frozen = await readFile(baseline, 'utf8');
+  await mkdir(candidateStore, { mode: 0o700 });
+  const newCorpus = path.join(candidateStore, 'corpus.json');
+  command('regeneration', 'candidate', '--baseline', baseline, '--output', newCorpus);
+  const requestFile = path.join(candidateStore, 'request.json'), inputFile = path.join(candidateStore, 'candidate.json');
+  command('stage', 'prepare', '--store', candidateStore, '--case', 'synthetic-case-a', '--stage', 'ground', '--output', requestFile);
+  const request = await readJson(requestFile);
+  await writeFile(inputFile, JSON.stringify(stageCandidate(request)), { mode: 0o600 });
+  const before = await readFile(newCorpus, 'utf8');
+  command('stage', 'validate', '--store', candidateStore, '--request', requestFile, '--input', inputFile);
+  assert.equal(await readFile(newCorpus, 'utf8'), before);
+  command('stage', 'apply', '--store', candidateStore, '--request', requestFile, '--input', inputFile);
+  assert.equal(command('stage', 'apply', '--store', candidateStore, '--request', requestFile, '--input', inputFile).replay, true);
+  assert.equal(command('stage', 'status', '--store', candidateStore).stages.length, 1);
+  const comparisonFile = path.join(candidateStore, 'comparison.json');
+  command('regeneration', 'compare', '--store', candidateStore, '--baseline', baseline, '--output', comparisonFile);
+  assert.equal((await readJson(comparisonFile)).schemaVersion, 'campaign-stage-comparison/1');
+  assert.equal(command('regeneration', 'status', '--store', candidateStore).selected, false);
+  assert.equal(await readFile(baseline, 'utf8'), frozen);
+  assert.equal((await readJson(corpusFile)).governance.campaignExtraction, undefined);
+  assert.deepEqual(validateCorpus(await readJson(newCorpus)), []);
+});
 
 privateStoreTest('AC-01 manual CLI creates pending claims, passages, links, manifest, and safely deduplicates reruns', async t => {
   const { directory, corpusFile } = await makeStore();

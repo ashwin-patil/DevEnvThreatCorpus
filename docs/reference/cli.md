@@ -9,6 +9,61 @@ and [formats](formats-and-versioning.md) for input contracts.
 
 ## Command inventory
 
+### Staged extraction and protected regeneration
+
+These are POSIX private-store operations using pinned Node and the installed
+locked tokenizer. `STORE`, `NEW_STORE` and artifact paths below must be absolute,
+operator-owned protected paths outside the repository. Directories require mode
+0700 and files 0600. Create `NEW_STORE` separately before writing its `corpus.json`;
+never reuse the old store or overwrite the baseline. No command invokes a model.
+
+```sh
+node scripts/extract.mjs stage prepare --store "$STORE" --case "$CASE" --stage ground --output "$GROUND_REQUEST"
+node scripts/extract.mjs stage validate --store "$STORE" --request "$GROUND_REQUEST" --input "$GROUND_CANDIDATE"
+node scripts/extract.mjs stage apply --store "$STORE" --request "$GROUND_REQUEST" --input "$GROUND_CANDIDATE"
+node scripts/extract.mjs stage status --store "$STORE" --case "$CASE"
+node scripts/extract.mjs stage prepare --store "$STORE" --case "$CASE" --stage interpret --inputs "$ITEM_KEYS" --output "$INTERPRET_REQUEST"
+node scripts/extract.mjs stage prepare --store "$STORE" --case "$CASE" --stage relate --inputs "$BEHAVIOR_AND_SUPPORT_KEYS" --output "$RELATE_REQUEST"
+```
+
+Use exact comma-separated review `itemKey` values from the review snapshot; these
+are not labels. Interpret includes applied claims/literal usage; Relate includes
+applied behaviors/occurrences and support. Required dependency closure is selected
+automatically. `--revisions` selects retained revision IDs; `--requested-model`
+is advisory. Complete `candidateGuide` manually using only permitted outputs.
+Validate and explicitly apply each stage before preparing the next from the
+actual current base. The private browser mode exposes the same three actions,
+an extraction-mode selector and an upstream-key field.
+
+Any intervening corpus write, including review, invalidates an unapplied request.
+Keep its protected request/candidate for audit; prepare a new request against the
+current effective inputs, regenerate or deliberately recheck/rebind the candidate,
+validate, then apply. Never edit an old run or silently replace its base hash.
+Identical already-applied content replays without new records; genuinely new
+responses get new identities and no transferred acceptance. Skipped/failed work
+stays visible; resume by preparing current inputs and explicitly reporting every
+selected input. A completed stage is not proof of complete extraction or review.
+
+For the authorized single-campaign comparison, first freeze the old store, then
+generate only into a separate candidate with the same retained revisions:
+
+```sh
+node scripts/extract.mjs regeneration freeze --store "$STORE" --case "$CASE" --output "$BASELINE"
+node scripts/extract.mjs regeneration candidate --baseline "$BASELINE" --output "$NEW_STORE/corpus.json"
+# Run the staged handoffs above against NEW_STORE, not STORE.
+node scripts/extract.mjs regeneration compare --store "$NEW_STORE" --baseline "$BASELINE" --output "$COMPARISON"
+node scripts/extract.mjs regeneration select --store "$NEW_STORE" --baseline "$BASELINE" --comparison "$COMPARISON" --input "$ADJUDICATION"
+node scripts/extract.mjs regeneration status --store "$NEW_STORE"
+```
+
+`select` requires independent human source-backed adjudication of every major
+group and explicit approval; it appends a private selection record, never accepts
+items or modifies the old/public corpus. Comparison can be inspected side-by-side
+in the private studio using a local comparison file. The browser cannot select
+the baseline. Selection records the choice inside the candidate store; an operator
+must explicitly start the private server with `--store "$NEW_STORE"` to use it.
+See the [evaluation/adjudication procedure](../researcher-review-guide.md#staged-extraction-and-independent-comparison).
+
 Every option below takes a value. Unknown/duplicate flags fail; there is no
 `--help` command. Paths for private inputs/stores/outputs must be absolute and
 permission-restricted. Supplier/reviewer IDs use the

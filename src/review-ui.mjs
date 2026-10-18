@@ -63,6 +63,8 @@ export function renderProgress(doc, summary, openQueue) {
     element(doc, 'p', `Hidden supporting claims: ${summary.hiddenEvidence ?? 0}; deferred advanced records: ${summary.deferred ?? 0}; priority exceptions: ${summary.exceptions ?? 0}. These are not approvals.`),
     element(doc, 'p', 'Labels populated ≠ approval. N/A is excluded from label denominators. Accept + Exclude complete current review; Unsure/stale do not. Source counts overlap: do not sum. No quality score.', 'subtle'));
   if (e.legacyUnlocated) root.append(element(doc, 'p', `${e.legacyUnlocated} source(s) have historical partial coverage without segment identities; unlocated work is disclosed separately and excluded from the canonical coverage numerator.`));
+  for (const stage of summary.stages ?? []) root.append(element(doc, 'p',
+    `Stage ${stage.kind}: ${ratio(stage.completed, stage.inputs)} input units processed; ${stage.skipped} skipped, ${stage.failed} failed. Stage completion is separate from source coverage and review/release readiness.`));
   for (const filter of REVIEW_FILTERS.slice(1)) root.append(action(doc, filter, () => openQueue(filter)));
   const detail = element(doc, 'details'); detail.append(element(doc, 'summary', 'Expand by artifact type'));
   for (const [type, counts] of Object.entries(summary.priority?.byType ?? summary.byType)) totals(detail, PRIORITY_LABELS[type] ?? type, counts);
@@ -289,6 +291,12 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     const history = element(doc, 'details'); history.append(element(doc, 'summary', `Retained audit history · ${u.history.length}`),
       element(doc, 'pre', JSON.stringify(u.history, null, 2)));
     detail.append(history);
+    if (u.stageInputs?.length) {
+      const stage = element(doc, 'details');
+      stage.append(element(doc, 'summary', 'Frozen effective stage inputs (corrections and evidence)'),
+        element(doc, 'pre', JSON.stringify(u.stageInputs, null, 2)));
+      detail.append(stage);
+    }
   }
   detail.tabIndex = -1;
   workspace.append(detail); root.append(workspace);

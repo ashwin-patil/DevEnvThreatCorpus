@@ -1146,6 +1146,31 @@ function fakeWindow(hash = '') {
   return win;
 }
 
+test('#85 AC-01/07 staged handoff validates before explicit apply and clears validation on candidate replacement', async () => {
+  const state = createStudio(fresh()), calls = [];
+  state.campaign.caseId = 'synthetic-case-a'; state.campaign.preparedCaseId = 'synthetic-case-a';
+  state.campaign.stageKind = 'ground';
+  state.campaign.preparedRequest = { schemaVersion: 'campaign-stage-request/1', requestHash: 'synthetic-stage' };
+  state.campaign.candidate = { schemaVersion: 'campaign-stage-candidate/1', requestHash: 'synthetic-stage' };
+  const render = () => renderCampaignEnrichment(new FakeDocument(), fakeWindow(), state, {
+    enabled: true, stageOperation: async (command, input) => {
+      calls.push({ command, input }); return { status: 'succeeded', summary: { kind: 'ground', processing: [] } };
+    },
+  });
+  let root = render();
+  assert.equal(button(root, 'Explicitly apply validated stage').disabled, true);
+  await button(root, 'Validate stage candidate').trigger('click');
+  assert.deepEqual(calls.map(c => c.command), ['validate']);
+  root = render();
+  assert.equal(button(root, 'Explicitly apply validated stage').disabled, false);
+  assert.match(root.textContent, /application will recheck freshness/);
+  await button(root, 'Explicitly apply validated stage').trigger('click');
+  assert.deepEqual(calls.map(c => c.command), ['validate', 'apply']);
+  assert.equal(state.campaign.candidate, null);
+  state.campaign.candidate = { schemaVersion: 'campaign-stage-candidate/1', requestHash: 'another' };
+  assert.equal(button(render(), 'Explicitly apply validated stage').disabled, true);
+});
+
 function reviewFixture() {
   const corpus = structuredClone(researchFixture), passage = corpus.passages[0], claim = corpus.claims[0];
   // Keep the research article distinct from the fixture's catalog metadata source.

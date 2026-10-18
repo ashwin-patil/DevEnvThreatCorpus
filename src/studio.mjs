@@ -1,4 +1,5 @@
 import { element, action } from './render.mjs';
+import { renderStageComparison } from './stage-view.mjs';
 
 export const DIMENSIONS = {
   trust_surface: ['Social engineering and malicious repositories', 'Package or registry compromise', 'IDE and local execution paths', 'Skill marketplace poisoning', 'MCP or tool poisoning', 'Credentials and identity', 'CI/CD and cloud'],
@@ -333,11 +334,11 @@ export async function campaignCandidate(file) {
 }
 
 export function renderCampaignEnrichment(doc, win, state, {
-  enabled = false, prepareCampaign, importCampaign, campaignStatus = {}, campaignStatusError = '',
+  enabled = false, prepareCampaign, importCampaign, stageOperation, campaignStatus = {}, campaignStatusError = '',
 } = {}, refresh = () => {}) {
   const section = element(doc, 'section', null, 'campaign-enrichment');
   section.append(element(doc, 'h3', 'Enrich campaign'),
-    element(doc, 'p', 'Two-step private handoff. This workbench does not call a model service: prepare and download the bounded request, use the configured Codex chat with a researcher, then import its returned JSON against that same request.'));
+    element(doc, 'p', 'Private manual handoff. This workbench does not call a model service: prepare and download the bounded request, complete the authorized researcher handoff, then validate and explicitly apply staged JSON. Existing monolithic import remains available. All output stays Pending.'));
   if (campaignStatusError) section.append(element(doc, 'p', campaignStatusError, 'enrichment-warning'));
   const campaign = state.campaign;
   const wrapper = element(doc, 'label', 'Existing campaign '), select = element(doc, 'select');
@@ -361,6 +362,32 @@ export function renderCampaignEnrichment(doc, win, state, {
     const disabled = action(doc, 'Prepare & download private request', () => {});
     disabled.disabled = true; section.append(disabled); return section;
   }
+  if (stageOperation) {
+    const stageLabel = element(doc, 'label', 'Extraction mode '), stage = element(doc, 'select');
+    stage.setAttribute('aria-label', 'Extraction mode');
+    for (const [value, label] of [['', 'Existing monolithic manual handoff'], ['ground', 'Ground: claims, tools, prompts, commands'],
+      ['interpret', 'Interpret: behaviors and occurrences'], ['relate', 'Relate: supported paths and mappings']]) {
+      const option = element(doc, 'option', label); option.value = value; stage.append(option);
+    }
+    stage.value = campaign.stageKind ?? ''; stage.disabled = campaign.waiting;
+    stage.addEventListener('change', () => {
+      campaign.stageKind = stage.value; campaign.preparedRequest = null; campaign.candidate = null;
+      campaign.validatedCandidate = null; campaign.summary = null; campaign.error = ''; refresh();
+    });
+    stageLabel.append(stage); section.append(stageLabel);
+    if (campaign.stageKind && campaign.stageKind !== 'ground') {
+      const label = element(doc, 'label', 'Required upstream item keys (comma-separated) '), keys = element(doc, 'textarea');
+      keys.setAttribute('aria-label', 'Required upstream item keys');
+      keys.value = campaign.inputKeys ?? ''; keys.disabled = campaign.waiting;
+      keys.addEventListener('input', () => {
+        campaign.inputKeys = keys.value; campaign.preparedRequest = null;
+        campaign.candidate = null; campaign.validatedCandidate = null;
+      });
+      keys.addEventListener('change', refresh);
+      label.append(keys); section.append(label, element(doc, 'p',
+        'Copy exact item keys from Review audit details. Grounded applied Pending inputs are allowed. Every selected input binds each output; choose a minimal coherent cohort. Required support must be independently accepted before output acceptance.'));
+    }
+  }
   const requested = element(doc, 'input');
   requested.setAttribute('aria-label', 'Requested model (optional)');
   requested.value = campaign.requestedModel; requested.maxLength = 200; requested.disabled = campaign.waiting;
@@ -372,26 +399,29 @@ export function renderCampaignEnrichment(doc, win, state, {
     if (!campaign.caseId) { campaign.error = 'Choose an existing campaign first.'; refresh(); return; }
     campaign.waiting = true; campaign.error = ''; refresh();
     try {
-      const result = await prepareCampaign({ caseId: campaign.caseId,
-        ...(campaign.requestedModel.trim() ? { requestedModel: campaign.requestedModel.trim() } : {}) });
+      const input = { caseId: campaign.caseId,
+        ...(campaign.requestedModel.trim() ? { requestedModel: campaign.requestedModel.trim() } : {}) };
+      const result = campaign.stageKind ? await stageOperation('prepare', { ...input, kind: campaign.stageKind,
+        inputKeys: (campaign.inputKeys ?? '').split(',').map(k => k.trim()).filter(Boolean) }) : await prepareCampaign(input);
       if (result.status !== 'succeeded' || !result.request) throw new Error(result.message ?? `Preparation failed (${result.code ?? 'unknown'}).`);
       campaign.preparedRequest = result.request; campaign.preparedCaseId = campaign.caseId;
-      campaign.candidate = null; campaign.candidateName = ''; campaign.summary = result.summary ?? null;
+      campaign.candidate = null; campaign.validatedCandidate = null; campaign.candidateName = ''; campaign.summary = result.summary ?? null;
       downloadProposal(doc, win, result.request, `campaign-${campaign.caseId}-request.json`);
     } catch (error) { campaign.error = error.message; }
     finally { campaign.waiting = false; refresh(); }
   });
   prepare.disabled = campaign.waiting || !campaign.caseId; section.append(prepare,
     element(doc, 'p', campaign.preparedRequest ?
-      `Prepared request for ${campaign.preparedCaseId}. Send only this downloaded request to the configured Codex chat; researcher review remains required.` :
+      `Prepared request for ${campaign.preparedCaseId}. Use only this downloaded request for the authorized manual handoff; no external transmission is implied and researcher review remains required.` :
       'No request prepared in this browser session.', 'subtle'));
 
-  section.append(element(doc, 'h4', 'Step 2 — choose returned JSON and import'));
+  section.append(element(doc, 'h4', 'Step 2 — choose returned JSON, validate stages and apply'));
   const fileLabel = element(doc, 'label', 'Returned candidate JSON '), file = element(doc, 'input');
   file.type = 'file'; file.accept = 'application/json,.json'; file.disabled = campaign.waiting || !campaign.preparedRequest;
   file.setAttribute('aria-label', 'Returned campaign candidate JSON');
   file.addEventListener('change', async () => {
     campaign.error = ''; campaign.candidate = null; campaign.candidateName = '';
+    campaign.validatedCandidate = null;
     try {
       campaign.candidate = await campaignCandidate(file.files?.[0]);
       campaign.candidateName = file.files[0].name ?? 'candidate.json';
@@ -401,24 +431,64 @@ export function renderCampaignEnrichment(doc, win, state, {
   fileLabel.append(file); section.append(fileLabel,
     element(doc, 'p', campaign.candidateName ? `Selected ${campaign.candidateName}; import remains bound to the prepared request for ${campaign.preparedCaseId}.` :
       'Choose one JSON object no larger than 2 MiB. The file is size-checked before it is read.', 'subtle'));
-  const apply = action(doc, campaign.waiting ? 'Working…' : 'Import candidate against prepared request', async () => {
+  const staged = campaign.preparedRequest?.schemaVersion === 'campaign-stage-request/1';
+  if (staged) {
+    const validate = action(doc, 'Validate stage candidate (no application)', async () => {
+      if (campaign.waiting || !campaign.candidate) return;
+      campaign.waiting = true; campaign.error = ''; refresh();
+      try {
+        const result = await stageOperation('validate', { request: campaign.preparedRequest, candidate: campaign.candidate });
+        if (result.status !== 'succeeded') throw new Error(`Validation failed (${result.code}).`);
+        campaign.validatedCandidate = campaign.candidate; campaign.summary = result.summary;
+      } catch (error) { campaign.error = error.message; campaign.validatedCandidate = null; }
+      finally { campaign.waiting = false; refresh(); }
+    });
+    validate.disabled = campaign.waiting || !campaign.candidate; section.append(validate,
+      element(doc, 'p', campaign.validatedCandidate === campaign.candidate && campaign.candidate
+        ? 'Candidate validated against the current base; application will recheck freshness. Not accepted.'
+        : 'Validate and inspect before explicitly applying. A changed base requires a new request; no automatic rebase.'));
+  }
+  const apply = action(doc, campaign.waiting ? 'Working…' : staged ? 'Explicitly apply validated stage (Pending)' : 'Import candidate against prepared request', async () => {
     if (campaign.waiting || !campaign.preparedRequest || !campaign.candidate) return;
+    if (staged && campaign.validatedCandidate !== campaign.candidate) {
+      campaign.error = 'Validate this stage candidate before explicit application.'; refresh(); return;
+    }
     if (campaign.preparedCaseId !== campaign.caseId) {
       campaign.error = 'The selected campaign no longer matches the prepared request. Prepare a new request.'; refresh(); return;
     }
     campaign.waiting = true; campaign.error = ''; refresh();
     try {
-      const result = await importCampaign({ request: campaign.preparedRequest, candidate: campaign.candidate });
+      const input = { request: campaign.preparedRequest, candidate: campaign.candidate };
+      const result = staged ? await stageOperation('apply', input) : await importCampaign(input);
       if (result.status !== 'succeeded') throw new Error(result.message ?? `Import failed (${result.code ?? 'unknown'}).`);
       campaign.summary = result.summary ?? {};
-      campaign.candidate = null; campaign.candidateName = '';
+      campaign.candidate = null; campaign.validatedCandidate = null; campaign.candidateName = '';
     } catch (error) { campaign.error = error.message; }
     finally { campaign.waiting = false; refresh(); }
   });
-  apply.disabled = campaign.waiting || !campaign.preparedRequest || !campaign.candidate; section.append(apply);
-
+  apply.disabled = campaign.waiting || !campaign.preparedRequest || !campaign.candidate
+    || (staged && campaign.validatedCandidate !== campaign.candidate); section.append(apply);
+  if (stageOperation) {
+    const label = element(doc, 'label', 'Inspect protected comparison JSON (local file, no upload) '), file = element(doc, 'input');
+    file.type = 'file'; file.accept = '.json,application/json'; file.setAttribute('aria-label', 'Protected comparison JSON');
+    file.addEventListener('change', async () => {
+      try {
+        const comparison = await campaignCandidate(file.files?.[0]);
+        if (comparison.schemaVersion !== 'campaign-stage-comparison/1' || !Array.isArray(comparison.groups)) {
+          throw new Error('Choose a campaign-stage-comparison/1 file.');
+        }
+        campaign.comparison = comparison; campaign.error = '';
+      } catch (error) { campaign.error = error.message; campaign.comparison = null; }
+      refresh();
+    });
+    label.append(file); section.append(label);
+    if (campaign.comparison) section.append(renderStageComparison(doc, campaign.comparison));
+  }
   const status = campaignStatus[campaign.caseId] ?? campaignStatus.get?.(campaign.caseId);
   const summary = campaign.summary ?? {};
+  if (Array.isArray(summary.processing)) {
+    section.append(element(doc, 'p', `Stage ${summary.kind ?? 'unknown'}: ${summary.processing.filter(i => i.status === 'completed').length}/${summary.processing.length} inputs processed. This is not source coverage, review or release readiness.`));
+  }
   const run = summary.runs?.at(-1) ?? status?.runs?.at(-1);
   const coverage = run?.coverage ?? summary.coverage;
   const totals = Array.isArray(coverage) ? coverage.reduce((result, item) => ({

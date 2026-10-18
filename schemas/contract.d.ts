@@ -99,7 +99,44 @@ export interface OtelAction {
 export interface Governance {
   controlledAliases?: Record<string, string[]>;
   localReview?: { schemaVersion: 'local-hitl/1'; events: ItemReviewEvent[] };
+  regeneration?: { schemaVersion: 'campaign-regeneration/1'; baselineHash: SHA256; caseId: ID;
+    sourceRevisions: { id: ID; sourceId: ID; hash: SHA256 }[] };
+  baselineSelections?: BaselineSelection[];
   [extension: string]: unknown;
+}
+export type ExtractionStage = 'ground' | 'interpret' | 'relate';
+export interface StageProcessing { inputId: ID; status: 'completed' | 'skipped' | 'failed'; reason: string | null }
+export interface StageInput {
+  itemKey: string; type: ItemReviewType; id: ID; record: Record<string, unknown>;
+  originalHash: SHA256; binding: SHA256; effectiveRevision: SHA256;
+  contentOrigin: string; labelAuthorship: string; editor: string | null;
+  evidence: Record<string, unknown>[]; decisionId: ID | null; reviewState: string; runIds: ID[];
+}
+export interface StageRequest {
+  schemaVersion: 'campaign-stage-request/1'; extractionVersion: 'campaign-stages/1';
+  kind: ExtractionStage; caseId: ID; baseDigest: SHA256; requestHash: SHA256;
+  inputPolicy: 'grounded-applied-pending/1'; allowedOutputs: string[];
+  selection: { inputKeys: string[]; revisionIds: ID[] };
+  inputs: Record<string, unknown>[]; upstream: StageInput[];
+  caseScope: Record<string, unknown>; chunkPolicy: Record<string, unknown>;
+  catalogSnapshot: Record<string, unknown>; provider: Record<string, unknown>;
+  prompt: { version: string; text: string; hash: SHA256 };
+  limits: { bytes: number; items: number; text: number };
+  candidateGuide: Record<string, unknown>; limitations: string[];
+}
+export interface StageCandidate {
+  schemaVersion: 'campaign-stage-candidate/1'; requestHash: SHA256; kind: ExtractionStage;
+  model: { effectiveModel: string | null; version: string | null; nullReasons: Record<string, 'unknown'> };
+  processing: StageProcessing[];
+  outputs: { claims: Record<string, unknown>[]; artifacts: Record<string, unknown>[] }
+    | { behaviors: Record<string, unknown>[] } | { paths: Record<string, unknown>[]; mappings: Record<string, unknown>[] };
+  limitations: string[];
+}
+export interface BaselineSelection {
+  schemaVersion: 'campaign-baseline-selection/1'; caseId: ID; baselineHash: SHA256; candidateHash: SHA256;
+  annotationsHash: SHA256; comparisonHash: SHA256; rubricVersion: 'campaign-major-mismatch/1';
+  adjudication: Record<string, unknown>; reviewer: string; timestamp: string;
+  previous: SHA256 | null; selectionHash: SHA256;
 }
 export type ItemReviewType = ReviewEntityType | 'behaviors' | 'occurrences' | 'paths' | 'nodes' | 'edges'
   | 'mappings' | 'telemetry' | 'detections' | 'otel' | 'annotations';

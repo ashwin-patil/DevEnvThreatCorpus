@@ -51,6 +51,17 @@ proven outcomes. See [visual provenance](docs/assets/communication/vision-and-au
 
 ## Research workflow
 
+Private store mode also offers an explicit **Ground -> Interpret -> Relate**
+manual extraction handoff. Grounded applied Pending items may supply derivation
+inputs, but every claim, literal usage, behavior, occurrence, path edge and mapping
+still needs its own current human approval and accepted support. Prepare each
+stage from the current store, validate the returned JSON, then explicitly apply;
+changed inputs require preparation again, never an automatic rebase.
+See the [stage CLI and protected comparison recipes](docs/reference/cli.md#staged-extraction-and-protected-regeneration)
+and [researcher evaluation/adoption guide](docs/researcher-review-guide.md#staged-extraction-and-independent-comparison).
+These commands do not call a model, adopt an extraction, or replace the public
+preview automatically. Native Windows remains public-preview-only.
+
 **Published research → Source-linked claims → Researcher review and acceptance →
 Campaign patterns and Detection hypotheses**
 
