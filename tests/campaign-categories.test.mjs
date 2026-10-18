@@ -61,6 +61,10 @@ for (const description of [
   'A payload uses Claude for reconnaissance.', // Environment/operating side unspecified.
   'AI-generated malware was discovered.', // AI operator unspecified.
   'An AI code reviewer inspected a benign task.',
+  'An AI security reviewer analyzed the malicious package.',
+  'An AI code reviewer detected prompt injection in the package.',
+  'Developers ran a scanner on the malicious coding task.',
+  'The victim endpoint agent invoked a malicious script.',
   'Developers cloned a legitimate coding challenge.',
   'The interview article mentioned an AI reviewer. A malicious script ran elsewhere.',
   'Local Claude was available. A malicious prompt was mentioned separately.',

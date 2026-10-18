@@ -10,7 +10,6 @@ export const CAMPAIGN_CATEGORIES = Object.freeze([
     description: 'Deceptive developer, recruiting or coding-task interactions induce execution or access.' }),
 ]);
 
-const AI = /\b(?:AI|LLMs?|Claude(?: Code)?|Gemini(?: CLI)?|Amazon Q|Q CLI|ChatGPT|assistants?|agents?)\b/i;
 const EXPLICIT_AI = /\b(?:AI|LLMs?|Claude|Gemini|Amazon Q|Q CLI|ChatGPT)\b/i;
 const INELIGIBLE = /\b(?:recommend\w*|investigat\w*|should|would|could|may|might|hypothetic\w*|potential\w*|defen[cd]\w*|mitigat\w*)\b/i;
 const NEGATED = /\b(?:no|not|never|without|rather than|denied|denies|didn't|doesn't|did not|does not)\b/i;
@@ -18,7 +17,7 @@ const STATES = new Set(['Source-reported observation', 'Attempted behavior', 'De
 
 function matches(rule, sentence) {
   if (INELIGIBLE.test(sentence) || NEGATED.test(sentence)) return false;
-  if (rule.id === 'victim-agent') return AI.test(sentence)
+  if (rule.id === 'victim-agent') return EXPLICIT_AI.test(sentence)
     && !/\b(?:their own|attacker-controlled|attacker-owned)\s+(?:AI|LLM|Claude|Gemini|agent)/i.test(sentence)
     && (/\bvictim(?:[- ]side)?\b/i.test(sentence)
       || (/\b(?:local|installed|authenticated)\b/i.test(sentence)
@@ -33,9 +32,9 @@ function matches(rule, sentence) {
   }
   if (rule.id === 'ai-review') return EXPLICIT_AI.test(sentence)
     && /\b(?:(?:code|security)\s+review(?:er|s)?|AI[- ]review(?:er|s)?|LLM[- ]review(?:er|s)?)\b/i.test(sentence)
-    && /\b(?:malicious|prompt injection|evad\w*|bypass\w*|manipulat\w*|deceiv\w*)\b/i.test(sentence);
+    && /\b(?:evad\w*|bypass\w*|manipulat\w*|deceiv\w*|subvert\w*|trick\w*|mislead\w*)\b/i.test(sentence);
   return /\b(?:recruiter|job|interview|coding (?:task|test|challenge)|technical assessment|hiring|developers?)\b/i.test(sentence)
-    && /\b(?:lure[ds]?|social engineering|impersonat\w*|malicious|fake|deceptive|trojan\w*)\b/i.test(sentence)
+    && /\b(?:lure[ds]?|social engineering|impersonat\w*|trick\w*|deceiv\w*|fake|deceptive|trojan\w*)\b/i.test(sentence)
     && /\b(?:lure|trick|induc|invit|persuad|ask|execut|run|clon|download|install|open)\w*/i.test(sentence);
 }
 

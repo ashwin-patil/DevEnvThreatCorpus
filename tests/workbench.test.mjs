@@ -2018,6 +2018,22 @@ test('Issue #31 AC-02 generated extraction JSON applies to the existing CLI cont
   assert.ok(!JSON.stringify(exported).includes('candidateTechniques'));
 });
 
+test('#89 AC-06 curator proposals persist rule-derived categories separately from human-entered claim provenance', async () => {
+  const input = JSON.parse(await readFile(new URL('./fixtures/extraction/studio-input.json', import.meta.url), 'utf8'));
+  input.text = 'The malicious payload attempted to invoke authenticated Claude for victim reconnaissance.';
+  const state = createStudio(emptyCorpus()), revision = await pasteArticle(state, input);
+  const record = addStudioCase(state, 'Synthetic role classification; not incident evidence', 'Research exercise');
+  choosePassage(state, 0, [...revision.normalizedContent].length);
+  const draft = saveDraft(state, { ...claimInput(), caseId: record.id, description: input.text, evidenceStatus: 'Attempted behavior' });
+  const proposal = await corpusProposal(state);
+  assertValid(proposal);
+  const category = proposal.categorizations.find(c => c.origin === 'Deterministic rule');
+  assert.ok(category); assert.equal(category.value, 'Victim-side agent abuse');
+  assert.deepEqual(category.supportingClaimIds, [draft.id]); assert.equal(category.disposition, 'Pending');
+  assert.equal(proposal.claims.find(c => c.id === draft.id).origin, 'Human source paraphrase');
+  assert.equal(state.base.categorizations.length, 0);
+});
+
 test('Issue #31 AC-02 pasted fixture generates a standalone schema-valid private proposal', async () => {
   const input = JSON.parse(await readFile(new URL('./fixtures/extraction/studio-input.json', import.meta.url), 'utf8'));
   const state = createStudio(emptyCorpus()), before = canonicalSerialize(state.base);
