@@ -1,6 +1,6 @@
-import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, telemetryScopeBadges, renderCampaignCategories, relatedResearch } from './render.mjs';
+import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, telemetryScopeBadges, renderCampaignCategories, relatedResearch, cardContext, publisherTags } from './render.mjs';
 import { OBSERVATION_CONTEXTS } from './prompt-responses.mjs';
-import { filterRecords, metadata, caseSourceIds, behaviorSupport, telemetryScopeEntries, researchRelationships, campaignMetrics, CAMPAIGN_SECTIONS } from './model.mjs';
+import { filterRecords, metadata, caseSourceIds, behaviorSupport, telemetryScopeEntries, researchRelationships, campaignMetrics, CAMPAIGN_SECTIONS, researchSources } from './model.mjs';
 import { publisherDisplay, behaviorInventory, sourceInventory } from './research-inventory.mjs';
 import { aiLibrary } from './ai-library.mjs';
 import { campaignGraph, campaignSummary, pathDisplayName, evidenceLabel, originReview, activityIcon, ICON_PATHS } from './campaign-presentation.mjs';
@@ -72,7 +72,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     const counts = campaignMetrics(model, record.id), metrics = element(doc, 'dl', null, 'campaign-metrics');
     for (const [key, label, detail] of [
       ['researchArticles', 'Research blogs'], ['aiTools', 'AI tools', `${counts.targetedAiTools} target/abuse-linked`],
-      ['promptVariants', 'Prompt variants', `${counts.promptOccurrences} occurrences · ${counts.promptResponses} responses`],
+      ['promptVariants', 'Prompt variants', `${counts.promptOccurrences} occurrences · ${counts.promptResponses} response${counts.promptResponses === 1 ? '' : 's'}`],
       ['behaviors', 'Behaviors'], ['campaignGraphs', 'Campaign graphs'], ['phasePaths', 'Phase paths'],
     ]) {
       const metric = element(doc, 'div'), value = element(doc, 'dd');
@@ -81,9 +81,13 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
       metric.append(element(doc, 'dt', label), value); metrics.append(metric);
     }
     const heading = element(doc, 'h2'); heading.append(activitySvg(doc, 'graph'), element(doc, 'span', record.name));
+    const titleRow = element(doc, 'div', null, 'campaign-heading');
+    titleRow.append(heading, action(doc, 'Open campaign workspace', event => {
+      event.preventDefault(); event.stopPropagation?.(); navigate('cases', record.id);
+    }, 'chip campaign-workspace'));
     const badges = element(doc, 'div', null, 'card-badges');
-    badges.append(element(doc, 'span', record.kind ?? 'Case', 'publisher-badge'), campaignCategoryBadges(doc, model, record.id));
-    summary.append(badges, heading,
+    badges.append(element(doc, 'span', record.kind ?? 'Case', 'publisher-badge'), campaignCategoryBadges(doc, model, record.id, undefined, navigate));
+    summary.append(badges, titleRow,
       element(doc, 'p', overview.text, 'campaign-summary'),
       metrics,
       element(doc, 'span', 'Expand campaign', 'card-expand'));
@@ -129,7 +133,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
       chip.title = `${metadata(source, 'title')} · ${display.basis}`; chip.setAttribute('aria-label', `${display.name}: ${metadata(source, 'title')}`); research.append(chip);
     }
     behaviorLinks(doc, sections.get('behaviors'), model, claimIds, navigate);
-    body.append(...sections.values(), action(doc, 'Open campaign workspace', () => navigate('cases', record.id)));
+    body.append(...sections.values());
     card.append(body); grid.append(card);
   }
   panel.append(grid); return panel;
@@ -139,8 +143,7 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
   panel.append(element(doc, 'h2', 'Research library'), element(doc, 'p',
     'One card per blog or research source. Campaign tags open the associated case; one blog can support several cases without combining their attribution. Open a blog to inspect exact revisions and claims.', 'subtle'), usageLegend(doc));
   const grid = element(doc, 'div', null, 'research-grid');
-  const catalogSources = new Set(list(model, 'frameworks').map(framework => framework.sourceId).filter(Boolean));
-  for (const article of sourceInventory(sources.filter(source => !catalogSources.has(source.id)))) {
+  for (const article of sourceInventory(researchSources(model, sources))) {
     const source = article.source, memberIds = new Set(article.members.map(s => s.id));
     const card = element(doc, 'article', null, 'panel research-card blog-card');
     const cases = model.corpus.cases.filter(c => caseSourceIds(model, c.id).some(id => memberIds.has(id)) && (!filters.cases?.length || filters.cases.includes(c.id)));
@@ -148,16 +151,15 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
     const claims = model.corpus.claims.filter(c => memberIds.has(c.sourceId) && caseIds.has(c.caseId));
     const claimIds = new Set(claims.map(c => c.id));
     const revisions = new Set(article.members.flatMap(s => s.revisionIds));
-    const badges = element(doc, 'div', null, 'card-badges');
-    badges.append(element(doc, 'span', article.publisher.name, 'publisher-badge'), campaignCategoryBadges(doc, model, [...caseIds], memberIds));
-    card.append(badges,
+    card.append(cardContext(doc, model, caseIds, navigate, memberIds), publisherTags(doc, model, memberIds, navigate),
       element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', revisions.size
-        ? `${source.collectionState} · ${revisions.size} retained revision(s)` : 'No retained article revision · source metadata only', 'subtle'),
-      action(doc, 'Open research source', () => navigate('sources', source.id)));
+        ? `${source.collectionState} · ${revisions.size} retained revision(s)` : 'No retained article revision · source metadata only', 'subtle'));
     card.append(telemetryScopeBadges(doc, model, [...caseIds], memberIds, navigate));
+    const categoryReview = element(doc, 'details'); categoryReview.append(element(doc, 'summary', 'Category support & review'));
     for (const record of cases) {
-      card.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false, memberIds));
+      categoryReview.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false, memberIds));
     }
+    if (cases.length) card.append(categoryReview);
     if (article.members.length > 1) {
       const history = element(doc, 'details'); history.append(element(doc, 'summary', `Article aliases & source history · ${article.members.length} retained identities`));
       for (const member of article.members) history.append(action(doc, `Inspect historical source: ${member.title ?? article.publisher.name}`, () => navigate('sources', member.id)),
@@ -165,11 +167,9 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
         technicalDetails(doc, [['Source identifier', member.id]]));
       card.append(history);
     }
-    card.append(element(doc, 'h3', 'Campaigns / cases'));
     if (model.itemReview?.sources[source.id] && openReview) card.append(renderProgress(doc,
       model.itemReview.sources[source.id], filter => openReview(cases[0]?.id ?? '', source.id, filter)));
     else if (model.collectionEnabled) card.append(element(doc, 'p', model.reviewError ?? 'Review coverage unavailable; no approval inferred.'));
-    for (const record of cases) card.append(action(doc, record.name, () => navigate('cases', record.id), 'chip campaign-tag'));
     if (!cases.length) card.append(element(doc, 'p', 'Independent source · no associated case', 'subtle'));
     if (!revisions.size && model.corpus.collectionManifests.some(m => m.outcome === 'Failed' && m.inputSourceIds.some(id => memberIds.has(id)))) card.append(element(doc, 'p', 'Failed intake attempt · article unavailable for extraction.', 'limits'));
     const paths = list(model, 'paths').filter(p => caseIds.has(p.caseId) && p.nodes.some(n => n.claimIds.some(id => claimIds.has(id))));
@@ -220,13 +220,13 @@ function provenance(doc, record) {
   return element(doc, 'p', [record.origin, record.evidenceStatus, record.disposition ?? record.status ?? 'Pending',
     record.mappingStatus].filter(Boolean).join(' · '), 'subtle');
 }
-function support(doc, model, ids, navigate, caseId) {
+function support(doc, model, ids, navigate, caseId, relations) {
   const section = element(doc, 'details'); section.append(element(doc, 'summary', 'Supporting claims and exact passages'));
   const scopedClaims = model.corpus.claims.filter(c => !caseId || (caseId instanceof Set ? caseId.has(c.caseId) : c.caseId === caseId));
   const scopedModel = { ...model, corpus: { ...model.corpus, claims: scopedClaims }, claims: new Map(scopedClaims.map(c => [c.id, c])) };
   for (const id of [...new Set(ids ?? [])]) {
     const claim = scopedModel.claims.get(id);
-    if (claim) section.append(renderClaim(doc, scopedModel, claim, navigate));
+    if (claim) section.append(renderClaim(doc, scopedModel, claim, navigate, false, relations));
     else section.append(element(doc, 'p', `Unavailable claim or outside this case: ${id}. No support inferred.`));
   }
   section.append(renderConflicts(doc, scopedModel, ids ?? [], navigate));
@@ -254,18 +254,22 @@ export function nodeMappings(model, path, node) {
 
 function mappingCard(doc, model, mapping, navigate, caseId, scope) {
   const card = element(doc, 'article', null, 'claim-card');
+  card.append(cardContext(doc, model, [caseId], navigate));
   card.append(element(doc, 'h4', `${mapping.framework} ${mapping.version} · ${mapping.techniqueLiteral ?? mapping.techniqueId} · ${scope}`), provenance(doc, mapping));
   for (const [key, label] of [['rationale', 'Rationale'], ['applicability', 'Applicability'], ['reason', 'Resolution limit']]) row(doc, card, label, mapping[key]);
   card.append(support(doc, model, mapping.claimIds ?? mapping.supportingClaimIds, navigate, caseId));
   if (mapping.techniqueId) card.append(action(doc, 'Inspect recorded framework candidate', () => navigate('frameworks', mapping.techniqueId)));
   return card;
 }
-function annotationCard(doc, model, annotation, navigate, showLiteral = true, pairedOnly = false) {
-  const card = element(doc, 'article', null, 'claim-card');
+function annotationCard(doc, model, annotation, navigate, showLiteral = true, pairedOnly = false, compact = false, relations) {
+  const card = element(doc, compact ? 'details' : 'article', null, compact ? 'source-occurrence' : 'claim-card');
   const prompt = annotation.type === 'commands-ai-artifacts' && annotation.context?.artifactKind === 'prompt-instruction';
+  if (compact) card.append(element(doc, 'summary', `${publisherDisplay(model.sources.get(annotation.sourceId)).name} · ${USAGE[usageOf([annotation])][0]} · ${annotation.itemReview?.state ?? annotation.status ?? 'Pending'}`));
+  else card.append(cardContext(doc, model, [annotation.caseId], navigate, new Set([annotation.sourceId])));
   if (annotation.type === 'commands-ai-artifacts') {
-    const usage = usageOf([annotation]); card.className += ` usage-${usage}`;
+    const usage = usageOf([annotation]);
     card.title = USAGE[usage][0]; card.setAttribute('aria-label', `Source artifact: ${USAGE[usage][0]}`);
+    if (!compact) card.append(element(doc, 'span', USAGE[usage].join(' · '), `usage-key usage-${usage}`));
   }
   if (showLiteral) card.append(element(doc, 'pre', annotation.value, 'artifact-value'));
   if (!prompt || annotation.itemReview) card.append(provenance(doc, annotation));
@@ -314,7 +318,8 @@ function annotationCard(doc, model, annotation, navigate, showLiteral = true, pa
     const evidence = element(doc, 'details');
     evidence.append(element(doc, 'summary', `Claims & evidence · ${object.claimIds.length}`));
     for (const id of object.claimIds) evidence.append(claimCitation(doc, model, id, navigate));
-    card.append(evidence, relatedResearch(doc, model, object.claimIds, navigate, object.key));
+    card.append(evidence);
+    if (!compact) card.append(relatedResearch(doc, model, object.claimIds, navigate, object.key, relations));
   }
   if (annotation.externalReferenceUrl) card.append(reference(doc, annotation.externalReferenceUrl, 'Public reference'));
   return card;
@@ -819,16 +824,32 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
           && (showAll || a.responses?.some(r => typeof r.text === 'string' && r.text.trim()))) : original.annotations;
         if (!annotations.length) continue;
         const record = { ...original, annotations }; occurrences += annotations.length;
-        const card = element(doc, 'article', null, `panel research-card usage-${usageOf(record.annotations)}`);
+        const card = element(doc, 'article', null, 'panel research-card');
+        card.append(cardContext(doc, model, record.annotations.map(a => a.caseId), navigate, new Set(record.annotations.map(a => a.sourceId))));
         card.append(element(doc, 'h2', record.name));
         if (view !== 'prompts') card.append(element(doc, 'p', record.basis, 'subtle'));
         if (!selectedId) card.append(action(doc, 'Open library entry', () => navigate(view, record.id)));
         if (view === 'prompts') card.append(element(doc, 'pre', record.annotations[0].value, 'artifact-value'),
           element(doc, 'p', `${record.annotations.length} source occurrence(s) · ${record.annotations.reduce((count, a) => count + (a.responses?.length ?? 0), 0)} response(s)`, 'subtle'));
-        for (const a of record.annotations) {
-          const item = annotationCard(doc, model, a, navigate, view !== 'prompts', view === 'prompts' && !showAll);
-          item.append(action(doc, `Campaign: ${model.cases.get(a.caseId)?.name ?? 'Campaign unavailable'}`, () => navigate('cases', a.caseId)));
-          card.append(item);
+        if (view === 'tools') {
+          card.className += ' ai-product-card';
+          const labels = element(doc, 'div', null, 'artifact-classifications');
+          for (const usage of new Set(record.annotations.map(a => usageOf([a])))) {
+            labels.append(element(doc, 'span', `${USAGE[usage][1]} ${USAGE[usage][0]}`, `usage-key usage-${usage}`));
+          }
+          const index = researchRelationships(model), claimIds = [...new Set(record.annotations.flatMap(a => index.byKey.get(`annotations:${a.id}`)?.claimIds ?? []))];
+          card.append(labels, element(doc, 'h3', 'Research publishers'),
+            publisherTags(doc, model, record.annotations.map(a => a.sourceId), navigate));
+          const evidence = element(doc, 'details', null, 'product-claims');
+          evidence.append(element(doc, 'summary', `Claims & evidence · ${claimIds.length}`));
+          for (const id of claimIds) evidence.append(claimCitation(doc, model, id, navigate));
+          card.append(evidence, relatedResearch(doc, model, claimIds, navigate, undefined, { excludeViews: ['tools'] }));
+          const occurrences = element(doc, 'details', null, 'product-occurrences');
+          occurrences.append(element(doc, 'summary', `Source occurrences & provenance · ${record.annotations.length}`));
+          for (const a of record.annotations) occurrences.append(annotationCard(doc, model, a, navigate, true, false, true));
+          card.append(occurrences);
+        } else for (const a of record.annotations) {
+          card.append(annotationCard(doc, model, a, navigate, false, !showAll));
         }
         grid.append(card);
       }
@@ -905,7 +926,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       }
       const graph = campaignGraph(model, path.caseId, selected.paths);
       const occurrence = [...graph.nodes, ...graph.edges].find(r => r.memberPath.id === path.id && r.canonicalId === selectedEntity);
-      panel.append(choose, renderGraph(doc, model, graph, navigate, occurrence?.id ?? graph.nodes.find(n => n.memberPath.id === path.id)?.id));
+      panel.append(cardContext(doc, model, [path.caseId], navigate), choose, renderGraph(doc, model, graph, navigate, occurrence?.id ?? graph.nodes.find(n => n.memberPath.id === path.id)?.id));
     } else {
       panel.append(element(doc, 'p', 'No authored attack paths in the selected corpus. Collection does not automatically reconstruct a graph.', 'empty'));
       for (const id of selected.caseIds) panel.append(action(doc, `Case: ${model.cases.get(id)?.name}`, () => navigate('cases', id)));
@@ -977,18 +998,24 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     if (annotationTarget) continue;
     if (['telemetry', 'behaviors'].includes(view) && selectedId && !matchesTarget(record)) continue;
     const card = element(doc, 'article', null, 'panel research-card'); card.id = `research-${record.id}`;
+    const objectType = { behaviors: 'behaviors', frameworks: 'mappings', telemetry: 'telemetry', otel: 'otel' }[view];
+    const relatedObject = researchRelationships(model).byKey.get(`${objectType}:${record.id}`);
+    const contextCases = (record.caseId ? [record.caseId] : view === 'frameworks'
+      ? selected.mappings.filter(mapping => mapping.techniqueId === record.id).map(mapping => mapping.caseId)
+      : relatedObject?.caseIds ?? []).filter(id => selected.caseIds.has(id));
+    if (contextCases.length) card.append(cardContext(doc, model, contextCases, navigate, record.sourceIds ? new Set(record.sourceIds) : undefined));
     card.append(element(doc, 'h2', record.name ?? record.eventType ?? record.action ?? 'Research record'));
     if (!record.scopeRecords) card.append(provenance(doc, record));
     if (matchesTarget(record)) card.setAttribute('data-selected', 'true');
     if (record.scopeRecords) {
       card.className += ' telemetry-scope-detail';
-      card.append(element(doc, 'p', `${model.cases.get(record.caseId)?.name ?? 'Campaign'} · ${record.disposition}`),
-        element(doc, 'p', record.description),
-        action(doc, 'Open campaign', () => navigate('cases', record.caseId)));
-      for (const id of record.sourceIds) card.append(sourceCitation(doc, model, id, navigate));
+      card.append(element(doc, 'p', `Scope review: ${record.disposition}`, 'subtle'), element(doc, 'p', record.description), element(doc, 'h3', 'Research publishers'),
+        publisherTags(doc, model, record.sourceIds, navigate));
       const index = researchRelationships(model), entry = index.byKey.get(`telemetryScopes:${record.id}`);
       const claimIds = record.claimIds.filter(id => entry?.claimIds.includes(id));
-      const evidence = support(doc, model, claimIds, navigate, record.caseId);
+      const relations = { types: ['behaviors'], campaigns: false };
+      card.append(relatedResearch(doc, model, claimIds, navigate, undefined, relations));
+      const evidence = support(doc, model, claimIds, navigate, record.caseId, relations);
       evidence.className = 'scope-claims'; evidence.open = Boolean(selectedId);
       evidence.firstChild.textContent = `Claims & evidence · ${claimIds.length}`;
       card.append(evidence, technicalDetails(doc, [['Category identifiers', record.scopeRecords.map(c => c.id).join('\n')],
@@ -1041,13 +1068,13 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       const behavior = list(model, 'behaviors').find(b => b.id === record.behaviorId);
       if (behavior) card.append(action(doc, behavior.name, () => navigate('behaviors', record.behaviorId)));
       const object = researchRelationships(model).byKey.get(`telemetry:${record.id}`);
-      if (object?.claimIds.length) card.append(support(doc, model, object.claimIds, navigate, selected.caseIds));
+      if (object?.claimIds.length) card.append(support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false }));
       card.append(technicalDetails(doc, [['Telemetry identifier', record.id]]));
       for (const detection of list(model, 'detections').filter(d => d.behaviorId === record.behaviorId)) {
         const section = element(doc, 'details'); section.open = detection.id === selectedId;
         section.append(element(doc, 'summary', 'Detection hypothesis · retain validation status'), provenance(doc, detection));
         const object = researchRelationships(model).byKey.get(`detections:${detection.id}`);
-        if (object?.claimIds.length) section.append(support(doc, model, object.claimIds, navigate, selected.caseIds));
+        if (object?.claimIds.length) section.append(support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false }));
         for (const key of ['hypothesis', 'windowSeconds', 'windowBasis', 'tuning', 'validation', 'testPlan']) row(doc, section, key, detection[key]); card.append(section);
       }
     } else if (view === 'otel') {
@@ -1073,7 +1100,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       const key = normalized(a); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(a);
     }
     for (const [name, annotations] of groups) {
-      const card = element(doc, 'article', null, 'panel research-card'); card.append(element(doc, 'h2', name), element(doc, 'p', 'Grouped annotation labels, not established shared attribution.'), element(doc, 'p', `${new Set(annotations.map(a => a.caseId)).size} distinct cases`));
+      const card = element(doc, 'article', null, 'panel research-card'); card.append(cardContext(doc, model, annotations.map(a => a.caseId), navigate, new Set(annotations.map(a => a.sourceId))), element(doc, 'h2', name), element(doc, 'p', 'Grouped annotation labels, not established shared attribution.'), element(doc, 'p', `${new Set(annotations.map(a => a.caseId)).size} distinct cases`));
       for (const a of annotations) card.append(annotationCard(doc, model, a, navigate)); grid.append(card);
     }
   }
@@ -1081,9 +1108,12 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     const behavior = list(model, 'behaviors').find(b => b.id === detection.behaviorId);
     if (!explorationRecords(model, 'behaviors', filters).records.some(b => b.id === detection.behaviorId)) continue;
     if (selectedId && detection.id !== selectedId) continue;
-    const card = element(doc, 'article', null, 'panel research-card'); card.append(element(doc, 'h2', behavior?.name ?? 'Detection hypothesis'), provenance(doc, detection));
+    const card = element(doc, 'article', null, 'panel research-card');
     const object = researchRelationships(model).byKey.get(`detections:${detection.id}`);
-    if (object?.claimIds.length) card.append(support(doc, model, object.claimIds, navigate, selected.caseIds));
+    card.append(cardContext(doc, model, object?.caseIds.filter(id => selected.caseIds.has(id)) ?? [], navigate),
+      element(doc, 'h2', behavior?.name ?? 'Detection hypothesis'), provenance(doc, detection));
+    if (object?.claimIds.length) card.append(relatedResearch(doc, model, object.claimIds, navigate, undefined, { types: ['behaviors'], campaigns: false }),
+      support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false }));
     for (const key of ['hypothesis', 'validation', 'tuning', 'testPlan']) row(doc, card, key, detection[key]); grid.append(card);
   }
   for (const type of (VIEW_ANNOTATIONS[view] ?? []).filter(type => type !== 'observed-behavior')) {
@@ -1092,7 +1122,8 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       if (selectedId && a.id !== selectedId) continue;
       if (selected.sourceIds && !selected.sourceIds.has(a.sourceId)) continue;
       const card = element(doc, 'section', null, 'panel research-card');
-      card.append(element(doc, 'h2', ANNOTATION_LABELS[type]), element(doc, 'p', 'Pending annotation; source references and researcher proposals retain their recorded context.'), annotationCard(doc, model, a, navigate)); grid.append(card);
+      card.append(cardContext(doc, model, [a.caseId], navigate, new Set([a.sourceId])), element(doc, 'h2', ANNOTATION_LABELS[type]), element(doc, 'p', 'Pending annotation; source references and researcher proposals retain their recorded context.'), annotationCard(doc, model, a, navigate, true, false, false,
+        view === 'telemetry' ? { types: ['behaviors'], campaigns: false } : undefined)); grid.append(card);
     }
   }
   if (view === 'otel' && model.corpus.otelReference) {

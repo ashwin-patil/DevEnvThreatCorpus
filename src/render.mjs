@@ -1,4 +1,4 @@
-import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline, researchRelationships, telemetryScopeEntries } from './model.mjs';
+import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline, researchRelationships, telemetryScopeEntries, researchSources } from './model.mjs';
 import { publisherDisplay, sourceInventory, canonicalArticleUrl } from './research-inventory.mjs';
 import { campaignCategoryGroups, telemetryCategoryGroups, categoryRule } from './campaign-categories.mjs';
 
@@ -32,8 +32,8 @@ export function technicalDetails(doc, rows) {
 }
 export function sourceCitation(doc, model, sourceId, navigate, revisionId, prefix = 'Source') {
   const source = model.sources.get(sourceId), publisher = publisherDisplay(source).name;
-  const chip = action(doc, `${prefix}: ${publisher}`, () => navigate('sources', sourceId, revisionId));
-  chip.title = metadata(source, 'title'); chip.setAttribute('aria-label', `${prefix}: ${publisher} — ${metadata(source, 'title')}`);
+  const chip = action(doc, prefix ? `${prefix}: ${publisher}` : publisher, () => navigate('sources', sourceId, revisionId), 'chip publisher-tag');
+  chip.title = metadata(source, 'title'); chip.setAttribute('aria-label', `${prefix || 'Publisher'}: ${publisher} — ${metadata(source, 'title')}`);
   return chip;
 }
 export function claimCitation(doc, model, id, navigate, label = 'Supporting evidence') {
@@ -41,18 +41,44 @@ export function claimCitation(doc, model, id, navigate, label = 'Supporting evid
   const chip = action(doc, `${label} · ${publisherDisplay(source).name}`, () => navigate('claims', id));
   chip.title = claim?.description ?? 'Supporting claim unavailable'; return chip;
 }
-export function relatedResearch(doc, model, claimIds, navigate, excludeKey) {
+export function publisherTags(doc, model, sourceIds, navigate) {
+  const section = element(doc, 'div', null, 'publisher-tags');
+  const ids = new Set(sourceIds);
+  for (const article of sourceInventory(researchSources(model).filter(source => ids.has(source.id)))) {
+    section.append(sourceCitation(doc, model, article.id, navigate, undefined, ''));
+  }
+  return section;
+}
+export function relatedResearch(doc, model, claimIds, navigate, excludeKey, options = {}) {
   const section = element(doc, 'section', null, 'related-research'), index = researchRelationships(model), seen = new Set();
   const related = claimIds.flatMap(id => index.byClaim.get(id) ?? []).filter(object => {
     const key = `${object.type}:${object.view}:${object.targetId}`;
-    if (object.key === excludeKey || seen.has(key)) return false;
+    if (object.key === excludeKey || seen.has(key) || options.types && !options.types.includes(object.type)
+      || options.excludeViews?.includes(object.view)) return false;
     seen.add(key); return true;
   });
-  if (!related.length) return section;
+  const caseIds = options.campaigns === false ? [] : [...new Set(claimIds.map(id => model.claims.get(id)?.caseId).filter(id => model.cases.has(id)))];
+  if (!related.length && !caseIds.length) return section;
   section.append(element(doc, 'h4', 'Related research'));
+  if (caseIds.length) {
+    const campaigns = element(doc, 'section', null, 'related-group'); campaigns.setAttribute('data-related-group', 'campaigns');
+    campaigns.append(element(doc, 'h5', 'Campaigns tagged'));
+    for (const id of caseIds) campaigns.append(action(doc, model.cases.get(id).name, () => navigate('cases', id), 'chip campaign-tag'));
+    section.append(campaigns);
+  }
+  const groups = new Map();
   for (const object of related) {
+    const group = { behaviors: 'Behaviors', telemetryScopes: 'Log Collection/Telemetry Scope', categorizations: 'Categories',
+      paths: 'Attack flow', mappings: 'Framework mappings', telemetry: 'Telemetry proposals', detections: 'Detection hypotheses',
+      otel: 'Instrumentation', timelines: 'Timelines', annotations: object.view === 'prompts' ? 'Prompts'
+        : object.view === 'tools' ? 'AI tools' : 'Source artifacts' }[object.type];
+    if (!groups.has(group)) {
+      const block = element(doc, 'section', null, 'related-group');
+      block.setAttribute('data-related-group', object.type === 'annotations' ? object.view : object.type);
+      block.append(element(doc, 'h5', group)); groups.set(group, block); section.append(block);
+    }
     const sourceId = object.type === 'telemetryScopes' && claimIds.length === 1 ? model.claims.get(claimIds[0])?.sourceId : '';
-    section.append(action(doc, `${{ behaviors: 'Behavior', telemetryScopes: 'Log scope', categorizations: 'Category', paths: 'Attack path',
+    groups.get(group).append(action(doc, `${{ behaviors: 'Behavior', telemetryScopes: 'Log scope', categorizations: 'Category', paths: 'Attack path',
       annotations: object.view === 'prompts' ? 'Prompt' : object.view === 'tools' ? 'AI tool' : 'Source artifact',
       mappings: 'Mapping', telemetry: 'Telemetry', detections: 'Detection', otel: 'Instrumentation', timelines: 'Timeline' }[object.type]}: ${object.label}`,
     () => navigate(object.view, object.targetId, sourceId)));
@@ -120,8 +146,9 @@ function archiveDownloads(doc, model, source, revision) {
   return section;
 }
 
-export function renderClaim(doc, model, claim, navigate, compact = false) {
+export function renderClaim(doc, model, claim, navigate, compact = false, relations = {}) {
   const card = element(doc, 'article', null, 'claim-card');
+  card.append(cardContext(doc, model, [claim.caseId], navigate, new Set([claim.sourceId])));
   card.append(element(doc, 'p', claim.inference ? 'Researcher inference — not a source assertion' :
     'Author / source assertion — not independently established', 'eyebrow'));
   card.append(action(doc, claim.description, () => navigate('claims', claim.id), 'claim-title'));
@@ -132,10 +159,8 @@ export function renderClaim(doc, model, claim, navigate, compact = false) {
   }
   const source = model.sources.get(claim.sourceId);
   card.append(sourceCitation(doc, model, claim.sourceId, navigate, claim.sourceRevisionId));
-  card.append(action(doc, `Case: ${model.cases.get(claim.caseId)?.name ?? 'Case unavailable'}`,
-    () => navigate('cases', claim.caseId)));
   if (!compact) {
-    card.append(relatedResearch(doc, model, [claim.id], navigate));
+    card.append(relatedResearch(doc, model, [claim.id], navigate, undefined, relations));
     if (claim.inference) {
       field(doc, card, 'Inference rationale', claim.inference.rationale);
       card.append(element(doc, 'h4', 'Inference support — separate claims, not quoted passages'));
@@ -190,6 +215,8 @@ export function renderSourceText(doc, revision, passages, onPassages) {
 
 export function renderSource(doc, model, source, revisionId, navigate, onRevision, onPassages, activePassages = [], onDraft) {
   const section = element(doc, 'section', null, 'panel');
+  const caseIds = model.corpus.cases.filter(record => caseSourceIds(model, record.id).includes(source.id)).map(record => record.id);
+  section.append(cardContext(doc, model, caseIds, navigate, new Set([source.id])));
   section.append(element(doc, 'h2', metadata(source, 'title')));
   field(doc, section, 'Display publisher', publisherDisplay(source).name);
   field(doc, section, 'Publisher display basis', publisherDisplay(source).basis);
@@ -276,28 +303,46 @@ export function renderSource(doc, model, source, revisionId, navigate, onRevisio
   return section;
 }
 
-function categoryBadges(doc, model, caseIds, sourceIds, scope, navigate) {
+function categoryBadges(doc, model, caseIds, sourceIds, scope, navigate, includeContext = false) {
   const badges = element(doc, 'div', null, 'campaign-category-badges');
   badges.setAttribute('aria-label', scope ? 'Proposed telemetry scope and review state' : 'Campaign categories and review state');
   const groups = new Map();
-  for (const id of Array.isArray(caseIds) ? caseIds : [caseIds]) {
+  const ids = Array.isArray(caseIds) ? caseIds : [caseIds];
+  for (const id of ids) {
     for (const group of (scope ? telemetryCategoryGroups : campaignCategoryGroups)(model.corpus, id, sourceIds)) {
-      if (!groups.has(group.id)) groups.set(group.id, { ...group, records: [] });
+      if (!groups.has(group.id)) groups.set(group.id, { ...group, records: [], inherited: false, caseId: id });
+      groups.get(group.id).records.push(...group.records);
+    }
+  }
+  if (includeContext && sourceIds && !scope) for (const id of ids) {
+    for (const group of campaignCategoryGroups(model.corpus, id)) {
+      if (groups.has(group.id) && !groups.get(group.id).inherited) continue;
+      if (!groups.has(group.id)) groups.set(group.id, { ...group, records: [], inherited: true, caseId: id });
       groups.get(group.id).records.push(...group.records);
     }
   }
   for (const group of groups.values()) {
     const states = [...new Set(group.records.map(c => c.itemReview?.state ?? c.disposition))];
     const state = states.length !== 1 ? 'Mixed review states' : states[0] === 'Accepted' ? 'Recorded acceptance' : states[0];
-    const label = `${group.value} · ${state}${scope ? ' scope' : ''}`, className = `usage-key ${scope ? 'telemetry-scope-badge' : 'campaign-category-badge'}`;
+    const label = `${group.value} · ${state}${scope ? ' scope' : ''}${group.inherited ? ' · campaign context' : ''}`, className = `usage-key ${scope ? 'telemetry-scope-badge' : 'campaign-category-badge'}`;
     const badge = scope && navigate ? action(doc, label, () => navigate('telemetry', group.records[0].id, sourceIds ? [...sourceIds][0] : ''), className)
-      : element(doc, 'span', label, className);
+      : navigate ? action(doc, label, () => navigate('cases', group.caseId), className) : element(doc, 'span', label, className);
     badge.title = `${group.description} ${scope ? 'Collection scope only; logs, coverage and deployment are not established.' : 'Classification does not establish successful abuse.'}`;
+    badge.setAttribute('data-category-basis', group.inherited ? 'campaign-context' : 'source-supported');
+    if (group.inherited) badge.title += ' Campaign-level association only; this blog is not independently classified by this badge.';
     badges.append(badge);
   }
   return badges;
 }
-export const campaignCategoryBadges = (doc, model, caseIds, sourceIds) => categoryBadges(doc, model, caseIds, sourceIds, false);
+export const campaignCategoryBadges = (doc, model, caseIds, sourceIds, navigate, includeContext = false) =>
+  categoryBadges(doc, model, caseIds, sourceIds, false, navigate, includeContext);
+export function cardContext(doc, model, caseIds, navigate, sourceIds) {
+  const section = element(doc, 'div', null, 'card-badges card-context'), campaigns = element(doc, 'div', null, 'campaign-links');
+  const ids = [...new Set(caseIds)].filter(id => model.cases.has(id));
+  for (const id of ids) campaigns.append(action(doc, `Campaign: ${model.cases.get(id).name}`, () => navigate('cases', id), 'chip campaign-tag'));
+  section.append(campaigns, campaignCategoryBadges(doc, model, ids, sourceIds, navigate, true));
+  return section;
+}
 export const telemetryScopeBadges = (doc, model, caseIds, sourceIds, navigate) => {
   const section = element(doc, 'section', null, 'telemetry-scope-summary');
   const entries = telemetryScopeEntries(model, new Set(Array.isArray(caseIds) ? caseIds : [caseIds]), sourceIds);
@@ -312,7 +357,7 @@ export const telemetryScopeBadges = (doc, model, caseIds, sourceIds, navigate) =
 export function renderCampaignCategories(doc, model, caseId, navigate, openReview, showBadges = true, sourceIds, scope = false) {
   const section = element(doc, 'section', null, 'campaign-categories');
   section.append(element(doc, 'h3', scope ? 'Telemetry scope (proposed)' : 'Campaign categories'));
-  if (showBadges) section.append((scope ? telemetryScopeBadges : campaignCategoryBadges)(doc, model, caseId, sourceIds));
+  if (showBadges) section.append((scope ? telemetryScopeBadges : campaignCategoryBadges)(doc, model, caseId, sourceIds, navigate));
   const groups = (scope ? telemetryCategoryGroups : campaignCategoryGroups)(model.corpus, caseId, sourceIds);
   if (!groups.length) {
     section.append(element(doc, 'p', scope ? 'No telemetry scope classification recorded; this is not evidence that logs are unavailable.'
@@ -342,6 +387,7 @@ export function renderCampaignCategories(doc, model, caseId, navigate, openRevie
 
 export function renderCase(doc, model, record, navigate, exportReferences) {
   const panel = element(doc, 'article', null, 'panel');
+  panel.append(cardContext(doc, model, [record.id], navigate));
   panel.append(element(doc, 'h2', record.name));
   panel.append(renderCampaignCategories(doc, model, record.id, navigate));
   panel.append(telemetryScopeBadges(doc, model, record.id, undefined, navigate));
@@ -417,11 +463,12 @@ export function renderComparison(doc, model, selection, filters, navigate) {
   const columns = element(doc, 'div', null, 'evidence-split');
   for (const record of selection.cases) {
     const column = element(doc, 'section');
-    column.append(element(doc, 'h3', record.name),
+    column.append(cardContext(doc, model, [record.id], navigate), element(doc, 'h3', record.name),
       action(doc, 'Open case context', () => navigate('cases', record.id)),
       element(doc, 'p', `${record.kind} · ${record.origin} · ${record.disposition} · ${metadata(record, 'limits')}`));
     for (const category of model.corpus.categorizations.filter(c => c.caseId === record.id)) {
       const card = element(doc, 'article', null, 'claim-card');
+      card.append(cardContext(doc, model, [record.id], navigate, new Set(category.sourceIds)));
       card.append(element(doc, 'p', `Recorded category assertion: ${category.dimension} = ${metadata(category, 'value')} · ${category.origin} · ${category.disposition}`));
       if (category.otherText !== null) field(doc, card, 'Other detail', category.otherText);
       for (const id of category.supportingClaimIds) card.append(claimCitation(doc, model, id, navigate, 'Category evidence'));

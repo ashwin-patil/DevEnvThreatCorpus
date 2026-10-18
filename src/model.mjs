@@ -63,6 +63,11 @@ export function caseSourceIds(model, caseId) {
   ])];
 }
 
+export function researchSources(model, sources = model.corpus.sources) {
+  const references = new Set((model.corpus.frameworks ?? []).map(record => record.sourceId).filter(Boolean));
+  return sources.filter(source => !references.has(source.id) && !source.id.startsWith('catalog-source-'));
+}
+
 export function linkedClaims(model, sourceId, revisionId) {
   return model.corpus.claims.filter(c => c.sourceId === sourceId && (!revisionId || c.sourceRevisionId === revisionId));
 }
@@ -251,9 +256,12 @@ export function filterRecords(model, kind, filters = {}) {
 }
 
 export function facetOptions(model, keys = FACETS) {
+  const sources = researchSources(model), sourceIds = new Set(sources.map(source => source.id));
+  const publishers = new Set(sources.map(source => publisherDisplay(source).name));
   return Object.fromEntries(keys.map(key => [key,
     [...new Set(['cases', 'sources', 'claims'].flatMap(kind =>
-      model.corpus[kind].flatMap(r => recordContext(model, kind, r)[key])))].sort(),
+      (kind === 'sources' ? sources : model.corpus[kind]).flatMap(r => recordContext(model, kind, r)[key])))]
+      .filter(value => key === 'sources' ? sourceIds.has(value) : key !== 'publishers' || publishers.has(value) || value === '(Unknown publisher)').sort(),
   ]));
 }
 

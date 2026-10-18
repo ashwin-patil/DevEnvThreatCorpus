@@ -26,6 +26,18 @@ previous pair. Canonical records remain unchanged. Campaign headers now expose
 tool/prompt/behavior counts, ordered sections and bordered behavior tiles, while
 projection/limits prose remains available under Evidence & review.
 
+The subsequent consistent-card refinement adds shared neutral light/dark surfaces
+and top campaign/category/publisher navigation, a larger proportional logo and
+title-adjacent workspace access. The three AI products each have one aggregate
+card, not repeated boxed source occurrences; their separate receipts remain
+expandable. Blogs without local role extraction show clearly labeled campaign
+context instead of fabricated source support. Telemetry links explicit behaviors,
+campaigns and research publishers without tool/graph shortcuts. Framework catalogs
+are excluded from research facets/listings, not removed from reference/provenance
+views. Public JSON/ZIP and human-review states are unchanged by this refinement.
+These mechanisms still require independent semantic, visual/accessibility and
+documentation relevance review.
+
 Implementation and public-data statements below were inspected against
 [`06f93a10f4481378c394785f4e2d239886a92c21`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/06f93a10f4481378c394785f4e2d239886a92c21),
 the merged #60 default-branch baseline. This documentation does not change those

@@ -30,9 +30,13 @@ or developer-targeted social engineering to Nx without separate support.
 `categoryExtraction` records the rule version, input boundary and record IDs.
 The JSON and ZIP include those Pending records with honest deterministic origin.
 
-Campaign role badges appear top-right, opposite the Campaign label. Each
-Research library blog has only source-supported role/scope badges, not inherited
-campaign conclusions. Nx currently proposes Endpoint, CI/CD, Source-control,
+Campaign role badges appear top-right, opposite the Campaign label. Research
+library blogs keep their source-supported scope and role evidence. A blog without
+local role classification now also shows a visibly labeled **campaign context**
+role badge: an association, not a new source conclusion. Socket and StepSecurity
+currently use that fallback; Nx, Wiz, Semgrep and Panther have source-supported
+role badges. Clicking the shared campaign/category/publisher tags opens the
+associated campaign or research source. Nx currently proposes Endpoint, CI/CD, Source-control,
 Network & DNS, AI agent observability, and Package & build provenance families.
 Cloud and Identity & access families exist but receive no Nx proposals from
 credential theft alone. These are collection-scope labels, not populated logs,
@@ -70,6 +74,18 @@ Campaign/blog Log Collection/Telemetry Scope tags open their supporting evidence
 in Security telemetry, with reverse links from claims to explicitly supported
 research objects. The display/navigation pass preserved all 308 rows; the
 subsequent user-directed format adoption adds only the generated coverage below.
+
+The consistent-card follow-up keeps that public JSON/ZIP unchanged. Each of the
+three AI products is a single card with source-local usage tags, deduplicated
+publisher/claim links, grouped related research and four retained occurrences
+under collapsed provenance. This does not merge article evidence, exact literals,
+human-edited identities or acceptance. Product related research omits sibling
+tools. Telemetry cards show boxed campaign/category context and blog publishers,
+and link behaviors only through explicit shared claim support; tools/graphs are
+not added to those cards. Official catalogs remain available under ATLAS & TTPs
+and direct provenance, not in research source/publisher facets. Neutral card/tag
+surfaces are shared across themes; explicit status text, symbols, focused
+selection and trust/error notices remain distinct.
 
 ### Current public view format and rollback
 

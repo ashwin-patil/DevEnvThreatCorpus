@@ -13,8 +13,24 @@ collection terms, not exact official framework IDs or promised coverage.
 `telemetry-scope-rules/1` proposes Pending source-local categorizations from
 eligible bounded claim sentences; absence/negation, recommendations and inferred
 consequences do not establish positive scope. HITL can correct/exclude/defer and
-accept separately from the supporting claims. Blog/alias groups display only
-categories supported by their own sources, never wholesale campaign inheritance.
+accept separately from the supporting claims. Blog/alias telemetry-scope groups
+display only categories supported by their own sources, never wholesale campaign
+inheritance. Role badges may additionally show explicitly labeled **campaign
+context** where local role support is absent. This is navigation context, not a
+new classification, source assertion or HITL outcome. Local category review states
+take precedence; other campaigns' contextual states are not mixed into them.
+
+Ordinary research card/text/tag surfaces share the existing theme palette.
+Usage and review labels/symbols remain readable independently of color; trust,
+errors, source-passage highlighting and active selection keep their semantic
+cues. A consolidated AI-product card groups the existing identity only: its
+source occurrences, literals, revisions, classifications, claims and review
+receipts remain separate under expandable provenance. Related research groups
+explicit support by object type; product views suppress sibling tools and
+telemetry views expose campaign/publisher context and claim-supported behaviors
+without graph/tool shortcuts. The full relationship index and claim-detail view
+retain their broader links. Catalog provenance is not a research article and is
+excluded from blog/publisher lists, not deleted from the corpus.
 
 | Family | Typical enterprise collection surface and limitation |
 |---|---|

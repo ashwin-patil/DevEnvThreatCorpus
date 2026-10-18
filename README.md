@@ -25,8 +25,10 @@ what remains uncertain, and what would a defender need to investigate?**
 
 Campaign cards put AI-role badges at top-right; **Log Collection/Telemetry Scope**
 tags open supporting claims in **Security telemetry**, rather than expanding
-evidence on each campaign/blog card. Research library blogs show only their own
-supported tags. Claims link back to explicitly supported research objects.
+evidence on each campaign/blog card. Research library blogs keep source-supported
+tags distinct from explicitly labeled **campaign context** when a role has not
+been independently extracted for that blog. Claims link back to explicitly
+supported research objects.
 **Prompt library** defaults to published prompt/response pairs; select **All
 prompts** for prompt-only occurrences. Semgrep's refusal has one concise log-review
 context summary; unknown model/role, pairing details and exact receipts remain
@@ -43,6 +45,15 @@ sit in a final collapsed panel. Current public JSON and ZIP share a generated
 The previous exact pair and restore instructions are in the
 [public snapshot archive](docs/data/archive/README.md); canonical research records
 and prompt-only occurrences are preserved, not replaced by a filtered display.
+
+Research cards use the same neutral light/dark surfaces and clickable campaign,
+category and publisher tags; usage and human-review labels remain explicit.
+**Open campaign workspace** sits beside the campaign name. **AI tools** has one
+card per existing product identity with grouped claims/research and expandable
+source-local occurrence receipts, not repeated source cards or sibling-tool links.
+**Security telemetry** links campaigns, blog publishers and explicitly supported
+behaviors, not unrelated tools/graphs. Source/publisher filters list research
+articles only; official ATT&CK/ATLAS references remain in **ATLAS & TTPs**.
 
 ### On this page
 

@@ -85,3 +85,16 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}input{acce
 .review-detail > details { margin-block: 12px; }
 .review-detail > details > summary { padding: 8px 0; }
 .review-detail > button { min-height: 44px; }
+
+/* Shared research surfaces; usage and review remain explicit text, not card fills. */
+.panel,.claim-card,.behavior-category,.behavior-category.activity-pattern,.behavior-tile,.chain-tile,.artifact-value,.source-text,.claim-card blockquote{background:var(--surface);border:1px solid var(--divider);border-radius:8px}
+.chip,.usage-key,.publisher-badge{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:8px 12px;border:1px solid var(--control-border);border-radius:6px;font-size:13px;line-height:1.4;vertical-align:middle;background:var(--surface);max-width:100%;overflow-wrap:anywhere}
+.chip[class*="usage-"],.chip[class*="review-"],.usage-key,.campaign-category-badge,.telemetry-scope-badge,.publisher-badge,.campaign-tag{background:var(--surface)}
+.behavior-action-list .behavior-action-link.chip,.behavior-group .behavior-tile .chip{border:1px solid var(--control-border);background:var(--surface);padding:10px 12px;min-height:44px}
+.card-context{margin:0 0 12px;align-items:flex-start}.campaign-links,.publisher-tags,.artifact-classifications{display:flex;flex-wrap:wrap;gap:8px}.card-context .chip,.publisher-tags .chip,.artifact-classifications .usage-key{margin:0}
+.card-context .campaign-category-badges{margin:0;gap:8px}.campaign-category-badge{cursor:pointer;text-align:left;font-family:inherit}
+.campaign-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}.campaign-heading h2{flex:1;margin-bottom:0}.campaign-heading .campaign-workspace{margin:0;flex:0 1 auto}
+.related-group h5{font-size:12px;margin:12px 0 4px;color:var(--muted)}.related-group .chip{font-size:13px}
+.source-occurrence{padding:12px 0;border-top:1px solid var(--divider)}.source-occurrence>summary{padding:4px 0}.product-occurrences,.product-claims{margin-top:16px}
+.brand{width:540px;flex:0 1 540px}
+@media(max-width:700px){.brand{width:420px;flex-basis:420px}.campaign-heading{align-items:flex-start}.campaign-heading h2{flex-basis:100%}.card-context>.campaign-category-badges{justify-content:flex-start;flex-basis:100%}}

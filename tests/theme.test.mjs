@@ -156,6 +156,7 @@ test('Issue #79 AC-06 both themes meet 4.5:1 for normal text, semantic badges an
       ...['paper', 'surface', 'selected', 'tint', 'soft', 'group', 'activity'].map(bg => ['green', bg]),
       ['accent', 'paper'], ['accent', 'surface'], ['conditional', 'soft'], ['propagation', 'paper'],
       ...['danger', 'warning', 'reported', 'example', 'accepted', 'neutral'].map(kind => [`${kind}-ink`, `${kind}-bg`]),
+      ...['danger', 'warning', 'reported', 'example', 'accepted', 'neutral'].map(kind => [`${kind}-ink`, 'surface']),
     ];
     for (const [fg, bg] of pairs) {
       const ratio = contrast(colors[fg], colors[bg]);

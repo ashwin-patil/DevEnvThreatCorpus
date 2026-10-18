@@ -1,4 +1,4 @@
-import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, applyReviewProjection, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage } from './model.mjs';
+import { VIEWS, FACETS, COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, createModel, applyReviewProjection, filterRecords, facetOptions, parseRoute, routeHash, claimTarget, metadata, comparisonRecords, comparisonCoverage, researchSources } from './model.mjs';
 import { element, action, renderCase, renderSource, renderClaim, renderConflicts, renderComparison, technicalDetails } from './render.mjs';
 import { createStudio, renderStudio, selectedPassage, hashText, webIntakeInput, downloadProposal } from './studio.mjs';
 import { EXPLORE_VIEWS, VIEW_ANNOTATIONS, renderExploration, renderEvidencePanel, renderResearchLibrary, renderCaseLibrary, explorationRecords } from './explore.mjs';
@@ -377,8 +377,10 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       $('result').textContent = `${count}${annotationCount ? ` + ${annotationCount} pending annotations` : ''} · pending research and recorded evidence, not accepted incidents`;
       $('content').append(renderExploration(doc, evidenceModel, route.view, filters, visit, route.id, () => load('/api/demo-research'), route.revisionId, openReview)); return;
     }
-    const records = filterRecords(evidenceModel, route.view, pathContext ? { ...filters, cases: [pathCase()] } : filters);
-    $('result').textContent = `${records.length} matching ${route.view} / ${model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;
+    const sourceIds = route.view === 'sources' && !route.id ? new Set(researchSources(evidenceModel).map(source => source.id)) : null;
+    const records = filterRecords(evidenceModel, route.view, pathContext ? { ...filters, cases: [pathCase()] } : filters)
+      .filter(record => !sourceIds || sourceIds.has(record.id));
+    $('result').textContent = `${records.length} matching ${route.view} / ${sourceIds?.size ?? model.corpus[route.view].length} total · counted as distinct records, not incidents or accepted evidence`;
     if (!records.length) {
       $('content').append(empty(model.corpus[route.view].length ?
         'No records match the current search and facets.' :
@@ -485,7 +487,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   }
   function renderStats() {
     $('stats').replaceChildren();
-    for (const [label, count] of [['Cases', model.corpus.cases.length], ['Sources', model.corpus.sources.length],
+    for (const [label, count] of [['Cases', model.corpus.cases.length], ['Research sources', researchSources(model).length],
       ['Claims', model.corpus.claims.length], ['Needs correction claims', model.corpus.claims.filter(c => c.disposition === 'Needs correction').length]]) {
       const stat = element(doc, 'div', null, 'stat');
       stat.append(element(doc, 'strong', count), element(doc, 'span', label)); $('stats').append(stat);

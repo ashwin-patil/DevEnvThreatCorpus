@@ -11,6 +11,7 @@ import {
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
   telemetryScopeEntries, researchRelationships, campaignMetrics, researchPresentation, CAMPAIGN_SECTIONS,
+  researchSources,
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl, sourceCitation, claimCitation, reviewChip, reviewLegend } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
@@ -89,7 +90,7 @@ test('#89 AC-06 current public campaign shows one Pending badge with four indepe
   const groups = campaignCategoryGroups(m.corpus, m.corpus.cases[0].id);
   assert.equal(groups.length, 1); assert.equal(groups[0].records.length, 4);
   const root = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
-  const badges = descendants(root).filter(n => n.className?.includes('campaign-category-badge') && n.tagName === 'SPAN');
+  const badges = descendants(root).filter(n => n.className?.includes('campaign-category-badge') && n.tagName === 'BUTTON');
   assert.equal(badges.length, 1); assert.equal(badges[0].textContent, 'Victim-side agent abuse · Pending');
   const evidence = descendants(root).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Category evidence'));
   assert.equal(evidence.length, 4); await evidence[0].trigger('click');
@@ -116,7 +117,7 @@ test('#89 AC-07 public catalogue uses the complete current reference without rep
   assert.equal(m.corpus.mappings.length, 2);
 });
 
-test('#89 AC-10 campaign left/right headers and six source-supported blog categories do not inherit unsupported tags', async () => {
+test('#89 AC-10/16 blog headers distinguish source-supported categories from campaign context', async () => {
   const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
   const m = publicDraftModel(document), doc = new FakeDocument();
   const campaign = renderCaseLibrary(doc, m, m.corpus.cases, () => {});
@@ -128,11 +129,14 @@ test('#89 AC-10 campaign left/right headers and six source-supported blog catego
   const cards = descendants(library).filter(n => n.className?.includes('blog-card'));
   assert.equal(cards.length, 6);
   for (const card of cards) {
-    const blogHeader = descendants(card).find(n => n.className === 'card-badges');
-    const publisher = blogHeader.children[0].textContent;
+    const blogHeader = card.children[0];
+    const publisher = card.children[1].textContent;
     assert.equal(blogHeader.children[1].className, 'campaign-category-badges');
-    assert.equal(blogHeader.children[1].textContent.includes('Victim-side agent abuse'),
-      ['Nx', 'Wiz', 'Semgrep', 'Panther'].includes(publisher), publisher);
+    const category = descendants(blogHeader).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+    assert.match(category.textContent, /Victim-side agent abuse/);
+    const supported = ['Nx', 'Wiz', 'Semgrep', 'Panther'].includes(publisher);
+    assert.equal(category.getAttribute('data-category-basis'), supported ? 'source-supported' : 'campaign-context', publisher);
+    assert.equal(category.textContent.includes('campaign context'), !supported, publisher);
     assert.ok(!card.textContent.includes('Cloud control-plane audit'));
     assert.ok(!card.textContent.includes('Identity & access logs'));
     assert.match(card.textContent, /scope/);
@@ -168,14 +172,21 @@ test('#89 AC-10 alias blogs deduplicate categories across cases while preserving
     supportingClaimIds: [claim.id], sourceIds: [alias.id], itemReview: { state: 'Accepted' } };
   c.categorizations.push(second);
   const render = (filters = {}) => renderResearchLibrary(new FakeDocument(), createModel(c), [source, alias], () => {}, filters);
-  const root = render(), header = descendants(root).find(n => n.className === 'card-badges');
+  const root = render(), header = descendants(root).find(n => n.className?.includes('card-context'));
   assert.equal(descendants(root).filter(n => n.className?.includes('blog-card')).length, 1);
-  assert.equal(descendants(header).filter(n => n.tagName === 'SPAN' && n.className?.includes('campaign-category-badge')).length, 1);
+  assert.equal(descendants(header).filter(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge')).length, 1);
   assert.match(header.textContent, /Mixed review states/);
-  const selected = descendants(render({ cases: [c.cases[0].id] })).find(n => n.className === 'card-badges');
+  const selected = descendants(render({ cases: [c.cases[0].id] })).find(n => n.className?.includes('card-context'));
   assert.match(selected.textContent, /Pending/); assert.doesNotMatch(selected.textContent, /Mixed/);
+  original.disposition = 'Excluded';
+  const localOnly = descendants(render()).find(n => n.className?.includes('card-context'));
+  assert.match(localOnly.textContent, /Recorded acceptance/);
+  assert.doesNotMatch(localOnly.textContent, /Mixed review states|campaign context/);
   original.disposition = 'Excluded'; second.disposition = 'Excluded';
-  assert.doesNotMatch(descendants(render()).find(n => n.className === 'card-badges').textContent, /Victim-side/);
+  const excludedHeader = descendants(render()).find(n => n.className?.includes('card-context'));
+  assert.ok(!descendants(excludedHeader).some(n => n.getAttribute?.('data-category-basis') === 'source-supported' && n.textContent.includes('Victim-side')));
+  for (const category of c.categorizations) category.disposition = 'Excluded';
+  assert.doesNotMatch(descendants(render()).find(n => n.className?.includes('card-context')).textContent, /Victim-side/);
 });
 
 test('#89 AC-12/13 scope projections and the bidirectional index retain source-local support without changing the corpus', async () => {
@@ -231,7 +242,8 @@ test('#89 AC-15 campaign metrics and ordered sections keep summary concise and b
   const summary = card.children[0];
   assert.doesNotMatch(summary.textContent, /Agent display projection|Explicit operator grouping|unreviewed/);
   assert.match(summary.textContent, /AI tools3.*3 target\/abuse-linked/);
-  assert.match(summary.textContent, /Prompt variants2.*4 occurrences.*1 responses/);
+  assert.match(summary.textContent, /Prompt variants2/);
+  assert.ok(descendants(summary).some(n => n.className === 'metric-detail' && n.textContent === '4 occurrences · 1 response'));
   assert.match(summary.textContent, /Behaviors14/);
   assert.deepEqual(descendants(root).map(n => n.getAttribute?.('data-campaign-section')).filter(Boolean), CAMPAIGN_SECTIONS);
   const review = descendants(root).find(n => n.getAttribute?.('data-campaign-section') === 'review');
@@ -241,6 +253,110 @@ test('#89 AC-15 campaign metrics and ordered sections keep summary concise and b
   assert.equal(tiles.length, 14);
   await tiles[0].trigger('click'); assert.equal(calls[0][0], 'behaviors');
   assert.ok(m.corpus.behaviors.some(b => b.id === calls[0][1]));
+});
+
+test('#89 AC-16 campaign header action is adjacent and category/publisher context is navigable without fabricating support', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), calls = [], doc = new FakeDocument();
+  const cases = renderCaseLibrary(doc, m, m.corpus.cases, (...args) => calls.push(args));
+  const heading = descendants(cases).find(n => n.className === 'campaign-heading');
+  assert.equal(heading.children[0].tagName, 'H2');
+  const workspace = button(heading, 'Open campaign workspace');
+  assert.equal(descendants(cases).filter(n => n.textContent === 'Open campaign workspace' && n.tagName === 'BUTTON').length, 1);
+  let prevented = false, stopped = false;
+  await workspace.trigger('click', { preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
+  assert.ok(prevented && stopped); assert.deepEqual(calls.pop(), ['cases', m.corpus.cases[0].id]);
+  const library = renderResearchLibrary(doc, m, m.corpus.sources, (...args) => calls.push(args));
+  const cards = descendants(library).filter(n => n.className?.includes('blog-card'));
+  let contextCount = 0;
+  for (const card of cards) {
+    const header = card.children[0];
+    assert.ok(header.className.includes('card-context'));
+    const category = descendants(header).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+    assert.ok(category); await category.trigger('click');
+    assert.deepEqual(calls.pop(), ['cases', m.corpus.cases[0].id]);
+    if (category.getAttribute('data-category-basis') === 'campaign-context') {
+      contextCount++; assert.match(category.textContent, /campaign context/);
+      assert.match(category.title, /not independently classified/);
+    }
+    await card.children[1].children[0].trigger('click');
+    assert.equal(calls.pop()[0], 'sources');
+  }
+  assert.equal(cards.length, 6); assert.equal(contextCount, 2);
+  const references = m.corpus.sources.filter(s => !researchSources(m).includes(s));
+  assert.equal(references.length, 2);
+  const facets = facetOptions(m);
+  assert.equal(facets.sources.length, 6); assert.equal(facets.publishers.length, 6);
+  for (const source of references) {
+    assert.ok(!facets.sources.includes(source.id));
+    assert.ok(!facets.publishers.includes(publisherDisplay(source).name));
+    assert.match(renderSource(doc, m, source, '', () => {}, () => {}, () => {}).textContent, /MITRE/);
+  }
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-17 AI products consolidate occurrences without merging source evidence or linking sibling products', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(m.annotations), calls = [], index = researchRelationships(m);
+  const root = renderExploration(new FakeDocument(), m, 'tools', {}, (...args) => calls.push(args));
+  const cards = descendants(root).filter(n => n.className?.includes('ai-product-card'));
+  assert.equal(cards.length, 3);
+  for (const product of aiLibrary(m, 'tools')) {
+    const card = cards.find(c => c.children.some(n => n.tagName === 'H2' && n.textContent === product.name));
+    assert.ok(card); assert.ok(card.children[0].className.includes('card-context'));
+    assert.equal(descendants(card).filter(n => n.className === 'source-occurrence').length, product.annotations.length);
+    assert.ok(!descendants(card).some(n => n !== card && n.tagName === 'ARTICLE'));
+    const claimIds = new Set(product.annotations.flatMap(a => index.byKey.get(`annotations:${a.id}`)?.claimIds ?? []));
+    const evidence = descendants(card).find(n => n.className === 'product-claims');
+    assert.equal(evidence.children.length, claimIds.size + 1);
+    const related = descendants(card).find(n => n.className === 'related-research');
+    const groups = descendants(related).map(n => n.getAttribute?.('data-related-group')).filter(Boolean);
+    assert.ok(groups.includes('campaigns')); assert.ok(groups.includes('behaviors'));
+    assert.ok(!groups.includes('tools'));
+    for (const link of descendants(related).filter(n => n.tagName === 'BUTTON')) {
+      await link.trigger('click'); assert.notEqual(calls.at(-1)[0], 'tools');
+    }
+  }
+  const claude = cards.find(c => c.children.some(n => n.tagName === 'H2' && n.textContent === 'Claude Code'));
+  assert.equal(descendants(claude).filter(n => n.className === 'source-occurrence').length, 4);
+  const source = m.corpus.sources.find(s => s.publisher === 'StepSecurity');
+  const scoped = renderExploration(new FakeDocument(), m, 'tools', { sources: [source.id] }, () => {});
+  assert.equal(descendants(scoped).filter(n => n.className?.includes('ai-product-card')).length, 3);
+  for (const occurrence of descendants(scoped).filter(n => n.className === 'source-occurrence')) {
+    assert.match(occurrence.children[0].textContent, /^StepSecurity/);
+  }
+  const promptOnlySource = m.corpus.sources.find(s => s.publisher === 'Semgrep');
+  const promptOnlyTools = renderExploration(new FakeDocument(), m, 'tools', { sources: [promptOnlySource.id] }, () => {});
+  assert.equal(descendants(promptOnlyTools).filter(n => n.className?.includes('ai-product-card')).length, 0);
+  assert.equal(JSON.stringify(m.annotations), before);
+});
+
+test('#89 AC-17 telemetry cards expose campaign/publisher tags and only explicit behavior relationships', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), calls = [];
+  const root = renderExploration(new FakeDocument(), m, 'telemetry', {}, (...args) => calls.push(args));
+  const cards = descendants(root).filter(n => n.className?.includes('telemetry-scope-detail'));
+  assert.equal(cards.length, 6);
+  for (const card of cards) {
+    assert.ok(card.children[0].className.includes('card-context'));
+    const campaign = descendants(card.children[0]).find(n => n.className?.includes('campaign-tag'));
+    await campaign.trigger('click'); assert.equal(calls.pop()[0], 'cases');
+    const publishers = descendants(card).find(n => n.className === 'publisher-tags');
+    assert.ok(publishers.children.length);
+    for (const link of publishers.children) {
+      assert.doesNotMatch(link.textContent, /^Source:/);
+      await link.trigger('click'); assert.equal(calls.pop()[0], 'sources');
+    }
+    const groups = descendants(card).filter(n => n.getAttribute?.('data-related-group'));
+    assert.ok(groups.length);
+    for (const group of groups) {
+      assert.equal(group.getAttribute('data-related-group'), 'behaviors');
+      for (const link of descendants(group).filter(n => n.tagName === 'BUTTON')) {
+        await link.trigger('click'); assert.equal(calls.pop()[0], 'behaviors');
+      }
+    }
+  }
+  assert.equal(JSON.stringify(document), before);
 });
 
 test('#89 AC-13 related research rejects invalid support and proximity and refreshes late annotations and exclusions', () => {
@@ -568,7 +684,9 @@ test('research library cards link directly supported behaviors without needing a
   const cards = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], (...args) => calls.push(args));
   assert.match(cards.textContent, /Research library/);
   assert.match(cards.textContent, /Direct source behavior/);
-  assert.match(cards.textContent, /Campaigns \/ cases/);
+  const context = descendants(cards).find(n => n.className?.includes('card-context'));
+  assert.match(context.textContent, /Campaign: Synthetic exercise A/);
+  assert.match(context.textContent, /Campaign: Synthetic exercise B/);
   await button(cards, 'Direct source behavior').trigger('click');
   assert.deepEqual(calls, [['behaviors', 'direct-behavior']]);
   const scoped = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], () => {}, { cases: ['synthetic-case-a'] });
@@ -1153,7 +1271,7 @@ test('Issue #51 follow-up campaign cards keep claim details in the workspace and
   assert.equal(articleCards.length, 6);
   for (const publisher of ['StepSecurity', 'Semgrep', 'Panther']) {
     assert.equal(articleCards.filter(card => descendants(card)
-      .some(node => node.className === 'publisher-badge' && node.textContent === publisher)).length, 1);
+      .some(node => node.className === 'chip publisher-tag' && node.textContent === publisher)).length, 1);
   }
   assert.doesNotMatch(library.textContent, /MITRE ATT&CK|MITRE ATLAS/);
   assert.equal(descendants(library).filter(node => node.tagName === 'A').length, 0);
@@ -2545,11 +2663,12 @@ test('official wide wordmark has its native aspect ratio, accessible brand name 
   const brand = html.match(/<a class="brand"[^>]*>(.*?)<\/a>/s)?.[1];
   assert.ok(brand);
   assert.match(brand, /alt="DevEnvThreatCorpus"/);
-  assert.match(brand, /width="360" height="80"/);
+  assert.match(brand, /width="540" height="120"/);
   assert.ok(!brand.includes('<span') && !brand.includes('<small'));
   const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /\.brand img\{[^}]*width:100%;height:auto/);
-  assert.match(css, /\.brand\{[^}]*width:300px/);
+  assert.match(css, /\.brand\{[^}]*width:540px/);
+  assert.match(css, /@media\(max-width:700px\)\{\.brand\{width:420px/);
 });
 
 test('Issue #39 AC-01 web batch controls validate explicit HTTPS inputs, campaign choice, operator and maximum 20', () => {

@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-18 - Consistent research cards and consolidated AI products (#89)
+
+- Unify ordinary research card, text and tag backgrounds across light/dark views,
+  preserving explicit usage/review labels and exceptional trust/highlight cues.
+  Put clickable campaign/category context at card tops, move workspace navigation
+  beside the campaign title without toggling its disclosure, and enlarge the
+  proportional wordmark responsively without replacing the brand assets.
+- Show campaign-level role context on associated blogs lacking local category
+  support, explicitly marked as context rather than new evidence. Keep local
+  review states separate from inherited context, including multi-case aliases.
+  Remove official catalog records from research source/publisher lists and
+  counts while retaining reference pages and direct provenance access.
+- Consolidate each existing AI-product identity into one card with deduplicated
+  publisher/usage/claim links, grouped related research and collapsed source-local
+  receipts; remove sibling-tool links from product-related research. Telemetry
+  shows campaign/category boxes, publisher links and explicit behavior support,
+  without tool/graph links. Preserve canonical artifacts, identities, prompt
+  pairing, filters, review decisions and the persisted public view/ZIP unchanged.
+
 ## 2026-10-18 - Persisted public research view and aligned campaign cards (#89)
 
 - Archive the exact pre-format public JSON/ZIP with fixed SHA-256 checks and
