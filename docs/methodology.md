@@ -46,6 +46,10 @@ catalogue pins. The optional adapter transmits only complete ID/name membership
 and pin metadata; definitions, URLs, license text and exclusions remain local,
 with the existing byte/token caps unchanged. No network model generation is
 implied by category extraction or catalogue import.
+The preview explicitly serves the pure category helper as a browser dependency;
+campaign execution, model adapters and the catalogue importer stay outside its
+static allowlist. DOM tests alone do not establish that an HTTP-served module
+graph loads; the server regression and actual browser smoke cover that boundary.
 
 ## Provenance before interpretation
 
