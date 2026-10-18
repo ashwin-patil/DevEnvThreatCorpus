@@ -329,7 +329,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
       }
       $('content').append(renderStudio(doc, win, studio, { enabled: model.collectionEnabled,
         collect: collectArticles, refresh: render, navigate, campaignStatus: model.campaignStatus,
-        campaignStatusError: model.campaignStatusError, prepareCampaign, importCampaign })); return;
+        campaignStatusError: model.campaignStatusError, prepareCampaign, importCampaign, stageOperation })); return;
     }
     if (route.view === 'method') {
       $('result').textContent = 'Trust & method · collection is not acceptance';
@@ -529,6 +529,16 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
   }
   async function prepareCampaign(input) {
     return campaignRequest('prepare', input);
+  }
+  async function stageOperation(command, input) {
+    const result = await campaignRequest(`stage/${command}`, input);
+    if (command === 'apply') {
+      model = await fetchCorpus(fetcher, '/api/corpus');
+      studio.base = model.originalCorpus ?? model.corpus;
+      reset(); renderStats();
+      status(`${trustLabel()} Stage applied as Pending. Prepare the next stage from this current base.`);
+    }
+    return result;
   }
   async function importCampaign(input) {
     const result = await campaignRequest('import', input);

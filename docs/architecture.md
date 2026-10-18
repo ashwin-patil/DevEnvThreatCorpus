@@ -9,6 +9,21 @@ default; no database, queue, hosted review service or automatic acceptance is co
 
 ## Components and responsibilities
 
+The staged manual pipeline is implemented in [stages.mjs](../src/stages.mjs) with
+[stage-contract.mjs](../src/stage-contract.mjs) owning its named contracts.
+Ground permits source-local claims and literal artifacts; Interpret permits
+behavior definitions/occurrences; Relate permits paths and framework mappings.
+It uses the existing campaign normalizers, private transaction boundary and HITL
+projection rather than another review store. Stage run snapshots coexist with
+historical monolithic runs. Stage derivation does not add source coverage.
+
+[stage-comparison.mjs](../src/stage-comparison.mjs) freezes protected baselines,
+creates separate candidates and binds comparisons/adjudications/selection by hash.
+The browser receives only an inert comparison renderer, not filesystem helpers
+or an adoption endpoint. Baseline selection is not acceptance/publication.
+Manual handoff is independent of optional model adapters: stage-specific versions
+do not reinterpret campaign request/run transport versions.
+
 | Component | Responsibility and implementation |
 |---|---|
 | Browser workbench | Vanilla local HTML/CSS/ES modules: [app](../src/app.mjs), [model](../src/model.mjs), [rendering](../src/render.mjs), [exploration](../src/explore.mjs). Displays sources, claims, conflicts, paths, typed timelines and proposals; imported text is inert |

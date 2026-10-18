@@ -53,8 +53,40 @@ test('bundled default advertises public projection and serves only allowlisted p
   assert.ok(draft.records.every(r => r.entityType !== 'sourceRevisions' || r.entity.rawContent === null && r.entity.normalizedContent === null));
   assert.ok(draft.records.every(r => r.entityType !== 'passages' || r.entity.text === null && r.entity.attestation === null));
   assert.equal((await request(port, '/src/public-profile.mjs')).status, 200);
+  assert.equal((await request(port, '/src/stage-view.mjs')).status, 200);
+  assert.equal((await request(port, '/src/stages.mjs')).status, 404);
+  assert.equal((await request(port, '/src/stage-comparison.mjs')).status, 404);
   assert.equal((await request(port, '/.private-intake/candidate.json')).status, 404);
   assert.equal((await request(port, '/docs/data/nx-draft/records.jsonl')).status, 404);
+});
+
+privateStoreTest('#85 AC-01/05/07 staged HTTP prepare/validate/apply is bounded, same-origin and rejects stale input', async t => {
+  const store = await workspace(t), corpus = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
+  const file = path.join(store, 'corpus.json');
+  await writeFile(file, canonicalSerialize(corpus), { mode: 0o600 });
+  const port = await start(t, { store });
+  const post = (command, body, headers = sameOrigin(port)) => request(port, `/api/campaign/stage/${command}`, headers, 'POST', JSON.stringify(body));
+  assert.equal((await post('prepare', { caseId: 'synthetic-case-a', kind: 'ground' }, { 'Content-Type': 'application/json' })).status, 403);
+  const prepared = await post('prepare', { caseId: 'synthetic-case-a', kind: 'ground' });
+  assert.equal(prepared.status, 200, prepared.body);
+  const r = JSON.parse(prepared.body).request;
+  const candidate = { schemaVersion: 'campaign-stage-candidate/1', requestHash: r.requestHash, kind: 'ground',
+    model: { effectiveModel: null, version: null, nullReasons: { effectiveModel: 'unknown', version: 'unknown' } },
+    processing: r.inputs.flatMap(i => i.segments.map(s => ({ inputId: s.id, status: 'skipped', reason: 'Synthetic only.' }))),
+    outputs: { claims: [], artifacts: [] }, limitations: ['Synthetic offline exercise.'] };
+  const input = { request: r, candidate };
+  const before = await readFile(file, 'utf8');
+  assert.equal((await post('validate', input)).status, 200);
+  assert.equal(await readFile(file, 'utf8'), before);
+  assert.equal((await post('apply', input)).status, 200);
+  assert.notEqual(await readFile(file, 'utf8'), before);
+  assert.equal((await post('validate', input)).status, 409);
+  assert.equal((await post('apply', input)).status, 200);
+  const review = JSON.parse((await request(port, '/api/review')).body);
+  assert.equal(review.stages.runs.length, 1);
+  assert.equal(review.baselineSelection.selected, false);
+  assert.equal((await post('prepare', { caseId: 'synthetic-case-a', kind: 'ground', inputKeys: Array(1001).fill('x') })).status, 400);
+  assert.equal((await post('prepare', { caseId: 'synthetic-case-a', kind: 'ground', endpoint: 'https://example.invalid' })).status, 400);
 });
 
 test('Issue #81 AC-03/07/09/10 isolated synthetic review works from public mode, persists through refresh, rejects stale/cross-origin writes', async t => {

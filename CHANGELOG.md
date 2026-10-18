@@ -21,6 +21,35 @@
   records remain Pending for independent HITL review. Add synthetic privacy,
   failure, replay, review-preservation and concurrent-review regressions.
   No live-provider accuracy, zero-retention or independent acceptance is claimed.
+- Integrate the landed manual stage contracts without changing adapter receipt
+  dispatch or historical readers. Preserve specific unsafe-path errors when an
+  output destination is replaced during a call; test collisions separately from
+  filesystem persistence failures.
+
+## Staged extraction and protected comparison (#85)
+
+- Add separate versioned Ground, Interpret and Relate manual handoffs with
+  bounded prepare/validate/apply operations. Ground reuses canonical chunk
+  coordinates, exact quotation validation, overlap deduplication and coverage.
+  Historical monolithic requests/runs retain their existing readers.
+- Allow grounded applied Pending inputs for derivation, including valid effective
+  human corrections. Freeze content/provenance/dependency bindings and lineage;
+  reject stale application without rebasing. Each output still requires its own
+  current human approval and accepted support before reviewed export.
+- Preserve immutable stage proposals and append-only review/selection history,
+  replay identical applications without new items and give regenerated outputs
+  separate identities. Show stage processing separately from source/review progress.
+- Add protected baseline freeze, separate regeneration candidate, evidence-linked
+  comparison and explicit independent-human adjudication/selection. Include all
+  populated review-unit types; IDs/counts alone cannot establish equivalence.
+  Selection never transfers item approval or updates the public Nx snapshot.
+- Add synthetic stage, comparison, UI and private integration regressions plus
+  operator/evaluation guidance. No live model invocation, real-campaign
+  regeneration, independent semantic evaluation or production adoption was
+  performed by this implementation; these remain separate human/operator gates.
+- Initialize the staged DOM regression after its fake-document fixtures so it
+  also runs correctly in isolation with `--test-name-pattern`, not only after
+  unrelated asynchronous tests in the full suite.
 
 ## 2026-10-16 — Context-aware campaign extraction integration (#84)
 

@@ -4,6 +4,8 @@ import { runEnrichment } from '../src/enrichment.mjs';
 import { runCampaign } from '../src/campaign.mjs';
 import { benignChunkReport } from '../src/chunks.mjs';
 import { runAdapter } from '../src/model-adapter.mjs';
+import { runStage } from '../src/stages.mjs';
+import { runComparison } from '../src/stage-comparison.mjs';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
 } from './contract.mjs';
@@ -147,6 +149,8 @@ export async function runExtraction({ templateFile, store, suppliedBy }) {
 }
 
 async function cli(args) {
+  if (args[0] === 'stage') return stageCli(args.slice(1));
+  if (args[0] === 'regeneration') return comparisonCli(args.slice(1));
   if (args[0] === 'campaign') return campaignCli(args.slice(1));
   if (args[0] === 'enrichment') return enrichmentCli(args.slice(1));
   const values = {};
@@ -159,6 +163,51 @@ async function cli(args) {
   }
   if (Object.keys(values).length !== 3) return { status: 'failed', code: 'INVALID_INPUT' };
   return runExtraction({ templateFile: values['--template'], store: values['--store'], suppliedBy: values['--supplied-by'] });
+}
+
+function commandOptions(args, required, optional = []) {
+  if (args.length % 2) return null;
+  const values = {};
+  for (let i = 0; i < args.length; i += 2) {
+    if (![...required, ...optional].includes(args[i]) || Object.hasOwn(values, args[i]) || !args[i + 1]) return null;
+    values[args[i]] = args[i + 1];
+  }
+  return required.every(k => Object.hasOwn(values, k)) ? values : null;
+}
+
+async function stageCli([command, ...args]) {
+  const required = {
+    prepare: ['--store', '--case', '--stage', '--output'], validate: ['--store', '--request', '--input'],
+    apply: ['--store', '--request', '--input'], status: ['--store'],
+  }[command];
+  if (!required) return { status: 'failed', code: 'INVALID_INPUT' };
+  const values = commandOptions(args, required, command === 'prepare' ? ['--inputs', '--revisions', '--requested-model']
+    : command === 'status' ? ['--case'] : []);
+  if (!values) return { status: 'failed', code: 'INVALID_INPUT' };
+  const result = await runStage({ command, store: values['--store'], caseId: values['--case'], kind: values['--stage'],
+    inputKeys: values['--inputs']?.split(','), revisionIds: values['--revisions']?.split(','),
+    requestedModel: values['--requested-model'], outputFile: values['--output'], requestFile: values['--request'], inputFile: values['--input'] });
+  if (result.status !== 'succeeded') return result;
+  return { status: result.status, command, pending: true,
+    ...(result.request ? { requestHash: result.request.requestHash, kind: result.request.kind,
+      inputs: result.request.upstream.length, revisions: result.request.inputs.length } : {}),
+    ...(result.runId ? { runId: result.runId, replay: result.replay ?? false } : {}),
+    ...(result.validationHash ? { validationHash: result.validationHash } : {}),
+    ...(command === 'status' ? { stages: result.summary.runs.map(r => ({ id: r.id, kind: r.kind,
+      state: r.state, completed: r.processing.filter(i => i.status === 'completed').length, total: r.processing.length })) } : {}) };
+}
+
+async function comparisonCli([command, ...args]) {
+  const required = {
+    freeze: ['--store', '--case', '--output'], candidate: ['--baseline', '--output'],
+    compare: ['--store', '--baseline', '--output'], select: ['--store', '--baseline', '--comparison', '--input'],
+    status: ['--store'],
+  }[command];
+  if (!required) return { status: 'failed', code: 'INVALID_INPUT' };
+  const values = commandOptions(args, required);
+  if (!values) return { status: 'failed', code: 'INVALID_INPUT' };
+  return runComparison({ command, store: values['--store'], caseId: values['--case'],
+    baselineFile: values['--baseline'], comparisonFile: values['--comparison'], inputFile: values['--input'], outputFile: values['--output'] });
 }
 
 async function campaignCli([command, ...args]) {

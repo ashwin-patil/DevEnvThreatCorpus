@@ -8,6 +8,17 @@ private forwarding, diagnostics and billing—not a new deployment.
 
 ## Startup modes
 
+Issue #85 adds private same-origin JSON operations
+`POST /api/campaign/stage/prepare`, `/validate`, `/apply` and `/status`.
+They share the existing explicit `--store` boundary, bounded body parsing and
+private response/no-store rules; stale input returns a conflict rather than
+rebasing. No-store, demo and read-only corpus modes cannot apply stages.
+The browser can inspect an explicitly selected protected comparison file locally,
+but adoption is CLI-only and no comparison is copied into public assets.
+Stage requests/candidates are each at most 2 MiB; combined request/candidate
+HTTP envelopes must also fit the existing campaign body limit. See
+[stage formats](formats-and-versioning.md#staged-extraction-contracts).
+
 Use the exact [Node pin](../../scripts/.node-version), currently `22.23.3`,
 in a POSIX environment. The runtime uses Node built-ins and local vanilla
 browser modules: no application dependency install, build, CDN, database,

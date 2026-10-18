@@ -30,6 +30,40 @@ because those alone exceed the approved reference budget. Full pins/catalog and
 unchanged canonical windows remain bound locally; sent IDs/names/URLs/tactics are
 not an assertion of semantic completeness. No chunk or staged-extraction changes,
 public corpus mutation, acceptance transfer or automatic application are included.
+Compatibility with the landed #85 pipeline is covered by applying manual Ground
+and receipt-bound adapter runs in both orders, validating their shared snapshot,
+and preparing Interpret from adapter-generated Pending support. Stage-run identity
+is separate from the adapter receipt argument. Collision regressions require
+`UNSAFE_PATH` without overwriting output and distinguish an unwritable failure
+manifest as `PERSISTENCE` with uncertain retention.
+
+## Issue #85 staged extraction - implementation, independent acceptance pending
+
+Originating requirements: [#85](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/85).
+The owner approved grounded applied Pending inputs, Ground/Interpret/Relate scope,
+bounded explicit handoffs and the major-mismatch/adoption package, then authorized
+implementation. Upstream #84 merged at `0799fe143ab155e4d1d8f27f40292ee53e1a387f`.
+No live private-corpus extraction, model call, real semantic evaluation or adoption
+has been performed by this implementation session. Final-revision command results
+and hosted evidence belong on the originating draft PR; native Windows skips
+are not private POSIX validation.
+
+| Criterion | Implementation and executable evidence | Remaining independent/operator evidence |
+|---|---|---|
+| AC-01 | `stage-contract.mjs`, `stages.mjs`; `stages.test.mjs` boundary/version/limit rejection, historical campaign suite | Human contract/scope review; optional adapter integration remains separate. |
+| AC-02 | Effective input snapshots, existing exact grounding/record normalizers; Unicode, missing support, wrong-case and classification fixtures | Frozen human-reviewed evaluation and researcher interpretation. |
+| AC-03 | `hitl.mjs` stage dependencies and effective revisions; stage claim/literal/behavior/path/mapping gating fixtures | Independent end-to-end review walkthrough. |
+| AC-04 | Request/response-derived stage IDs, frozen proposals, append-only history; stage replay/rerun and existing HITL history tests | Historical private overlays inspection. |
+| AC-05 | Full-base freshness, sidecar recheck, effective human corrections; edit-before/after preparation and stale application fixtures | Private concurrency/recovery walkthrough. |
+| AC-06 | Explicit per-input processing, stage/source/review denominators; partial/failed processing fixtures and UI regressions | Human interpretation of interrupted work/progress. |
+| AC-07 | Shared HITL/export closure, studio validate/apply, bounded private routes; stage/export and DOM/server regressions | POSIX hosted checks and independent UX/accessibility/public-boundary review. |
+| AC-08 | Reproducible private evaluation procedure in researcher guide; synthetic mechanism tests only | **Not performed:** frozen independent semantic evaluation, measured cost/latency if applicable and non-sensitive results. |
+| AC-09 | `stage-comparison.mjs`, `stage-view.mjs`; freeze/renamed-ID/equal-count/split-merge/literal/adoption-blocking tests | **Not performed:** authorized Nx baseline/regeneration/comparison and independent discrepancy adjudication/selection. |
+
+All source/test paths above are under `src/` and `tests/` respectively. The CLI,
+formats, data model, architecture and researcher guide describe the shared
+mechanisms and conservative cohort dependencies. No AC is declared independently
+accepted by agent testing; the PR remains draft pending its human/operator gates.
 
 ## Issue #84 context chunks — integration, independent acceptance pending
 

@@ -12,6 +12,7 @@ import {
 import { ADAPTER_LIMITS, adapterPayload, requestAdapter, runAdapter } from '../src/model-adapter.mjs';
 import { applyItemReview, reviewSnapshot, reviewedProfile } from '../src/hitl.mjs';
 import { GUIDE_VERSION, checksFor } from '../src/review-guide.mjs';
+import { applyStage, prepareStage, validateStageCandidate } from '../src/stages.mjs';
 import { privateStoreTest } from './platform.mjs';
 
 const fixture = async () => JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
@@ -210,6 +211,53 @@ test('#83 AC-03 valid receipts cannot bypass exact support, coverage, schema or 
   }
 });
 
+test('#83 AC-02/07 adapter receipts and landed manual stages coexist in either application order', async () => {
+  for (const stageFirst of [false, true]) {
+    const c = await fixture(), runs = [];
+    const ground = () => {
+      const request = prepareStage(c, { caseId: c.cases[0].id, kind: 'ground' });
+      const { claims } = candidateFor(request);
+      const candidate = {
+        schemaVersion: 'campaign-stage-candidate/1', requestHash: request.requestHash, kind: 'ground',
+        model: { effectiveModel: null, version: null, nullReasons: { effectiveModel: 'unknown', version: 'unknown' } },
+        processing: request.inputs.flatMap(i => i.segments.map(s => ({ inputId: s.id, status: 'completed', reason: null }))),
+        outputs: { claims, artifacts: [] }, limitations: ['Synthetic integration only.'],
+      };
+      const run = validateStageCandidate(c, request, candidate);
+      applyStage(c, request, candidate);
+      runs.push(run);
+      assert.equal(run.schemaVersion, 'campaign-stage-run/1');
+      assert.equal(Object.hasOwn(run, 'transport'), false);
+    };
+    const adapter = () => {
+      const request = prepareAdapterCampaign(c, { caseId: c.cases[0].id }), candidate = candidateFor(request);
+      const receipt = receiptFor(request, candidate);
+      assert.throws(() => validateCampaignCandidate(c, request, candidate, { runId: 'not-a-receipt' }),
+        { code: 'INVALID_CAMPAIGN' });
+      assert.throws(() => validateCampaignCandidate(c, request, candidate, { ...receipt, requestHash: '0'.repeat(64) }),
+        { code: 'INVALID_ADAPTER_RECEIPT' });
+      const { run } = validateCampaignCandidate(c, request, candidate, receipt);
+      applyCampaign(c, request, candidate, receipt);
+      runs.push(run);
+      assert.equal(run.schemaVersion, 'campaign-run/4');
+      assert.deepEqual(run.transport, receipt);
+    };
+    for (const apply of stageFirst ? [ground, adapter] : [adapter, ground]) {
+      apply();
+      validateCampaignSnapshot(c);
+    }
+    const adapterRun = runs.find(run => run.schemaVersion === 'campaign-run/4');
+    const request = prepareStage(c, { caseId: c.cases[0].id, kind: 'interpret',
+      inputKeys: [`claims:${adapterRun.claimIds[0]}`] });
+    assert.equal(request.upstream[0].runIds.includes(adapterRun.id), true);
+    assert.equal(new Set(runs.flatMap(run => run.claimIds)).size, 2);
+    const units = reviewSnapshot(c).units.filter(u => runs.some(run => run.claimIds.includes(u.id)));
+    assert.equal(units.length, 2);
+    assert.ok(units.every(u => !u.eligible && !u.history.length));
+    assert.equal(prepareCampaign(c, { caseId: c.cases[0].id }).provider.id, 'codex-chat-handoff');
+  }
+});
+
 test('#83 AC-04 regeneration retains accepted/modified/excluded/unsure claims, tools/prompts, behaviors and dependent mappings', async () => {
   const c = await fixture();
   const revision = c.sourceRevisions.find(r => r.id === 'synthetic-revision-a');
@@ -360,12 +408,33 @@ privateStoreTest('#83 AC-03/06 refusal, tool output, unsupported model, failed p
   assert.equal(failed.code, 'RATE_LIMIT');
   assert.equal((await readFile(`${opts.outputFile}.result.json`, 'utf8')).includes(env.OPENAI_API_KEY), false);
   const collision = await setup(t, c);
+  const before = await readFile(path.join(collision.store, 'corpus.json'), 'utf8');
   const persistence = await runAdapter(collision, { fetch: async () => {
     await mkdir(collision.outputFile, { mode: 0o700 });
     return Response.json(envelope(candidateFor(collision.request)));
   } });
-  assert.equal(persistence.code, 'PERSISTENCE');
+  assert.equal(persistence.status, 'failed');
+  assert.equal(persistence.code, 'UNSAFE_PATH');
   assert.equal(persistence.candidateSaved, false);
+  assert.equal(persistence.receiptSaved, false);
+  assert.equal((await stat(collision.outputFile)).isDirectory(), true);
+  assert.equal(await readFile(path.join(collision.store, 'corpus.json'), 'utf8'), before);
+  assert.equal(JSON.parse(await readFile(`${collision.outputFile}.result.json`, 'utf8')).code, 'UNSAFE_PATH');
+  await assert.rejects(readFile(`${collision.outputFile}.receipt.json`, 'utf8'), { code: 'ENOENT' });
+});
+
+privateStoreTest('#83 AC-06 failure-manifest collision reports uncertain persistence without overwriting artifacts', async t => {
+  const c = await fixture(), opts = await setup(t, c), sentinel = 'Existing artifact must not be overwritten.';
+  const result = await runAdapter(opts, { fetch: async () => {
+    await mkdir(opts.outputFile, { mode: 0o700 });
+    await writeFile(`${opts.outputFile}.result.json`, sentinel, { mode: 0o600, flag: 'wx' });
+    return Response.json(envelope(candidateFor(opts.request)));
+  } });
+  assert.deepEqual(result, { status: 'failed', code: 'PERSISTENCE', candidateSaved: false,
+    receiptSaved: false, applied: false, retentionUncertain: true });
+  assert.equal(await readFile(`${opts.outputFile}.result.json`, 'utf8'), sentinel);
+  assert.equal((await stat(opts.outputFile)).isDirectory(), true);
+  assert.equal(await readFile(path.join(opts.store, 'corpus.json'), 'utf8'), canonicalSerialize(c));
 });
 
 test('#83 AC-07 CLI rejects unknown/missing flags without exposing environment credentials', () => {
