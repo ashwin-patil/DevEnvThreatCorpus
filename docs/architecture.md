@@ -4,8 +4,8 @@
 DevEnvThreatCorpus is an operator-driven research workbench:
 **published research → source-linked claims → researcher review and acceptance →
 campaign patterns and detection hypotheses**. Collection, drafting, review and
-export are separate actions. No runtime model, database, queue, hosted review
-service or automatic acceptance is configured.
+export are separate actions. The optional CLI-only model adapter is disabled by
+default; no database, queue, hosted review service or automatic acceptance is configured.
 
 ## Components and responsibilities
 
@@ -30,6 +30,7 @@ do not reinterpret campaign request/run transport versions.
 | Loopback Node server | [server.mjs](../scripts/server.mjs) serves allowlisted assets and bounded APIs at `127.0.0.1:4173`; explicit store mode enables collection and campaign handoff, not arbitrary filesystem access |
 | Contract and intake tooling | [contract.mjs](../scripts/contract.mjs) owns validation, canonical identity/hashes, private persistence, single/batch intake, reviewed/draft exports and queries. Server and CLI share helpers; the server need not spawn a CLI process |
 | Extraction tooling | [extract.mjs](../scripts/extract.mjs) applies manual templates and exposes enrichment/campaign commands; [campaign.mjs](../src/campaign.mjs) binds requests, validates untrusted candidates and applies Pending records |
+| Optional provider transport | [model-adapter.mjs](../src/model-adapter.mjs) sends explicitly confirmed public research to the fixed OpenAI Responses endpoint, retaining protected candidates/receipts without applying or accepting them; not a browser-served module |
 | Human review tooling | [review.mjs](../scripts/review.mjs) retains legacy claim decisions; [hitl.mjs](../src/hitl.mjs) owns item-level review/eligibility and [review-ui.mjs](../src/review-ui.mjs) extends the Workbench; identity is self-attested |
 | Private storage | Protected `corpus.json`, article archives, annotation sidecars and operator-held request/candidate/decision/export files. Immutable campaign run snapshots live inside corpus governance, not a database |
 | Public views | The bundled [Nx draft projection](../src/data/nx-draft.json), explicit synthetic demos and separately generated profile exports have different withholding/review semantics; none is the private archive |
@@ -45,8 +46,11 @@ do not reinterpret campaign request/run transport versions.
    prompt into a **private request**. The researcher transfers it to their configured
    chat and returns a **private candidate**. Local validation and explicit apply
    check scope, freshness, coverage, exact quotations and dependency closure.
-   No repository code contacts a model provider, discovers credentials or silently
-   refetches missing text.
+   Alternatively, explicit CLI adapter generation uses a separately versioned
+   provider-bound request and process-only credential. It requires per-request
+   public-source transmission confirmation, never discovers credentials or silently
+   refetches missing text. Preparation, generation, validation and application
+   remain separate actions; default startup/collection/review never call a model.
 3. Claims and optional derived records remain Pending. A human inspects wording,
    evidence, inference and conflicts before recording explicit item decisions.
    Legacy claim events bind the whole non-review base. New HITL events bind the
@@ -156,6 +160,13 @@ independent semantic acceptance remain deferred, with pending records withheld.
 - **Chat/browser draft → canonical corpus:** candidates and proposals are untrusted
   data. Validation is not semantic approval; imports cannot create human acceptance.
   The richer studio proposal is not a replacement corpus or automatic merge format.
+- **Public research → optional provider:** operator-confirmed normalized article
+  text and required extraction metadata only, fixed endpoint/model, no tools,
+  redirects, automatic retries or private notes/review history. `store:false`
+  does not establish zero provider retention. Provider usage/model metadata are
+  separate from candidate assertions. Generation holds no corpus lock across the
+  call; any intervening review makes the full-base-bound candidate stale.
+  Protected artifacts survive for inspection, not silent rebase/application.
 - **Recorded decision → eligible acceptance:** hashes and append-only application
   rules do not authenticate a reviewer or make filesystem storage tamper-proof.
   Review status, evidence status and authorship origin stay independent.
@@ -203,7 +214,9 @@ bundled public Pending Nx draft**, not an empty screen. Explicit synthetic demos
 are separate. `--corpus` is a validated read-only startup snapshot; `--store`
 enables dynamic private data and bounded collection/campaign writes. Both
 batch collection and reproducible profile exports are implemented.
-There is no application install/build step, model adapter or automatic review.
+There is no application build or automatic review. The locked tokenizer is
+installed for campaign preparation; an optional disabled-by-default CLI adapter
+requires separate operator credentials and per-request public-source consent.
 See [configuration](reference/configuration.md#startup-modes).
 
 ## Preserved technical entrypoints

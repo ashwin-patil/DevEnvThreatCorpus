@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-17 - Optional public-research model adapter (#83)
+
+- Add disabled-by-default, CLI-only OpenAI Responses generation using the
+  human-selected `gpt-6-luna`, fixed global endpoint and explicit process
+  `OPENAI_API_KEY`. Preserve manual templates and the default chat handoff.
+  Require a frozen-request hash confirmation that the selected research is public
+  and authorized for transmission; never send local reviews, credentials or raw HTML.
+- Version provider-bound requests as `/3` and transport-provenance runs as `/4`
+  without changing extraction `/3`, prompt `/5`, candidate `/1` or canonical chunks.
+  Send an explicit catalog projection without full technique descriptions to fit
+  finite input budgets; keep the full pinned catalog for local validation.
+  Retain provider-reported usage and distinguish it from model-authored assertions.
+- Bound request bytes/reference tokens, output tokens/bytes and elapsed provider
+  time; make one attempt with no automatic retry, fallback or model tool execution.
+  Keep candidate/receipt/attempt/result files protected until operator deletion.
+  Failed/stale candidates never overwrite corpus decisions or silently rebase.
+- Generation never applies output. Explicit validation/application still check
+  exact evidence, coverage, references, snapshot geometry and freshness; new
+  records remain Pending for independent HITL review. Add synthetic privacy,
+  failure, replay, review-preservation and concurrent-review regressions.
+  No live-provider accuracy, zero-retention or independent acceptance is claimed.
+- Integrate the landed manual stage contracts without changing adapter receipt
+  dispatch or historical readers. Preserve specific unsafe-path errors when an
+  output destination is replaced during a call; test collisions separately from
+  filesystem persistence failures.
+
 ## Staged extraction and protected comparison (#85)
 
 - Add separate versioned Ground, Interpret and Relate manual handoffs with

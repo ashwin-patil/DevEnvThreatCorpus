@@ -1,5 +1,6 @@
 import test from 'node:test';
 import './campaign.test.mjs';
+import './model-adapter.test.mjs';
 import './stages.test.mjs';
 import { stageCandidate } from './stages.test.mjs';
 import './stage-comparison.test.mjs';

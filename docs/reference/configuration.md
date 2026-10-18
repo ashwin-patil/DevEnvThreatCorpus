@@ -22,7 +22,7 @@ HTTP envelopes must also fit the existing campaign body limit. See
 Use the exact [Node pin](../../scripts/.node-version), currently `22.23.3`,
 in a POSIX environment. The runtime uses Node built-ins and local vanilla
 browser modules: no application dependency install, build, CDN, database,
-model adapter or cloud resource setup is needed after obtaining the clone/runtime.
+enabled model adapter or cloud resource setup is needed after obtaining the clone/runtime.
 Python 3.12 and the pinned governance dependency are for contributor verification
 and the existing devcontainer lifecycle, not a Node runtime model service.
 
@@ -132,9 +132,44 @@ text can record a separate fallback event, never erase or relabel a failed fetch
 
 ## Contributor configuration
 
-[`project.config.json`](../../project.config.json) configures seven application
+[`project.config.json`](../../project.config.json) configures eight application
 test argument arrays and trusted path classifications, not server/model settings.
 `python scripts/verify.py` executes scaffold checks and those configured suites.
 There is no configured application lint/build command or browser runner.
 Do not treat agent browser checks, synthetic tests or model preference metadata
 as independent human technical, visual, research or accessibility acceptance.
+
+## Optional CLI model adapter
+
+Only `campaign generate --enabled true --confirm-public <requestHash>` invokes
+the adapter; default startup, browsing, collection, review and export do not.
+The existing manual request/chat/candidate workflow is unchanged.
+`campaign prepare-adapter` is offline. This CLI-only path is POSIX private-store
+functionality, not a Windows ACL implementation or browser generation endpoint.
+
+| Setting | Fixed initial contract |
+|---|---|
+| Provider / destination | OpenAI Responses, `https://api.openai.com/v1/responses`; redirects and endpoint overrides prohibited |
+| Requested model | `gpt-6-luna`; reasoning effort `low`; no fallback; no separately dated model version asserted |
+| Credentials | Operator-provisioned project-scoped `OPENAI_API_KEY` in explicitly launched process environment; never browser, repository, CLI secret argument or persisted artifact |
+| Data scope | Operator-confirmed published research only; per-request hash confirmation covers selected normalized text and required scope/citation/extraction metadata |
+| Payload | Version `public-research-projection/1`; exact frozen windows, prompt/guide and catalog pins/IDs/names/URLs/tactics, explicitly excluding full catalog descriptions; full catalog remains local |
+| Input | At most 256 KiB complete serialized payload and 32,000 measured `o200k_base` reference tokens; no truncation/rechunking |
+| Output | `max_output_tokens=16000` (includes provider reasoning where applicable); at most 2 MiB received bytes including envelope; local candidate validation remains mandatory |
+| Deadline / retries | 120 seconds from generation start through provider response, accounting for preflight elapsed time; one attempt, no automatic retry |
+| Persistence | Protected intent, candidate when available, provider receipt when available and sanitized result; retained until explicit operator deletion, never silently overwritten |
+| Provider state | `store:false`, `background:false`, no tools/conversation; no regional-residency or zero-retention guarantee |
+
+The reference tokenizer is not guaranteed to match model billing/context
+accounting. Over-budget input fails explicitly; no chunking policy changes or
+multi-stage extraction are introduced. Local filesystem durability follows
+existing platform helpers, not a guarantee that storage operations meet the
+provider deadline. Timeout bounds the provider request and response body; a
+remote service might still execute/bill after local abort.
+
+No account/project access, data retention exemption or actual model accuracy is
+established by repository tests. OpenAI's [data controls](https://developers.openai.com/api/docs/guides/your-data)
+describe separate abuse-monitoring retention (normally up to 30 days, with
+exceptions); `store:false` alone is not Zero Data Retention. Confirm your project's
+permissions/terms independently before transmitting each selected public request.
+No automatic live-provider test runs in verification.

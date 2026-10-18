@@ -285,8 +285,11 @@ token arithmetic does not replace independent visual/accessibility review.
 The batch endpoint is enabled only in explicit store mode. Browser collection
 uses a bounded same-origin JSON POST, never arbitrary client-selected storage
 paths. Original HTML downloads are attachments rather than application-origin
-previews. No runtime LLM, cloud service, database, queue, or automatic approval
-is configured. Public-source DNS/access failures must be reported separately
+previews. No model is enabled by default; the optional CLI-only OpenAI adapter
+requires an explicitly launched credential-bearing process and per-request
+public-research transmission confirmation. It is not a browser API or managed
+startup setting. No database, queue or automatic approval is configured.
+Public-source DNS/access failures must be reported separately
 from offline fixture success; live CLI and browser smoke evidence remains
 required on the final committed revision.
 

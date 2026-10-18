@@ -56,7 +56,10 @@ See [visual provenance](assets/communication/research-pipeline.provenance.json).
   not the reported event. AI output may omit, overstate or misclassify material;
   segment completion is not semantic completeness. Distinct reports can disagree.
 - **Acceptance boundary:** neither template validation nor candidate application
-  approves research. No runtime model/provider is called by the repository.
+  approves research. The default chat handoff makes no runtime provider call;
+  [optional CLI generation](reference/cli.md#optional-openai-generation) requires
+  explicit public-source transmission confirmation and remains separate from
+  validation, application and human acceptance.
   Read the [public-safe Nx example](methodology.md#public-safe-nx-worked-example)
   without reconstructing its withheld quotations.
 - **References:** [manual extraction](architecture.md#manual-extraction-contract),

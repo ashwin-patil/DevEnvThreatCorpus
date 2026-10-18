@@ -293,8 +293,9 @@ digests, citations, parser/normalization/input hashes, segments, prompt text/has
 catalog snapshot, candidate guide, limitations and selection metadata.
 
 Requested model is advisory. Effective model/version stay null with `unknown`
-reasons if the configured chat does not expose them. No runtime provider, model
-credential, automatic fallback or endpoint is configured.
+reasons if the configured chat does not expose them. The default handoff has no
+runtime provider or credentials. The optional CLI transport below is separately
+versioned; it never silently substitutes for the handoff.
 
 Validation recomputes the request against the current corpus, rejects stale or
 tampered input and requires exactly one completed/skipped/failed coverage result
@@ -339,6 +340,56 @@ copied into the bundle; that does not mean raw HTML text is withheld. Presentati
 talk bundles scope shared behavior occurrences/claims to the selected case and
 omit full normalized bodies from revision provenance. Neither is a reviewed
 release, selected-path-only campaign export or automatic public publisher.
+
+### Optional provider transport (#83)
+
+The default manual request remains `campaign-request/2`, extraction `/3`, prompt
+`passage-grounded-campaign/5`, candidate `/1` and run `/3`. The optional adapter
+uses **`campaign-request/3`** and **`campaign-run/4`** without changing those
+extraction, candidate, prompt or `canonical-context/1` meanings.
+Historical request `/1` and run `/1`/`/2`/`/3` readers retain their original rules.
+Provider transport versions are not semantic-stage contracts.
+
+`prepareAdapterCampaign` binds the fixed provider/model/endpoint, adapter
+`openai-responses/1` and payload `public-research-projection/1` along with the same
+full corpus digest, source revisions, selection, exact windows, full catalog and
+prompt identities. Its limitation text says API preparation, not a completed chat
+handoff. `verifyCampaignRequest` reconstructs that exact request kind and rejects
+tampered provider/model/configuration or stale corpus input.
+
+The transmitted projection retains exact source windows and required scope,
+citations, guide and pinned catalog metadata/IDs/names/URLs/tactics. It explicitly
+omits full technique descriptions to stay within the approved whole-input budget;
+the original complete catalog remains frozen in the local request and validator.
+No private review log, unrelated corpus, raw HTML or images are transmitted.
+This versioned projection is not a claim of extraction completeness.
+
+Responses use JSON mode, not a guarantee of schema or semantic correctness.
+Exactly one assistant text output is accepted; refusal, tool output, truncation,
+malformed JSON and unsupported reported model fail explicitly. The candidate
+cannot introduce human authorship, decisions or completed checklists.
+
+`model-adapter-receipt/1` binds request hash, canonical candidate response hash,
+original output-text hash and adapter version. It records provider-reported
+effective model and input/output/total token usage when available; missing data
+has explicit null reasons. No separately dated model version is invented.
+The receipt is separate from the candidate's untrusted `model` assertions.
+Adapter validation/application requires this receipt; file-based operations also
+verify the retained candidate text hash. Run `/4` binds the receipt, uses its
+reported provenance, and retains the existing geometry/coverage/record checks.
+Rehashed invalid receipts or altered geometry do not pass snapshot validation.
+These local hashes are integrity checks, not provider signatures or protection
+against a malicious local filesystem owner.
+
+Candidate/receipt/attempt/result artifacts stay protected and separate from the
+corpus. Generation never changes canonical records. A review during a provider
+call changes the full base digest: save the candidate, return `STALE_INPUT` and
+require explicit recovery. Existing matching applied request/response replay
+remains idempotent; an unapplied stale request cannot be silently rebased.
+The original run's receipt stays immutable even when a later attempt returns the
+same canonical candidate with different usage; later attempt artifacts remain
+separate rather than changing replay identity. No migration or historical review
+rewrite occurs.
 
 ## Pinned framework references
 
