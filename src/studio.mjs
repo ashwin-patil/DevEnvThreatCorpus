@@ -1,8 +1,10 @@
 import { element, action } from './render.mjs';
 import { renderStageComparison } from './stage-view.mjs';
+import { applyCampaignCategories, TELEMETRY_CATEGORIES } from './campaign-categories.mjs';
 
 export const DIMENSIONS = {
-  trust_surface: ['Social engineering and malicious repositories', 'Package or registry compromise', 'IDE and local execution paths', 'Skill marketplace poisoning', 'MCP or tool poisoning', 'Credentials and identity', 'CI/CD and cloud'],
+  telemetry_scope: TELEMETRY_CATEGORIES.map(rule => rule.value),
+  trust_surface: ['Social engineering and malicious repositories', 'Package or registry compromise', 'IDE and local execution paths', 'Skill marketplace poisoning', 'MCP or tool poisoning', 'Credentials and identity', 'CI/CD and cloud', 'Developer-targeted social engineering'],
   ai_involvement: ['Victim-side agent abuse', 'Attacker-side AI use', 'AI review targeting', 'AI assets targeted', 'No AI involvement reported', 'Unclear'],
   execution_location: ['endpoint', 'IDE', 'CLI', 'WSL', 'container', 'CI runner', 'cloud', 'remote service', 'unknown'],
   delivery: ['recruiter lure', 'repository content', 'package install/update', 'extension', 'Skill', 'MCP integration', 'configuration change', 'other'],
@@ -204,6 +206,7 @@ export async function corpusProposal(state) {
       artifacts: [...draft.artifacts], candidateTechniques: structuredClone(draft.candidateTechniques),
       signalIds: [], detectionIds: [], otelIds: [], origin: 'Human authored', disposition: 'Pending' });
   }
+  applyCampaignCategories(proposal);
   return proposal;
 }
 

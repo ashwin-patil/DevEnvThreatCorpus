@@ -10,6 +10,7 @@ import {
 import { catalogSnapshot } from './framework-catalog.mjs';
 import { CHUNK_POLICY, chunkRevision, chunkReport, unionCoverage } from './chunks.mjs';
 import { validateStageEnvelope } from './stage-contract.mjs';
+import { applyCampaignCategories } from './campaign-categories.mjs';
 
 export const CAMPAIGN_VERSION = 'campaign-extraction/3';
 export const REQUEST_VERSION = 'campaign-request/2';
@@ -491,6 +492,7 @@ function append(collection, records) {
 }
 export function appendOutputs(corpus, claims, passages, run) {
   append(corpus.claims, claims); append(corpus.passages, passages);
+  applyCampaignCategories(corpus, claims.map(c => c.id));
   for (const [type, records] of Object.entries(run.records)) {
     corpus[type] ??= [];
     append(corpus[type], records);

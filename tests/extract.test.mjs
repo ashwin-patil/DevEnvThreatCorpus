@@ -5,6 +5,7 @@ import './stages.test.mjs';
 import { stageCandidate } from './stages.test.mjs';
 import './stage-comparison.test.mjs';
 import './campaign-records.test.mjs';
+import './attack-catalog.test.mjs';
 import './chunks.test.mjs';
 import assert from 'node:assert/strict';
 import { chmod, link, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';

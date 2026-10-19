@@ -1,12 +1,17 @@
 import test from 'node:test';
 import './theme.test.mjs';
+import './campaign-categories.test.mjs';
+import { responseFixture } from './prompt-responses.test.mjs';
+import { campaignCategoryGroups } from '../src/campaign-categories.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  createModel, applyReviewProjection, metadata, dateLabel, caseSourceIds, linkedClaims, claimTarget,
+  createModel, applyReviewProjection, metadata, dateLabel, caseSourceIds, linkedClaims, claimTarget, FACETS,
   passageSegments, conflictPairs, recordContext, filterRecords, facetOptions, parseRoute, routeHash,
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
+  telemetryScopeEntries, researchRelationships, campaignMetrics, researchPresentation, CAMPAIGN_SECTIONS,
+  researchSources,
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl, sourceCitation, claimCitation, reviewChip, reviewLegend } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
@@ -78,6 +83,563 @@ test('public loader falls back only for static API absence or explicitly bundled
 
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
+
+test('#89 AC-06 current public campaign shows one Pending badge with four independent category evidence links', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), calls = [];
+  const groups = campaignCategoryGroups(m.corpus, m.corpus.cases[0].id);
+  assert.equal(groups.length, 1); assert.equal(groups[0].records.length, 4);
+  const root = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
+  const badges = descendants(root).filter(n => n.className?.includes('campaign-category-badge') && n.tagName === 'BUTTON');
+  assert.equal(badges.length, 1); assert.equal(badges[0].textContent, 'Victim-side agent abuse · Pending');
+  const evidence = descendants(root).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Category evidence'));
+  assert.equal(evidence.length, 4); await evidence[0].trigger('click');
+  assert.equal(calls[0][0], 'claims'); assert.ok(m.claims.has(calls[0][1]));
+  assert.match(root.textContent, /preview cannot save category decisions/);
+  assert.ok(!descendants(root).some(n => n.tagName === 'BUTTON' && n.textContent === 'Review campaign categories'));
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-07 public catalogue uses the complete current reference without replacing the historical singleton', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const historical = canonicalSerialize(document.catalogSnapshot);
+  const m = publicDraftModel(document), root = renderExploration(new FakeDocument(), m, 'frameworks', {}, () => {});
+  const section = descendants(root).find(n => n.tagName === 'DETAILS' && n.className === 'catalog-entries'
+    && n.firstChild.textContent.startsWith('ATT&CK 19.2'));
+  assert.ok(section); assert.match(section.firstChild.textContent, /697 resolver entries/);
+  const entries = descendants(section).find(n => n.className === 'catalog-list');
+  assert.equal(entries.children.length, 697);
+  const search = descendants(section).find(n => n.tagName === 'INPUT');
+  search.value = 'T1552.001'; await search.trigger('input');
+  assert.deepEqual(entries.children.filter(n => !n.hidden).map(n => n.textContent), ['T1552.001 · Credentials In Files']);
+  assert.equal(m.publicCatalogSnapshot.catalogs.find(c => c.framework === 'ATT&CK').techniques.length, 1);
+  assert.equal(canonicalSerialize(document.catalogSnapshot), historical);
+  assert.equal(m.corpus.mappings.length, 2);
+});
+
+test('#89 AC-10/16/18 blog headers retain category basis behind simple Pending labels and publishers below titles', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), doc = new FakeDocument();
+  const campaign = renderCaseLibrary(doc, m, m.corpus.cases, () => {});
+  const header = descendants(campaign).find(n => n.className === 'card-badges');
+  assert.equal(header.children[0].className, 'publisher-badge');
+  assert.equal(header.children[1].className, 'campaign-category-badges');
+  assert.match(header.children[1].textContent, /Victim-side agent abuse/);
+  const library = renderResearchLibrary(doc, m, m.corpus.sources, () => {});
+  const cards = descendants(library).filter(n => n.className?.includes('blog-card'));
+  assert.equal(cards.length, 6);
+  for (const card of cards) {
+    const blogHeader = card.children[0];
+    assert.equal(card.children[1].tagName, 'H2');
+    assert.equal(card.children[2].className, 'publisher-tags');
+    const publisher = card.children[2].textContent;
+    assert.equal(blogHeader.children[1].className, 'campaign-category-badges');
+    const category = descendants(blogHeader).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+    assert.match(category.textContent, /Victim-side agent abuse/);
+    const supported = ['Nx', 'Wiz', 'Semgrep', 'Panther'].includes(publisher);
+    assert.equal(category.getAttribute('data-category-basis'), supported ? 'source-supported' : 'campaign-context', publisher);
+    assert.equal(category.textContent, 'Victim-side agent abuse · Pending', publisher);
+    assert.doesNotMatch(card.textContent, /Pending scope|Pending.*campaign context/i);
+    assert.ok(!card.textContent.includes('Cloud control-plane audit'));
+    assert.ok(!card.textContent.includes('Identity & access logs'));
+    assert.match(card.textContent, /Log Collection\/Telemetry Scope/);
+  }
+  const source = m.corpus.sources.find(s => s.publisher === 'Semgrep'), calls = [];
+  const scoped = renderResearchLibrary(doc, m, [source], (...args) => calls.push(args));
+  const tags = descendants(scoped).filter(n => n.tagName === 'BUTTON' && n.className.includes('telemetry-scope-badge'));
+  assert.ok(tags.length);
+  assert.ok(!button(scoped, 'Scope evidence'));
+  assert.match(scoped.textContent, /Log Collection\/Telemetry Scope/);
+  for (const tag of tags) {
+    await tag.trigger('click');
+    assert.equal(calls.at(-1)[0], 'telemetry'); assert.equal(calls.at(-1)[2], source.id);
+    const detail = renderExploration(doc, m, 'telemetry', {}, () => {}, calls.at(-1)[1], undefined, source.id);
+    const claims = descendants(detail).filter(n => n.className === 'claim-card');
+    assert.ok(claims.length);
+    for (const claim of claims) assert.ok(claim.textContent.includes('Semgrep'));
+  }
+  const scopes = facetOptions(m, ['telemetryScopes']).telemetryScopes;
+  assert.equal(scopes.length, 6); assert.ok(scopes.includes('AI agent observability'));
+});
+
+test('#89 AC-10 alias blogs deduplicate categories across cases while preserving mixed/excluded states and selected-case scope', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), c = m.corpus;
+  const source = c.sources.find(s => s.publisher === 'Semgrep');
+  const alias = { ...structuredClone(source), id: 'synthetic-semgrep-alias', canonicalUrl: `${source.canonicalUrl}?utm_source=synthetic`, revisionIds: [] };
+  const original = c.categorizations.find(cat => cat.value === 'Victim-side agent abuse' && cat.sourceIds.includes(source.id));
+  const claim = { ...structuredClone(m.claims.get(original.supportingClaimIds[0])), id: 'synthetic-alias-claim', sourceId: alias.id, caseId: 'synthetic-alias-case' };
+  const secondCase = { ...structuredClone(c.cases[0]), id: claim.caseId, name: 'Synthetic alias case', sourceIds: [alias.id], summaryClaimIds: [claim.id], pathIds: [] };
+  c.sources.push(alias); c.claims.push(claim); c.cases.push(secondCase);
+  const second = { ...structuredClone(original), id: 'synthetic-alias-category', caseId: claim.caseId,
+    supportingClaimIds: [claim.id], sourceIds: [alias.id], itemReview: { state: 'Accepted' } };
+  c.categorizations.push(second);
+  const render = (filters = {}) => renderResearchLibrary(new FakeDocument(), createModel(c), [source, alias], () => {}, filters);
+  const root = render(), header = descendants(root).find(n => n.className?.includes('card-context'));
+  assert.equal(descendants(root).filter(n => n.className?.includes('blog-card')).length, 1);
+  assert.equal(descendants(header).filter(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge')).length, 1);
+  assert.match(header.textContent, /Victim-side agent abuse · Pending/);
+  const mixed = descendants(header).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+  assert.match(mixed.title, /Recorded review states: Pending, Accepted/);
+  const selected = descendants(render({ cases: [c.cases[0].id] })).find(n => n.className?.includes('card-context'));
+  assert.match(selected.textContent, /Pending/); assert.doesNotMatch(selected.textContent, /Mixed/);
+  original.disposition = 'Excluded';
+  const localOnly = descendants(render()).find(n => n.className?.includes('card-context'));
+  assert.match(localOnly.textContent, /Recorded acceptance/);
+  assert.doesNotMatch(localOnly.textContent, /Mixed review states|campaign context/);
+  original.disposition = 'Excluded'; second.disposition = 'Excluded';
+  const excludedHeader = descendants(render()).find(n => n.className?.includes('card-context'));
+  assert.ok(!descendants(excludedHeader).some(n => n.getAttribute?.('data-category-basis') === 'source-supported' && n.textContent.includes('Victim-side')));
+  for (const category of c.categorizations) category.disposition = 'Excluded';
+  assert.doesNotMatch(descendants(render()).find(n => n.className?.includes('card-context')).textContent, /Victim-side/);
+});
+
+test('#89 AC-12/13 scope projections and the bidirectional index retain source-local support without changing the corpus', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), index = researchRelationships(m);
+  const scopes = telemetryScopeEntries(m);
+  assert.equal(scopes.length, 6);
+  assert.equal(scopes.flatMap(s => s.scopeRecords).length, 63);
+  for (const scope of scopes) {
+    const object = index.byKey.get(`telemetryScopes:${scope.id}`);
+    assert.deepEqual(object.claimIds, scope.claimIds);
+    for (const member of scope.scopeRecords) assert.equal(index.byKey.get(`telemetryScopes:${member.id}`), object);
+    for (const id of object.claimIds) {
+      assert.ok(index.byClaim.get(id).includes(object));
+      assert.equal(m.claims.get(id).caseId, scope.caseId);
+      assert.ok(scope.sourceIds.includes(m.claims.get(id).sourceId));
+    }
+  }
+  const paired = m.annotations.find(a => a.responses?.length), prompt = index.byKey.get(`annotations:${paired.id}`);
+  for (const id of paired.responses[0].claimIds) assert.ok(index.byClaim.get(id).includes(prompt));
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-14 persisted public view matches derived support and rejects stale or forged presentation metadata', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document);
+  assert.deepEqual(m.presentation, document.coverage.researchPresentation);
+  assert.equal(digest(m.presentation), document.coverage.researchPresentationDigest);
+  assert.deepEqual(researchPresentation(m), m.presentation);
+  for (const mutate of [
+    view => { view.schemaVersion = 'public-research-view/999'; },
+    view => { view.campaigns[0].counts.aiTools = 99; },
+    view => { view.relationships[0].claimIds = ['nonexistent-claim']; },
+    view => { view.defaults.promptView = 'all'; },
+    view => { view.defaults.campaignSections.reverse(); },
+  ]) {
+    const bad = structuredClone(document); mutate(bad.coverage.researchPresentation);
+    bad.coverage.researchPresentationDigest = digest(bad.coverage.researchPresentation);
+    assert.throws(() => publicDraftModel(bad), /Invalid public/);
+  }
+  const old = structuredClone(document);
+  delete old.coverage.researchPresentation; delete old.coverage.researchPresentationDigest;
+  assert.deepEqual(publicDraftModel(old).presentation, m.presentation);
+});
+
+test('#89 AC-15 campaign metrics and ordered sections keep summary concise and behavior tiles navigable', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), id = m.corpus.cases[0].id, calls = [];
+  assert.deepEqual(campaignMetrics(m, id), { researchArticles: 6, aiTools: 3, targetedAiTools: 3,
+    promptVariants: 2, promptOccurrences: 4, promptResponses: 1, behaviors: 14, campaignGraphs: 1, phasePaths: 3 });
+  const root = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
+  const card = descendants(root).find(n => n.className?.includes('case-card') && n.tagName === 'DETAILS');
+  const summary = card.children[0];
+  assert.doesNotMatch(summary.textContent, /Agent display projection|Explicit operator grouping|unreviewed/);
+  assert.match(summary.textContent, /AI tools3.*3 target\/abuse-linked/);
+  assert.match(summary.textContent, /Prompt variants2/);
+  assert.ok(descendants(summary).some(n => n.className === 'metric-detail' && n.textContent === '4 occurrences · 1 response'));
+  assert.match(summary.textContent, /Behaviors14/);
+  assert.deepEqual(descendants(root).map(n => n.getAttribute?.('data-campaign-section')).filter(Boolean), CAMPAIGN_SECTIONS);
+  const review = descendants(root).find(n => n.getAttribute?.('data-campaign-section') === 'review');
+  assert.equal(review.tagName, 'DETAILS'); assert.ok(!review.open);
+  assert.match(review.textContent, /Agent display projection/);
+  const tiles = descendants(root).filter(n => n.className?.includes('behavior-action-link'));
+  assert.equal(tiles.length, 14);
+  await tiles[0].trigger('click'); assert.equal(calls[0][0], 'behaviors');
+  assert.ok(m.corpus.behaviors.some(b => b.id === calls[0][1]));
+});
+
+test('#89 AC-16 campaign header action is adjacent and category/publisher context is navigable without fabricating support', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), calls = [], doc = new FakeDocument();
+  const cases = renderCaseLibrary(doc, m, m.corpus.cases, (...args) => calls.push(args));
+  const heading = descendants(cases).find(n => n.className === 'campaign-heading');
+  assert.equal(heading.children[0].tagName, 'H2');
+  const workspace = button(heading, 'Open campaign workspace');
+  assert.equal(descendants(cases).filter(n => n.textContent === 'Open campaign workspace' && n.tagName === 'BUTTON').length, 1);
+  let prevented = false, stopped = false;
+  await workspace.trigger('click', { preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
+  assert.ok(prevented && stopped); assert.deepEqual(calls.pop(), ['cases', m.corpus.cases[0].id]);
+  const library = renderResearchLibrary(doc, m, m.corpus.sources, (...args) => calls.push(args));
+  const cards = descendants(library).filter(n => n.className?.includes('blog-card'));
+  let contextCount = 0;
+  for (const card of cards) {
+    const header = card.children[0];
+    assert.ok(header.className.includes('card-context'));
+    const category = descendants(header).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+    assert.ok(category); await category.trigger('click');
+    assert.deepEqual(calls.pop(), ['cases', m.corpus.cases[0].id]);
+    if (category.getAttribute('data-category-basis') === 'campaign-context') {
+      contextCount++; assert.equal(category.textContent, 'Victim-side agent abuse · Pending');
+      assert.match(category.title, /not independently classified/);
+    }
+    await card.children[2].children[0].trigger('click');
+    assert.equal(calls.pop()[0], 'sources');
+  }
+  assert.equal(cards.length, 6); assert.equal(contextCount, 2);
+  const references = m.corpus.sources.filter(s => !researchSources(m).includes(s));
+  assert.equal(references.length, 2);
+  const facets = facetOptions(m);
+  assert.equal(facets.sources.length, 6); assert.equal(facets.publishers.length, 6);
+  for (const source of references) {
+    assert.ok(!facets.sources.includes(source.id));
+    assert.ok(!facets.publishers.includes(publisherDisplay(source).name));
+    assert.match(renderSource(doc, m, source, '', () => {}, () => {}, () => {}).textContent, /MITRE/);
+  }
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-18 research link types agree between campaign sections and related research', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), doc = new FakeDocument();
+  const root = renderCaseLibrary(doc, m, m.corpus.cases, () => {});
+  for (const [kind, label] of [['publisher', 'Semgrep'], ['flow', 'campaign graph'], ['tool', 'Claude Code'], ['prompt', 'Wallet']]) {
+    const link = descendants(root).find(n => n.tagName === 'BUTTON' && n.textContent.includes(label));
+    assert.ok(link, label); assert.equal(link.getAttribute('data-research-kind'), kind, label);
+  }
+  const products = renderExploration(doc, m, 'tools', {}, () => {});
+  const relations = descendants(products).filter(n => n.className === 'related-research');
+  for (const link of relations.flatMap(descendants).filter(n => n.tagName === 'BUTTON' && /^(Behavior|Prompt|Log scope|Attack path|Category):/.test(n.textContent))) {
+    const expected = { Behavior: 'behavior', Prompt: 'prompt', 'Log scope': 'telemetry', 'Attack path': 'flow', Category: 'category' }[link.textContent.split(':')[0]];
+    assert.equal(link.getAttribute('data-research-kind'), expected);
+  }
+});
+
+test('#89 AC-17 AI products consolidate occurrences without merging source evidence or linking sibling products', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(m.annotations), calls = [], index = researchRelationships(m);
+  const root = renderExploration(new FakeDocument(), m, 'tools', {}, (...args) => calls.push(args));
+  const cards = descendants(root).filter(n => n.className?.includes('ai-product-card'));
+  assert.equal(cards.length, 3);
+  for (const product of aiLibrary(m, 'tools')) {
+    const card = cards.find(c => c.children.some(n => n.tagName === 'H2' && n.textContent === product.name));
+    assert.ok(card); assert.ok(card.children[0].className.includes('card-context'));
+    assert.equal(descendants(card).filter(n => n.className === 'source-occurrence').length, product.annotations.length);
+    assert.ok(!descendants(card).some(n => n !== card && n.tagName === 'ARTICLE'));
+    const claimIds = new Set(product.annotations.flatMap(a => index.byKey.get(`annotations:${a.id}`)?.claimIds ?? []));
+    const evidence = descendants(card).find(n => n.className === 'product-claims');
+    assert.equal(evidence.children.length, claimIds.size + 1);
+    const related = descendants(card).find(n => n.className === 'related-research');
+    const groups = descendants(related).map(n => n.getAttribute?.('data-related-group')).filter(Boolean);
+    assert.ok(groups.includes('campaigns')); assert.ok(groups.includes('behaviors'));
+    assert.ok(!groups.includes('tools'));
+    for (const link of descendants(related).filter(n => n.tagName === 'BUTTON')) {
+      await link.trigger('click'); assert.notEqual(calls.at(-1)[0], 'tools');
+    }
+  }
+  const claude = cards.find(c => c.children.some(n => n.tagName === 'H2' && n.textContent === 'Claude Code'));
+  assert.equal(descendants(claude).filter(n => n.className === 'source-occurrence').length, 4);
+  const source = m.corpus.sources.find(s => s.publisher === 'StepSecurity');
+  const scoped = renderExploration(new FakeDocument(), m, 'tools', { sources: [source.id] }, () => {});
+  assert.equal(descendants(scoped).filter(n => n.className?.includes('ai-product-card')).length, 3);
+  for (const occurrence of descendants(scoped).filter(n => n.className === 'source-occurrence')) {
+    assert.match(occurrence.children[0].textContent, /^StepSecurity/);
+  }
+  const promptOnlySource = m.corpus.sources.find(s => s.publisher === 'Semgrep');
+  const promptOnlyTools = renderExploration(new FakeDocument(), m, 'tools', { sources: [promptOnlySource.id] }, () => {});
+  assert.equal(descendants(promptOnlyTools).filter(n => n.className?.includes('ai-product-card')).length, 0);
+  assert.equal(JSON.stringify(m.annotations), before);
+});
+
+test('#89 AC-17/19 telemetry sections expose campaign/category tags and only explicit behavior relationships', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), calls = [];
+  const root = renderExploration(new FakeDocument(), m, 'telemetry', {}, (...args) => calls.push(args));
+  const cards = descendants(root).filter(n => n.className?.includes('telemetry-scope-detail'));
+  assert.equal(cards.length, 6);
+  for (const card of cards) {
+    assert.equal(card.children[0].tagName, 'H2');
+    assert.ok(!descendants(card).some(n => n.className?.includes('card-context')));
+    const tags = card.children.find(n => n.className === 'research-tags');
+    assert.ok(tags); assert.match(tags.textContent, /Campaigns tagged/); assert.match(tags.textContent, /Categories/);
+    const campaign = descendants(tags).find(n => n.className?.includes('campaign-tag'));
+    await campaign.trigger('click'); assert.equal(calls.pop()[0], 'cases');
+    const publishers = descendants(card).find(n => n.className === 'publisher-tags');
+    assert.ok(publishers.children.length);
+    for (const link of publishers.children) {
+      assert.doesNotMatch(link.textContent, /^Source:/);
+      await link.trigger('click'); assert.equal(calls.pop()[0], 'sources');
+    }
+    const groups = descendants(card).filter(n => n.className === 'related-research').flatMap(descendants).filter(n => n.getAttribute?.('data-related-group'));
+    assert.ok(groups.length);
+    for (const group of groups) {
+      assert.equal(group.getAttribute('data-related-group'), 'behaviors');
+      for (const link of descendants(group).filter(n => n.tagName === 'BUTTON')) {
+        await link.trigger('click'); assert.equal(calls.pop()[0], 'behaviors');
+      }
+    }
+  }
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-19 prompts, telemetry and attack paths use association sections without repeated top context', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), doc = new FakeDocument();
+  for (const view of ['prompts', 'telemetry', 'paths']) {
+    const root = renderExploration(doc, m, view, {}, () => {});
+    assert.ok(!descendants(root).some(n => n.className?.includes('card-context')), view);
+    const sections = descendants(root).filter(n => n.className === 'research-tags');
+    assert.ok(sections.length, view);
+    for (const tags of sections) {
+      assert.deepEqual(tags.children.map(n => n.getAttribute('data-related-group')), ['campaigns', 'categorizations']);
+      assert.equal(tags.children[0].children[0].textContent, 'Campaigns tagged');
+      assert.equal(tags.children[1].children[0].textContent, 'Categories');
+      const badges = descendants(tags).filter(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+      assert.ok(badges.length); assert.ok(badges.every(n => n.textContent.endsWith(' · Pending')));
+    }
+  }
+  assert.equal(JSON.stringify(document), before);
+  for (const view of ['tools', 'behaviors']) {
+    assert.ok(descendants(renderExploration(doc, m, view, {}, () => {})).some(n => n.className?.includes('card-context')), view);
+  }
+});
+
+test('#89 AC-19 one exact prompt lists multiple campaigns with deduplicated categories and respects case/source filters', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), annotation = m.annotations.find(a => a.responses?.length);
+  const original = aiLibrary(m, 'prompts').find(r => r.annotations.includes(annotation));
+  const second = { ...structuredClone(m.cases.get(annotation.caseId)), id: 'synthetic-shared-prompt-case', name: 'Synthetic second campaign',
+    sourceIds: [annotation.sourceId], pathIds: [], summaryClaimIds: [] };
+  m.corpus.cases.push(second); m.cases.set(second.id, second);
+  const category = m.corpus.categorizations.find(c => c.caseId === annotation.caseId && c.sourceIds.includes(annotation.sourceId) && c.value === 'Victim-side agent abuse');
+  const claim = { ...structuredClone(m.claims.get(category.supportingClaimIds[0])), id: 'synthetic-shared-prompt-claim', caseId: second.id };
+  m.corpus.claims.push(claim); m.claims.set(claim.id, claim);
+  m.corpus.categorizations.push({ ...structuredClone(category), id: 'synthetic-shared-prompt-category', caseId: second.id, supportingClaimIds: [claim.id] });
+  m.annotations.push({ ...structuredClone(annotation), id: 'synthetic-shared-prompt-annotation', caseId: second.id, claimIds: [claim.id], responses: [] });
+  const before = JSON.stringify({ corpus: m.corpus, annotations: m.annotations }), calls = [];
+  const render = filters => renderExploration(new FakeDocument(), m, 'prompts', filters, (...args) => calls.push(args), original.id);
+  const root = render({}), tags = descendants(root).find(n => n.className === 'research-tags');
+  const campaigns = descendants(tags).filter(n => n.tagName === 'BUTTON' && n.className.includes('campaign-tag'));
+  assert.equal(campaigns.length, 2);
+  for (const campaign of campaigns) await campaign.trigger('click');
+  assert.deepEqual(new Set(calls.map(call => call[1])), new Set([annotation.caseId, second.id]));
+  assert.equal(descendants(tags).filter(n => n.tagName === 'BUTTON' && n.className.includes('campaign-category-badge')).length, 1);
+  assert.equal(descendants(root).filter(n => n.className === 'artifact-value' && n.textContent === annotation.value).length, 1);
+  const scoped = render({ cases: [annotation.caseId] });
+  assert.doesNotMatch(scoped.textContent, /Synthetic second campaign/);
+  assert.equal(descendants(scoped).filter(n => n.className?.includes('campaign-tag')).length, 1);
+  const otherSource = m.corpus.sources.find(s => s.id !== annotation.sourceId && s.publisher === 'Panther');
+  const other = render({ sources: [otherSource.id] });
+  assert.doesNotMatch(other.textContent, /Synthetic second campaign/);
+  assert.equal(JSON.stringify({ corpus: m.corpus, annotations: m.annotations }), before);
+});
+
+test('#89 AC-13 related research rejects invalid support and proximity and refreshes late annotations and exclusions', () => {
+  const m = createModel(structuredClone(researchFixture)), claim = m.corpus.claims[0], behavior = m.corpus.behaviors[0];
+  const annotation = { id: 'synthetic-related', type: 'data-sources', value: 'Synthetic collection',
+    caseId: claim.caseId, sourceId: claim.sourceId, sourceRevisionId: claim.sourceRevisionId, claimIds: [claim.id, 'missing-claim'] };
+  m.annotations = [annotation];
+  let index = researchRelationships(m);
+  assert.deepEqual(index.byKey.get(`annotations:${annotation.id}`).claimIds, [claim.id]);
+  const node = m.corpus.paths[0].nodes.find(n => n.behaviorIds.includes(behavior.id) && n.claimIds.includes(claim.id));
+  assert.ok(node);
+  assert.ok(index.byClaim.get(claim.id).some(o => o.type === 'behaviors' && o.id === behavior.id));
+  annotation.sourceRevisionId = 'wrong-revision';
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0);
+  annotation.sourceRevisionId = claim.sourceRevisionId; annotation.sourceId = 'synthetic-source-b';
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0);
+  annotation.sourceId = claim.sourceId; annotation.caseId = 'synthetic-case-b';
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0);
+  annotation.caseId = claim.caseId; annotation.claimIds = [];
+  annotation.value = claim.description;
+  assert.equal(researchRelationships(m).byKey.get(`annotations:${annotation.id}`).claimIds.length, 0, 'wording is not support');
+  annotation.claimIds.push(claim.id);
+  assert.ok(researchRelationships(m).byClaim.get(claim.id).some(o => o.id === annotation.id));
+  const category = { ...m.corpus.categorizations[0], id: 'synthetic-scope-index', caseId: claim.caseId,
+    dimension: 'telemetry_scope', value: 'Endpoint telemetry', sourceIds: [claim.sourceId], supportingClaimIds: [claim.id], disposition: 'Pending' };
+  m.corpus.categorizations.push(category);
+  assert.ok(researchRelationships(m).byClaim.get(claim.id).some(o => o.type === 'telemetryScopes'));
+  category.disposition = 'Excluded';
+  assert.ok(!researchRelationships(m).byClaim.get(claim.id).some(o => o.id === category.id));
+  category.disposition = 'Pending'; category.sourceIds = ['synthetic-source-b'];
+  assert.ok(!researchRelationships(m).byClaim.get(claim.id).some(o => o.id === category.id), 'category support must match its source');
+});
+
+test('#89 AC-12/13 campaign scope to claims to source-filtered scope survives route reload without exposing tracking IDs', async () => {
+  const corpus = structuredClone(researchFixture), claim = corpus.claims[0], category = {
+    ...structuredClone(corpus.categorizations[0]), id: 'synthetic-click-scope', caseId: claim.caseId,
+    dimension: 'telemetry_scope', value: 'Endpoint telemetry', sourceIds: [claim.sourceId], supportingClaimIds: [claim.id], disposition: 'Pending',
+  };
+  corpus.categorizations.push(category);
+  const { content, win } = await mounted(corpus, '#cases');
+  assert.ok(!button(content, 'Scope evidence'));
+  await button(content, 'Endpoint telemetry').trigger('click');
+  assert.equal(parseRoute(win.location.hash).view, 'telemetry');
+  const scope = descendants(content).find(n => n.className?.includes('telemetry-scope-detail'));
+  assert.ok(scope); assert.match(scope.textContent, /Claims & evidence · 1/);
+  assert.doesNotMatch(visibleText(scope), /synthetic-click-scope/);
+  await button(scope, claim.description).trigger('click');
+  assert.equal(parseRoute(win.location.hash).view, 'claims');
+  await button(content, 'Log scope: Endpoint telemetry').trigger('click');
+  assert.deepEqual(parseRoute(win.location.hash), { view: 'telemetry', id: category.id, revisionId: claim.sourceId });
+  const reloaded = await mounted(corpus, win.location.hash);
+  assert.match(reloaded.content.textContent, /Claims & evidence · 1/);
+  assert.ok(!reloaded.content.textContent.includes('Unknown target'));
+  assert.doesNotMatch(visibleText(renderCase(new FakeDocument(), createModel(corpus), corpus.cases[0], () => {})), /Campaign identifier|Revision:/);
+});
+
+test('#89 AC-13 direct source-artifact and nested detection targets resolve without unrelated cards or filter bypass', () => {
+  const m = createModel(structuredClone(researchFixture)), claim = m.corpus.claims[0];
+  m.annotations = ['data-sources', 'observed-behavior', 'ttp-references'].map((type, i) => ({
+    id: `synthetic-direct-${i}`, type, value: `Synthetic literal ${i}`, caseId: claim.caseId, sourceId: claim.sourceId,
+    sourceRevisionId: claim.sourceRevisionId, claimIds: [claim.id],
+  }));
+  for (const [i, view] of ['telemetry', 'behaviors', 'frameworks'].entries()) {
+    const root = renderExploration(new FakeDocument(), m, view, {}, () => {}, m.annotations[i].id);
+    assert.doesNotMatch(root.textContent, /Unknown target/);
+    assert.equal(descendants(root).filter(n => n.className === 'artifact-value').length, 1);
+    assert.ok(root.textContent.includes(m.annotations[i].value));
+    const outside = renderExploration(new FakeDocument(), m, view, { sources: ['synthetic-source-b'] }, () => {}, m.annotations[i].id);
+    assert.match(outside.textContent, /Unknown target/);
+  }
+  const detection = renderExploration(new FakeDocument(), m, 'telemetry', {}, () => {}, m.corpus.detections[0].id);
+  assert.match(detection.textContent, /Illustrative test correlation/);
+  assert.doesNotMatch(detection.textContent, /No records for this view|Unknown target/);
+  const foreign = m.corpus.claims.find(c => c.caseId !== claim.caseId);
+  m.corpus.governance.campaignExtraction = { runs: [{ caseId: claim.caseId, recordSupport:
+    ['telemetry', 'detections', 'otel'].map(type => ({ recordType: type, recordId: m.corpus[type][0].id, supportingClaimIds: [claim.id, foreign.id] })) }] };
+  const index = researchRelationships(m);
+  for (const type of ['telemetry', 'detections', 'otel']) {
+    const object = index.byKey.get(`${type}:${m.corpus[type][0].id}`);
+    assert.deepEqual(object.claimIds, [claim.id]);
+    assert.ok(index.byClaim.get(claim.id).includes(object));
+    const view = type === 'otel' ? 'otel' : 'telemetry';
+    const root = renderExploration(new FakeDocument(), m, view, {}, () => {}, object.targetId);
+    assert.ok(root.textContent.includes(claim.description));
+    assert.ok(!root.textContent.includes(foreign.description));
+  }
+});
+
+test('#89 AC-11 withheld responses do not create complete exchanges and explicit targets preserve review state', () => {
+  const f = responseFixture(), m = createModel(f.corpus);
+  m.annotations = [structuredClone(f.annotation)];
+  m.annotations[0].responses[0].text = null;
+  m.annotations[0].itemReview = { state: 'Excluded', contentOrigin: 'Manual', labelAuthorship: 'Human', editor: null };
+  const root = renderExploration(new FakeDocument(), m, 'prompts', {}, () => {});
+  assert.equal(descendants(root).filter(n => n.className === 'artifact-value').length, 0);
+  assert.match(root.textContent, /No published prompt\/response pairs/);
+  const entry = aiLibrary(m, 'prompts')[0];
+  const direct = renderExploration(new FakeDocument(), m, 'prompts', {}, () => {}, entry.id);
+  assert.equal(descendants(direct).find(n => n.className === 'artifact-value').textContent, f.annotation.value);
+  assert.match(visibleText(direct), /Review: Excluded/);
+  assert.match(direct.textContent, /Response text withheld/);
+  assert.equal(m.annotations[0].responses[0].text, null);
+});
+
+test('#89 AC-08 one Semgrep response nests beneath its source occurrence without changing prompt groups or other outcomes', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), calls = [];
+  const page = renderExploration(new FakeDocument(), m, 'prompts', {}, (...args) => calls.push(args));
+  const responses = descendants(page).filter(n => n.className === 'prompt-response');
+  assert.equal(responses.length, 1); assert.match(responses[0].parentNode.textContent, /Semgrep/);
+  assert.match(responses[0].textContent, /environment unspecified|without identifying/);
+  assert.match(responses[0].textContent, /Claude \/ unknown \/ unspecified/);
+  assert.match(responses[0].textContent, /Encoding: json-string/);
+  const summary = descendants(responses[0]).find(n => n.className === 'response-context');
+  assert.match(summary.textContent, /Claude · refusal.*Semgrep.*provenance is unspecified/);
+  assert.doesNotMatch(visibleText(responses[0]), /Pairing basis|Responder \/ model|Context basis|Raw response receipt/);
+  const text = descendants(responses[0]).find(n => n.className?.includes('response-value'));
+  assert.equal(text.textContent, document.prompts.find(p => p.responses)?.responses[0].text);
+  const evidence = descendants(responses[0]).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Response/context evidence'));
+  assert.equal(evidence.length, 2); await evidence[0].trigger('click');
+  assert.equal(m.claims.get(calls[0][1]).sourceId, document.prompts.find(p => p.responses).sourceId);
+  const step = document.prompts.find(p => p.id.includes('stepsecurity'));
+  const filtered = renderExploration(new FakeDocument(), m, 'prompts', { sources: [step.sourceId] }, () => {});
+  assert.equal(descendants(filtered).filter(n => n.className === 'prompt-response').length, 0);
+  assert.match(filtered.textContent, /Choose All prompts/);
+  assert.doesNotMatch(page.textContent, /No exact response attached|Display is JSON-decoded/);
+  assert.equal(aiLibrary(m, 'prompts').length, 2);
+});
+
+test('#89 AC-08 public response shape, provenance and export-copy validation reject malformed metadata without relying on receipt parity', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  for (const mutate of [
+    p => { p.observationBasis = {}; },
+    p => { p.responses[0].revisionHash = '0'.repeat(64); },
+    p => { p.responses[0].support.locator.end = -1; },
+    p => { p.responses[0].contextSupport.sha256 = 'no-hash'; },
+    p => { p.responses[0].role = 'system'; },
+    p => { p.responses[0].observationContext = 'confirmed-test'; },
+    p => { p.responses[0].claimIds = [document.prompts[0].claimId]; },
+    p => { p.responses.push(structuredClone(p.responses[0])); },
+  ]) {
+    const invalid = structuredClone(document); mutate(invalid.prompts.find(p => p.responses));
+    invalid.coverage.promptArtifacts.prompts = structuredClone(invalid.prompts);
+    invalid.coverage.promptArtifactDigest = digest(invalid.coverage.promptArtifacts);
+    assert.throws(() => publicDraftModel(invalid), /Invalid public/);
+  }
+  const mismatched = structuredClone(document); mismatched.coverage.promptArtifacts.prompts.pop();
+  assert.throws(() => publicDraftModel(mismatched), /Invalid public/);
+});
+
+test('#89 AC-08 private talk exports preserve nested response metadata and Review exposes independent correction controls', async () => {
+  const f = responseFixture(), model = createModel(f.corpus); model.annotations = [f.annotation];
+  const bundle = talkBundle(model, f.annotation.caseId);
+  assert.deepEqual(bundle.annotations[0].responses, f.annotation.responses);
+  const markdown = talkMarkdown(bundle);
+  assert.match(markdown, /Attached response: synthetic-response; refusal/);
+  assert.match(markdown, /Responder \/ model \/ role: Synthetic test agent \/ unknown \/ unspecified/);
+  assert.match(markdown, /> Synthetic refusal\./); assert.match(markdown, /Pairing basis/);
+  const state = { ...reviewSnapshot(f.corpus, [f.annotation]), campaigns: {}, sources: {} }, inputs = [];
+  const view = renderReview(new FakeDocument(), model, state, { caseId: f.annotation.caseId, itemKey: `annotations:${f.annotation.id}`, category: 'prompts' },
+    { change: () => {}, decide: input => inputs.push(input), navigate: () => {}, session: { reviewer: 'synthetic-human', selfAttested: true } });
+  const labels = descendants(view).filter(n => n.tagName === 'LABEL');
+  assert.ok(labels.some(n => n.textContent.startsWith('Response outcome')));
+  assert.ok(labels.some(n => n.textContent.startsWith('Response observation environment')));
+  assert.match(view.textContent, /Save changes \(not acceptance\)/);
+  descendants(labels.find(n => n.textContent.startsWith('Response outcome'))).find(n => n.tagName === 'SELECT').value = 'unknown';
+  descendants(labels.find(n => n.textContent.startsWith('Change reason'))).find(n => n.tagName === 'TEXTAREA').value = 'Synthetic conservative correction.';
+  await button(view, 'Save changes (not acceptance)').trigger('click');
+  assert.equal(inputs[0].action, 'modify');
+  assert.equal(inputs[0].patch.responses[0].outcome, 'unknown');
+  assert.deepEqual(inputs[0].patch.responses[0].claimIds, f.annotation.responses[0].claimIds);
+  assert.deepEqual(inputs[0].patch.responses[0].support, f.annotation.responses[0].support);
+  assert.equal(f.annotation.responses[0].outcome, 'refusal');
+});
+
+test('#89 AC-09 scope review has its own queue and controlled values without AI-role conflation', async () => {
+  const f = reviewFixture(), opened = [];
+  f.corpus.categorizations.push({ ...structuredClone(f.corpus.categorizations[0]),
+    id: 'synthetic-telemetry-scope', dimension: 'telemetry_scope', value: 'Endpoint telemetry' });
+  const model = createModel(f.corpus);
+  model.itemReview = f.snapshot();
+  const category = f.corpus.categorizations.find(c => c.dimension === 'telemetry_scope');
+  const cards = renderExploration(new FakeDocument(), model, 'telemetry', {}, () => {}, category.id, undefined, '', (...args) => opened.push(args));
+  await button(cards, 'Review telemetry scope').trigger('click');
+  assert.deepEqual(opened[0], [f.corpus.cases[0].id, '', 'All', 'telemetry-scope']);
+  const view = reviewView(f, `categorizations:${category.id}`, () => {}, { category: 'telemetry-scope' });
+  const select = descendants(descendants(view).find(n => n.tagName === 'LABEL' && n.textContent.startsWith('Telemetry scope'))).find(n => n.tagName === 'SELECT');
+  assert.ok(select.children.some(n => n.textContent === 'Cloud control-plane audit'));
+  assert.ok(!select.children.some(n => n.textContent === 'Victim-side agent abuse'));
+  assert.match(view.textContent, /does not establish available logs/);
+});
+
+test('#89 AC-06 campaign category review navigation selects its own queue and exposes a value correction dropdown', async () => {
+  const f = reviewFixture(), m = createModel(f.corpus), opened = [];
+  m.itemReview = { ...f.snapshot(), campaigns: {}, sources: {} };
+  const cards = renderCaseLibrary(new FakeDocument(), m, f.corpus.cases, () => {}, {}, (...args) => opened.push(args));
+  await button(cards, 'Review campaign categories').trigger('click');
+  assert.deepEqual(opened[0], [f.corpus.cases[0].id, '', 'All', 'campaigns']);
+  const category = f.corpus.categorizations.find(c => c.dimension === 'ai_involvement' && c.value === 'Victim-side agent abuse');
+  const view = reviewView(f, `categorizations:${category.id}`, () => {}, { category: 'campaigns' });
+  const label = descendants(view).find(n => n.tagName === 'LABEL' && n.textContent.startsWith('Campaign category'));
+  assert.ok(label);
+  const select = descendants(label).find(n => n.tagName === 'SELECT');
+  assert.ok(select.children.some(n => n.textContent === 'Attacker-side AI use'));
+  assert.match(view.textContent, /Save changes \(not acceptance\)/);
+});
+
 const fresh = () => structuredClone(fixture);
 const model = () => createModel(fresh());
 
@@ -119,7 +681,7 @@ test('AI libraries retain exact prompt variants, scope, provenance, navigation a
   const calls = [], root = renderExploration(new FakeDocument(), m, 'prompts', {}, (...args) => calls.push(args), 'prompts-prompt-c');
   assert.doesNotMatch(root.textContent, /Unknown target/);
   assert.match(root.textContent, /Vendor example/);
-  assert.doesNotMatch(root.textContent, /artifactUsage:/);
+  assert.doesNotMatch(visibleText(root), /artifactUsage:/);
   assert.ok(descendants(root).some(n => n.getAttribute?.('aria-label') === 'Source artifact: Vendor example'));
   assert.match(root.textContent, /synthetic prompt 😀/);
   const sourceButton = descendants(root).find(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Source:'));
@@ -198,7 +760,9 @@ test('research library cards link directly supported behaviors without needing a
   const cards = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], (...args) => calls.push(args));
   assert.match(cards.textContent, /Research library/);
   assert.match(cards.textContent, /Direct source behavior/);
-  assert.match(cards.textContent, /Campaigns \/ cases/);
+  const context = descendants(cards).find(n => n.className?.includes('card-context'));
+  assert.match(context.textContent, /Campaign: Synthetic exercise A/);
+  assert.match(context.textContent, /Campaign: Synthetic exercise B/);
   await button(cards, 'Direct source behavior').trigger('click');
   assert.deepEqual(calls, [['behaviors', 'direct-behavior']]);
   const scoped = renderResearchLibrary(new FakeDocument(), m, [corpus.sources[0]], () => {}, { cases: ['synthetic-case-a'] });
@@ -580,7 +1144,10 @@ test('Issue #25 AC-01/04 comparison controls, reset, empty states, crosslinks an
   const { doc, app, content, requests } = await mounted(corpus, '#comparison');
   assert.match(content.textContent, /Observations within the collected dataset/);
   assert.match(doc.getElementById('result').textContent, /2 distinct cases · 2 distinct linked sources.*4 matching claims/);
-  assert.match(doc.getElementById('result').textContent, /Review coverage: 0\/4.*not current eligibility.*Active filters: none.*SHA-256 [a-f0-9]{64}/);
+  assert.match(doc.getElementById('result').textContent, /Review coverage: 0\/4.*not current eligibility.*Active filters: none/);
+  assert.doesNotMatch(doc.getElementById('result').textContent, /SHA-256/);
+  assert.match(content.textContent, /Loaded JSON SHA-256: [a-f0-9]{64}/);
+  assert.doesNotMatch(visibleText(content), /Loaded JSON SHA-256/);
   const facets = doc.getElementById('facets');
   const ai = facets.children.find(n => n.firstChild.textContent.startsWith('AI involvement'));
   const checkboxes = descendants(ai).filter(n => n.tagName === 'INPUT');
@@ -602,7 +1169,7 @@ test('Issue #25 AC-01/04 comparison controls, reset, empty states, crosslinks an
   await button(content, 'Reset search').trigger('click');
   await button(content, 'Source:').trigger('click');
   assert.equal(doc.getElementById('content').focused, true);
-  assert.equal(doc.getElementById('facets').children.length, 5);
+  assert.equal(doc.getElementById('facets').children.length, FACETS.length);
   app.navigate('comparison');
   assert.equal(parseRoute('#comparison').view, 'comparison');
   assert.equal(JSON.stringify(corpus), before);
@@ -754,7 +1321,7 @@ test('Issue #51 follow-up campaign cards keep claim details in the workspace and
   assert.doesNotMatch(cases.textContent, /No concise campaign summary has been recorded/);
   assert.ok(descendants(cases).some(node => node.textContent === '◐ Wallet and secret-path inventory'));
   assert.doesNotMatch(cases.textContent, /Prompt-related claims/);
-  assert.ok(cases.textContent.indexOf('AI tools') < cases.textContent.indexOf('Behaviors'));
+  assert.deepEqual(descendants(cases).map(n => n.getAttribute?.('data-campaign-section')).filter(Boolean), CAMPAIGN_SECTIONS);
   assert.ok(descendants(cases).some(node => node.className === 'behavior-action-list'));
   const privateModel = model(), privateRecord = privateModel.corpus.cases[0];
   privateModel.annotations = [{
@@ -766,7 +1333,7 @@ test('Issue #51 follow-up campaign cards keep claim details in the workspace and
   }];
   const privateCalls = [], privateCard = renderCaseLibrary(new FakeDocument(), privateModel,
     privateModel.corpus.cases, (...args) => privateCalls.push(args));
-  assert.ok(privateCard.textContent.indexOf('Prompts') < privateCard.textContent.indexOf('Behaviors'));
+  assert.deepEqual(descendants(privateCard).map(n => n.getAttribute?.('data-campaign-section')).filter(Boolean).slice(0, 6), CAMPAIGN_SECTIONS);
   const promptLink = descendants(privateCard).find(node => node.tagName === 'BUTTON' && node.textContent === '□ Synthetic private prompt');
   assert.ok(promptLink);
   await promptLink.trigger('click');
@@ -776,7 +1343,12 @@ test('Issue #51 follow-up campaign cards keep claim details in the workspace and
     .some(claim => cases.textContent.includes(claim.description)));
   assert.doesNotMatch(cases.textContent, /published research/);
   const library = renderResearchLibrary(new FakeDocument(), publicModel, publicModel.corpus.sources, () => {});
-  assert.equal(descendants(library).filter(node => node.className?.includes('blog-card')).length, 4);
+  const articleCards = descendants(library).filter(node => node.className?.includes('blog-card'));
+  assert.equal(articleCards.length, 6);
+  for (const publisher of ['StepSecurity', 'Semgrep', 'Panther']) {
+    assert.equal(articleCards.filter(card => descendants(card)
+      .some(node => node.className === 'chip publisher-tag' && node.textContent === publisher)).length, 1);
+  }
   assert.doesNotMatch(library.textContent, /MITRE ATT&CK|MITRE ATLAS/);
   assert.equal(descendants(library).filter(node => node.tagName === 'A').length, 0);
 });
@@ -786,8 +1358,13 @@ test('Issue #51 follow-up public prompt library renders exact variants with sour
   const before = digest(document), publicModel = publicDraftModel(document), calls = [];
   const entries = aiLibrary(publicModel, 'prompts');
   assert.equal(entries.length, 2);
-  assert.equal(entries.flatMap(entry => entry.annotations).length, 3);
+  assert.equal(entries.flatMap(entry => entry.annotations).length, 4);
   const page = renderExploration(new FakeDocument(), publicModel, 'prompts', {}, (...args) => calls.push(args));
+  const mode = descendants(page).find(n => n.tagName === 'SELECT' && n.getAttribute('aria-label') === 'Prompt view');
+  assert.equal(mode.value, 'paired');
+  assert.equal(descendants(page).filter(node => node.className === 'artifact-value').length, 1);
+  assert.equal(descendants(page).filter(node => node.className?.includes('response-value')).length, 1);
+  mode.value = 'all'; await mode.trigger('change');
   assert.match(page.textContent, /Exact vendor-reported prompts for research/);
   assert.match(page.textContent, /No prompt is executed/);
   assert.doesNotMatch(page.textContent, /Source-reported prompt activity|Full prompt text remains withheld|Inspect cited claim/);
@@ -802,14 +1379,16 @@ test('Issue #51 follow-up public prompt library renders exact variants with sour
     assert.equal([...annotation.value].length, prompt.locator.end - prompt.locator.start);
   }
   const sourceButtons = descendants(page).filter(node => node.tagName === 'BUTTON' && node.textContent.startsWith('Source:'));
-  assert.equal(sourceButtons.length, 3);
+  assert.equal(sourceButtons.length, 4);
   await sourceButtons[0].trigger('click');
   assert.deepEqual(calls[0], ['sources', document.prompts[0].sourceId, document.prompts[0].sourceRevisionId]);
   const socket = renderExploration(new FakeDocument(), publicModel, 'prompts', { sources: [document.prompts[1].sourceId] }, () => {});
+  const socketMode = descendants(socket).find(n => n.tagName === 'SELECT' && n.getAttribute('aria-label') === 'Prompt view');
+  socketMode.value = 'all'; await socketMode.trigger('change');
   assert.equal(descendants(socket).filter(node => node.className === 'artifact-value').length, 2);
   const wizId = document.sourceCoverage.find(source => source.url.includes('wiz.io')).sourceId;
   const wiz = renderExploration(new FakeDocument(), publicModel, 'prompts', { sources: [wizId] }, () => {});
-  assert.match(wiz.textContent, /No grounded entries/);
+  assert.match(wiz.textContent, /No published prompt\/response pairs/);
   assert.equal(descendants(wiz).filter(node => node.className === 'artifact-value').length, 0);
   assert.equal(digest(document), before);
 });
@@ -832,6 +1411,8 @@ test('Issue #51 public prompt projection rejects missing support, invalid locato
   ]) {
     const invalid = structuredClone(document);
     alter(invalid.prompts[0]);
+    invalid.coverage.promptArtifacts.prompts = structuredClone(invalid.prompts);
+    invalid.coverage.promptArtifactDigest = digest(invalid.coverage.promptArtifacts);
     assert.throws(() => publicDraftModel(invalid), /Invalid public Pending draft projection/);
   }
   const duplicate = structuredClone(document);
@@ -841,11 +1422,19 @@ test('Issue #51 public prompt projection rejects missing support, invalid locato
   gap.records.find(row => row.entity.id === 'campaign-passage-5ac9b8203bba17601a5b64b945abe6213a4f3d93efebd062f5d80f7a085d7611').entity.start += 1;
   assert.throws(() => publicDraftModel(gap), /Invalid public/);
   const legacy = structuredClone(document); delete legacy.prompts;
+  delete legacy.coverage.promptArtifacts; delete legacy.coverage.promptArtifactDigest;
+  delete legacy.coverage.researchPresentation; delete legacy.coverage.researchPresentationDigest;
   assert.equal(aiLibrary(publicDraftModel(legacy), 'prompts').length, 0);
   const synthetic = structuredClone(document);
   synthetic.prompts = [{ ...synthetic.prompts[1], literal: '<script>synthetic artifact</script> \n',
     locator: { start: 4163, end: 4163 + '<script>synthetic artifact</script> \n'.length } }];
-  const page = renderExploration(new FakeDocument(), publicDraftModel(synthetic), 'prompts', {}, () => {});
+  synthetic.coverage.promptArtifacts.prompts = structuredClone(synthetic.prompts);
+  synthetic.coverage.promptArtifactDigest = digest(synthetic.coverage.promptArtifacts);
+  delete synthetic.coverage.researchPresentation; delete synthetic.coverage.researchPresentationDigest;
+  const projected = publicDraftModel(synthetic);
+  synthetic.coverage.researchPresentation = projected.presentation;
+  synthetic.coverage.researchPresentationDigest = digest(projected.presentation);
+  const page = renderExploration(new FakeDocument(), publicDraftModel(synthetic), 'prompts', {}, () => {}, `prompts-${synthetic.prompts[0].id}`);
   assert.equal(descendants(page).find(node => node.className === 'artifact-value').textContent, synthetic.prompts[0].literal);
   assert.equal(descendants(page).filter(node => node.tagName === 'SCRIPT').length, 0);
 });
@@ -1136,6 +1725,10 @@ class FakeDocument {
   getElementById(id) { return this.nodes.get(id); }
 }
 function descendants(node) { return [node, ...node.children.flatMap(descendants)]; }
+function visibleText(node) {
+  if (node.tagName === 'DETAILS' && !node.open) return node.children.find(c => c.tagName === 'SUMMARY')?.textContent ?? '';
+  return node.children.length ? node.children.map(visibleText).join('') : node.textContent;
+}
 function button(node, label) { return descendants(node).find(n => n.tagName === 'BUTTON' && n.textContent.includes(label)); }
 function fakeWindow(hash = '') {
   const win = { location: { hash }, listeners: {}, addEventListener(name, fn) { this.listeners[name] = fn; } };
@@ -1757,7 +2350,7 @@ test('crosslink resets hiding filters, exposes exact target and moves keyboard f
   app.navigate('claims', 'synthetic-claim-b');
   assert.equal(doc.getElementById('search').value, '');
   assert.equal(win.location.hash, '#claims/synthetic-claim-b/');
-  assert.match(doc.getElementById('status').textContent, /reset search \/ facets/);
+  assert.doesNotMatch(doc.getElementById('status').textContent, /Navigation revealed|reset search \/ facets/);
   assert.match(content.textContent, /A second synthetic source denies/);
   assert.equal(content.focused, true);
 });
@@ -1962,6 +2555,22 @@ test('Issue #31 AC-02 generated extraction JSON applies to the existing CLI cont
   assert.ok(!JSON.stringify(exported).includes('candidateTechniques'));
 });
 
+test('#89 AC-06 curator proposals persist rule-derived categories separately from human-entered claim provenance', async () => {
+  const input = JSON.parse(await readFile(new URL('./fixtures/extraction/studio-input.json', import.meta.url), 'utf8'));
+  input.text = 'The malicious payload attempted to invoke authenticated Claude for victim reconnaissance.';
+  const state = createStudio(emptyCorpus()), revision = await pasteArticle(state, input);
+  const record = addStudioCase(state, 'Synthetic role classification; not incident evidence', 'Research exercise');
+  choosePassage(state, 0, [...revision.normalizedContent].length);
+  const draft = saveDraft(state, { ...claimInput(), caseId: record.id, description: input.text, evidenceStatus: 'Attempted behavior' });
+  const proposal = await corpusProposal(state);
+  assertValid(proposal);
+  const category = proposal.categorizations.find(c => c.origin === 'Deterministic rule');
+  assert.ok(category); assert.equal(category.value, 'Victim-side agent abuse');
+  assert.deepEqual(category.supportingClaimIds, [draft.id]); assert.equal(category.disposition, 'Pending');
+  assert.equal(proposal.claims.find(c => c.id === draft.id).origin, 'Human source paraphrase');
+  assert.equal(state.base.categorizations.length, 0);
+});
+
 test('Issue #31 AC-02 pasted fixture generates a standalone schema-valid private proposal', async () => {
   const input = JSON.parse(await readFile(new URL('./fixtures/extraction/studio-input.json', import.meta.url), 'utf8'));
   const state = createStudio(emptyCorpus()), before = canonicalSerialize(state.base);
@@ -2130,11 +2739,12 @@ test('official wide wordmark has its native aspect ratio, accessible brand name 
   const brand = html.match(/<a class="brand"[^>]*>(.*?)<\/a>/s)?.[1];
   assert.ok(brand);
   assert.match(brand, /alt="DevEnvThreatCorpus"/);
-  assert.match(brand, /width="360" height="80"/);
+  assert.match(brand, /width="540" height="120"/);
   assert.ok(!brand.includes('<span') && !brand.includes('<small'));
   const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /\.brand img\{[^}]*width:100%;height:auto/);
-  assert.match(css, /\.brand\{[^}]*width:300px/);
+  assert.match(css, /\.brand\{[^}]*width:540px/);
+  assert.match(css, /@media\(max-width:700px\)\{\.brand\{width:420px/);
 });
 
 test('Issue #39 AC-01 web batch controls validate explicit HTTPS inputs, campaign choice, operator and maximum 20', () => {

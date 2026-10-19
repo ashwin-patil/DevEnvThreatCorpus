@@ -1,5 +1,146 @@
 # Changelog
 
+## 2026-10-18 - Group object campaign and category associations (#89)
+
+- Replace top campaign/category rows in Prompt library, Security telemetry and
+  Attack paths with named Campaigns tagged and Categories sections, including
+  telemetry proposals and source annotations. Suppress redundant context headers
+  on embedded occurrences, claims and path-mapping evidence in these views.
+- Reuse the existing category review/basis and campaign navigation controls;
+  deduplicate multiple associated campaigns/categories and honor case/source
+  filters without merging canonical objects, evidence, attribution or review state.
+  Keep existing type colors, prompt formatting and public JSON/ZIP unchanged.
+- Reconcile the Nx usage notes and capability summary with the final section
+  placement, per-type fills, shaded literals and responsive title/logo behavior;
+  earlier uniform-fill/top-context descriptions below are historical, not the
+  current UI contract.
+
+## 2026-10-18 - Restore research type colors and simplify review labels (#89)
+
+- Correct the previous uniform-background interpretation: use a distinct reusable
+  light/dark fill for each research link type across cards, retain semantic usage
+  and review colors, and restore shaded preformatted prompt/response blocks.
+- Keep workspace navigation immediately beside the campaign name in a full-width
+  campaign card rather than aligned beneath the right-hand category. Move blog
+  publisher links below article titles, leaving campaign/category context on top.
+- Display Pending without scope/context suffixes; keep context basis, mixed
+  underlying review states and exact source support in tooltips/provenance, not
+  new review values. Canonical data, public artifacts and HITL decisions stay intact.
+
+## 2026-10-18 - Consistent research cards and consolidated AI products (#89)
+
+This intermediate styling was superseded by the newer type-color and association
+section entries above; product consolidation, catalog filtering and provenance
+preservation remain current.
+
+- Unify ordinary research card, text and tag backgrounds across light/dark views,
+  preserving explicit usage/review labels and exceptional trust/highlight cues.
+  Put clickable campaign/category context at card tops, move workspace navigation
+  beside the campaign title without toggling its disclosure, and enlarge the
+  proportional wordmark responsively without replacing the brand assets.
+- Show campaign-level role context on associated blogs lacking local category
+  support, explicitly marked as context rather than new evidence. Keep local
+  review states separate from inherited context, including multi-case aliases.
+  Remove official catalog records from research source/publisher lists and
+  counts while retaining reference pages and direct provenance access.
+- Consolidate each existing AI-product identity into one card with deduplicated
+  publisher/usage/claim links, grouped related research and collapsed source-local
+  receipts; remove sibling-tool links from product-related research. Telemetry
+  shows campaign/category boxes, publisher links and explicit behavior support,
+  without tool/graph links. Preserve canonical artifacts, identities, prompt
+  pairing, filters, review decisions and the persisted public view/ZIP unchanged.
+
+## 2026-10-18 - Persisted public research view and aligned campaign cards (#89)
+
+- Archive the exact pre-format public JSON/ZIP with fixed SHA-256 checks and
+  restoration instructions. Persist generated `public-research-view/1` counts,
+  reader defaults and explicit relationship descriptors identically in current
+  JSON coverage and ZIP manifest coverage, with a separate canonical digest.
+  Reject stale/forged view metadata and retain legacy-reader compatibility;
+  canonical rows, exact prompts, responses and other ZIP payloads are unchanged.
+- Order campaign sections as sources, attack flow, behaviors, AI artifacts,
+  telemetry and collapsed evidence/review. Move projection/limits prose out of
+  the concise summary; count blogs, AI tools and target/abuse-linked products,
+  prompt variants/occurrences/responses, supported behaviors and graph/phases.
+  Use bordered, review-colored behavior tiles rather than bare links, including
+  the behavior inventory, without changing destinations or review decisions.
+
+## 2026-10-18 - Compact research display and bidirectional evidence navigation (#89)
+
+- Default the prompt library to complete published exchanges, with an explicit
+  All prompts view and direct access to prompt-only variants. Remove missing-response
+  filler; consolidate response attribution and uncertainty into one summary.
+  Retain raw receipts, model/role unknowns and tracking IDs in collapsed provenance,
+  and centralize encoding/interpretation conventions in Trust & method.
+- Replace exhaustive campaign/blog scope evidence with Log Collection/Telemetry
+  Scope tags and compact citation counts. Tags open source-filtered family details
+  and their existing review queue in Security telemetry; no operational events,
+  detection rules or OTLP artifacts are generated.
+- Derive one bidirectional relationship index from explicit support for claims,
+  behaviors, paths, scope/category proposals, mappings and source artifacts.
+  Preserve source/case/revision boundaries, direct targets and existing graph-return
+  context. Public corpus rows, exact prompt/response artifacts and ZIP are unchanged;
+  these navigation changes do not accept research or establish semantic gold.
+
+## 2026-10-18 - Source-local prompt responses and enterprise telemetry scope (#89)
+
+- Attach the user-supplied Semgrep refusal to its existing exact prompt occurrence,
+  preserving two prompt groups/four occurrences. Record JSON-token versus decoded
+  content, full response/context hash receipts, explicit unknown model/role and
+  source-reported log review with unspecified environment. Keep other publishers'
+  unpaired/aggregate outcome claims distinct; a separate malware test is not an
+  AI-response reproduction or proof of compromised-host transcript provenance.
+- Add Pending deterministic enterprise collection-scope families, their limitations,
+  source/claim filters and separate HITL queue. The public example adds 63
+  source-local scope proposals (308 typed rows); no cloud/identity tags are inferred
+  merely from stolen credentials, and no event/detection/OTLP artifacts are added.
+- Place role badges top-right opposite Campaign/publisher and render only each
+  blog's supported role/scope categories, with evidence links. Add guide v4,
+  response dependency/staleness/hash checks, nested outcome/context corrections
+  and private Markdown/JSON talk exports. Preserve private response-content
+  omission in reviewed exports and public JSON/ZIP prompt-artifact parity.
+
+## 2026-10-18 - Reviewable campaign categories and complete ATT&CK reference (#89)
+
+- Add overlapping campaign-card categories for victim-side agent abuse,
+  attacker-side AI use, AI review targeting and developer-targeted social
+  engineering. Show review state, source-local evidence and category filters;
+  classify individual linked claim sentences conservatively during manual,
+  campaign/staged and curator proposal application. Preserve deterministic
+  origin separately from LLM claim provenance; never infer a negative from no match.
+- Add four Pending Nx category assertions (245 typed rows, 97 unchanged claims)
+  supporting one victim-side badge. Route categories into the existing item-level
+  HITL queue with correction, exclusion, deferral and separate acceptance; guide
+  v3 preserves historical v1/v2 events and does not approve unavailable evidence.
+- Replace the T1059-only ATT&CK projection with 697 active Enterprise 19.2
+  techniques/subtechniques from the original verified immutable material.
+  Retain upstream notices and inventory 149 revoked/12 deprecated exclusions.
+  Pin LF checkout for this generated asset and frozen request fixture on Windows, preserving strict
+  byte-for-byte reproducibility without relaxing snapshot checks.
+  Keep the current reference separate from historical extraction snapshots and
+  leave incident mappings unchanged. Minimize optional adapter catalogue transport
+  to complete IDs/names and pins without increasing byte/token limits.
+- Add extraction/abstention/role separation, source scope, HITL dependency,
+  catalogue integrity, historical replay and UI regressions. Category matching
+  is not exhaustive semantic extraction, successful abuse, human review or gold.
+
+## 2026-10-18 - Publisher-grounded Pending Nx source expansion (#89)
+
+- Expand the actual public Pending Nx dataset with separate Semgrep and Panther
+  articles and precise StepSecurity extraction, including targeted filenames,
+  credential roles, attempted shutdown conditions and source-specific differences.
+  Add 59 Pending claims (97 total), retain 14 behavior definitions with distinct
+  source support, and add Semgrep's occurrence of the existing exact prompt.
+  Parse all six successful report URLs; matching normalized hashes preserve the
+  four historical report revisions, original claims, paths and mappings.
+- Recognize Semgrep and Panther publisher labels without merging their sources.
+  Keep shared behavior definitions with source-local claim occurrences, align
+  the public JSON and typed ZIP, and add baseline/linkage/privacy/export tests.
+- Replace the earlier checked-in planning document with execution in the same PR.
+  Full article bodies and supporting quotations remain withheld; new research
+  stays Pending. Complete parsing does not establish exhaustive extraction,
+  completed HITL, gold, detection effectiveness or OTLP/replay implementation.
+
 ## 2026-10-17 - Optional public-research model adapter (#83)
 
 - Add disabled-by-default, CLI-only OpenAI Responses generation using the

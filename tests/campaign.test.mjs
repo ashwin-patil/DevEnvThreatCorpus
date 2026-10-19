@@ -79,10 +79,23 @@ function groundedCandidate(request) {
 async function historicalBaseline() {
   const corpus = await fixture();
   const legacy = JSON.parse(await readFile(new URL('./fixtures/benign/campaign-run-v1.json', import.meta.url), 'utf8'));
-  const { requestHash, ...body } = prepareCampaign(corpus, { caseId: 'synthetic-case-a', chunkPolicy: 'fixed-code-points/1' });
-  body.extractionVersion = 'campaign-extraction/1';
-  const request = { ...body, requestHash: digest(body) };
+  // Restored from legacy.baselineSha and checked against the unchanged request
+  // and run hashes below. Never regenerate historical bytes with today's pins,
+  // sorted catalogue membership, candidate guide, or request preparation code.
+  const requestBytes = await readFile(new URL('./fixtures/benign/campaign-request-v1.json', import.meta.url));
+  assert.equal(sha256(requestBytes), 'fa67503ce3c362f65229467487edc3df641cfc21aebd11ee73eb8b87443e4df1');
+  const request = JSON.parse(requestBytes);
+  const { requestHash, ...body } = request;
+  assert.equal(digest(body), requestHash);
+  assert.equal(request.extractionVersion, 'campaign-extraction/1');
   assert.equal(request.requestHash, legacy.candidate.requestHash);
+  const { resolverVersion, catalogs, digest: catalogDigest } = request.catalogSnapshot;
+  assert.equal(catalogDigest, '3aadd83da2ca062d1027f9dbef1e4fa8cc8f259eb1f755bfef8dc0faee0bd220');
+  assert.equal(digest({ resolverVersion, catalogs }), catalogDigest);
+  assert.deepEqual(catalogs.find(c => c.framework === 'ATT&CK').techniques, [{
+    id: 'T1059', name: 'Command and Scripting Interpreter',
+    url: 'https://attack.mitre.org/techniques/T1059/',
+  }]);
   const run = { ...legacy.run, catalogSnapshot: request.catalogSnapshot,
     inputs: request.inputs.map(({ segments, ...input }) => input) };
   const { envelopeHash, ...runBody } = run;
@@ -130,14 +143,17 @@ test('#84 AC-01/02/07 current request and snapshot versioning binds chunks and r
 
 test('#84 AC-07 immutable historical v1 request fixture replays without changing its identities', async () => {
   const { corpus, legacy, request } = await historicalBaseline();
-  const before = canonicalSerialize(corpus);
+  const before = canonicalSerialize(corpus), requestBefore = canonicalSerialize(request);
   assert.equal(applyCampaign(corpus, request, legacy.candidate).replay, true);
   assert.equal(canonicalSerialize(corpus), before);
+  assert.equal(canonicalSerialize(request), requestBefore);
 });
 
 test('#84 AC-07 regeneration requires current segment IDs while preserving historical proposals', async () => {
   const { corpus, legacy, run } = await historicalBaseline(), frozen = canonicalSerialize(run);
   const request = prepareCampaign(corpus, { caseId: 'synthetic-case-a' });
+  assert.equal(request.catalogSnapshot.catalogs.find(c => c.framework === 'ATT&CK').techniques.length, 697);
+  assert.notEqual(request.catalogSnapshot.digest, run.catalogSnapshot.digest);
   const next = { ...structuredClone(legacy.candidate), requestHash: request.requestHash };
   assert.deepEqual(next.claims, []);
   assert.throws(() => validateCampaignCandidate(corpus, request, next), /INVALID_COVERAGE/);

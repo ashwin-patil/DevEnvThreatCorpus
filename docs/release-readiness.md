@@ -5,6 +5,11 @@ checked; independent editorial/research, visual/accessibility, rights, live
 Codespaces and repository-owner decisions remain outstanding. This agent audit
 is not independent approval, legal clearance or a secret-free-history guarantee.
 
+**Later public-data expansion - #89:** original counts, hashes and source
+inventory below are historical audit evidence. The current Pending snapshot adds
+Semgrep and Panther with separate publisher identities; see [current coverage](nx-corpus.md#public-source-expansion---issue-89).
+This does not close any research, rights, release or human-review finding.
+
 ## Post-audit source boundary — Issue #73
 
 The dated #64 results below remain historical and do **not** validate the new

@@ -5,6 +5,12 @@ Status: reviewable preparation, **not approved for publication**. Origin:
 The [readiness audit](release-readiness.md) remains authoritative for outstanding
 owner decisions. Preparing a preview does not close those decisions.
 
+**Later public-data expansion - #89:** the counts, ZIP hash and quoted candidate
+description below describe the historical preparation, not the expanded current
+artifact. See [current Nx coverage](nx-corpus.md#public-source-expansion---issue-89).
+Recompute all release hashes/results on the selected release revision; neither
+the new source extraction nor this historical proposal authorizes publication.
+
 **Later source-boundary update — #73:** the original #71 preparation base and
 results below are historical, not validation of the post-handoff-removal
 candidate. [PR #74](https://github.com/ashwin-patil/DevEnvThreatCorpus/pull/74)

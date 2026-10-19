@@ -6,6 +6,7 @@ import { benignChunkReport } from '../src/chunks.mjs';
 import { runAdapter } from '../src/model-adapter.mjs';
 import { runStage } from '../src/stages.mjs';
 import { runComparison } from '../src/stage-comparison.mjs';
+import { applyCampaignCategories } from '../src/campaign-categories.mjs';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
 } from './contract.mjs';
@@ -102,6 +103,7 @@ export function applyExtraction(corpus, template, suppliedBy, templateText) {
     if (!parent.sourceIds.includes(claim.sourceId)) parent.sourceIds.push(claim.sourceId);
     corpus.sources.find(record => record.id === claim.sourceId).extractionStatus = 'Extracted';
   }
+  applyCampaignCategories(corpus, claims.map(c => c.id));
 
   const sourceIds = identifiers(claims.map(claim => claim.sourceId));
   const revisionIds = identifiers(claims.map(claim => claim.sourceRevisionId));

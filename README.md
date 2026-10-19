@@ -23,6 +23,45 @@ what remains uncertain, and what would a defender need to investigate?**
 > **Research preview** · Explore the workbench and its source-linked Pending draft.
 > Read [coverage and review limits](docs/nx-corpus.md) before interpreting the examples.
 
+Campaign cards put AI-role badges at top-right; **Log Collection/Telemetry Scope**
+tags open supporting claims in **Security telemetry**, rather than expanding
+evidence on each campaign/blog card. Research library blogs keep source-supported
+tags distinct from campaign context in their tooltip/provenance when a role has
+not been independently extracted for that blog. Visible unreviewed badges say
+**Pending**, without scope/context suffixes. Claims link back to explicitly
+supported research objects.
+**Prompt library** defaults to published prompt/response pairs; select **All
+prompts** for prompt-only occurrences. Semgrep's refusal has one concise log-review
+context summary; unknown model/role, pairing details and exact receipts remain
+under **Technical provenance**. Shared reading conventions live in **Trust & method**.
+No transcript is executed; scope tags do not promise available logs, and public
+display does not record HITL acceptance. [Review boundaries](docs/methodology.md#enterprise-telemetry-collection-scope)
+explain the terminology and remaining human decisions.
+
+Campaign headers count linked blogs, AI tools, exact prompt variants/occurrences
+and responses, supported behaviors and graph/phases. Sections follow sources,
+attack flow, boxed behaviors, AI artifacts and telemetry; provenance and review
+sit in a final collapsed panel. Current public JSON and ZIP share a generated
+`public-research-view/1` projection (counts, defaults and explicit relationships).
+The previous exact pair and restore instructions are in the
+[public snapshot archive](docs/data/archive/README.md); canonical research records
+and prompt-only occurrences are preserved, not replaced by a filtered display.
+
+Research links use a consistent color per content type across cards in both
+themes: campaign, role category, publisher, attack flow, behavior, AI tool, prompt
+and telemetry. Literal prompts/responses retain shaded, preformatted blocks.
+Blog publisher links sit below article titles; only campaign/category context
+occupies their top row. **Prompt library**, **Security telemetry** and **Attack
+paths** instead list associations under **Campaigns tagged** and **Categories**,
+not a top badge row. Shared objects can show multiple linked campaigns without
+merging their evidence or attribution. Usage and human-review labels remain explicit.
+**Open campaign workspace** sits beside the campaign name. **AI tools** has one
+card per existing product identity with grouped claims/research and expandable
+source-local occurrence receipts, not repeated source cards or sibling-tool links.
+**Security telemetry** links campaigns, blog publishers and explicitly supported
+behaviors, not unrelated tools/graphs. Source/publisher filters list research
+articles only; official ATT&CK/ATLAS references remain in **ATLAS & TTPs**.
+
 ### On this page
 
 - [Vision and audiences](#vision-and-audiences)
@@ -96,16 +135,36 @@ and limits; the process does not imply completed research acceptance.
 - Record local item-level human decisions and produce reproducible reviewed/draft
   exports with read-only queries, subject to current eligibility checks.
 
+### Campaign categories and framework references
+
+Campaign cards show overlapping high-level **Victim-side agent abuse**,
+**Attacker-side AI use**, **AI review targeting**, and **Developer-targeted social
+engineering** categories when supported. Expand **Category evidence & review**
+for source-local claim links; use the **Campaign categories** facet to filter.
+Conservative deterministic rules propose Pending labels during claim application;
+absence of a match is unclassified, never "no AI". Nx currently has four
+source-local proposals for victim-side agent abuse, shown as one campaign badge.
+These are research labels, not official MITRE technique IDs or success findings.
+
+**ATLAS & TTPs → Mapping and catalog coverage** includes a searchable offline
+ATT&CK Enterprise 19.2 reference: **697 active techniques/subtechniques** from the
+existing immutable pin, rather than the earlier T1059-only projection. Revoked
+and deprecated entries are inventoried but excluded. Current reference expansion
+does not add incident mappings or rewrite historical extraction snapshots.
+The catalogue asset and frozen historical request fixture have scoped LF checkout
+rules in `src/.gitattributes` and `tests/fixtures/benign/.gitattributes`, so Windows
+Git newline conversion does not change their reproducible bytes.
+
 ### Private local review
 
 Start `node scripts/server.mjs --store /absolute/private/store` on POSIX (store
 directory `0700`, `corpus.json` `0600`; inside this clone use ignored
-`.private-intake/`). Open **Review**: grounded AI/coding tools, behaviors/occurrences
-and prompt literals are the first-class category queues; blog grouping remains
+`.private-intake/`). Open **Review**: campaign categories, grounded AI/coding tools,
+behaviors/occurrences and prompt literals are the first-class category queues; blog grouping remains
 available over the same stable items/decisions. Claims are supporting evidence,
 accessible separately with exceptions and later-pass records, never deleted.
 Set your self-attested identity once per tab/session, visibly editable (not
-authenticated). Use the [researcher-review/2 guide](docs/researcher-review-guide.md):
+authenticated). Use the [researcher-review/3 guide](docs/researcher-review-guide.md):
 read the compact candidate, evidence/citation and category checklist, then choose
 **Accept item — I confirm** as one explicit personal attestation. Review each
 required support item separately; accepting a candidate never approves a claim.
@@ -155,7 +214,7 @@ or exposing the unreviewed summary; context rows have `contextOnly: true` and no
 acceptance. Generated profile schema covers accepted optional/nested units.
 they are projections, not importable private audit backups. Existing draft and
 private campaign/talk exports keep their explicit private-draft semantics.
-No button publishes; the bundled Nx/s1ngularity preview snapshot is unchanged.
+No button publishes or mutates the bundled Nx/s1ngularity preview snapshot.
 Independent human semantic, UX/accessibility and documentation review is still
 required before merge; this feature does not establish campaign acceptance.
 
@@ -167,9 +226,14 @@ independently validated incident corpus. Implemented validation, review and expo
 mechanisms do not establish research truth or evaluated extraction quality.
 
 The bundled **Nx / s1ngularity public Pending draft** is an inspectable example,
-not a reviewed release or semantic gold. It contains 38 claims, 14 behaviors,
-three representative phase paths and two Proposed mappings from four retained
-reports. Full articles, other quotations and private run bundles are withheld;
+not a reviewed release or semantic gold. Its original baseline contained 38 claims,
+14 behaviors, three representative phase paths and two Proposed mappings.
+The expanded preview adds source-local Pending extraction from Semgrep
+and Panther plus precise StepSecurity targets and conditions, across six parsed
+reports. Publisher article cards stay separate within one Nx campaign. The
+current extraction totals 97 Pending claims; complete parsing does not establish
+exhaustive semantic extraction or completed HITL. Full articles,
+other quotations and private run bundles are withheld;
 the published prompt literals are source-attributed, untrusted research artifacts.
 See [coverage, omissions and review limits](docs/nx-corpus.md) and its
 [typed draft export](docs/data/nx-draft.zip).

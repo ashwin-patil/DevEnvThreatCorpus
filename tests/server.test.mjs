@@ -166,6 +166,21 @@ test('browser normalization helper is explicitly served without exposing private
   assert.equal((await request(port, '/src/campaign.mjs')).status, 404);
 });
 
+test('#89 AC-06 category browser dependency is allowlisted without exposing the catalogue importer or private campaign modules', async t => {
+  const port = await start(t);
+  const response = await request(port, '/src/campaign-categories.mjs');
+  assert.equal(response.status, 200);
+  assert.match(response.headers['content-type'], /javascript/);
+  assert.match(response.body, /campaign-category-rules\/1/);
+  const responseModule = await request(port, '/src/prompt-responses.mjs');
+  assert.equal(responseModule.status, 200);
+  assert.match(responseModule.headers['content-type'], /javascript/);
+  assert.match(responseModule.body, /prompt-response\/1/);
+  assert.equal((await request(port, '/src/import-attack-catalog.mjs')).status, 404);
+  assert.equal((await request(port, '/src/campaign.mjs')).status, 404);
+  assert.equal((await request(port, '/src/model-adapter.mjs')).status, 404);
+});
+
 test('Issue #79 AC-01/02 public preview loads real corpora from a working directory containing spaces, # and %', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'workbench path #%-'));
   t.after(() => rm(directory, { recursive: true, force: true }));

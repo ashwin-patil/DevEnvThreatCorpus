@@ -6,6 +6,168 @@ limits. This page owns the research distinctions; the linked architecture
 sections retain the exact CLI and data contracts. No historical prototype
 assertions are imported as accepted research.
 
+## Enterprise telemetry collection scope
+
+These overlapping **local navigation families** use recognizable enterprise
+collection terms, not exact official framework IDs or promised coverage.
+`telemetry-scope-rules/1` proposes Pending source-local categorizations from
+eligible bounded claim sentences; absence/negation, recommendations and inferred
+consequences do not establish positive scope. HITL can correct/exclude/defer and
+accept separately from the supporting claims. Blog/alias telemetry-scope groups
+display only categories supported by their own sources, never wholesale campaign
+inheritance. Role badges may additionally show campaign context where local role
+support is absent, identified in tooltips and provenance rather than a new visible
+review status. Unreviewed badges say **Pending**; a mixed-state group also remains
+Pending until resolved, with individual states retained in its tooltip and records.
+This is navigation context, not a new classification, source assertion or HITL
+outcome. Local category review states
+take precedence; other campaigns' contextual states are not mixed into them.
+
+Research links use one distinct existing theme fill per object type across views.
+Campaign/category, publisher, attack-flow, behavior, tool, prompt and telemetry
+links retain that type's color wherever rendered. Literal prompt/response blocks
+keep their shaded background, whitespace, line breaks, wrapping and monospace font.
+Usage and review labels/symbols remain readable independently of color; trust,
+errors, source-passage highlighting and active selection keep their semantic
+cues. A consolidated AI-product card groups the existing identity only: its
+source occurrences, literals, revisions, classifications, claims and review
+receipts remain separate under expandable provenance. Related research groups
+in Prompt library, Security telemetry and Attack paths show **Campaigns tagged**
+and **Categories** as named sections rather than a top context row; embedded
+occurrence/claim cards do not repeat that header. The sections deduplicate
+currently associated campaigns/categories and respect active case/source scope.
+Multiple campaign associations do not merge evidence, attack graphs or attribution.
+Other related research groups organize explicit support by object type; product
+views suppress sibling tools and
+telemetry views expose campaign/publisher context and claim-supported behaviors
+without graph/tool shortcuts. The full relationship index and claim-detail view
+retain their broader links. Catalog provenance is not a research article and is
+excluded from blog/publisher lists, not deleted from the corpus.
+
+| Family | Typical enterprise collection surface and limitation |
+|---|---|
+| Endpoint telemetry | EDR process/command-line and file activity; individual file reads need appropriate sensor/audit configuration. |
+| CI/CD audit | [Workflow/job/run logs](https://docs.github.com/en/actions/how-tos/monitor-workflows/use-workflow-run-logs), runner records; access, retention and instrumentation vary. |
+| Source-control audit | [Repository/organization audit](https://docs.github.com/en/organizations/keeping-your-organization-secure/managing-security-settings-for-your-organization/reviewing-the-audit-log-for-your-organization), permission, visibility and API changes; organization logs do not cover every personal-account action. |
+| Cloud control-plane audit | [CloudTrail management events](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-management-events-with-cloudtrail.html), Azure Activity, Google Cloud Audit Logs; local credential theft alone establishes no cloud API action. |
+| Identity & access logs | IdP sign-in, consent and token/session lifecycle audit where available; reading a local secret is not an IdP event. |
+| Network & DNS telemetry | Enterprise resolver, proxy, firewall and flow logs; do not assume TLS payload/file contents are visible. |
+| AI agent observability | Instrumented CLI/agent transcripts, model/tool-operation traces; [OpenTelemetry GenAI conventions](https://github.com/open-telemetry/semantic-conventions-genai/tree/main/docs/gen-ai) remain in Development and message content is sensitive/opt-in, not default universal enterprise telemetry. |
+| Package & build provenance | Registry publish/install metadata, dependency/build records and provenance attestations where collection is controlled; historical attestations may not exist. |
+
+Scope is distinct from the existing typed telemetry-event, detection and OTEL
+records. This refactor creates none of those records, event mappings or detection
+logic. A family badge means only that a source-linked behavior suggests examining
+that collection surface. Operational availability and effectiveness require later
+scoped work and executed evidence.
+
+Campaign/blog cards present **Log Collection/Telemetry Scope** tags with compact
+claim/article counts. A tag opens its family in Security telemetry, retaining the
+blog's source/alias context where applicable. The dedicated view exposes the
+supporting claims, receipts and private review entrypoint; it does not materialize
+new event or detection records.
+
+## Prompt responses and observation provenance
+
+An optional response is metadata on its exact prompt occurrence, not a separate
+prompt entry or an outcome shared across exact-prompt groups. Preserve literal
+encoding, full raw response/context receipts and source-local claim dependencies.
+The response artifact may cover more text than its associated atomic claim;
+never silently enlarge that claim's supporting passage. Private validation checks
+exact retained text/hashes; public projection checks shape/scope/receipts but
+cannot independently reverify withheld articles.
+
+Distinguish researcher-controlled testing, reported compromised-host evidence,
+source-reported log review with unspecified environment, illustration and unknown.
+An attacker saying “authorized testing” proves none of those environments. Nor
+does a separate malware runtime experiment locate an AI transcript. Keep unknown
+model/role explicit, and distinguish a local refusal from aggregate source-reported
+success elsewhere. Missing responses are not an outcome. Guide v4 binds these
+decisions to each prompt/response/support revision; independent human semantic,
+rights/privacy and documentation review remain required.
+
+The reader-facing Prompt library defaults to occurrences with a nonblank prompt
+and published response text. **All prompts** restores prompt-only research; direct
+links reveal their target even when it has no response. Exact variants and all
+source occurrences remain in the corpus, evidence panel, exports and review queues.
+Each exchange uses a concise source/environment summary, with full context,
+pairing basis, unknown model/role and raw receipts in collapsed provenance.
+The app's Trust & method centralizes JSON-decoding and missing-response conventions.
+
+## Bidirectional research navigation
+
+A read-only relationship index projects explicit support into object-to-claim and
+claim-to-object links. It includes direct behavior/occurrence/run support,
+path-node behavior references, paths, categories, timelines, mappings, proposal
+records with explicit claim support, annotations and nested response claims.
+Existing claim IDs, case membership, source membership and annotation revisions
+bound the links; similar wording or a shared article does not create a relationship.
+Review projections and late-loaded annotations are read afresh rather than cached
+by model identity. A related-object link is navigation, not proof of execution,
+attribution, available logs, detection effectiveness or acceptance.
+
+The public transport now persists that projection as `public-research-view/1`
+under coverage, identically in JSON and the ZIP manifest, with its own canonical
+digest. It remains derived data: the reader rejects disagreement with explicit
+canonical support. Legacy documents without this extension still derive the
+current view. Campaign counts use logical source aliases, normalized AI-product
+groups, exact prompt variants and source occurrences, attached responses, distinct
+supported behavior IDs and retained phase paths. Target/abuse-linked product
+counts include explicit targeted, attempted-abuse or reported-abuse annotations,
+not mere mentions or a success assertion. Paired display defaults never filter
+the exported canonical prompt set. See the [archive](data/archive/README.md)
+for byte-preserved rollback and producer guidance.
+
+## High-level campaign categories
+
+These are overlapping local research facets, **not** a replacement for formal
+framework mappings or a claim that MITRE/OWASP defines these exact four groups.
+
+| Category | Meaning and framework relationship |
+|---|---|
+| Victim-side agent abuse | Misuse of a victim-environment agent, including attempts/refusals. Where supported, distinguish direct/indirect [OWASP LLM01 prompt injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) rather than inferring it from any AI mention. |
+| Attacker-side AI use | AI used by the adversary to develop/operate attacks. Separate the operating side from a victim agent invoked by malicious code. |
+| AI review targeting | Content attempts to manipulate/evade an AI code/security reviewer; a particular mechanism may involve prompt injection, but the label alone establishes no technique. |
+| Developer-targeted social engineering | Deceptive recruiting/development interactions induce execution/access. [ATT&CK phishing](https://attack.mitre.org/techniques/T1566/) and user-execution concepts provide broader context; not every developer lure automatically maps to phishing. |
+
+`campaign-category-rules/1` creates source-local Pending categorization records
+from individual, bounded English claim-description sentences, not whole-document
+keyword co-occurrence or raw article extraction. Eligible source assertions,
+attempts and demonstrations require source/revision/passage linkage. Explicit
+role/action wording is required; hypothetical/recommendation/negated clauses,
+inferences, excluded/correction-needed claims and ambiguous roles abstain.
+This heuristic is deliberately incomplete and can be wrong: a label needs its
+own HITL decision after supporting-claim review. Missing matches are unclassified,
+never evidence of no AI involvement, no abuse or no social engineering.
+
+The origin is **Deterministic rule** and label authorship **Rule-derived**; the
+underlying claim may still be LLM-paraphrased. Versioned record identities and
+claim dependencies retain rule/source scope. Category corrections, exclusion,
+deferral and acceptance use the existing review log; no rule overwrites a human
+correction or accepts support. Cards deduplicate values while preserving every
+source-local assertion and review state. Category facets on source/claim views
+match their own supporting occurrences, not every source associated with a case.
+
+The current ATT&CK catalogue is an offline reference, not incident evidence.
+Its importer verifies the original immutable material SHA-256 and Git blob,
+retains the upstream license notice, and excludes inventoried revoked/deprecated
+attack patterns. Run `node src/import-attack-catalog.mjs --check` with the pinned
+runtime to check reproducibility (requires the official public download).
+Scoped `.gitattributes` files pin the generated catalogue and frozen historical
+request fixture to LF, so Git's Windows checkout conversion cannot alter their
+deterministic byte snapshots. Strict snapshot assertions are unchanged;
+canonicalization is enforced at checkout, not silently tolerated by the
+importer or replay reader.
+Current reference membership never silently rewrites historical request/run
+catalogue pins. The optional adapter transmits only complete ID/name membership
+and pin metadata; definitions, URLs, license text and exclusions remain local,
+with the existing byte/token caps unchanged. No network model generation is
+implied by category extraction or catalogue import.
+The preview explicitly serves the pure category helper as a browser dependency;
+campaign execution, model adapters and the catalogue importer stay outside its
+static allowlist. DOM tests alone do not establish that an HTTP-served module
+graph loads; the server regression and actual browser smoke cover that boundary.
+
 ## Provenance before interpretation
 
 A **source** identifies an input; a **source revision** identifies retained

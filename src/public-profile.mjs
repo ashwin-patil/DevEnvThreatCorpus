@@ -1,9 +1,16 @@
-import { createModel } from './model.mjs';
+import { createModel, researchPresentation } from './model.mjs';
+import { OBSERVATION_CONTEXTS, validatePromptResponses } from './prompt-responses.mjs';
 
 const TYPES = ['sources', 'sourceRevisions', 'passages', 'cases', 'claims', 'categorizations', 'timelines',
   'paths', 'behaviors', 'frameworks', 'mappings', 'telemetry', 'detections', 'otel'];
 const USAGE = ['targeted', 'attempted-abuse', 'reported-abuse', 'vendor-example', 'general-mention', 'unclear'];
 const fail = () => { throw new Error('Invalid public Pending draft projection.'); };
+function sameProjection(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && sameProjection(a[key], b[key]));
+}
 
 // Export rows are a display projection, not a private corpus: omitted article text
 // cannot acquire the human passage attestation required by private-corpus import.
@@ -69,11 +76,25 @@ export function publicDraftModel(document) {
         || locator.start < 0 || locator.end <= locator.start || coveredEnd < locator.end
         || [...prompt.literal].length !== locator.end - locator.start) fail();
     artifactIds.add(prompt.id);
-    model.annotations.push({ id: prompt.id, type: 'commands-ai-artifacts', value: prompt.literal,
+    if (prompt.observationContext !== undefined && !Object.hasOwn(OBSERVATION_CONTEXTS, prompt.observationContext)) fail();
+    if (prompt.observationBasis !== undefined && (typeof prompt.observationBasis !== 'string'
+      || !prompt.observationBasis.trim() || prompt.observationBasis.length > 16384 || prompt.observationBasis.includes('\0'))) fail();
+    const annotation = { id: prompt.id, type: 'commands-ai-artifacts', value: prompt.literal,
       normalizedValue: prompt.label, caseId: prompt.caseId, sourceId: prompt.sourceId,
       sourceRevisionId: prompt.sourceRevisionId, claimIds: [claim.id], status: 'pending', origin: 'agent',
       evidenceStatus: 'evidence-backed', support: { locator: { ...locator } },
-      context: { artifactKind: 'prompt-instruction', artifactUsage: prompt.usage } });
+      context: { artifactKind: 'prompt-instruction', artifactUsage: prompt.usage,
+        observationContext: prompt.observationContext ?? 'unknown',
+        observationBasis: prompt.observationBasis ?? 'The published prompt alone does not identify a test or compromised-host observation.' },
+      ...(prompt.responses !== undefined ? { responses: structuredClone(prompt.responses) } : {}) };
+    if (validatePromptResponses(annotation, corpus, { publicProjection: true }).length) fail();
+    model.annotations.push(annotation);
+  }
+  if (document.coverage?.promptArtifacts !== undefined) {
+    const artifacts = document.coverage.promptArtifacts;
+    if (artifacts?.schemaVersion !== 'public-prompt-artifacts/1'
+      || JSON.stringify(artifacts.prompts) !== JSON.stringify(document.prompts)
+      || !/^[a-f0-9]{64}$/.test(document.coverage.promptArtifactDigest ?? '')) fail();
   }
   model.collectionEnabled = false;
   model.staleReviewCount = 0;
@@ -81,5 +102,11 @@ export function publicDraftModel(document) {
   model.publicDraft = { sourceCoverage: structuredClone(document.sourceCoverage),
     limitations: [...document.limitations], baseRevision: document.baseRevision, snapshotDigest: document.snapshotDigest };
   model.publicCatalogSnapshot = structuredClone(document.catalogSnapshot);
+  model.publicAvailableCatalogSnapshot = structuredClone(document.availableCatalogSnapshot);
+  model.presentation = researchPresentation(model);
+  if (document.coverage?.researchPresentation !== undefined
+    && (!/^[a-f0-9]{64}$/.test(document.coverage.researchPresentationDigest ?? '')
+      || !sameProjection(document.coverage.researchPresentation, model.presentation))) fail();
+  if (document.coverage?.researchPresentation === undefined && document.coverage?.researchPresentationDigest !== undefined) fail();
   return model;
 }
