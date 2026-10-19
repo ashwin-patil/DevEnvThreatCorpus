@@ -10,9 +10,10 @@ export function element(doc, tag, text, className = '') {
   return node;
 }
 
-export function action(doc, label, handler, className = 'chip') {
+export function action(doc, label, handler, className = 'chip', researchKind) {
   const node = element(doc, 'button', label, className);
   node.type = 'button';
+  if (researchKind) node.setAttribute('data-research-kind', researchKind);
   node.addEventListener('click', handler);
   return node;
 }
@@ -81,7 +82,9 @@ export function relatedResearch(doc, model, claimIds, navigate, excludeKey, opti
     groups.get(group).append(action(doc, `${{ behaviors: 'Behavior', telemetryScopes: 'Log scope', categorizations: 'Category', paths: 'Attack path',
       annotations: object.view === 'prompts' ? 'Prompt' : object.view === 'tools' ? 'AI tool' : 'Source artifact',
       mappings: 'Mapping', telemetry: 'Telemetry', detections: 'Detection', otel: 'Instrumentation', timelines: 'Timeline' }[object.type]}: ${object.label}`,
-    () => navigate(object.view, object.targetId, sourceId)));
+    () => navigate(object.view, object.targetId, sourceId), 'chip',
+    object.type === 'categorizations' ? 'category' : { cases: 'campaign', sources: 'publisher', behaviors: 'behavior', tools: 'tool', prompts: 'prompt',
+      paths: 'flow', telemetry: 'telemetry' }[object.view]));
   }
   return section;
 }
@@ -323,11 +326,12 @@ function categoryBadges(doc, model, caseIds, sourceIds, scope, navigate, include
   }
   for (const group of groups.values()) {
     const states = [...new Set(group.records.map(c => c.itemReview?.state ?? c.disposition))];
-    const state = states.length !== 1 ? 'Mixed review states' : states[0] === 'Accepted' ? 'Recorded acceptance' : states[0];
-    const label = `${group.value} · ${state}${scope ? ' scope' : ''}${group.inherited ? ' · campaign context' : ''}`, className = `usage-key ${scope ? 'telemetry-scope-badge' : 'campaign-category-badge'}`;
+    const state = states.length !== 1 ? 'Pending' : states[0] === 'Accepted' ? 'Recorded acceptance' : states[0];
+    const label = `${group.value} · ${state}`, className = `usage-key ${scope ? 'telemetry-scope-badge' : 'campaign-category-badge'}`;
     const badge = scope && navigate ? action(doc, label, () => navigate('telemetry', group.records[0].id, sourceIds ? [...sourceIds][0] : ''), className)
       : navigate ? action(doc, label, () => navigate('cases', group.caseId), className) : element(doc, 'span', label, className);
     badge.title = `${group.description} ${scope ? 'Collection scope only; logs, coverage and deployment are not established.' : 'Classification does not establish successful abuse.'}`;
+    if (states.length !== 1) badge.title += ` Recorded review states: ${states.join(', ')}.`;
     badge.setAttribute('data-category-basis', group.inherited ? 'campaign-context' : 'source-supported');
     if (group.inherited) badge.title += ' Campaign-level association only; this blog is not independently classified by this badge.';
     badges.append(badge);

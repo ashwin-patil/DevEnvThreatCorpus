@@ -32,8 +32,10 @@ The JSON and ZIP include those Pending records with honest deterministic origin.
 
 Campaign role badges appear top-right, opposite the Campaign label. Research
 library blogs keep their source-supported scope and role evidence. A blog without
-local role classification now also shows a visibly labeled **campaign context**
-role badge: an association, not a new source conclusion. Socket and StepSecurity
+local role classification also shows the campaign role badge: its tooltip and
+provenance identify campaign context, not a new source conclusion. The visible
+review label is simply **Pending**, including telemetry scope badges; publisher
+links appear below article titles. Socket and StepSecurity
 currently use that fallback; Nx, Wiz, Semgrep and Panther have source-supported
 role badges. Clicking the shared campaign/category/publisher tags opens the
 associated campaign or research source. Nx currently proposes Endpoint, CI/CD, Source-control,

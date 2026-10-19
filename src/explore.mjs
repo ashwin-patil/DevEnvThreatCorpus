@@ -118,10 +118,10 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     }
     const flow = sections.get('attack-paths');
     flow.append(element(doc, 'h3', 'Attack flow'));
-    if (paths.length) flow.append(action(doc, `${record.name} · campaign graph`, () => navigate('paths', paths[0].id)));
+    if (paths.length) flow.append(action(doc, `${record.name} · campaign graph`, () => navigate('paths', paths[0].id), 'chip', 'flow'));
     else flow.append(element(doc, 'p', 'No supported path recorded.', 'subtle'));
     const phases = element(doc, 'details'); phases.append(element(doc, 'summary', 'Phase paths & technical provenance'));
-    for (const path of paths) phases.append(action(doc, pathDisplayName(path), () => navigate('paths', path.id)),
+    for (const path of paths) phases.append(action(doc, pathDisplayName(path), () => navigate('paths', path.id), 'chip', 'flow'),
       technicalDetails(doc, [['Canonical path', path.id], ['Origin / review', originReview(path)]]));
     if (paths.length) flow.append(phases);
     const research = sections.get('research'); research.append(element(doc, 'h3', 'Research blogs'));
@@ -129,7 +129,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
     for (const article of articles) totals.set(article.publisher.name, (totals.get(article.publisher.name) ?? 0) + 1);
     for (const article of articles) {
       const source = article.source, display = article.publisher; index.set(display.name, (index.get(display.name) ?? 0) + 1);
-      const chip = action(doc, `${display.name}${totals.get(display.name) > 1 ? ` · ${index.get(display.name)}` : ''}`, () => navigate('sources', source.id));
+      const chip = action(doc, `${display.name}${totals.get(display.name) > 1 ? ` · ${index.get(display.name)}` : ''}`, () => navigate('sources', source.id), 'chip', 'publisher');
       chip.title = `${metadata(source, 'title')} · ${display.basis}`; chip.setAttribute('aria-label', `${display.name}: ${metadata(source, 'title')}`); research.append(chip);
     }
     behaviorLinks(doc, sections.get('behaviors'), model, claimIds, navigate);
@@ -151,8 +151,8 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
     const claims = model.corpus.claims.filter(c => memberIds.has(c.sourceId) && caseIds.has(c.caseId));
     const claimIds = new Set(claims.map(c => c.id));
     const revisions = new Set(article.members.flatMap(s => s.revisionIds));
-    card.append(cardContext(doc, model, caseIds, navigate, memberIds), publisherTags(doc, model, memberIds, navigate),
-      element(doc, 'h2', metadata(source, 'title')), element(doc, 'p', revisions.size
+    card.append(cardContext(doc, model, caseIds, navigate, memberIds),
+      element(doc, 'h2', metadata(source, 'title')), publisherTags(doc, model, memberIds, navigate), element(doc, 'p', revisions.size
         ? `${source.collectionState} · ${revisions.size} retained revision(s)` : 'No retained article revision · source metadata only', 'subtle'));
     card.append(telemetryScopeBadges(doc, model, [...caseIds], memberIds, navigate));
     const categoryReview = element(doc, 'details'); categoryReview.append(element(doc, 'summary', 'Category support & review'));
@@ -189,7 +189,7 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
 }
 function aiChip(doc, record, navigate, view, annotations = record.annotations) {
   const usage = usageOf(annotations), [label, symbol] = USAGE[usage];
-  const chip = action(doc, `${symbol} ${record.name}`, () => navigate(view, record.id), `chip usage-${usage}`);
+  const chip = action(doc, `${symbol} ${record.name}`, () => navigate(view, record.id), `chip usage-${usage}`, view === 'prompts' ? 'prompt' : 'tool');
   chip.title = `${label}. ${record.basis}`; chip.setAttribute('aria-label', `${record.name}: ${label}`); return chip;
 }
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-18 - Restore research type colors and simplify review labels (#89)
+
+- Correct the previous uniform-background interpretation: use a distinct reusable
+  light/dark fill for each research link type across cards, retain semantic usage
+  and review colors, and restore shaded preformatted prompt/response blocks.
+- Keep workspace navigation immediately beside the campaign name in a full-width
+  campaign card rather than aligned beneath the right-hand category. Move blog
+  publisher links below article titles, leaving campaign/category context on top.
+- Display Pending without scope/context suffixes; keep context basis, mixed
+  underlying review states and exact source support in tooltips/provenance, not
+  new review values. Canonical data, public artifacts and HITL decisions stay intact.
+
 ## 2026-10-18 - Consistent research cards and consolidated AI products (#89)
 
 - Unify ordinary research card, text and tag backgrounds across light/dark views,

@@ -26,12 +26,15 @@ previous pair. Canonical records remain unchanged. Campaign headers now expose
 tool/prompt/behavior counts, ordered sections and bordered behavior tiles, while
 projection/limits prose remains available under Evidence & review.
 
-The subsequent consistent-card refinement adds shared neutral light/dark surfaces
-and top campaign/category/publisher navigation, a larger proportional logo and
+The subsequent consistent-card refinement adds consistent per-type light/dark
+link colors, top campaign/category navigation and publisher links below blog
+titles, a larger proportional logo and
 title-adjacent workspace access. The three AI products each have one aggregate
 card, not repeated boxed source occurrences; their separate receipts remain
-expandable. Blogs without local role extraction show clearly labeled campaign
-context instead of fabricated source support. Telemetry links explicit behaviors,
+expandable. Blogs without local role extraction retain campaign-context metadata
+in tooltips/provenance instead of fabricated source support. Visible unreviewed
+badges say Pending, without scope/context suffixes; literal prompts and responses
+use shaded preformatted blocks. Telemetry links explicit behaviors,
 campaigns and research publishers without tool/graph shortcuts. Framework catalogs
 are excluded from research facets/listings, not removed from reference/provenance
 views. Public JSON/ZIP and human-review states are unchanged by this refinement.

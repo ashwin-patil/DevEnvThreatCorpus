@@ -26,8 +26,9 @@ what remains uncertain, and what would a defender need to investigate?**
 Campaign cards put AI-role badges at top-right; **Log Collection/Telemetry Scope**
 tags open supporting claims in **Security telemetry**, rather than expanding
 evidence on each campaign/blog card. Research library blogs keep source-supported
-tags distinct from explicitly labeled **campaign context** when a role has not
-been independently extracted for that blog. Claims link back to explicitly
+tags distinct from campaign context in their tooltip/provenance when a role has
+not been independently extracted for that blog. Visible unreviewed badges say
+**Pending**, without scope/context suffixes. Claims link back to explicitly
 supported research objects.
 **Prompt library** defaults to published prompt/response pairs; select **All
 prompts** for prompt-only occurrences. Semgrep's refusal has one concise log-review
@@ -46,8 +47,11 @@ The previous exact pair and restore instructions are in the
 [public snapshot archive](docs/data/archive/README.md); canonical research records
 and prompt-only occurrences are preserved, not replaced by a filtered display.
 
-Research cards use the same neutral light/dark surfaces and clickable campaign,
-category and publisher tags; usage and human-review labels remain explicit.
+Research links use a consistent color per content type across cards in both
+themes: campaign, role category, publisher, attack flow, behavior, AI tool, prompt
+and telemetry. Literal prompts/responses retain shaded, preformatted blocks.
+Blog publisher links sit below article titles; only campaign/category context
+occupies their top row. Usage and human-review labels remain explicit.
 **Open campaign workspace** sits beside the campaign name. **AI tools** has one
 card per existing product identity with grouped claims/research and expandable
 source-local occurrence receipts, not repeated source cards or sibling-tool links.

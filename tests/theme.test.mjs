@@ -157,6 +157,7 @@ test('Issue #79 AC-06 both themes meet 4.5:1 for normal text, semantic badges an
       ['accent', 'paper'], ['accent', 'surface'], ['conditional', 'soft'], ['propagation', 'paper'],
       ...['danger', 'warning', 'reported', 'example', 'accepted', 'neutral'].map(kind => [`${kind}-ink`, `${kind}-bg`]),
       ...['danger', 'warning', 'reported', 'example', 'accepted', 'neutral'].map(kind => [`${kind}-ink`, 'surface']),
+      ...['warning', 'reported', 'example', 'accepted', 'neutral'].map(kind => ['ink', `${kind}-bg`]),
     ];
     for (const [fg, bg] of pairs) {
       const ratio = contrast(colors[fg], colors[bg]);
@@ -167,6 +168,27 @@ test('Issue #79 AC-06 both themes meet 4.5:1 for normal text, semantic badges an
       assert.ok(ratio >= 3, `${theme} control boundary/${bg}: ${ratio.toFixed(3)}:1`);
     }
   }
+});
+
+test('#89 AC-18 research types retain distinct reusable theme fills and readable literal prompt blocks', () => {
+  for (const [selector, token] of [
+    ['.campaign-tag,.publisher-badge,[data-research-kind=campaign]', 'tint'],
+    ['.campaign-category-badge,[data-research-kind=category]', 'accepted-bg'],
+    ['.publisher-tag,[data-research-kind=publisher]', 'example-bg'],
+    ['[data-research-kind=flow]', 'activity'],
+    ['.behavior-action-link,.behavior-tile .chip,[data-research-kind=behavior]', 'group'],
+    ['[data-research-kind=tool]', 'reported-bg'],
+    ['[data-research-kind=prompt]', 'warning-bg'],
+    ['.telemetry-scope-badge,[data-research-kind=telemetry]', 'neutral-bg'],
+  ]) assert.ok(css.includes(`${selector}{--research-bg:var(--${token})}`), selector);
+  for (const [theme, colors] of Object.entries(palettes)) {
+    const fills = ['tint', 'accepted-bg', 'example-bg', 'activity', 'group', 'reported-bg', 'warning-bg', 'neutral-bg'].map(key => colors[key]);
+    assert.equal(new Set(fills).size, 8, `${theme}: eight distinct type fills`);
+  }
+  assert.match(css, /\.artifact-value\{white-space:pre-wrap;[^}]*background:var\(--paper\)/);
+  assert.doesNotMatch(css, /\.artifact-value[^}]*background:var\(--surface\)/);
+  assert.match(css, /\.campaign-heading\{[^}]*justify-content:flex-start/);
+  assert.doesNotMatch(css, /\.campaign-heading h2\{[^}]*flex:1\b|\.campaign-heading h2\{[^}]*flex-basis:100%/);
 });
 
 test('Issue #79 AC-06 every component color is theme-tokenized with no automatic dark override', () => {

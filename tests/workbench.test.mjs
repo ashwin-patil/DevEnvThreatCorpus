@@ -117,7 +117,7 @@ test('#89 AC-07 public catalogue uses the complete current reference without rep
   assert.equal(m.corpus.mappings.length, 2);
 });
 
-test('#89 AC-10/16 blog headers distinguish source-supported categories from campaign context', async () => {
+test('#89 AC-10/16/18 blog headers retain category basis behind simple Pending labels and publishers below titles', async () => {
   const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
   const m = publicDraftModel(document), doc = new FakeDocument();
   const campaign = renderCaseLibrary(doc, m, m.corpus.cases, () => {});
@@ -130,16 +130,19 @@ test('#89 AC-10/16 blog headers distinguish source-supported categories from cam
   assert.equal(cards.length, 6);
   for (const card of cards) {
     const blogHeader = card.children[0];
-    const publisher = card.children[1].textContent;
+    assert.equal(card.children[1].tagName, 'H2');
+    assert.equal(card.children[2].className, 'publisher-tags');
+    const publisher = card.children[2].textContent;
     assert.equal(blogHeader.children[1].className, 'campaign-category-badges');
     const category = descendants(blogHeader).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
     assert.match(category.textContent, /Victim-side agent abuse/);
     const supported = ['Nx', 'Wiz', 'Semgrep', 'Panther'].includes(publisher);
     assert.equal(category.getAttribute('data-category-basis'), supported ? 'source-supported' : 'campaign-context', publisher);
-    assert.equal(category.textContent.includes('campaign context'), !supported, publisher);
+    assert.equal(category.textContent, 'Victim-side agent abuse · Pending', publisher);
+    assert.doesNotMatch(card.textContent, /Pending scope|Pending.*campaign context/i);
     assert.ok(!card.textContent.includes('Cloud control-plane audit'));
     assert.ok(!card.textContent.includes('Identity & access logs'));
-    assert.match(card.textContent, /scope/);
+    assert.match(card.textContent, /Log Collection\/Telemetry Scope/);
   }
   const source = m.corpus.sources.find(s => s.publisher === 'Semgrep'), calls = [];
   const scoped = renderResearchLibrary(doc, m, [source], (...args) => calls.push(args));
@@ -175,7 +178,9 @@ test('#89 AC-10 alias blogs deduplicate categories across cases while preserving
   const root = render(), header = descendants(root).find(n => n.className?.includes('card-context'));
   assert.equal(descendants(root).filter(n => n.className?.includes('blog-card')).length, 1);
   assert.equal(descendants(header).filter(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge')).length, 1);
-  assert.match(header.textContent, /Mixed review states/);
+  assert.match(header.textContent, /Victim-side agent abuse · Pending/);
+  const mixed = descendants(header).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+  assert.match(mixed.title, /Recorded review states: Pending, Accepted/);
   const selected = descendants(render({ cases: [c.cases[0].id] })).find(n => n.className?.includes('card-context'));
   assert.match(selected.textContent, /Pending/); assert.doesNotMatch(selected.textContent, /Mixed/);
   original.disposition = 'Excluded';
@@ -276,10 +281,10 @@ test('#89 AC-16 campaign header action is adjacent and category/publisher contex
     assert.ok(category); await category.trigger('click');
     assert.deepEqual(calls.pop(), ['cases', m.corpus.cases[0].id]);
     if (category.getAttribute('data-category-basis') === 'campaign-context') {
-      contextCount++; assert.match(category.textContent, /campaign context/);
+      contextCount++; assert.equal(category.textContent, 'Victim-side agent abuse · Pending');
       assert.match(category.title, /not independently classified/);
     }
-    await card.children[1].children[0].trigger('click');
+    await card.children[2].children[0].trigger('click');
     assert.equal(calls.pop()[0], 'sources');
   }
   assert.equal(cards.length, 6); assert.equal(contextCount, 2);
@@ -293,6 +298,22 @@ test('#89 AC-16 campaign header action is adjacent and category/publisher contex
     assert.match(renderSource(doc, m, source, '', () => {}, () => {}, () => {}).textContent, /MITRE/);
   }
   assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-18 research link types agree between campaign sections and related research', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), doc = new FakeDocument();
+  const root = renderCaseLibrary(doc, m, m.corpus.cases, () => {});
+  for (const [kind, label] of [['publisher', 'Semgrep'], ['flow', 'campaign graph'], ['tool', 'Claude Code'], ['prompt', 'Wallet']]) {
+    const link = descendants(root).find(n => n.tagName === 'BUTTON' && n.textContent.includes(label));
+    assert.ok(link, label); assert.equal(link.getAttribute('data-research-kind'), kind, label);
+  }
+  const products = renderExploration(doc, m, 'tools', {}, () => {});
+  const relations = descendants(products).filter(n => n.className === 'related-research');
+  for (const link of relations.flatMap(descendants).filter(n => n.tagName === 'BUTTON' && /^(Behavior|Prompt|Log scope|Attack path|Category):/.test(n.textContent))) {
+    const expected = { Behavior: 'behavior', Prompt: 'prompt', 'Log scope': 'telemetry', 'Attack path': 'flow', Category: 'category' }[link.textContent.split(':')[0]];
+    assert.equal(link.getAttribute('data-research-kind'), expected);
+  }
 });
 
 test('#89 AC-17 AI products consolidate occurrences without merging source evidence or linking sibling products', async () => {

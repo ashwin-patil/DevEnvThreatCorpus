@@ -15,12 +15,18 @@ eligible bounded claim sentences; absence/negation, recommendations and inferred
 consequences do not establish positive scope. HITL can correct/exclude/defer and
 accept separately from the supporting claims. Blog/alias telemetry-scope groups
 display only categories supported by their own sources, never wholesale campaign
-inheritance. Role badges may additionally show explicitly labeled **campaign
-context** where local role support is absent. This is navigation context, not a
+inheritance. Role badges may additionally show campaign context where local role
+support is absent, identified in tooltips and provenance rather than a new visible
+review status. Unreviewed badges say **Pending**; a mixed-state group also remains
+Pending until resolved, with individual states retained in its tooltip and records.
+This is navigation context, not a
 new classification, source assertion or HITL outcome. Local category review states
 take precedence; other campaigns' contextual states are not mixed into them.
 
-Ordinary research card/text/tag surfaces share the existing theme palette.
+Research links use one distinct existing theme fill per object type across views.
+Campaign/category, publisher, attack-flow, behavior, tool, prompt and telemetry
+links retain that type's color wherever rendered. Literal prompt/response blocks
+keep their shaded background, whitespace, line breaks, wrapping and monospace font.
 Usage and review labels/symbols remain readable independently of color; trust,
 errors, source-passage highlighting and active selection keep their semantic
 cues. A consolidated AI-product card groups the existing identity only: its
