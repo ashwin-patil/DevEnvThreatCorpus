@@ -120,8 +120,33 @@ research, privacy, keyboard/narrow-screen and accessibility review.
 
 ## Interface clarification (decision rules unchanged)
 
-Current **Human-reviewed · Excluded** means a completed exclusion decision, not
-acceptance. Stale decisions are not current review. After explicit supporting-item
+Use **Review supporting claims** or the **Supporting claims - start here**
+workload before derived artifacts. Progress status buttons open all record types
+so the awaiting-review claims are not hidden behind the priority workload.
+An empty filtered queue explains that review is not necessarily complete.
+
+| Primary label | Meaning |
+|---|---|
+| Awaiting review | No current decision, but the item can be reviewed |
+| Review supporting claims/items first | Required support is not yet accepted; not evidence that a previous approval changed |
+| Re-review required | A recorded decision no longer binds to the current candidate/support |
+| Evidence unavailable | Structural support/grounding is missing or cannot resolve; inspect the technical blockers |
+| Reviewed - accepted | Current explicit acceptance; not independent truth, publication or gold qualification |
+| Excluded | Current exclusion decision, not acceptance or proof of falsehood |
+| Unsure | Recorded uncertainty; not completed acceptance |
+
+Origin, original AI contribution, edit authorship, technical state and label
+completeness remain under **Origin, edits and technical review details**.
+An unchanged accepted AI candidate stays AI-derived, with current human review.
+The exclusion-reason selector is only a draft choice until confirmation.
+Stored `Pending` dispositions and the technical `Blocked/support changed` state
+are unchanged; presentation does not alter acceptance, history or export gates.
+Category badges show classification names; accessible labels, tooltips and
+expanded category evidence retain review status and source/campaign-context basis.
+Private campaign/blog cards show reviewed-item coverage separately, not a blanket
+approval badge. Exclusions count as reviewed, not accepted.
+
+Stale decisions are not current review. After explicit supporting-item
 review, the original workload/category/group/source/filter resumes, even after
 reload. Identical passages at the same revision/code-point span display once with
 all passage/direct-support attributions and supporting-record links retained;

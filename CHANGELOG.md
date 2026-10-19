@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-19 - Clarify private review labels and dependency-first navigation (#91)
+
+- Separate awaiting support, stale review and unavailable evidence in UI labels
+  without changing stored dispositions, decision bindings or acceptance gates.
+  Add a direct supporting-claims action, explain empty filtered workloads and
+  make progress status actions include claims rather than hiding them.
+- Move verbose origin/edit/technical state into expandable details while keeping
+  exact evidence, AI attribution and audit history intact. Accepting unchanged
+  AI-derived content records human review, not human authorship.
+- Show classification names without repeated Pending/blocked suffixes on campaign,
+  blog and related-object badges; retain statuses and source basis in accessible
+  labels, tooltips and category evidence. Show scoped reviewed-item coverage on
+  private campaign/blog cards. This neither approves candidates nor completes
+  independent research, documentation/UX or release review.
+
 ## 2026-10-19 - Restore authorized Nx baseline for private HITL review (#91)
 
 - Add explicit offline public-baseline recovery through the existing extraction

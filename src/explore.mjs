@@ -1,6 +1,6 @@
 import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, telemetryScopeBadges, renderCampaignCategories, relatedResearch, cardContext, publisherTags, researchTags } from './render.mjs';
 import { OBSERVATION_CONTEXTS } from './prompt-responses.mjs';
-import { filterRecords, metadata, caseSourceIds, behaviorSupport, telemetryScopeEntries, researchRelationships, campaignMetrics, CAMPAIGN_SECTIONS, researchSources } from './model.mjs';
+import { filterRecords, metadata, caseSourceIds, behaviorSupport, telemetryScopeEntries, researchRelationships, campaignMetrics, CAMPAIGN_SECTIONS, researchSources, reviewLabel } from './model.mjs';
 import { publisherDisplay, behaviorInventory, sourceInventory } from './research-inventory.mjs';
 import { aiLibrary } from './ai-library.mjs';
 import { campaignGraph, campaignSummary, pathDisplayName, evidenceLabel, originReview, activityIcon, ICON_PATHS } from './campaign-presentation.mjs';
@@ -19,6 +19,9 @@ export const VIEW_ANNOTATIONS = { behaviors: ['observed-behavior'], frameworks: 
 const list = (model, key) => model.corpus[key] ?? [];
 export const caseAnnotations = (model, id) => (model.annotations ?? []).filter(a => a.caseId === id);
 const normalized = a => a.normalizedValue ?? a.value;
+function reviewCoverage(doc, units) {
+  return element(doc, 'p', `Review: ${units.filter(u => u.currentHumanReview).length}/${units.length} items reviewed. Category tags are classifications, not approval.`, 'review-status');
+}
 
 const USAGE = {
   targeted: ['Targeted', '◇'], 'attempted-abuse': ['Attempted abuse', '◐'],
@@ -91,6 +94,7 @@ export function renderCaseLibrary(doc, model, records, navigate, filters = {}, o
       element(doc, 'p', overview.text, 'campaign-summary'),
       metrics,
       element(doc, 'span', 'Expand campaign', 'card-expand'));
+    if (model.itemReview) summary.append(reviewCoverage(doc, model.itemReview.units.filter(u => u.caseIds.includes(record.id))));
     card.append(summary);
     const body = element(doc, 'div', null, 'case-card-body');
     const sections = new Map(CAMPAIGN_SECTIONS.map(id => {
@@ -155,6 +159,8 @@ export function renderResearchLibrary(doc, model, sources, navigate, filters = {
       element(doc, 'h2', metadata(source, 'title')), publisherTags(doc, model, memberIds, navigate), element(doc, 'p', revisions.size
         ? `${source.collectionState} · ${revisions.size} retained revision(s)` : 'No retained article revision · source metadata only', 'subtle'));
     card.append(telemetryScopeBadges(doc, model, [...caseIds], memberIds, navigate));
+    if (model.itemReview) card.append(reviewCoverage(doc, model.itemReview.units.filter(u =>
+      u.caseIds.some(id => caseIds.has(id)) && u.sourceIds.some(id => memberIds.has(id)))));
     const categoryReview = element(doc, 'details'); categoryReview.append(element(doc, 'summary', 'Category support & review'));
     for (const record of cases) {
       categoryReview.append(renderCampaignCategories(doc, model, record.id, navigate, openReview, false, memberIds));
@@ -215,7 +221,12 @@ function row(doc, parent, label, value) {
 function provenance(doc, record) {
   if (record.itemReview) {
     const r = record.itemReview;
-    return element(doc, 'p', `Content origin: ${r.contentOrigin} · Labels: ${r.labelAuthorship} · ${r.editor ? `Human-edited by ${r.editor} · ` : ''}Review: ${r.state}${r.state === 'Accepted' ? ' (Human-reviewed)' : ''}`, 'subtle');
+    const status = element(doc, 'section');
+    status.append(element(doc, 'p', `Review: ${reviewLabel(r)}`, 'review-status'));
+    const details = element(doc, 'details');
+    details.append(element(doc, 'summary', 'Origin and review details'),
+      element(doc, 'p', `Content origin: ${r.contentOrigin} · Labels: ${r.labelAuthorship} · ${r.editor ? `Human-edited by ${r.editor} · ` : ''}Technical review state: ${r.state}`, 'subtle'));
+    status.append(details); return status;
   }
   return element(doc, 'p', [record.origin, record.evidenceStatus, record.disposition ?? record.status ?? 'Pending',
     record.mappingStatus].filter(Boolean).join(' · '), 'subtle');
@@ -264,7 +275,7 @@ function mappingCard(doc, model, mapping, navigate, caseId, scope, relations = {
 function annotationCard(doc, model, annotation, navigate, showLiteral = true, pairedOnly = false, compact = false, relations) {
   const card = element(doc, compact ? 'details' : 'article', null, compact ? 'source-occurrence' : 'claim-card');
   const prompt = annotation.type === 'commands-ai-artifacts' && annotation.context?.artifactKind === 'prompt-instruction';
-  if (compact) card.append(element(doc, 'summary', `${publisherDisplay(model.sources.get(annotation.sourceId)).name} · ${USAGE[usageOf([annotation])][0]} · ${annotation.itemReview?.state ?? annotation.status ?? 'Pending'}`));
+  if (compact) card.append(element(doc, 'summary', `${publisherDisplay(model.sources.get(annotation.sourceId)).name} · ${USAGE[usageOf([annotation])][0]} · ${annotation.itemReview ? reviewLabel(annotation.itemReview) : annotation.status ?? 'Pending'}`));
   else if (relations?.context !== false) card.append(cardContext(doc, model, [annotation.caseId], navigate, new Set([annotation.sourceId])));
   if (annotation.type === 'commands-ai-artifacts') {
     const usage = usageOf([annotation]);

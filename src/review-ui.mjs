@@ -2,8 +2,12 @@ import { element, action } from './render.mjs';
 import { GUIDE_VERSION, checksFor, confirmationFor, priorityCategory, PRIORITY_LABELS, EXCLUSION_REASONS, CONTENT_ORIGINS } from './review-guide.mjs';
 import { ALL_CAMPAIGN_CATEGORIES, categoryRule } from './campaign-categories.mjs';
 import { OBSERVATION_CONTEXTS, RESPONSE_OUTCOMES } from './prompt-responses.mjs';
+import { reviewLabel } from './model.mjs';
 
-export const REVIEW_FILTERS = ['All', 'Needs review', 'Accepted', 'Excluded', 'Unsure', 'Blocked/support changed'];
+export const REVIEW_FILTERS = ['All', 'Needs review', 'Accepted', 'Excluded', 'Unsure',
+  'Awaiting support', 'Re-review required', 'Evidence unavailable', 'Blocked/support changed'];
+const filterLabel = value => ({ 'Needs review': 'Awaiting review', Accepted: 'Reviewed - accepted',
+  'Blocked/support changed': 'All blocked items' })[value] ?? value;
 const STORAGE_KEY = 'devenv-threat-corpus.review-navigation';
 const NAV_KEYS = ['caseId', 'sourceId', 'type', 'filter', 'group', 'itemKey', 'queue', 'category', 'mode'];
 const navigationFields = value => Object.fromEntries(NAV_KEYS
@@ -23,7 +27,8 @@ export function reviewGroups(units, { caseId, sourceId = '', type = '', filter =
     && (!type || u.type === type) && (!category || priorityCategory(u) === category)
     && (queue === 'priority' ? u.actionable : queue === 'exceptions' ? !!priorityCategory(u) && !u.actionable :
       queue === 'evidence' ? u.type === 'claims' : true)
-    && (filter === 'All' || u.state === filter));
+    && (filter === 'All' || u.state === filter || reviewLabel(u) === filter
+      || filter === 'Awaiting support' && reviewLabel(u).startsWith('Review supporting')));
   const groups = new Map();
   for (const unit of records) for (const key of group === 'category' ? [PRIORITY_LABELS[priorityCategory(unit)] ?? unit.type] : unit.sourceIds.length ? unit.sourceIds : ['Supporting records / no direct source']) {
     if (!groups.has(key)) groups.set(key, []);
@@ -67,7 +72,7 @@ export function renderProgress(doc, summary, openQueue) {
   if (e.legacyUnlocated) root.append(element(doc, 'p', `${e.legacyUnlocated} source(s) have historical partial coverage without segment identities; unlocated work is disclosed separately and excluded from the canonical coverage numerator.`));
   for (const stage of summary.stages ?? []) root.append(element(doc, 'p',
     `Stage ${stage.kind}: ${ratio(stage.completed, stage.inputs)} input units processed; ${stage.skipped} skipped, ${stage.failed} failed. Stage completion is separate from source coverage and review/release readiness.`));
-  for (const filter of REVIEW_FILTERS.slice(1)) root.append(action(doc, filter, () => openQueue(filter)));
+  for (const filter of REVIEW_FILTERS.slice(1)) root.append(action(doc, filterLabel(filter), () => openQueue(filter)));
   const detail = element(doc, 'details'); detail.append(element(doc, 'summary', 'Expand by artifact type'));
   for (const [type, counts] of Object.entries(summary.priority?.byType ?? summary.byType)) totals(detail, PRIORITY_LABELS[type] ?? type, counts);
   const advanced = element(doc, 'details'); advanced.append(element(doc, 'summary', 'Whole corpus / evidence and deferred type counts'));
@@ -110,17 +115,21 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     value => change({ caseId: value, sourceId: '', itemKey: '', supportTrail: [] }));
   const queue = nav.queue ?? 'priority';
   choose(doc, root, 'Review workload', [['priority', 'Grounded priority candidates'], ['exceptions', 'Priority exceptions / missing support'],
-    ['evidence', 'Supporting claims (advanced)'], ['all', 'All records / later pass']], queue,
+    ['evidence', 'Supporting claims - start here'], ['all', 'All records / later pass']], queue,
   value => change({ queue: value, itemKey: '', category: '', returnItemKey: '', supportTrail: [] }));
+  root.append(action(doc, 'Review supporting claims', () => change({ queue: 'evidence', category: '', type: '',
+    filter: 'Needs review', itemKey: '', returnItemKey: '', supportTrail: [] })),
+  element(doc, 'p', 'Review source-linked claims first, then the artifacts they support. Awaiting support is not a failed or changed review.', 'subtle'));
   for (const [category, name] of Object.entries(PRIORITY_LABELS)) root.append(action(doc, name,
     () => change({ category, queue: 'priority', group: 'category', type: '', itemKey: '', returnItemKey: '', supportTrail: [] })));
   root.append(action(doc, 'All priority categories', () => change({ category: '', queue: 'priority', itemKey: '', returnItemKey: '', supportTrail: [] })));
   choose(doc, root, 'Group by', [['category', 'Artifact category'], ['blog', 'Blog / source']], nav.group ?? 'category', value => change({ group: value }));
-  choose(doc, root, 'Queue', REVIEW_FILTERS.map(v => [v, v]), nav.filter ?? 'All', value => change({ filter: value, itemKey: '' }));
+  choose(doc, root, 'Queue', REVIEW_FILTERS.map(v => [v, filterLabel(v)]), nav.filter ?? 'All', value => change({ filter: value, itemKey: '' }));
   choose(doc, root, 'Source', [['', 'All sources'], ...model.corpus.sources.map(s => [s.id, s.title ?? s.id])],
     nav.sourceId ?? '', value => change({ sourceId: value, itemKey: '' }));
   if (nav.notice) root.append(element(doc, 'p', nav.notice));
-  if (state.campaigns[caseId]) root.append(renderProgress(doc, state.campaigns[caseId], filter => change({ filter, itemKey: '' })));
+  if (state.campaigns[caseId]) root.append(renderProgress(doc, state.campaigns[caseId],
+    filter => change({ filter, queue: 'all', category: '', type: '', itemKey: '', returnItemKey: '', supportTrail: [] })));
   const selection = reviewGroups(state.units, { ...nav, queue, caseId });
   const selected = state.units.find(u => u.itemKey === nav.itemKey && u.caseIds.includes(caseId)) ??
     (!nav.itemKey ? selection.records.find(u => !['Accepted', 'Excluded'].includes(u.state)) ?? selection.records[0] : null);
@@ -135,13 +144,15 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     group.append(element(doc, 'summary', `${model.sources.get(name)?.title ?? name} · ${items.length} occurrences`));
     for (const u of items) {
       const label = u.record.name ?? u.record.title ?? u.record.description ?? u.record.value ?? u.id;
-      const button = action(doc, `${u.type} · ${label} · ${u.state}`, () => change({ itemKey: u.itemKey }));
+      const button = action(doc, `${u.type} · ${label} · ${reviewLabel(u)}`, () => change({ itemKey: u.itemKey }));
       button.setAttribute('aria-pressed', String(selected?.itemKey === u.itemKey));
       button.title = 'Similar wording may be inspected together; identities and source occurrences are never merged.';
       group.append(button);
     }
     list.append(group);
   }
+  if (!selection.records.length) list.append(element(doc, 'p',
+    'No items match this workload and these filters. This does not mean review is complete. Try Review supporting claims or select All records / later pass.'));
   workspace.append(list);
   const detail = element(doc, 'article', null, 'panel review-detail');
   if (!selected) detail.append(element(doc, 'p', nav.itemKey ? 'Selected item is hidden/unavailable. Clear selection or change filters; no other item substituted.' : 'No eligible items / N/A'),
@@ -151,9 +162,7 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     const rule = categoryRule(u.original);
     if (rule) detail.append(element(doc, 'p', `${rule.version} / ${rule.id}: ${rule.description} Matched source-linked claim wording, not an independent finding or available telemetry. Missing matches do not establish absence.`, 'limits'));
     detail.append(element(doc, 'h3', `${u.type}: ${u.id}`),
-      element(doc, 'p', `${u.state} · labels ${u.labels.applicable ? u.labels.state : 'N/A (no label applies)'}`),
-      element(doc, 'p', `Content origin: ${u.contentOrigin} · Label authorship: ${u.labelAuthorship}`),
-      element(doc, 'p', `${/LLM|agent/.test(u.originalOrigin) ? 'LLM-derived (original contribution retained)' : `Original origin: ${u.originalOrigin}`} · ${u.editor ? `Human-edited by ${u.editor}` : 'No human content edit'} · ${u.currentHumanReview ? `Human-reviewed · ${u.state}` : 'Not currently human-reviewed'}`),
+      element(doc, 'p', reviewLabel(u), 'review-status'),
       element(doc, 'h4', 'Candidate'),
       element(doc, u.priorityCategory === 'prompts' ? 'pre' : 'p',
         u.record.value ?? u.record.name ?? u.record.description ?? u.record.summary ?? u.record.title ?? u.id, 'review-candidate'),
@@ -165,7 +174,11 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
       if (value) detail.append(element(doc, 'p', `${label}: ${value}`));
     }
     if (u.groundingLost) detail.append(element(doc, 'p', 'Exact grounding lost: edited literal is not in the retained passage. Acceptance and release are blocked.', 'limits'));
-    const original = element(doc, 'details'); original.append(element(doc, 'summary', 'Original candidate, extraction provenance and revision binding'),
+    const original = element(doc, 'details'); original.append(element(doc, 'summary', 'Origin, edits and technical review details'),
+      element(doc, 'p', `Content origin: ${u.contentOrigin} · Label authorship: ${u.labelAuthorship}`),
+      element(doc, 'p', `${/LLM|agent/.test(u.originalOrigin) ? 'LLM-derived (original contribution retained)' : `Original origin: ${u.originalOrigin}`} · ${u.editor ? `Human-edited by ${u.editor}` : 'No human content edit'} · ${u.currentHumanReview ? `Human-reviewed · ${u.state}` : 'Not currently human-reviewed'}`),
+      element(doc, 'p', 'Origin records who produced the candidate; accepting an unchanged AI-derived item records human review, not human authorship.'),
+      element(doc, 'p', `Technical review state: ${u.state} · labels ${u.labels.applicable ? u.labels.state : 'N/A (no label applies)'}`),
       element(doc, 'pre', JSON.stringify({ original: u.original, runMetadata: u.runMetadata, revision: u.binding }, null, 2)));
     detail.append(original, element(doc, 'h4', 'Exact evidence and available context'));
     if (!u.evidence.length) detail.append(element(doc, 'p', 'No direct passage on this item. Inspect supporting records below; unavailable/private passages are not invented.'));
@@ -195,7 +208,7 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     for (const key of u.dependencies) {
       const support = state.units.find(s => s.itemKey === key);
       const box = element(doc, 'section', null, 'claim-card');
-      box.append(element(doc, 'p', `Required support · ${support?.state ?? 'Missing'}`),
+      box.append(element(doc, 'p', `Required support · ${support ? reviewLabel(support) : 'Missing'}`),
         element(doc, 'p', support?.record.description ?? support?.record.name ?? key));
       if (support?.evidence[0]) showEvidence(support.evidence[0], box, `Supporting record: ${key}`);
       box.append(action(doc, `Review supporting item: ${key}`, () => change(supportNavigation(nav, key, u.itemKey))));
@@ -203,8 +216,10 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     }
     for (const id of u.record.conflictsWith ?? []) detail.append(action(doc, `Conflicting claim: ${id}`,
       () => change(supportNavigation(nav, `claims:${id}`, u.itemKey))));
-    for (const blocker of u.blockers) detail.append(action(doc, blocker.reason,
+    const blockers = element(doc, 'details'); blockers.append(element(doc, 'summary', 'Acceptance requirements / technical blockers'));
+    for (const blocker of u.blockers) blockers.append(action(doc, blocker.reason,
       () => change(supportNavigation(nav, blocker.itemKey, u.itemKey))));
+    if (u.blockers.length) detail.append(blockers);
     if (nav.supportTrail?.length || nav.returnItemKey) detail.append(action(doc, 'Return to candidate after support review',
       () => change(returnFromSupport(nav))));
     const guide = element(doc, 'details');
@@ -231,7 +246,8 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
     accept.disabled = u.blockers.some(b => b.reason !== 'Decision binding/support changed; explicit re-review required') || u.labels.state !== 'complete';
     detail.append(accept);
     const rejection = element(doc, 'details');
-    rejection.append(element(doc, 'summary', 'Reject item'));
+    rejection.append(element(doc, 'summary', 'Exclude item (explicit decision)'),
+      element(doc, 'p', 'The selected reason is a draft choice, not an existing verdict. Only Confirm rejection records an exclusion.'));
     const exclusionReason = choose(doc, rejection, 'Reason', [...EXCLUSION_REASONS, 'other'].map(r => [r, r]), EXCLUSION_REASONS[0], () => {});
     const rationale = field(doc, rejection, 'Optional detail (required for Other)', 'textarea');
     const links = element(doc, 'details'); links.append(element(doc, 'summary', 'Replacement links'));
@@ -331,7 +347,7 @@ export function renderReview(doc, model, state, nav, { change, decide, navigate,
   workspace.append(detail); root.append(workspace);
   const eligibility = element(doc, 'details'); eligibility.append(element(doc, 'summary', 'Case release eligibility / withheld reasons'));
   for (const u of state.units.filter(u => u.caseIds.includes(caseId))) eligibility.append(action(doc,
-    `${u.itemKey}: ${u.eligible ? 'Eligible' : `Withheld — ${u.state}; ${u.blockers.map(b => b.reason).join('; ')}`}`,
+    `${u.itemKey}: ${u.eligible ? 'Eligible' : `Withheld — ${reviewLabel(u)}; ${u.blockers.map(b => b.reason).join('; ')}`}`,
     () => change({ queue: 'all', category: '', filter: 'All', type: '', sourceId: '', itemKey: u.itemKey })));
   root.append(eligibility);
   return root;

@@ -22,6 +22,20 @@ export function createModel(corpus) {
   return model;
 }
 
+export function reviewLabel(unit) {
+  if (unit?.stale) return 'Re-review required';
+  if (unit?.state === 'Blocked/support changed') {
+    if (unit.structurallyBlocked) return 'Evidence unavailable';
+    if (unit.blockers?.length && unit.blockers.every(b => b.reason.startsWith('Required support is '))) {
+      return unit.blockers.every(b => b.itemKey.startsWith('claims:'))
+        ? 'Review supporting claims first' : 'Review supporting items first';
+    }
+    return 'Review blocked';
+  }
+  return ({ 'Needs review': 'Awaiting review', Accepted: 'Reviewed - accepted',
+    Excluded: 'Excluded', Unsure: 'Unsure' })[unit?.state] ?? 'Review status unavailable';
+}
+
 export function applyReviewProjection(model) {
   if (!model.itemReview || model.publicDraft) return model;
   const originalCorpus = model.originalCorpus ?? model.corpus, corpus = structuredClone(originalCorpus);
@@ -39,6 +53,7 @@ export function applyReviewProjection(model) {
     if (Object.hasOwn(record, 'disposition')) record.disposition = u.state === 'Accepted' ? 'Accepted' :
       u.state === 'Excluded' ? 'Excluded' : 'Pending';
     record.itemReview = { itemKey: u.itemKey, state: u.state, editor: u.editor ?? null,
+      stale: u.stale, structurallyBlocked: u.structurallyBlocked, blockers: structuredClone(u.blockers),
       contentOrigin: u.contentOrigin, labelAuthorship: u.labelAuthorship,
       displayIdentity: u.editor && u.record.normalizedValue !== u.original.normalizedValue
         ? u.record.normalizedValue : null };
