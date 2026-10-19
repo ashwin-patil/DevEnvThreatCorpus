@@ -78,6 +78,7 @@ permission-restricted. Supplier/reviewer IDs use the
 | `contract.mjs intake url` | `--url --supplied-by --store` | Authorized public HTTPS retrieval |
 | `contract.mjs intake batch` | `--urls-file --supplied-by --store`, exactly one `--case-id` / `--case-name` | `--max-images --image-bytes --image-total-bytes` lower image bounds |
 | `extract.mjs` (no subcommand) | `--template --supplied-by --store` | Manual Pending claims only |
+| `extract.mjs recover-public` | `--baseline --baseline-sha256 --retrieval-store --output-store` | Offline matching-evidence recovery into a new Pending private store; POSIX only |
 | `extract.mjs enrichment template` | `--store --case --source --revision --output` | Private placeholder template |
 | `extract.mjs enrichment validate` / `import` | `--store --input` | Import stays pending |
 | `extract.mjs enrichment export` | `--store --output` | `--case` |
@@ -98,6 +99,62 @@ permission-restricted. Supplier/reviewer IDs use the
 Implementation: [contract CLI](../../scripts/contract.mjs) `intakeCli`,
 [extraction CLI](../../scripts/extract.mjs) `cli`, [review CLI](../../scripts/review.mjs)
 `cli`, [server](../../scripts/server.mjs) `parseArguments`.
+
+## Recover an authorized public Pending baseline
+
+Use this only after a human authorizes the baseline and source retention. Freeze
+the exact public JSON before collection, then use existing intake to retain the
+successful reports in a **separate retrieval store**. Record failures and respect
+robots/access restrictions; recovery makes no network requests or model calls.
+Source ID, canonical URL, parser/normalization versions, normalized SHA-256 and
+code-point count must match the baseline. Every baseline passage must be in bounds,
+and supplied expansion quotation receipts must match exact claim-linked spans.
+Changed/missing evidence blocks recovery rather than silently moving citations.
+
+On POSIX, keep inputs in protected directories (0700) with files 0600. Run from
+the checkout that contains this command:
+
+```sh
+node scripts/extract.mjs recover-public \
+  --baseline "$PWD/.private-intake/issue-91/baseline.json" \
+  --baseline-sha256 5ff018979dc9f2296d3f7cfa591d7da5f18a82236033df7aa7c129a14b1de720 \
+  --retrieval-store "$PWD/.private-intake/issue-91/retrieval" \
+  --output-store "$PWD/.private-intake/issue-91/review"
+```
+
+The example hash identifies the committed LF Nx JSON at
+`e5a15d944c7fe1430e66a9185310fb04f33e101d`, not every later baseline.
+Verify your authorized exact file hash; do not substitute a new hash merely to
+clear a mismatch. That revision's Windows CRLF checkout has byte hash
+`5b05cb47c90e9816d4a6ddc93a10a4ddd2fb3b131ca9d3b08898cb281e90e669`;
+its JSON content is identical, but its file-byte receipt is distinct.
+
+`--output-store` must not exist. The command preserves the baseline and retrieval
+store, writes a byte-identical `baseline.json`, `recovery-receipt.json`, protected
+`enrichment/annotations.json`, then publishes `corpus.json` last. Existing output
+is never overwritten. Native Windows rejects this private operation before reads.
+For a filesystem failure, inspect any reported cleanup failure before choosing a
+new output; do not reuse or delete a review store containing decisions.
+
+Historical source revision IDs/raw hashes remain unchanged. Only matching normalized
+text and its exact passages are restored; historical raw originals stay omitted.
+Fresh raw responses and their archives remain in the retrieval store under their
+own IDs, not copied into historical archive paths. A receipt records those links.
+Tool/prompt annotations preserve their public IDs, literals, usage, source/case,
+claim dependencies, prompt locators and nested responses. Tools use an existing
+claim passage containing their exact literal; prompts require exact locator text.
+Original model/prompt versions are explicitly `unknown-public-projection`, not
+invented provider-run metadata. Sidecars now accept optional nonempty `claimIds`
+only for existing claims in the same case/source/revision; those IDs participate
+in the existing dependency review and staleness checks.
+
+Start `node scripts/server.mjs --store "$PWD/.private-intake/issue-91/review"`
+only after the command succeeds. Follow the
+[private Codespaces access checks](../guides/codespaces.md#private-port-and-access-checks)
+and [researcher checklist](../researcher-review-guide.md#public-baseline-recovery-and-review-checklist).
+Do not start it on a port already occupied by the managed public preview.
+Recovery does not supply a pre-frozen evaluation set, comparison/adjudication,
+human acceptance, historical generation runs or publication approval.
 
 ## Offline exercise setup
 

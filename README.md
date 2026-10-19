@@ -101,6 +101,13 @@ and [researcher evaluation/adoption guide](docs/researcher-review-guide.md#stage
 These commands do not call a model, adopt an extraction, or replace the public
 preview automatically. Native Windows remains public-preview-only.
 
+For an explicitly authorized public-baseline review, the
+[Pending recovery command](docs/reference/cli.md#recover-an-authorized-public-pending-baseline)
+can restore matching retained evidence into a separate POSIX private store.
+It preserves tool/prompt/response claim dependencies and existing behavior IDs,
+but creates no human decisions or gold designation. The public preview stays
+read-only; a public JSON file alone is still not a private review corpus.
+
 **Published research → Source-linked claims → Researcher review and acceptance →
 Campaign patterns and Detection hypotheses**
 

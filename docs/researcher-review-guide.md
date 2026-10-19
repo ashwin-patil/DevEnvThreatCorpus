@@ -72,6 +72,52 @@ Publish only authorized non-sensitive aggregate evaluation/adjudication results,
 with exact revisions and remaining limitations, on the originating PR. Independent
 semantic, UX/accessibility and documentation-relevance review remain required.
 
+## Public-baseline recovery and review checklist
+
+Issue #91's human-authorized starting point is the existing public Pending Nx
+projection, not an unavailable historical private store. The authorized review
+scope includes tools, prompts/responses and behaviors with their supporting
+claims. Use the [explicit recovery command](reference/cli.md#recover-an-authorized-public-pending-baseline)
+to make a new private working copy from matching retained evidence. It is not a
+recovered original extraction run and must not carry invented run provenance or
+copied approvals. The existing public display remains read-only.
+
+Apply this checklist separately to each publisher:
+
+| Step | Evidence to preserve | Stop or defer when |
+|---|---|---|
+| Authorize and freeze | Operator authorization, exact baseline byte hash, typed snapshot digest, scope and source URLs | Permissions/scope are ambiguous, or the baseline has changed without approval |
+| Collect and match | Protected source archive and retrieval result, parser/normalization versions, matching normalized hash/count, historical versus fetched raw hashes | Retrieval is denied/failed, normalized text differs, or a citation/quotation receipt does not verify |
+| Restore Pending | Separate output store, byte-identical baseline copy, recovery receipt, unchanged core/artifact IDs and dependencies | Output already exists, content is missing, literal/response grounding fails, or filesystem protections fail |
+| Review evidence | Each supporting claim's exact passage/revision and explicit human Accept/Modify/Exclude/Unsure decision | Evidence does not support the claim, a conflict is unresolved, or the reviewer is unsure; never accept in bulk |
+| Review derived items | Separate tool identity/usage, exact prompt/response pairing/context and behavior/occurrence decisions after supporting claims | Support is not currently accepted, the literal/context is wrong, or dependency bindings change |
+| Bound gold and release | Versioned included/excluded/deferred IDs with reasons, eligibility closure, source revisions, comparison/adjudication, export hashes and independent approvals | Evaluation/comparison, rights/privacy, independent research or publication approval is absent |
+
+The current Nx draft has 97 claims, 14 behavior definitions, 12 tool occurrences
+and four prompt occurrences (two literal variants, one attached response). These
+are workload inventory counts, not accepted findings. Source-local categories,
+scope proposals, path/node/edge and mapping records remain visible and need their
+own explicit decisions if included. The case summary has no independently cited
+support in this projection; leave it unaccepted. Existing reviewed exports may
+include only minimal context-only case identity rather than an unreviewed summary.
+
+Original model/prompt versions were omitted from public artifacts. Recovery marks
+them unknown rather than inventing extraction metadata. Matching normalized
+evidence can restore exact citations while fresh raw HTML has different hashes:
+never write a new raw response beneath the old revision's raw hash or archive ID.
+Retain the separate retrieval store and recovery receipt alongside the review store.
+The ignored directory is neither an access-control mechanism nor a backup.
+
+An already-published candidate cannot retroactively satisfy a pre-output evaluation
+freeze. Arrange an independent, exposure-aware frozen set before any **new**
+regeneration, and adjudicate the same-revision comparison separately from new-source
+coverage. Recovery is not either of those activities. If no human-qualified gold
+scope can be established, preserve the useful review history, report the remaining
+gates, keep the draft Pending and do not publish or close #91 as accepted.
+
+This checklist and the interface still require independent documentation relevance,
+research, privacy, keyboard/narrow-screen and accessibility review.
+
 ## Interface clarification (decision rules unchanged)
 
 Current **Human-reviewed · Excluded** means a completed exclusion decision, not

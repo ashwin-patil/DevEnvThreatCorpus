@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-19 - Restore authorized Nx baseline for private HITL review (#91)
+
+- Add explicit offline public-baseline recovery through the existing extraction
+  CLI. Require a frozen exact file hash, valid protected retrieval corpus and
+  matching source identity, normalized revision hash/count, parser version and
+  quotation receipts before creating a separate Pending review store.
+- Preserve core and tool/prompt/response identities, exact literals, source-local
+  supporting claims and behavior dependencies. Extend private annotation sidecars
+  with validated optional claim IDs so support acceptance and stale-review checks
+  remain effective after recovery. Keep omitted model/prompt versions explicitly
+  unknown rather than fabricating original private extraction runs.
+- Retain historical raw hashes without copying new raw responses under old IDs;
+  preserve the frozen baseline, separate retrieval archives and recovery receipt.
+  Reject existing outputs and native-Windows private writes. Add focused synthetic
+  and POSIX integration checks plus a reusable publisher review checklist.
+  Recovery neither accepts research nor satisfies independent evaluation,
+  comparison/adjudication, privacy, publication or gold-qualification gates.
+
 ## 2026-10-18 - Group object campaign and category associations (#89)
 
 - Replace top campaign/category rows in Prompt library, Security telemetry and
