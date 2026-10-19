@@ -10,6 +10,10 @@
   deduplicate multiple associated campaigns/categories and honor case/source
   filters without merging canonical objects, evidence, attribution or review state.
   Keep existing type colors, prompt formatting and public JSON/ZIP unchanged.
+- Reconcile the Nx usage notes and capability summary with the final section
+  placement, per-type fills, shaded literals and responsive title/logo behavior;
+  earlier uniform-fill/top-context descriptions below are historical, not the
+  current UI contract.
 
 ## 2026-10-18 - Restore research type colors and simplify review labels (#89)
 
@@ -24,6 +28,10 @@
   new review values. Canonical data, public artifacts and HITL decisions stay intact.
 
 ## 2026-10-18 - Consistent research cards and consolidated AI products (#89)
+
+This intermediate styling was superseded by the newer type-color and association
+section entries above; product consolidation, catalog filtering and provenance
+preservation remain current.
 
 - Unify ordinary research card, text and tag backgrounds across light/dark views,
   preserving explicit usage/review labels and exceptional trust/highlight cues.

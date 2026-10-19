@@ -30,7 +30,7 @@ or developer-targeted social engineering to Nx without separate support.
 `categoryExtraction` records the rule version, input boundary and record IDs.
 The JSON and ZIP include those Pending records with honest deterministic origin.
 
-Campaign role badges appear top-right, opposite the Campaign label. Research
+Campaign-card role badges appear top-right, opposite the Campaign label. Research
 library blogs keep their source-supported scope and role evidence. A blog without
 local role classification also shows the campaign role badge: its tooltip and
 provenance identify campaign context, not a new source conclusion. The visible
@@ -82,12 +82,21 @@ three AI products is a single card with source-local usage tags, deduplicated
 publisher/claim links, grouped related research and four retained occurrences
 under collapsed provenance. This does not merge article evidence, exact literals,
 human-edited identities or acceptance. Product related research omits sibling
-tools. Telemetry cards show boxed campaign/category context and blog publishers,
-and link behaviors only through explicit shared claim support; tools/graphs are
-not added to those cards. Official catalogs remain available under ATLAS & TTPs
-and direct provenance, not in research source/publisher facets. Neutral card/tag
-surfaces are shared across themes; explicit status text, symbols, focused
-selection and trust/error notices remain distinct.
+tools. Prompt library, Security telemetry and Attack paths show **Campaigns
+tagged** and **Categories** sections instead of top context rows; embedded
+occurrences and evidence do not repeat those headers. Sections deduplicate
+associated campaigns/categories and respect case/source filters. Multiple
+associations do not merge canonical records, evidence, graphs or attribution.
+Telemetry cards also link blog publishers and behaviors supported by explicit
+shared claims, not unrelated tools/graphs. Official catalogs remain available
+under ATLAS & TTPs and direct provenance, not in research source/publisher facets.
+
+Each research link type uses its own consistent light/dark fill across views,
+not one uniform background for every type. Literal prompts and responses retain
+shaded, preformatted blocks with wrapping and preserved line breaks. Explicit
+status text, symbols, focused selection and trust/error notices remain distinct.
+The proportional logo is enlarged responsively, and **Open campaign workspace**
+sits directly beside the campaign name, wrapping left-aligned when necessary.
 
 ### Current public view format and rollback
 

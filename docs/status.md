@@ -27,9 +27,9 @@ tool/prompt/behavior counts, ordered sections and bordered behavior tiles, while
 projection/limits prose remains available under Evidence & review.
 
 The subsequent consistent-card refinement adds consistent per-type light/dark
-link colors, top campaign/category navigation and publisher links below blog
-titles, a larger proportional logo and
-title-adjacent workspace access. The three AI products each have one aggregate
+link colors, campaign/category navigation at the top of campaign, blog and
+AI-product cards, and publisher links below blog titles. The larger proportional
+logo and title-adjacent workspace access remain responsive. The three AI products each have one aggregate
 card, not repeated boxed source occurrences; their separate receipts remain
 expandable. Blogs without local role extraction retain campaign-context metadata
 in tooltips/provenance instead of fabricated source support. Visible unreviewed

@@ -19,8 +19,8 @@ inheritance. Role badges may additionally show campaign context where local role
 support is absent, identified in tooltips and provenance rather than a new visible
 review status. Unreviewed badges say **Pending**; a mixed-state group also remains
 Pending until resolved, with individual states retained in its tooltip and records.
-This is navigation context, not a
-new classification, source assertion or HITL outcome. Local category review states
+This is navigation context, not a new classification, source assertion or HITL
+outcome. Local category review states
 take precedence; other campaigns' contextual states are not mixed into them.
 
 Research links use one distinct existing theme fill per object type across views.
@@ -37,8 +37,8 @@ and **Categories** as named sections rather than a top context row; embedded
 occurrence/claim cards do not repeat that header. The sections deduplicate
 currently associated campaigns/categories and respect active case/source scope.
 Multiple campaign associations do not merge evidence, attack graphs or attribution.
-Other related research groups organize
-explicit support by object type; product views suppress sibling tools and
+Other related research groups organize explicit support by object type; product
+views suppress sibling tools and
 telemetry views expose campaign/publisher context and claim-supported behaviors
 without graph/tool shortcuts. The full relationship index and claim-detail view
 retain their broader links. Catalog provenance is not a research article and is
