@@ -1,4 +1,4 @@
-import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, telemetryScopeBadges, renderCampaignCategories, relatedResearch, cardContext, publisherTags } from './render.mjs';
+import { element, action, safeExternalUrl, caseCitations, renderClaim, renderConflicts, sourceCitation, claimCitation, technicalDetails, reviewChip, reviewLegend, campaignCategoryBadges, telemetryScopeBadges, renderCampaignCategories, relatedResearch, cardContext, publisherTags, researchTags } from './render.mjs';
 import { OBSERVATION_CONTEXTS } from './prompt-responses.mjs';
 import { filterRecords, metadata, caseSourceIds, behaviorSupport, telemetryScopeEntries, researchRelationships, campaignMetrics, CAMPAIGN_SECTIONS, researchSources } from './model.mjs';
 import { publisherDisplay, behaviorInventory, sourceInventory } from './research-inventory.mjs';
@@ -229,7 +229,7 @@ function support(doc, model, ids, navigate, caseId, relations) {
     if (claim) section.append(renderClaim(doc, scopedModel, claim, navigate, false, relations));
     else section.append(element(doc, 'p', `Unavailable claim or outside this case: ${id}. No support inferred.`));
   }
-  section.append(renderConflicts(doc, scopedModel, ids ?? [], navigate));
+  section.append(renderConflicts(doc, scopedModel, ids ?? [], navigate, relations));
   if (!ids?.length) section.append(element(doc, 'p', 'No claim support recorded. This is not established campaign evidence.'));
   return section;
 }
@@ -252,12 +252,12 @@ export function nodeMappings(model, path, node) {
   };
 }
 
-function mappingCard(doc, model, mapping, navigate, caseId, scope) {
+function mappingCard(doc, model, mapping, navigate, caseId, scope, relations = {}) {
   const card = element(doc, 'article', null, 'claim-card');
-  card.append(cardContext(doc, model, [caseId], navigate));
+  if (relations.context !== false) card.append(cardContext(doc, model, [caseId], navigate));
   card.append(element(doc, 'h4', `${mapping.framework} ${mapping.version} · ${mapping.techniqueLiteral ?? mapping.techniqueId} · ${scope}`), provenance(doc, mapping));
   for (const [key, label] of [['rationale', 'Rationale'], ['applicability', 'Applicability'], ['reason', 'Resolution limit']]) row(doc, card, label, mapping[key]);
-  card.append(support(doc, model, mapping.claimIds ?? mapping.supportingClaimIds, navigate, caseId));
+  card.append(support(doc, model, mapping.claimIds ?? mapping.supportingClaimIds, navigate, caseId, relations));
   if (mapping.techniqueId) card.append(action(doc, 'Inspect recorded framework candidate', () => navigate('frameworks', mapping.techniqueId)));
   return card;
 }
@@ -265,7 +265,7 @@ function annotationCard(doc, model, annotation, navigate, showLiteral = true, pa
   const card = element(doc, compact ? 'details' : 'article', null, compact ? 'source-occurrence' : 'claim-card');
   const prompt = annotation.type === 'commands-ai-artifacts' && annotation.context?.artifactKind === 'prompt-instruction';
   if (compact) card.append(element(doc, 'summary', `${publisherDisplay(model.sources.get(annotation.sourceId)).name} · ${USAGE[usageOf([annotation])][0]} · ${annotation.itemReview?.state ?? annotation.status ?? 'Pending'}`));
-  else card.append(cardContext(doc, model, [annotation.caseId], navigate, new Set([annotation.sourceId])));
+  else if (relations?.context !== false) card.append(cardContext(doc, model, [annotation.caseId], navigate, new Set([annotation.sourceId])));
   if (annotation.type === 'commands-ai-artifacts') {
     const usage = usageOf([annotation]);
     card.title = USAGE[usage][0]; card.setAttribute('aria-label', `Source artifact: ${USAGE[usage][0]}`);
@@ -501,6 +501,7 @@ function activitySvg(doc, name) {
 }
 function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   const panel = element(doc, 'section', null, 'panel attack-graph');
+  const relations = { context: false, campaigns: false, excludeTypes: ['categorizations'] };
   panel.append(element(doc, 'h2', path.name),
     element(doc, 'p', `${model.cases.get(path.caseId)?.kind} · ${path.scope} · 1 displayed campaign graph · ${path.members.length} retained path record(s)`),
     element(doc, 'p', 'Solid: reported/reconstructed sequence · dashed: conditional prerequisite or unestablished execution · double/dotted curve: propagation, including loops. Line style does not establish evidence strength. Graph position is presentation only, not chronology, causality or attribution.'),
@@ -557,25 +558,25 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   ]);
   const showNode = (node, updateRoute = true) => {
     inspection.replaceChildren(element(doc, 'h3', node.title), element(doc, 'p', node.detail), provenance(doc, node), occurrenceProvenance(node),
-      support(doc, model, node.claimIds, navigate, path.caseId));
+      support(doc, model, node.claimIds, navigate, path.caseId, relations));
     row(doc, inspection, 'Uncertainty', node.uncertainty);
     for (const id of node.behaviorIds) inspection.append(action(doc, model.corpus.behaviors?.find(b => b.id === id)?.name ?? id, () => navigate('behaviors', id)));
     const mappings = nodeMappings(model, node.memberPath, node.canonicalRecord);
     inspection.append(element(doc, 'h4', 'Node-scoped candidates — Proposed, not established occurrence'));
-    for (const m of mappings.nodeScoped) inspection.append(mappingCard(doc, model, m, navigate, path.caseId, 'Node-scoped candidate'));
+    for (const m of mappings.nodeScoped) inspection.append(mappingCard(doc, model, m, navigate, path.caseId, 'Node-scoped candidate', relations));
     if (!mappings.nodeScoped.length) inspection.append(element(doc, 'p', 'No node-scoped candidate recorded with verified scope and a retained catalog pin. This does not mean the behavior is absent.'));
     if (mappings.unavailable.length) inspection.append(element(doc, 'p', 'Some candidates have unavailable catalog provenance or invalid node support; not presented as validated node mappings.'));
     if (mappings.broad.length) inspection.append(element(doc, 'h4', 'Broader behavior/case candidates — not node-specific'));
-    for (const m of mappings.broad) inspection.append(mappingCard(doc, model, m, navigate, path.caseId, 'Broader behavior/case candidate'));
+    for (const m of mappings.broad) inspection.append(mappingCard(doc, model, m, navigate, path.caseId, 'Broader behavior/case candidate', relations));
     for (const m of mappings.unresolved) inspection.append(mappingCard(doc, model, m, navigate, path.caseId,
-      m.pathId ? 'Unresolved node candidate — literal ID' : 'Unresolved broader candidate — literal ID'));
+      m.pathId ? 'Unresolved node candidate — literal ID' : 'Unresolved broader candidate — literal ID', relations));
     select('node', node, updateRoute);
   };
   const showEdge = (edge, updateRoute = true) => {
     inspection.replaceChildren(element(doc, 'h3', `${path.nodes.find(n => n.id === edge.from)?.title ?? edge.from} → ${path.nodes.find(n => n.id === edge.to)?.title ?? edge.to}`),
       element(doc, 'p', `${edge.relation}: ${edge.basis}`), provenance(doc, edge), occurrenceProvenance(edge),
       element(doc, 'p', 'Node support does not establish this relationship. Reported/reconstructed sequence and conditional execution retain their recorded basis.'),
-      support(doc, model, edge.claimIds, navigate, path.caseId));
+      support(doc, model, edge.claimIds, navigate, path.caseId, relations));
     row(doc, inspection, 'Uncertainty', edge.uncertainty); select('edge', edge, updateRoute);
   };
   const activate = handler => event => {
@@ -752,12 +753,12 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   const alternative = element(doc, 'details'); alternative.append(element(doc, 'summary', 'Text alternative: all nodes and cited relationships'));
   for (const node of path.nodes) {
     const control = action(doc, node.title, () => showNode(node)); textControls.set(`node:${node.id}`, control);
-    alternative.append(control, element(doc, 'p', node.detail), provenance(doc, node), support(doc, model, node.claimIds, navigate, path.caseId));
+    alternative.append(control, element(doc, 'p', node.detail), provenance(doc, node), support(doc, model, node.claimIds, navigate, path.caseId, relations));
   }
   for (const edge of path.edges) {
     const control = action(doc, `${path.nodes.find(n => n.id === edge.from)?.title} → ${path.nodes.find(n => n.id === edge.to)?.title} · ${edge.relation}`, () => showEdge(edge));
     textControls.set(`edge:${edge.id}`, control);
-    alternative.append(control, element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate, path.caseId));
+    alternative.append(control, element(doc, 'p', edge.basis), provenance(doc, edge), support(doc, model, edge.claimIds, navigate, path.caseId, relations));
   }
   const node = path.nodes.find(n => n.id === selectedEntity), edge = path.edges.find(e => e.id === selectedEntity);
   const initialGroup = path.groups.find(group => group.path.id === (node ?? edge)?.memberPath.id) ?? path.groups[0];
@@ -769,7 +770,7 @@ function renderGraph(doc, model, path, navigate, selectedEntity = '') {
   paint();
   if (node) showNode(node, false); else if (edge) showEdge(edge, false); else if (path.nodes.length) showNode(path.nodes[0], false);
   viewport.append(svg, toolbar);
-  panel.append(phaseControls, viewport, alternative, announcement, inspection); return panel;
+  panel.append(phaseControls, viewport, researchTags(doc, model, [path.caseId], navigate), alternative, announcement, inspection); return panel;
 }
 
 export function renderExploration(doc, model, view, filters, navigate, selectedId = '', loadDemo, selectedEntity = '', openReview) {
@@ -825,12 +826,13 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
         if (!annotations.length) continue;
         const record = { ...original, annotations }; occurrences += annotations.length;
         const card = element(doc, 'article', null, 'panel research-card');
-        card.append(cardContext(doc, model, record.annotations.map(a => a.caseId), navigate, new Set(record.annotations.map(a => a.sourceId))));
+        if (view === 'tools') card.append(cardContext(doc, model, record.annotations.map(a => a.caseId), navigate, new Set(record.annotations.map(a => a.sourceId))));
         card.append(element(doc, 'h2', record.name));
         if (view !== 'prompts') card.append(element(doc, 'p', record.basis, 'subtle'));
         if (!selectedId) card.append(action(doc, 'Open library entry', () => navigate(view, record.id)));
         if (view === 'prompts') card.append(element(doc, 'pre', record.annotations[0].value, 'artifact-value'),
-          element(doc, 'p', `${record.annotations.length} source occurrence(s) · ${record.annotations.reduce((count, a) => count + (a.responses?.length ?? 0), 0)} response(s)`, 'subtle'));
+          element(doc, 'p', `${record.annotations.length} source occurrence(s) · ${record.annotations.reduce((count, a) => count + (a.responses?.length ?? 0), 0)} response(s)`, 'subtle'),
+          researchTags(doc, model, record.annotations.map(a => a.caseId), navigate, new Set(record.annotations.map(a => a.sourceId))));
         if (view === 'tools') {
           card.className += ' ai-product-card';
           const labels = element(doc, 'div', null, 'artifact-classifications');
@@ -849,7 +851,8 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
           for (const a of record.annotations) occurrences.append(annotationCard(doc, model, a, navigate, true, false, true));
           card.append(occurrences);
         } else for (const a of record.annotations) {
-          card.append(annotationCard(doc, model, a, navigate, false, !showAll));
+          card.append(annotationCard(doc, model, a, navigate, false, !showAll, false,
+            { context: false, campaigns: false, excludeTypes: ['categorizations'] }));
         }
         grid.append(card);
       }
@@ -926,7 +929,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       }
       const graph = campaignGraph(model, path.caseId, selected.paths);
       const occurrence = [...graph.nodes, ...graph.edges].find(r => r.memberPath.id === path.id && r.canonicalId === selectedEntity);
-      panel.append(cardContext(doc, model, [path.caseId], navigate), choose, renderGraph(doc, model, graph, navigate, occurrence?.id ?? graph.nodes.find(n => n.memberPath.id === path.id)?.id));
+      panel.append(choose, renderGraph(doc, model, graph, navigate, occurrence?.id ?? graph.nodes.find(n => n.memberPath.id === path.id)?.id));
     } else {
       panel.append(element(doc, 'p', 'No authored attack paths in the selected corpus. Collection does not automatically reconstruct a graph.', 'empty'));
       for (const id of selected.caseIds) panel.append(action(doc, `Case: ${model.cases.get(id)?.name}`, () => navigate('cases', id)));
@@ -1003,9 +1006,10 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     const contextCases = (record.caseId ? [record.caseId] : view === 'frameworks'
       ? selected.mappings.filter(mapping => mapping.techniqueId === record.id).map(mapping => mapping.caseId)
       : relatedObject?.caseIds ?? []).filter(id => selected.caseIds.has(id));
-    if (contextCases.length) card.append(cardContext(doc, model, contextCases, navigate, record.sourceIds ? new Set(record.sourceIds) : undefined));
+    if (contextCases.length && view !== 'telemetry') card.append(cardContext(doc, model, contextCases, navigate, record.sourceIds ? new Set(record.sourceIds) : undefined));
     card.append(element(doc, 'h2', record.name ?? record.eventType ?? record.action ?? 'Research record'));
     if (!record.scopeRecords) card.append(provenance(doc, record));
+    if (view === 'telemetry') card.append(researchTags(doc, model, contextCases, navigate, record.sourceIds ? new Set(record.sourceIds) : selected.sourceIds));
     if (matchesTarget(record)) card.setAttribute('data-selected', 'true');
     if (record.scopeRecords) {
       card.className += ' telemetry-scope-detail';
@@ -1013,7 +1017,7 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
         publisherTags(doc, model, record.sourceIds, navigate));
       const index = researchRelationships(model), entry = index.byKey.get(`telemetryScopes:${record.id}`);
       const claimIds = record.claimIds.filter(id => entry?.claimIds.includes(id));
-      const relations = { types: ['behaviors'], campaigns: false };
+      const relations = { types: ['behaviors'], campaigns: false, context: false };
       card.append(relatedResearch(doc, model, claimIds, navigate, undefined, relations));
       const evidence = support(doc, model, claimIds, navigate, record.caseId, relations);
       evidence.className = 'scope-claims'; evidence.open = Boolean(selectedId);
@@ -1068,13 +1072,13 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       const behavior = list(model, 'behaviors').find(b => b.id === record.behaviorId);
       if (behavior) card.append(action(doc, behavior.name, () => navigate('behaviors', record.behaviorId)));
       const object = researchRelationships(model).byKey.get(`telemetry:${record.id}`);
-      if (object?.claimIds.length) card.append(support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false }));
+      if (object?.claimIds.length) card.append(support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false, context: false }));
       card.append(technicalDetails(doc, [['Telemetry identifier', record.id]]));
       for (const detection of list(model, 'detections').filter(d => d.behaviorId === record.behaviorId)) {
         const section = element(doc, 'details'); section.open = detection.id === selectedId;
         section.append(element(doc, 'summary', 'Detection hypothesis · retain validation status'), provenance(doc, detection));
         const object = researchRelationships(model).byKey.get(`detections:${detection.id}`);
-        if (object?.claimIds.length) section.append(support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false }));
+        if (object?.claimIds.length) section.append(support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false, context: false }));
         for (const key of ['hypothesis', 'windowSeconds', 'windowBasis', 'tuning', 'validation', 'testPlan']) row(doc, section, key, detection[key]); card.append(section);
       }
     } else if (view === 'otel') {
@@ -1110,10 +1114,10 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
     if (selectedId && detection.id !== selectedId) continue;
     const card = element(doc, 'article', null, 'panel research-card');
     const object = researchRelationships(model).byKey.get(`detections:${detection.id}`);
-    card.append(cardContext(doc, model, object?.caseIds.filter(id => selected.caseIds.has(id)) ?? [], navigate),
-      element(doc, 'h2', behavior?.name ?? 'Detection hypothesis'), provenance(doc, detection));
+    card.append(element(doc, 'h2', behavior?.name ?? 'Detection hypothesis'), provenance(doc, detection),
+      researchTags(doc, model, object?.caseIds.filter(id => selected.caseIds.has(id)) ?? [], navigate, selected.sourceIds));
     if (object?.claimIds.length) card.append(relatedResearch(doc, model, object.claimIds, navigate, undefined, { types: ['behaviors'], campaigns: false }),
-      support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false }));
+      support(doc, model, object.claimIds, navigate, selected.caseIds, { types: ['behaviors'], campaigns: false, context: false }));
     for (const key of ['hypothesis', 'validation', 'tuning', 'testPlan']) row(doc, card, key, detection[key]); grid.append(card);
   }
   for (const type of (VIEW_ANNOTATIONS[view] ?? []).filter(type => type !== 'observed-behavior')) {
@@ -1122,8 +1126,11 @@ export function renderExploration(doc, model, view, filters, navigate, selectedI
       if (selectedId && a.id !== selectedId) continue;
       if (selected.sourceIds && !selected.sourceIds.has(a.sourceId)) continue;
       const card = element(doc, 'section', null, 'panel research-card');
-      card.append(cardContext(doc, model, [a.caseId], navigate, new Set([a.sourceId])), element(doc, 'h2', ANNOTATION_LABELS[type]), element(doc, 'p', 'Pending annotation; source references and researcher proposals retain their recorded context.'), annotationCard(doc, model, a, navigate, true, false, false,
-        view === 'telemetry' ? { types: ['behaviors'], campaigns: false } : undefined)); grid.append(card);
+      if (view !== 'telemetry') card.append(cardContext(doc, model, [a.caseId], navigate, new Set([a.sourceId])));
+      card.append(element(doc, 'h2', ANNOTATION_LABELS[type]));
+      if (view === 'telemetry') card.append(researchTags(doc, model, [a.caseId], navigate, new Set([a.sourceId])));
+      card.append(element(doc, 'p', 'Pending annotation; source references and researcher proposals retain their recorded context.'), annotationCard(doc, model, a, navigate, true, false, false,
+        view === 'telemetry' ? { types: ['behaviors'], campaigns: false, context: false } : undefined)); grid.append(card);
     }
   }
   if (view === 'otel' && model.corpus.otelReference) {

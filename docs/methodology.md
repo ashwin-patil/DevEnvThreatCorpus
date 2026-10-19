@@ -32,6 +32,12 @@ errors, source-passage highlighting and active selection keep their semantic
 cues. A consolidated AI-product card groups the existing identity only: its
 source occurrences, literals, revisions, classifications, claims and review
 receipts remain separate under expandable provenance. Related research groups
+in Prompt library, Security telemetry and Attack paths show **Campaigns tagged**
+and **Categories** as named sections rather than a top context row; embedded
+occurrence/claim cards do not repeat that header. The sections deduplicate
+currently associated campaigns/categories and respect active case/source scope.
+Multiple campaign associations do not merge evidence, attack graphs or attribution.
+Other related research groups organize
 explicit support by object type; product views suppress sibling tools and
 telemetry views expose campaign/publisher context and claim-supported behaviors
 without graph/tool shortcuts. The full relationship index and claim-detail view

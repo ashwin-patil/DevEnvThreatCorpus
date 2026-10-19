@@ -41,6 +41,12 @@ views. Public JSON/ZIP and human-review states are unchanged by this refinement.
 These mechanisms still require independent semantic, visual/accessibility and
 documentation relevance review.
 
+Prompt, telemetry and attack-path objects now use named Campaigns tagged and
+Categories sections instead of top context badges. One prompt can list several
+campaign associations while keeping exact literals and per-source receipts separate;
+case/source filters still constrain the section. This is a read-only presentation
+change, not automatic cross-campaign merging, new tags or recorded human acceptance.
+
 Implementation and public-data statements below were inspected against
 [`06f93a10f4481378c394785f4e2d239886a92c21`](https://github.com/ashwin-patil/DevEnvThreatCorpus/tree/06f93a10f4481378c394785f4e2d239886a92c21),
 the merged #60 default-branch baseline. This documentation does not change those

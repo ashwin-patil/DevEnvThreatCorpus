@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-18 - Group object campaign and category associations (#89)
+
+- Replace top campaign/category rows in Prompt library, Security telemetry and
+  Attack paths with named Campaigns tagged and Categories sections, including
+  telemetry proposals and source annotations. Suppress redundant context headers
+  on embedded occurrences, claims and path-mapping evidence in these views.
+- Reuse the existing category review/basis and campaign navigation controls;
+  deduplicate multiple associated campaigns/categories and honor case/source
+  filters without merging canonical objects, evidence, attribution or review state.
+  Keep existing type colors, prompt formatting and public JSON/ZIP unchanged.
+
 ## 2026-10-18 - Restore research type colors and simplify review labels (#89)
 
 - Correct the previous uniform-background interpretation: use a distinct reusable

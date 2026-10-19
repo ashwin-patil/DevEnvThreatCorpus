@@ -55,6 +55,7 @@ export function relatedResearch(doc, model, claimIds, navigate, excludeKey, opti
   const related = claimIds.flatMap(id => index.byClaim.get(id) ?? []).filter(object => {
     const key = `${object.type}:${object.view}:${object.targetId}`;
     if (object.key === excludeKey || seen.has(key) || options.types && !options.types.includes(object.type)
+      || options.excludeTypes?.includes(object.type)
       || options.excludeViews?.includes(object.view)) return false;
     seen.add(key); return true;
   });
@@ -151,7 +152,7 @@ function archiveDownloads(doc, model, source, revision) {
 
 export function renderClaim(doc, model, claim, navigate, compact = false, relations = {}) {
   const card = element(doc, 'article', null, 'claim-card');
-  card.append(cardContext(doc, model, [claim.caseId], navigate, new Set([claim.sourceId])));
+  if (relations.context !== false) card.append(cardContext(doc, model, [claim.caseId], navigate, new Set([claim.sourceId])));
   card.append(element(doc, 'p', claim.inference ? 'Researcher inference — not a source assertion' :
     'Author / source assertion — not independently established', 'eyebrow'));
   card.append(action(doc, claim.description, () => navigate('claims', claim.id), 'claim-title'));
@@ -183,7 +184,7 @@ export function renderClaim(doc, model, claim, navigate, compact = false, relati
   return card;
 }
 
-export function renderConflicts(doc, model, claimIds, navigate) {
+export function renderConflicts(doc, model, claimIds, navigate, relations = {}) {
   const section = element(doc, 'section', null, 'conflicts');
   const pairs = conflictPairs(model, claimIds);
   if (!pairs.length) return section;
@@ -191,7 +192,7 @@ export function renderConflicts(doc, model, claimIds, navigate) {
     element(doc, 'p', 'Contradictions are preserved. Neither side is chosen or merged by this workbench.'));
   for (const pair of pairs) {
     const row = element(doc, 'div', null, 'conflict-pair');
-    for (const claim of pair) row.append(renderClaim(doc, model, claim, navigate, true));
+    for (const claim of pair) row.append(renderClaim(doc, model, claim, navigate, true, relations));
     section.append(row);
   }
   return section;
@@ -340,11 +341,30 @@ function categoryBadges(doc, model, caseIds, sourceIds, scope, navigate, include
 }
 export const campaignCategoryBadges = (doc, model, caseIds, sourceIds, navigate, includeContext = false) =>
   categoryBadges(doc, model, caseIds, sourceIds, false, navigate, includeContext);
-export function cardContext(doc, model, caseIds, navigate, sourceIds) {
-  const section = element(doc, 'div', null, 'card-badges card-context'), campaigns = element(doc, 'div', null, 'campaign-links');
+function campaignLinks(doc, model, caseIds, navigate, prefix = true) {
+  const campaigns = element(doc, 'div', null, 'campaign-links');
   const ids = [...new Set(caseIds)].filter(id => model.cases.has(id));
-  for (const id of ids) campaigns.append(action(doc, `Campaign: ${model.cases.get(id).name}`, () => navigate('cases', id), 'chip campaign-tag'));
-  section.append(campaigns, campaignCategoryBadges(doc, model, ids, sourceIds, navigate, true));
+  for (const id of ids) campaigns.append(action(doc, `${prefix ? 'Campaign: ' : ''}${model.cases.get(id).name}`, () => navigate('cases', id), 'chip campaign-tag'));
+  return campaigns;
+}
+export function cardContext(doc, model, caseIds, navigate, sourceIds) {
+  const section = element(doc, 'div', null, 'card-badges card-context');
+  const ids = [...new Set(caseIds)].filter(id => model.cases.has(id));
+  section.append(campaignLinks(doc, model, ids, navigate), campaignCategoryBadges(doc, model, ids, sourceIds, navigate, true));
+  return section;
+}
+export function researchTags(doc, model, caseIds, navigate, sourceIds) {
+  const section = element(doc, 'section', null, 'research-tags');
+  const ids = [...new Set(caseIds)].filter(id => model.cases.has(id));
+  for (const [kind, label, tags] of [
+    ['campaigns', 'Campaigns tagged', campaignLinks(doc, model, ids, navigate, false)],
+    ['categorizations', 'Categories', campaignCategoryBadges(doc, model, ids, sourceIds, navigate, true)],
+  ]) {
+    if (!tags.children.length) continue;
+    const group = element(doc, 'section', null, 'related-group');
+    group.setAttribute('data-related-group', kind);
+    group.append(element(doc, 'h3', label), tags); section.append(group);
+  }
   return section;
 }
 export const telemetryScopeBadges = (doc, model, caseIds, sourceIds, navigate) => {

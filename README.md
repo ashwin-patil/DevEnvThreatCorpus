@@ -51,7 +51,10 @@ Research links use a consistent color per content type across cards in both
 themes: campaign, role category, publisher, attack flow, behavior, AI tool, prompt
 and telemetry. Literal prompts/responses retain shaded, preformatted blocks.
 Blog publisher links sit below article titles; only campaign/category context
-occupies their top row. Usage and human-review labels remain explicit.
+occupies their top row. **Prompt library**, **Security telemetry** and **Attack
+paths** instead list associations under **Campaigns tagged** and **Categories**,
+not a top badge row. Shared objects can show multiple linked campaigns without
+merging their evidence or attribution. Usage and human-review labels remain explicit.
 **Open campaign workspace** sits beside the campaign name. **AI tools** has one
 card per existing product identity with grouped claims/research and expandable
 source-local occurrence receipts, not repeated source cards or sibling-tool links.

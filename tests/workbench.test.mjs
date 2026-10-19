@@ -352,15 +352,18 @@ test('#89 AC-17 AI products consolidate occurrences without merging source evide
   assert.equal(JSON.stringify(m.annotations), before);
 });
 
-test('#89 AC-17 telemetry cards expose campaign/publisher tags and only explicit behavior relationships', async () => {
+test('#89 AC-17/19 telemetry sections expose campaign/category tags and only explicit behavior relationships', async () => {
   const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
   const m = publicDraftModel(document), before = JSON.stringify(document), calls = [];
   const root = renderExploration(new FakeDocument(), m, 'telemetry', {}, (...args) => calls.push(args));
   const cards = descendants(root).filter(n => n.className?.includes('telemetry-scope-detail'));
   assert.equal(cards.length, 6);
   for (const card of cards) {
-    assert.ok(card.children[0].className.includes('card-context'));
-    const campaign = descendants(card.children[0]).find(n => n.className?.includes('campaign-tag'));
+    assert.equal(card.children[0].tagName, 'H2');
+    assert.ok(!descendants(card).some(n => n.className?.includes('card-context')));
+    const tags = card.children.find(n => n.className === 'research-tags');
+    assert.ok(tags); assert.match(tags.textContent, /Campaigns tagged/); assert.match(tags.textContent, /Categories/);
+    const campaign = descendants(tags).find(n => n.className?.includes('campaign-tag'));
     await campaign.trigger('click'); assert.equal(calls.pop()[0], 'cases');
     const publishers = descendants(card).find(n => n.className === 'publisher-tags');
     assert.ok(publishers.children.length);
@@ -368,7 +371,7 @@ test('#89 AC-17 telemetry cards expose campaign/publisher tags and only explicit
       assert.doesNotMatch(link.textContent, /^Source:/);
       await link.trigger('click'); assert.equal(calls.pop()[0], 'sources');
     }
-    const groups = descendants(card).filter(n => n.getAttribute?.('data-related-group'));
+    const groups = descendants(card).filter(n => n.className === 'related-research').flatMap(descendants).filter(n => n.getAttribute?.('data-related-group'));
     assert.ok(groups.length);
     for (const group of groups) {
       assert.equal(group.getAttribute('data-related-group'), 'behaviors');
@@ -378,6 +381,58 @@ test('#89 AC-17 telemetry cards expose campaign/publisher tags and only explicit
     }
   }
   assert.equal(JSON.stringify(document), before);
+});
+
+test('#89 AC-19 prompts, telemetry and attack paths use association sections without repeated top context', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), before = JSON.stringify(document), doc = new FakeDocument();
+  for (const view of ['prompts', 'telemetry', 'paths']) {
+    const root = renderExploration(doc, m, view, {}, () => {});
+    assert.ok(!descendants(root).some(n => n.className?.includes('card-context')), view);
+    const sections = descendants(root).filter(n => n.className === 'research-tags');
+    assert.ok(sections.length, view);
+    for (const tags of sections) {
+      assert.deepEqual(tags.children.map(n => n.getAttribute('data-related-group')), ['campaigns', 'categorizations']);
+      assert.equal(tags.children[0].children[0].textContent, 'Campaigns tagged');
+      assert.equal(tags.children[1].children[0].textContent, 'Categories');
+      const badges = descendants(tags).filter(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+      assert.ok(badges.length); assert.ok(badges.every(n => n.textContent.endsWith(' · Pending')));
+    }
+  }
+  assert.equal(JSON.stringify(document), before);
+  for (const view of ['tools', 'behaviors']) {
+    assert.ok(descendants(renderExploration(doc, m, view, {}, () => {})).some(n => n.className?.includes('card-context')), view);
+  }
+});
+
+test('#89 AC-19 one exact prompt lists multiple campaigns with deduplicated categories and respects case/source filters', async () => {
+  const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
+  const m = publicDraftModel(document), annotation = m.annotations.find(a => a.responses?.length);
+  const original = aiLibrary(m, 'prompts').find(r => r.annotations.includes(annotation));
+  const second = { ...structuredClone(m.cases.get(annotation.caseId)), id: 'synthetic-shared-prompt-case', name: 'Synthetic second campaign',
+    sourceIds: [annotation.sourceId], pathIds: [], summaryClaimIds: [] };
+  m.corpus.cases.push(second); m.cases.set(second.id, second);
+  const category = m.corpus.categorizations.find(c => c.caseId === annotation.caseId && c.sourceIds.includes(annotation.sourceId) && c.value === 'Victim-side agent abuse');
+  const claim = { ...structuredClone(m.claims.get(category.supportingClaimIds[0])), id: 'synthetic-shared-prompt-claim', caseId: second.id };
+  m.corpus.claims.push(claim); m.claims.set(claim.id, claim);
+  m.corpus.categorizations.push({ ...structuredClone(category), id: 'synthetic-shared-prompt-category', caseId: second.id, supportingClaimIds: [claim.id] });
+  m.annotations.push({ ...structuredClone(annotation), id: 'synthetic-shared-prompt-annotation', caseId: second.id, claimIds: [claim.id], responses: [] });
+  const before = JSON.stringify({ corpus: m.corpus, annotations: m.annotations }), calls = [];
+  const render = filters => renderExploration(new FakeDocument(), m, 'prompts', filters, (...args) => calls.push(args), original.id);
+  const root = render({}), tags = descendants(root).find(n => n.className === 'research-tags');
+  const campaigns = descendants(tags).filter(n => n.tagName === 'BUTTON' && n.className.includes('campaign-tag'));
+  assert.equal(campaigns.length, 2);
+  for (const campaign of campaigns) await campaign.trigger('click');
+  assert.deepEqual(new Set(calls.map(call => call[1])), new Set([annotation.caseId, second.id]));
+  assert.equal(descendants(tags).filter(n => n.tagName === 'BUTTON' && n.className.includes('campaign-category-badge')).length, 1);
+  assert.equal(descendants(root).filter(n => n.className === 'artifact-value' && n.textContent === annotation.value).length, 1);
+  const scoped = render({ cases: [annotation.caseId] });
+  assert.doesNotMatch(scoped.textContent, /Synthetic second campaign/);
+  assert.equal(descendants(scoped).filter(n => n.className?.includes('campaign-tag')).length, 1);
+  const otherSource = m.corpus.sources.find(s => s.id !== annotation.sourceId && s.publisher === 'Panther');
+  const other = render({ sources: [otherSource.id] });
+  assert.doesNotMatch(other.textContent, /Synthetic second campaign/);
+  assert.equal(JSON.stringify({ corpus: m.corpus, annotations: m.annotations }), before);
 });
 
 test('#89 AC-13 related research rejects invalid support and proximity and refreshes late annotations and exclusions', () => {
