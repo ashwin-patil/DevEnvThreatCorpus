@@ -1,4 +1,4 @@
-import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline, researchRelationships, telemetryScopeEntries, researchSources } from './model.mjs';
+import { metadata, dateLabel, linkedClaims, passageSegments, conflictPairs, caseSourceIds, comparisonTimeline, researchRelationships, telemetryScopeEntries, researchSources, reviewLabel } from './model.mjs';
 import { publisherDisplay, sourceInventory, canonicalArticleUrl } from './research-inventory.mjs';
 import { campaignCategoryGroups, telemetryCategoryGroups, categoryRule } from './campaign-categories.mjs';
 
@@ -326,12 +326,14 @@ function categoryBadges(doc, model, caseIds, sourceIds, scope, navigate, include
     }
   }
   for (const group of groups.values()) {
-    const states = [...new Set(group.records.map(c => c.itemReview?.state ?? c.disposition))];
-    const state = states.length !== 1 ? 'Pending' : states[0] === 'Accepted' ? 'Recorded acceptance' : states[0];
-    const label = `${group.value} · ${state}`, className = `usage-key ${scope ? 'telemetry-scope-badge' : 'campaign-category-badge'}`;
+    const states = [...new Set(group.records.map(c => c.itemReview ? reviewLabel(c.itemReview)
+      : c.disposition === 'Pending' ? 'Awaiting review' : c.disposition === 'Accepted' ? 'Recorded acceptance' : c.disposition))];
+    const state = states.length !== 1 ? 'Mixed review statuses' : states[0];
+    const label = group.value, className = `usage-key ${scope ? 'telemetry-scope-badge' : 'campaign-category-badge'}`;
     const badge = scope && navigate ? action(doc, label, () => navigate('telemetry', group.records[0].id, sourceIds ? [...sourceIds][0] : ''), className)
       : navigate ? action(doc, label, () => navigate('cases', group.caseId), className) : element(doc, 'span', label, className);
-    badge.title = `${group.description} ${scope ? 'Collection scope only; logs, coverage and deployment are not established.' : 'Classification does not establish successful abuse.'}`;
+    badge.title = `Review: ${state}. ${group.description} ${scope ? 'Collection scope only; logs, coverage and deployment are not established.' : 'Classification does not establish successful abuse.'}`;
+    badge.setAttribute('aria-label', `${group.value}: ${state}`);
     if (states.length !== 1) badge.title += ` Recorded review states: ${states.join(', ')}.`;
     badge.setAttribute('data-category-basis', group.inherited ? 'campaign-context' : 'source-supported');
     if (group.inherited) badge.title += ' Campaign-level association only; this blog is not independently classified by this badge.';
@@ -397,7 +399,7 @@ export function renderCampaignCategories(doc, model, caseId, navigate, openRevie
     for (const category of group.records) {
       const block = element(doc, 'div', null, 'category-evidence');
       const rule = categoryRule(category);
-      block.append(element(doc, 'p', `${category.origin} · ${category.itemReview?.state ?? category.disposition}${rule ? ` · ${rule.version}/${rule.id}` : ''}`, 'subtle'));
+      block.append(element(doc, 'p', `${category.origin} · ${category.itemReview ? reviewLabel(category.itemReview) : category.disposition === 'Pending' ? 'Awaiting review' : category.disposition}${rule ? ` · ${rule.version}/${rule.id}` : ''}`, 'subtle'));
       for (const id of category.supportingClaimIds) block.append(claimCitation(doc, model, id, navigate, scope ? 'Scope evidence' : 'Category evidence'));
       details.append(block);
     }

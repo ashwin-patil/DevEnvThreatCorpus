@@ -178,6 +178,24 @@ source text and existing protected review workflow; public display is not a
 recorded human decision. Independent semantic, rights/privacy, documentation,
 README relevance and UX/accessibility review remain outstanding.
 
+### Authorized private review recovery - Issue #91
+
+The owner subsequently authorized using this public projection as the baseline,
+recovering matching evidence, and including tools, prompts/responses and behaviors
+in the private HITL review. The [recovery CLI](reference/cli.md#recover-an-authorized-public-pending-baseline)
+requires a frozen exact file hash and separately collected private source text.
+It preserves the 308 typed rows' identities, 12 tool occurrences and four prompt
+occurrences; omitted evidence is restored only after normalized revision and
+quotation checks. Tool/prompt/response claim dependencies remain explicit.
+Historical raw responses and extraction-run metadata are not reconstructed.
+All records stay Pending until separate current human decisions.
+
+This opt-in recovery is not a generic import of locator-only public JSON.
+The public JSON/ZIP are unchanged; no source bodies, review decisions or gold
+export are added to the repository. Follow the
+[publisher review checklist](researcher-review-guide.md#public-baseline-recovery-and-review-checklist);
+independent evaluation, comparison/adjudication and publication gates remain open.
+
 ## Historical public snapshot and comparison tooling
 
 Issue #85 adds protected staged regeneration/comparison tooling, not a refreshed

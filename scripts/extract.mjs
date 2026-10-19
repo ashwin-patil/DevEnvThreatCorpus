@@ -6,6 +6,7 @@ import { benignChunkReport } from '../src/chunks.mjs';
 import { runAdapter } from '../src/model-adapter.mjs';
 import { runStage } from '../src/stages.mjs';
 import { runComparison } from '../src/stage-comparison.mjs';
+import { runPendingRecovery } from '../src/nx-recovery.mjs';
 import { applyCampaignCategories } from '../src/campaign-categories.mjs';
 import {
   assertValid, canonicalSerialize, digest, readPrivateTemplate, sha256, stableId, updatePrivateCorpus,
@@ -151,6 +152,12 @@ export async function runExtraction({ templateFile, store, suppliedBy }) {
 }
 
 async function cli(args) {
+  if (args[0] === 'recover-public') {
+    const values = commandOptions(args.slice(1), ['--baseline', '--baseline-sha256', '--retrieval-store', '--output-store']);
+    return values ? runPendingRecovery({ baselineFile: values['--baseline'], baselineHash: values['--baseline-sha256'],
+      retrievalStore: values['--retrieval-store'], outputStore: values['--output-store'] })
+      : { status: 'failed', code: 'INVALID_INPUT' };
+  }
   if (args[0] === 'stage') return stageCli(args.slice(1));
   if (args[0] === 'regeneration') return comparisonCli(args.slice(1));
   if (args[0] === 'campaign') return campaignCli(args.slice(1));

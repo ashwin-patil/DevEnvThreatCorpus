@@ -70,7 +70,7 @@ export function mountWorkbench(doc, win, fetcher = win.fetch.bind(win)) {
     render();
   }
   function openReview(caseId, sourceId = '', filter = 'All', category = '') {
-    reviewNav = { caseId, sourceId, filter, category, group: 'category', queue: 'priority', itemKey: '', type: '',
+    reviewNav = { caseId, sourceId, filter, category, group: 'category', queue: filter === 'All' ? 'priority' : 'all', itemKey: '', type: '',
       mode: model?.reviewDemo ? 'synthetic' : '' };
     reviewWindowNavigation(win, reviewNav);
     navigate('review', caseId);

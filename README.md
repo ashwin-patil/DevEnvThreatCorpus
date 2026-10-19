@@ -27,8 +27,10 @@ Campaign cards put AI-role badges at top-right; **Log Collection/Telemetry Scope
 tags open supporting claims in **Security telemetry**, rather than expanding
 evidence on each campaign/blog card. Research library blogs keep source-supported
 tags distinct from campaign context in their tooltip/provenance when a role has
-not been independently extracted for that blog. Visible unreviewed badges say
-**Pending**, without scope/context suffixes. Claims link back to explicitly
+not been independently extracted for that blog. Category badges show classification
+names without repeated review-state suffixes; tooltips/accessibility labels and
+expanded category evidence retain the status. Private campaign/blog cards show
+reviewed-item coverage separately. Claims link back to explicitly
 supported research objects.
 **Prompt library** defaults to published prompt/response pairs; select **All
 prompts** for prompt-only occurrences. Semgrep's refusal has one concise log-review
@@ -101,6 +103,13 @@ and [researcher evaluation/adoption guide](docs/researcher-review-guide.md#stage
 These commands do not call a model, adopt an extraction, or replace the public
 preview automatically. Native Windows remains public-preview-only.
 
+For an explicitly authorized public-baseline review, the
+[Pending recovery command](docs/reference/cli.md#recover-an-authorized-public-pending-baseline)
+can restore matching retained evidence into a separate POSIX private store.
+It preserves tool/prompt/response claim dependencies and existing behavior IDs,
+but creates no human decisions or gold designation. The public preview stays
+read-only; a public JSON file alone is still not a private review corpus.
+
 **Published research → Source-linked claims → Researcher review and acceptance →
 Campaign patterns and Detection hypotheses**
 
@@ -161,10 +170,11 @@ Start `node scripts/server.mjs --store /absolute/private/store` on POSIX (store
 directory `0700`, `corpus.json` `0600`; inside this clone use ignored
 `.private-intake/`). Open **Review**: campaign categories, grounded AI/coding tools,
 behaviors/occurrences and prompt literals are the first-class category queues; blog grouping remains
-available over the same stable items/decisions. Claims are supporting evidence,
-accessible separately with exceptions and later-pass records, never deleted.
+available over the same stable items/decisions. Start with **Review supporting
+claims**; the **Supporting claims - start here** workload makes prerequisite
+decisions explicit. Claims remain available separately, never deleted.
 Set your self-attested identity once per tab/session, visibly editable (not
-authenticated). Use the [researcher-review/3 guide](docs/researcher-review-guide.md):
+authenticated). Use the [researcher-review/4 guide](docs/researcher-review-guide.md):
 read the compact candidate, evidence/citation and category checklist, then choose
 **Accept item — I confirm** as one explicit personal attestation. Review each
 required support item separately; accepting a candidate never approves a claim.
@@ -177,8 +187,11 @@ Advanced mapping/path/proposal UX is deferred, not approved: these records stay
 Pending/withheld unless independently reviewed. N/A labels are outside label
 denominators; priority counts disclose hidden evidence/deferred records.
 Support review restores the original workload, category, grouping, source and
-filter rather than leaving the advanced queue active. Current exclusions show
-**Human-reviewed · Excluded**, distinct from acceptance and stale review. Identical
+filter rather than leaving the advanced queue active. Primary statuses distinguish
+**Awaiting review**, **Review supporting claims/items first**, **Re-review
+required**, **Evidence unavailable**, **Reviewed - accepted**, **Excluded** and
+**Unsure**. Origin, editing and technical review details remain expandable;
+accepting an AI-derived item records human review, not human authorship. Identical
 exact passages are displayed once with their separate provenance links retained.
 Human-edited tool display identities are shared by Review, library and campaign/blog
 cards; literal source values stay visible and corrected identities do not silently

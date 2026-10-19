@@ -1,5 +1,22 @@
 # Acceptance audit
 
+## Issue #91 - private recovery preparation, human review still outstanding
+
+The user authorized the existing public Nx baseline and matching source recovery,
+then explicitly included tool/prompt/response and behavior review. Recovery is
+preparation for HITL, not completion of this issue. Every criterion below retains
+its stable ID; final-revision commands/results belong on the originating PR.
+
+| Criterion | Implementation / durable evidence anchors | Remaining human outcome |
+|---|---|---|
+| AC-01 | `src/nx-recovery.mjs` pins exact baseline bytes and matching normalized evidence; `tests/nx-recovery.test.mjs` rejects changed/missing sources, bounds and receipts. | Independent pre-output evaluation set is not supplied or retroactively established. |
+| AC-02 | Recovered Pending records and validated annotation claim dependencies; synthetic support/response acceptance and stale-binding checks. | Explicit current item-level human decisions, gold inclusion scope and accepted dependency closure remain outstanding. |
+| AC-03 | Recovery receipt separates historical raw hashes from fresh retrieval revisions, without new generation or copied decisions. | Protected same-revision comparison and independent major-difference adjudication remain outstanding. |
+| AC-04 | Separate protected store, exclusive outputs, unchanged public JSON/ZIP; POSIX integration and Windows fail-fast checks. | Versioned gold manifest, independent rights/privacy review and publication approval remain outstanding. |
+| AC-05 | [Per-publisher checklist](researcher-review-guide.md#public-baseline-recovery-and-review-checklist) covers intake through release; `model.mjs`/`review-ui.mjs` clarify awaiting support versus stale/missing evidence, direct claim navigation and collapsed provenance; card badges retain accessible statuses without repeated suffixes. `tests/workbench.test.mjs` covers labels, unchanged gates, navigation, provenance and scoped coverage. | Independent researcher/documentation/UX/accessibility relevance approval remains outstanding. |
+| AC-06 | Focused tests imported by the configured extraction suite; README, CLI/Nx/researcher docs and root changelog updated. | Exact final-SHA verification and independent approval must be recorded before merge; no agent self-audit substitutes. |
+
+
 ## Issue #83 optional public-research model adapter
 
 Originating requirements: [#83](https://github.com/ashwin-patil/DevEnvThreatCorpus/issues/83).

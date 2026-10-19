@@ -1,3 +1,5 @@
+import { reviewLabel } from './model.mjs';
+
 // Read-only display occurrences: canonical records and historical routes never change.
 const PROJECTED_SUMMARIES = new Map([[
   'case-06efe0e7191796ad8e1bd690e22de800b249ccfb9e8fb905efaf0af28d3f2b02',
@@ -94,7 +96,7 @@ export function evidenceLabel(status) {
 }
 export function originReview(record) {
   const r = record.itemReview;
-  if (r) return `${r.contentOrigin}${r.editor ? ` · Human-edited by ${r.editor}` : ''} · ${r.state === 'Accepted' ? 'Human-reviewed' : r.state}`;
+  if (r) return `${r.contentOrigin}${r.editor ? ` · Human-edited by ${r.editor}` : ''} · ${reviewLabel(r)}`;
   const origin = ({ 'LLM source paraphrase': 'LLM paraphrase', 'LLM synthesis': 'LLM synthesis' })[record.origin]
     ?? record.origin ?? 'Origin not recorded';
   const review = record.disposition ?? 'Pending';

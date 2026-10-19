@@ -18,3 +18,14 @@ permitted source in a network-capable environment, inspect per-image results,
 and distinguish unavailable agent DNS from application parsing errors. Keep
 real source bodies, assets, and private corpus files out of Git and public test
 logs; use synthetic regression snippets and report source URLs/outcomes only.
+
+Recovery from a public projection adds two distinct hash boundaries. A Windows
+CRLF checkout and the committed LF JSON can have identical parsed records but
+different file-byte hashes. Diagnose against the exact committed blob and retain
+both receipts; do not silently normalize bytes before an exact-file integrity gate.
+
+Likewise, refreshed dynamic HTML may have a different raw hash while its normalized
+article hash and code-point offsets match exactly. That can recover omitted passage
+text, not the historical raw response or private generation run. Keep new raw
+archives under their own identities, retain missing originals as missing, and
+preserve source-local claim dependencies when restoring artifact review records.

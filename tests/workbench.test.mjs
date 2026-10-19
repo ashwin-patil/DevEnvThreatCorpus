@@ -11,7 +11,7 @@ import {
   COMPARISON_DIMENSIONS, COMPARISON_FACETS, DATE_TYPES, dateBounds, matchesDate,
   comparisonRecords, comparisonTimeline, comparisonCoverage,
   telemetryScopeEntries, researchRelationships, campaignMetrics, researchPresentation, CAMPAIGN_SECTIONS,
-  researchSources,
+  researchSources, reviewLabel,
 } from '../src/model.mjs';
 import { element, renderClaim, renderConflicts, renderSourceText, renderSource, renderCase, renderComparison, caseCitations, safeExternalUrl, sourceCitation, claimCitation, reviewChip, reviewLegend } from '../src/render.mjs';
 import { fetchCorpus, mountWorkbench } from '../src/app.mjs';
@@ -36,9 +36,9 @@ import { graphRouter, segmentClear, NODE_WIDTH, NODE_HEIGHT } from '../src/graph
 import { aiLibrary, toolIdentity } from '../src/ai-library.mjs';
 import { publicDraftModel } from '../src/public-profile.mjs';
 import { PUBLIC_DRAFT_URL } from '../src/app.mjs';
-import { applyItemReview, reviewSnapshot } from '../src/hitl.mjs';
+import { applyItemReview, reviewSnapshot, progressSummary } from '../src/hitl.mjs';
 import { GUIDE_VERSION, confirmationFor } from '../src/review-guide.mjs';
-import { renderReview, reviewNavigation, reviewSession, supportNavigation, returnFromSupport } from '../src/review-ui.mjs';
+import { renderReview, reviewGroups, reviewNavigation, reviewSession, supportNavigation, returnFromSupport } from '../src/review-ui.mjs';
 
 test('public draft rejects retained bodies, attestation and acceptance without changing private corpus import', () => {
   const input = { schemaVersion: 'public-draft/1', profile: 'draft', snapshotDigest: 'a'.repeat(64),
@@ -84,14 +84,15 @@ test('public loader falls back only for static API absence or explicitly bundled
 const fixture = JSON.parse(await readFile(new URL('./fixtures/benign/core-only.json', import.meta.url), 'utf8'));
 const researchFixture = JSON.parse(await readFile(new URL('./fixtures/benign/research-views.json', import.meta.url), 'utf8'));
 
-test('#89 AC-06 current public campaign shows one Pending badge with four independent category evidence links', async () => {
+test('#89 AC-06 current public campaign shows one classification badge with retained review status and four independent evidence links', async () => {
   const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
   const m = publicDraftModel(document), before = JSON.stringify(document), calls = [];
   const groups = campaignCategoryGroups(m.corpus, m.corpus.cases[0].id);
   assert.equal(groups.length, 1); assert.equal(groups[0].records.length, 4);
   const root = renderCaseLibrary(new FakeDocument(), m, m.corpus.cases, (...args) => calls.push(args));
   const badges = descendants(root).filter(n => n.className?.includes('campaign-category-badge') && n.tagName === 'BUTTON');
-  assert.equal(badges.length, 1); assert.equal(badges[0].textContent, 'Victim-side agent abuse · Pending');
+  assert.equal(badges.length, 1); assert.equal(badges[0].textContent, 'Victim-side agent abuse');
+  assert.match(badges[0].getAttribute('aria-label'), /Awaiting review/);
   const evidence = descendants(root).filter(n => n.tagName === 'BUTTON' && n.textContent.startsWith('Category evidence'));
   assert.equal(evidence.length, 4); await evidence[0].trigger('click');
   assert.equal(calls[0][0], 'claims'); assert.ok(m.claims.has(calls[0][1]));
@@ -117,7 +118,7 @@ test('#89 AC-07 public catalogue uses the complete current reference without rep
   assert.equal(m.corpus.mappings.length, 2);
 });
 
-test('#89 AC-10/16/18 blog headers retain category basis behind simple Pending labels and publishers below titles', async () => {
+test('#89 AC-10/16/18 blog headers retain category basis and review status behind classification labels and publishers below titles', async () => {
   const document = JSON.parse(await readFile(new URL('../src/data/nx-draft.json', import.meta.url), 'utf8'));
   const m = publicDraftModel(document), doc = new FakeDocument();
   const campaign = renderCaseLibrary(doc, m, m.corpus.cases, () => {});
@@ -138,7 +139,8 @@ test('#89 AC-10/16/18 blog headers retain category basis behind simple Pending l
     assert.match(category.textContent, /Victim-side agent abuse/);
     const supported = ['Nx', 'Wiz', 'Semgrep', 'Panther'].includes(publisher);
     assert.equal(category.getAttribute('data-category-basis'), supported ? 'source-supported' : 'campaign-context', publisher);
-    assert.equal(category.textContent, 'Victim-side agent abuse · Pending', publisher);
+    assert.equal(category.textContent, 'Victim-side agent abuse', publisher);
+    assert.match(category.getAttribute('aria-label'), /Awaiting review/);
     assert.doesNotMatch(card.textContent, /Pending scope|Pending.*campaign context/i);
     assert.ok(!card.textContent.includes('Cloud control-plane audit'));
     assert.ok(!card.textContent.includes('Identity & access logs'));
@@ -178,14 +180,17 @@ test('#89 AC-10 alias blogs deduplicate categories across cases while preserving
   const root = render(), header = descendants(root).find(n => n.className?.includes('card-context'));
   assert.equal(descendants(root).filter(n => n.className?.includes('blog-card')).length, 1);
   assert.equal(descendants(header).filter(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge')).length, 1);
-  assert.match(header.textContent, /Victim-side agent abuse · Pending/);
+  assert.match(header.textContent, /Victim-side agent abuse/);
+  assert.doesNotMatch(header.textContent, /Pending|Blocked\/support changed|Reviewed - accepted/);
   const mixed = descendants(header).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
-  assert.match(mixed.title, /Recorded review states: Pending, Accepted/);
+  assert.match(mixed.title, /Recorded review states: Awaiting review, Reviewed - accepted/);
+  assert.match(mixed.getAttribute('aria-label'), /Mixed review statuses/);
   const selected = descendants(render({ cases: [c.cases[0].id] })).find(n => n.className?.includes('card-context'));
-  assert.match(selected.textContent, /Pending/); assert.doesNotMatch(selected.textContent, /Mixed/);
+  const selectedBadge = descendants(selected).find(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
+  assert.match(selectedBadge.title, /Review: Awaiting review/); assert.doesNotMatch(selectedBadge.title, /Mixed/);
   original.disposition = 'Excluded';
   const localOnly = descendants(render()).find(n => n.className?.includes('card-context'));
-  assert.match(localOnly.textContent, /Recorded acceptance/);
+  assert.ok(descendants(localOnly).some(n => n.className?.includes('campaign-category-badge') && /Review: Reviewed - accepted/.test(n.title)));
   assert.doesNotMatch(localOnly.textContent, /Mixed review states|campaign context/);
   original.disposition = 'Excluded'; second.disposition = 'Excluded';
   const excludedHeader = descendants(render()).find(n => n.className?.includes('card-context'));
@@ -281,7 +286,8 @@ test('#89 AC-16 campaign header action is adjacent and category/publisher contex
     assert.ok(category); await category.trigger('click');
     assert.deepEqual(calls.pop(), ['cases', m.corpus.cases[0].id]);
     if (category.getAttribute('data-category-basis') === 'campaign-context') {
-      contextCount++; assert.equal(category.textContent, 'Victim-side agent abuse · Pending');
+      contextCount++; assert.equal(category.textContent, 'Victim-side agent abuse');
+      assert.match(category.getAttribute('aria-label'), /Awaiting review/);
       assert.match(category.title, /not independently classified/);
     }
     await card.children[2].children[0].trigger('click');
@@ -396,7 +402,8 @@ test('#89 AC-19 prompts, telemetry and attack paths use association sections wit
       assert.equal(tags.children[0].children[0].textContent, 'Campaigns tagged');
       assert.equal(tags.children[1].children[0].textContent, 'Categories');
       const badges = descendants(tags).filter(n => n.tagName === 'BUTTON' && n.className?.includes('campaign-category-badge'));
-      assert.ok(badges.length); assert.ok(badges.every(n => n.textContent.endsWith(' · Pending')));
+      assert.ok(badges.length);
+      assert.ok(badges.every(n => n.textContent === 'Victim-side agent abuse' && /Awaiting review/.test(n.getAttribute('aria-label'))));
     }
   }
   assert.equal(JSON.stringify(document), before);
@@ -1787,6 +1794,123 @@ function reviewView(fixture, itemKey, change = () => {}, nav = {}) {
   return renderReview(new FakeDocument(), model, state, { caseId: fixture.corpus.cases[0].id, itemKey, ...nav },
     { change, decide: () => {}, navigate: () => {} });
 }
+test('#91 AC-05 review labels separate unreviewed support, structural blockers and stale decisions without changing gates', () => {
+  const f = reviewFixture(), before = digest(f.corpus), state = f.snapshot();
+  const claim = state.units.find(u => u.itemKey === f.claimKey), artifact = state.units.find(u => u.itemKey === f.key);
+  assert.equal(reviewLabel(claim), 'Awaiting review');
+  assert.equal(reviewLabel(artifact), 'Review supporting claims first');
+  assert.equal(artifact.state, 'Blocked/support changed');
+  assert.equal(artifact.eligible, false);
+  assert.equal(reviewLabel({ ...artifact, structurallyBlocked: true }), 'Evidence unavailable');
+  assert.equal(reviewLabel({ ...artifact, stale: true }), 'Re-review required');
+  assert.equal(reviewLabel({ state: 'Blocked/support changed' }), 'Review blocked');
+  assert.equal(digest(f.corpus), before);
+  assert.throws(() => f.decide(f.key), error => error.code === 'BLOCKED_REVIEW');
+  f.decide(f.claimKey);
+  assert.equal(reviewLabel(f.snapshot().units.find(u => u.itemKey === f.key)), 'Awaiting review');
+  f.decide(f.key);
+  assert.equal(reviewLabel(f.snapshot().units.find(u => u.itemKey === f.key)), 'Reviewed - accepted');
+  f.corpus.claims[0].description += ' Changed source-linked candidate.';
+  assert.equal(reviewLabel(f.snapshot().units.find(u => u.itemKey === f.key)), 'Re-review required');
+  assert.equal(f.snapshot().units.find(u => u.itemKey === f.key).eligible, false);
+});
+
+test('#91 AC-05 supporting-claim navigation and progress filters do not hide the initial claim workload', async () => {
+  const f = reviewFixture(), changes = [], state = f.snapshot(), caseId = f.corpus.cases[0].id;
+  const hidden = reviewGroups(state.units, { caseId, queue: 'priority', filter: 'Needs review' });
+  assert.equal(hidden.records.length, 0);
+  const view = reviewView(f, '', value => changes.push(value), { queue: 'priority', filter: 'Needs review' });
+  assert.match(visibleText(view), /No items match this workload and these filters/);
+  await button(view, 'Review supporting claims').trigger('click');
+  const ready = reviewGroups(state.units, { caseId, ...changes.at(-1) });
+  assert.ok(ready.records.length);
+  assert.ok(ready.records.every(u => u.type === 'claims' && u.state === 'Needs review'));
+  state.campaigns[caseId] = progressSummary(f.corpus, state, caseId);
+  const progress = renderReview(new FakeDocument(), createModel(f.corpus), state,
+    { caseId, queue: 'priority', category: 'tools', filter: 'All' },
+    { change: value => changes.push(value), decide() {}, navigate() {} });
+  await button(progress, 'Awaiting review').trigger('click');
+  assert.equal(changes.at(-1).queue, 'all');
+  assert.equal(changes.at(-1).category, '');
+  assert.ok(reviewGroups(state.units, { caseId, ...changes.at(-1) }).records.some(u => u.itemKey === f.claimKey));
+  const waiting = reviewGroups(state.units, { caseId, queue: 'all', filter: 'Awaiting support' });
+  assert.ok(waiting.records.some(u => u.itemKey === f.key));
+  assert.ok(!reviewGroups(state.units, { caseId, filter: 'Re-review required' }).records.length);
+  const unit = state.units.find(u => u.itemKey === f.key);
+  unit.stale = true;
+  assert.ok(reviewGroups(state.units, { caseId, filter: 'Re-review required' }).records.includes(unit));
+  assert.ok(!reviewGroups(state.units, { caseId, filter: 'Awaiting support' }).records.includes(unit));
+  unit.stale = false; unit.structurallyBlocked = true;
+  assert.ok(reviewGroups(state.units, { caseId, filter: 'Evidence unavailable' }).records.includes(unit));
+});
+
+test('#91 AC-05 primary review stays concise while AI origin, edits and review history remain inspectable', () => {
+  const f = reviewFixture();
+  f.corpus.claims[0].origin = 'LLM source paraphrase';
+  const view = reviewView(f, f.claimKey);
+  assert.match(visibleText(view), /Awaiting review/);
+  assert.doesNotMatch(visibleText(view), /No human content edit|Not currently human-reviewed|LLM-derived \(original/);
+  const details = descendants(view).find(n => n.tagName === 'DETAILS'
+    && n.children[0]?.textContent === 'Origin, edits and technical review details');
+  assert.ok(details && !details.open);
+  assert.match(details.textContent, /LLM-derived \(original contribution retained\)/);
+  assert.match(details.textContent, /not human authorship/);
+  f.decide(f.claimKey);
+  const accepted = reviewView(f, f.claimKey);
+  assert.match(visibleText(accepted), /Reviewed - accepted/);
+  assert.match(accepted.textContent, /LLM-derived \(original contribution retained\)/);
+  assert.match(accepted.textContent, /Human-reviewed · Accepted/);
+  assert.equal(f.corpus.claims[0].origin, 'LLM source paraphrase');
+});
+
+test('#91 AC-05 campaign and blog status actions open matching claims instead of an empty priority queue', async () => {
+  for (const view of ['cases', 'sources']) {
+    const f = reviewFixture(), doc = new FakeDocument(), win = fakeWindow(`#${view}`);
+    const state = f.snapshot(), caseId = f.corpus.cases[0].id, sourceId = f.corpus.sources[0].id;
+    state.campaigns[caseId] = progressSummary(f.corpus, state, caseId);
+    state.sources[sourceId] = progressSummary(f.corpus, state, null, [sourceId]);
+    const app = mountWorkbench(doc, win, async endpoint => {
+      if (endpoint === '/api/review') return response(state);
+      if (endpoint === '/api/enrichment') return response({ schemaVersion: 'talk-enrichment/1', annotations: f.annotations });
+      return response(structuredClone(f.corpus), 200, true);
+    });
+    await app.ready;
+    const content = doc.getElementById('content');
+    await button(content, 'Awaiting review').trigger('click');
+    assert.equal(parseRoute(win.location.hash).view, 'review');
+    const queue = descendants(content).find(node => node.getAttribute?.('aria-label') === 'Review queue');
+    assert.ok(button(queue, f.corpus.claims[0].description));
+    assert.doesNotMatch(queue.textContent, /No items match/);
+    assert.equal(descendants(content).find(node => node.tagName === 'SELECT'
+      && node.children.some(option => option.value === 'priority')).value, 'all');
+  }
+});
+
+test('#91 AC-05 campaign and blog cards keep classification names separate from review coverage and detailed statuses', () => {
+  const f = reviewFixture(), m = createModel(f.corpus);
+  m.itemReview = f.snapshot(); m.annotations = f.annotations;
+  const before = digest(f.corpus), projected = applyReviewProjection(m), doc = new FakeDocument();
+  for (const card of [
+    renderCaseLibrary(doc, projected, projected.corpus.cases, () => {}),
+    renderResearchLibrary(doc, projected, projected.corpus.sources, () => {}),
+  ]) {
+    assert.match(visibleText(card), /Review: 0\/\d+ items reviewed/);
+    const badges = descendants(card).filter(n => ['BUTTON', 'SPAN'].includes(n.tagName)
+      && /campaign-category-badge|telemetry-scope-badge/.test(n.className ?? ''));
+    assert.ok(badges.length);
+    for (const badge of badges) {
+      assert.doesNotMatch(badge.textContent, /Pending|Blocked\/support changed|Reviewed - accepted/);
+      assert.match(badge.getAttribute('aria-label'), /Awaiting|support|unavailable|blocked/);
+    }
+    assert.doesNotMatch(visibleText(card), /Blocked\/support changed/);
+  }
+  assert.equal(digest(f.corpus), before);
+  f.decide(f.claimKey, 'exclude', { exclusionReason: 'unsupported' });
+  m.itemReview = f.snapshot();
+  const excluded = applyReviewProjection(m);
+  assert.match(visibleText(renderCaseLibrary(doc, excluded, excluded.corpus.cases, () => {})), /Review: 1\/\d+ items reviewed/);
+  assert.equal(m.itemReview.units.filter(u => u.eligible).length, 0, 'exclusion coverage is not acceptance');
+});
 test('Issue #81 review correction: human-edited tool identity is consistent in Review, library and campaign/blog cards without product merging', () => {
   const f = reviewFixture(); f.decide(f.claimKey);
   f.decide(f.key, 'modify', { patch: { normalizedValue: 'Claude Code' }, rationale: 'Synthetic identity correction.' });

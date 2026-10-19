@@ -53,6 +53,7 @@ export const enrichmentSchema = {
       items: {
         ...shape({
           id: identifier, caseId: referenceIdentifier, sourceId: referenceIdentifier, sourceRevisionId: referenceIdentifier,
+          claimIds: { type: 'array', minItems: 1, maxItems: 100, uniqueItems: true, items: referenceIdentifier },
           type: enumeration(ANNOTATION_TYPES), value: text, normalizedValue: text,
           context: contextSchema,
           evidenceStatus: enumeration(['evidence-backed', 'inference', 'unresolved']),
@@ -168,6 +169,13 @@ export function validateEnrichment(document, corpus) {
       || !source.revisionIds.includes(item.sourceRevisionId) || revision.sourceId !== item.sourceId) {
       reject('unknown or unlinked case/source/revision');
       continue;
+    }
+    for (const id of item.claimIds ?? []) {
+      const claim = corpus.claims.find(record => record.id === id);
+      if (!claim || claim.caseId !== item.caseId || claim.sourceId !== item.sourceId
+        || claim.sourceRevisionId !== item.sourceRevisionId) {
+        reject('supporting claims must exist in the same case/source/revision');
+      }
     }
     try {
       if (item.support?.locator && item.support.locator.end <= item.support.locator.start) {
