@@ -1863,6 +1863,29 @@ test('#91 AC-05 primary review stays concise while AI origin, edits and review h
   assert.equal(f.corpus.claims[0].origin, 'LLM source paraphrase');
 });
 
+test('#91 AC-05 campaign and blog status actions open matching claims instead of an empty priority queue', async () => {
+  for (const view of ['cases', 'sources']) {
+    const f = reviewFixture(), doc = new FakeDocument(), win = fakeWindow(`#${view}`);
+    const state = f.snapshot(), caseId = f.corpus.cases[0].id, sourceId = f.corpus.sources[0].id;
+    state.campaigns[caseId] = progressSummary(f.corpus, state, caseId);
+    state.sources[sourceId] = progressSummary(f.corpus, state, null, [sourceId]);
+    const app = mountWorkbench(doc, win, async endpoint => {
+      if (endpoint === '/api/review') return response(state);
+      if (endpoint === '/api/enrichment') return response({ schemaVersion: 'talk-enrichment/1', annotations: f.annotations });
+      return response(structuredClone(f.corpus), 200, true);
+    });
+    await app.ready;
+    const content = doc.getElementById('content');
+    await button(content, 'Awaiting review').trigger('click');
+    assert.equal(parseRoute(win.location.hash).view, 'review');
+    const queue = descendants(content).find(node => node.getAttribute?.('aria-label') === 'Review queue');
+    assert.ok(button(queue, f.corpus.claims[0].description));
+    assert.doesNotMatch(queue.textContent, /No items match/);
+    assert.equal(descendants(content).find(node => node.tagName === 'SELECT'
+      && node.children.some(option => option.value === 'priority')).value, 'all');
+  }
+});
+
 test('#91 AC-05 campaign and blog cards keep classification names separate from review coverage and detailed statuses', () => {
   const f = reviewFixture(), m = createModel(f.corpus);
   m.itemReview = f.snapshot(); m.annotations = f.annotations;
